@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redemptions — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #13131d;
+      --bg-card-hover: #1a1a2a;
+      --bg-row-alt: rgba(255,255,255,0.025);
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.15);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888aa;
+      --accent: #c07828;
+      --accent-light: #f0a840;
+      --nav-height: 64px;
+      --rarity-mythic:    #01ffff;
+      --rarity-ultra:     #e8ff00;
+      --rarity-grail:     #faa500;
+      --rarity-legendary: #e93494;
+      --rarity-royalty:   #007deb;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Nav ── */
+    .site-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; gap: 0.5rem;
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 1.5rem; height: var(--nav-height);
+    }
+    .nav-home { display: flex; align-items: center; flex-shrink: 0; margin-right: 1rem; }
+    .nav-home img { height: 36px; width: 36px; object-fit: contain; transition: opacity 0.2s; }
+    .nav-home:hover img { opacity: 0.75; }
+    .nav-links { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
+    .nav-link {
+      text-decoration: none; color: var(--text-secondary);
+      font-size: 0.875rem; font-weight: 500;
+      padding: 0.4rem 0.85rem; border-radius: 999px;
+      border: 1px solid transparent;
+      transition: color 0.2s, background 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .nav-link--active {
+      color: var(--accent-light);
+      background: rgba(192,120,40,0.12);
+      border-color: rgba(192,120,40,0.25);
+    }
+    .nav-burger {
+      display: none; flex-direction: column; justify-content: center; gap: 5px;
+      background: none; border: none; cursor: pointer; padding: 0.4rem; margin-left: auto;
+    }
+    .nav-burger span {
+      display: block; width: 22px; height: 2px;
+      background: var(--text-secondary); border-radius: 2px;
+      transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s;
+    }
+    .nav-burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-burger--open span:nth-child(2) { opacity: 0; }
+    .nav-burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .nav-burger--open span { background: var(--text-primary); }
+    .nav-mobile {
+      display: none; flex-direction: column;
+      padding: 0.75rem 1.5rem 1rem;
+      border-top: 1px solid var(--border); gap: 0.25rem;
+    }
+    .nav-mobile .nav-link { font-size: 0.95rem; padding: 0.6rem 1rem; border-radius: 10px; }
+    .nav-mobile--open { display: flex; }
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .nav-burger { display: flex; }
+      .nav-mobile { display: none; }
+      .nav-mobile--open { display: flex; }
+    }
+
+    /* ── Page ── */
+    .page {
+      position: relative; z-index: 1;
+      flex: 1; display: flex; flex-direction: column;
+      max-width: 1100px; width: 100%;
+      margin: 0 auto; padding: 2.5rem 1.5rem 4rem;
+    }
+
+    .page-header { margin-bottom: 2rem; }
+    .page-title { font-size: 1.75rem; font-weight: 700; }
+    .page-title .accent { color: var(--accent-light); }
+    .page-desc { color: var(--text-secondary); margin-top: 0.4rem; font-size: 0.95rem; }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 0.75rem;
+      align-items: center; margin-bottom: 1.5rem;
+    }
+    .search-wrap {
+      position: relative; flex: 1; min-width: 200px;
+    }
+    .search-wrap svg {
+      position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+      width: 16px; height: 16px; fill: var(--text-secondary); pointer-events: none;
+    }
+    .search-input {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text-primary);
+      font-size: 0.9rem; padding: 0.6rem 0.9rem 0.6rem 2.4rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: rgba(192,120,40,0.5); }
+    .search-input::placeholder { color: var(--text-secondary); }
+
+    .filter-select {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text-primary);
+      font-size: 0.875rem; padding: 0.6rem 0.9rem;
+      outline: none; cursor: pointer; transition: border-color 0.2s;
+    }
+    .filter-select:focus { border-color: rgba(192,120,40,0.5); }
+
+    .ctrl-btn {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text-secondary);
+      font-size: 0.8rem; padding: 0.6rem 0.9rem;
+      cursor: pointer; transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .ctrl-btn:hover { color: var(--text-primary); border-color: var(--border-hover); }
+
+    .stats {
+      font-size: 0.8rem; color: var(--text-secondary);
+      margin-left: auto; white-space: nowrap;
+    }
+
+    /* ── Accordion sets ── */
+    .sets-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .set-item {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .set-item:hover { border-color: var(--border-hover); }
+    .set-item.hidden { display: none; }
+
+    .set-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.95rem 1.25rem; cursor: pointer;
+      user-select: none;
+    }
+
+    .set-chevron {
+      width: 18px; height: 18px; flex-shrink: 0;
+      color: var(--text-secondary);
+      transition: transform 0.2s;
+    }
+    .set-item.open .set-chevron { transform: rotate(90deg); }
+
+    .set-name { font-size: 0.95rem; font-weight: 600; flex: 1; }
+
+    .set-meta {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.75rem; color: var(--text-secondary); flex-shrink: 0;
+    }
+    .set-count {
+      background: rgba(255,255,255,0.06); border-radius: 999px;
+      padding: 0.15rem 0.55rem;
+    }
+
+    .set-body { display: none; border-top: 1px solid var(--border); }
+    .set-item.open .set-body { display: block; }
+
+    /* Table */
+    .figures-table { width: 100%; border-collapse: collapse; }
+    .figures-table th {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-secondary);
+      padding: 0.6rem 1.25rem; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .figures-table th:not(:first-child) { text-align: right; }
+
+    .figures-table td {
+      padding: 0.65rem 1.25rem; font-size: 0.875rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .figures-table tr:last-child td { border-bottom: none; }
+    .figures-table tr:nth-child(even) td { background: var(--bg-row-alt); }
+    .figures-table td:not(:first-child) { text-align: right; }
+
+    .rarity-badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 0.15rem 0.5rem; border-radius: 999px;
+      border: 1px solid transparent;
+    }
+    .rarity-mythic    { color: var(--rarity-mythic); background-image: linear-gradient(var(--bg-card), var(--bg-card)), linear-gradient(90deg, #01ffff, #9926c1); background-origin: border-box; background-clip: padding-box, border-box; }
+    .rarity-ultra     { color: var(--rarity-ultra);     border-color: var(--rarity-ultra);     background: rgba(232,255,0,0.08); }
+    .rarity-grail     { color: var(--rarity-grail);     border-color: var(--rarity-grail);     background: rgba(250,165,0,0.12); }
+    .rarity-legendary { color: var(--rarity-legendary); border-color: var(--rarity-legendary); background: rgba(233,52,148,0.12); }
+    .rarity-royalty   { color: var(--rarity-royalty);   border-color: var(--rarity-royalty);   background: rgba(0,125,235,0.12); }
+
+    .pct-bar-wrap { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+    .pct-label { font-size: 0.8rem; width: 42px; text-align: right; color: var(--text-secondary); }
+    .pct-bar {
+      width: 60px; height: 5px; background: rgba(255,255,255,0.08);
+      border-radius: 999px; overflow: hidden; flex-shrink: 0;
+    }
+    .pct-fill { height: 100%; border-radius: 999px; background: var(--accent); }
+    .pct-fill.high { background: #4dd9c0; }
+    .pct-fill.low  { background: #e05252; }
+
+    .no-data {
+      padding: 1.25rem; font-size: 0.85rem;
+      color: var(--text-secondary); font-style: italic;
+      text-align: center;
+    }
+
+    .no-results {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-secondary); font-size: 0.95rem;
+    }
+
+    /* ── Footer ── */
+    footer {
+      position: relative; z-index: 1;
+      text-align: center; padding: 1.5rem;
+      font-size: 0.8rem; color: var(--text-secondary);
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 600px) {
+      .pct-bar { display: none; }
+      .figures-table th:nth-child(3),
+      .figures-table td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Funko NFT <span class="accent">Redemptions</span></h1>
+      <p class="page-desc">Final redemption numbers for all Funko Digital Pop sets on WAX.</p>
+    </div>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search sets or figures…" />
+      </div>
+      <select class="filter-select" id="rarityFilter">
+        <option value="">All Rarities</option>
+        <option value="Mythic">Mythic</option>
+        <option value="Ultra">Ultra</option>
+        <option value="Grail">Grail</option>
+        <option value="Legendary">Legendary</option>
+        <option value="Royalty">Royalty</option>
+      </select>
+      <button class="ctrl-btn" id="expandAll">Expand All</button>
+      <button class="ctrl-btn" id="collapseAll">Collapse All</button>
+      <span class="stats" id="stats"></span>
+    </div>
+
+    <div class="sets-list" id="setsList"></div>
+    <div class="no-results" id="noResults" style="display:none">No sets or figures match your search.</div>
+  </div>
+
+  <footer>&copy; 2026 PopInStock &mdash; All rights reserved.</footer>
+
+  <script src="nav.js"></script>
+  <script>
+  const SETS = [
+    { name: "TMNT x Funko Series 1", figures: [
+      { name: "Bebop", rarity: "Legendary", redeemed: 1166, minted: 1467 },
+      { name: "Casey Jones", rarity: "Legendary", redeemed: 1145, minted: 1467 },
+      { name: "Shredder", rarity: "Legendary", redeemed: 1123, minted: 1467 },
+      { name: "Leonardo", rarity: "Grail", redeemed: 909, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1183, minted: 2160 },
+    ]},
+    { name: "Big Boy x Funko Series 1", figures: [
+      { name: "Big Boy Burger", rarity: "Legendary", redeemed: 1107, minted: 1500 },
+      { name: "Big Boy 1st Edition", rarity: "Grail", redeemed: 758, minted: 999 },
+      { name: "Big Boy with Shake", rarity: "Royalty", redeemed: 1335, minted: 2250 },
+    ]},
+    { name: "Iron Maiden x Funko Series 1", figures: [
+      { name: "Iron Maiden Seventh Son Eddie", rarity: "Legendary", redeemed: 1334, minted: 1620 },
+      { name: "Nights of the Dead Eddie", rarity: "Grail", redeemed: 557, minted: 666 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1635, minted: 2430 },
+    ]},
+    { name: "Freddy Funko Halloween Series 1", figures: [
+      { name: "Freddy Mummy Soda", rarity: "Legendary", redeemed: 1185, minted: 1260 },
+      { name: "Freddy Funko as Skeleton", rarity: "Legendary", redeemed: 1189, minted: 1260 },
+      { name: "Freddy Funko as Devil", rarity: "Grail", redeemed: 927, minted: 999 },
+      { name: "Freddy Funko as Vampire", rarity: "Royalty", redeemed: 1201, minted: 1800 },
+    ]},
+    { name: "Star Trek x Funko Series 1", figures: [
+      { name: "Captain Kirk Blacklight", rarity: "Legendary", redeemed: 1697, minted: 1967 },
+      { name: "Klingon Blacklight", rarity: "Legendary", redeemed: 1720, minted: 1967 },
+      { name: "Scotty Blacklight", rarity: "Legendary", redeemed: 1698, minted: 1967 },
+      { name: "Spock Blacklight", rarity: "Grail", redeemed: 874, minted: 999 },
+      { name: "Freddy Funko Blacklight", rarity: "Royalty", redeemed: 1548, minted: 2422 },
+    ]},
+    { name: "Bob Ross x Funko Series 1", figures: [
+      { name: "Bob Ross Paint Can", rarity: "Legendary", redeemed: 675, minted: 1200 },
+      { name: "Bob Ross Palette", rarity: "Legendary", redeemed: 688, minted: 1200 },
+      { name: "Bob Ross Paint Can", rarity: "Grail", redeemed: 557, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1426, minted: 3600 },
+    ]},
+    { name: "Retro Comics x Funko Series 1", figures: [
+      { name: "Bluto", rarity: "Legendary", redeemed: 1763, minted: 1900 },
+      { name: "Flash Gordon Helmet", rarity: "Legendary", redeemed: 1730, minted: 1900 },
+      { name: "Popeye", rarity: "Grail", redeemed: 945, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 2144, minted: 3198 },
+    ]},
+    { name: "Nickelodeon Cartoons x Funko Series 1", figures: [
+      { name: "Superhero Chuckie", rarity: "Legendary", redeemed: 1410, minted: 1550 },
+      { name: "Ember McClain", rarity: "Legendary", redeemed: 1425, minted: 1550 },
+      { name: "Vlad Plasmius", rarity: "Legendary", redeemed: 1430, minted: 1550 },
+      { name: "Slimed Arnold", rarity: "Legendary", redeemed: 1430, minted: 1550 },
+      { name: "Superhero Tommy", rarity: "Grail", redeemed: 936, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1307, minted: 2000 },
+    ]},
+    { name: "Transformers x Funko Series 1", figures: [
+      { name: "Devastator", rarity: "Legendary", redeemed: 1479, minted: 1550 },
+      { name: "Hot Rod", rarity: "Legendary", redeemed: 1478, minted: 1550 },
+      { name: "Rumble", rarity: "Legendary", redeemed: 1469, minted: 1550 },
+      { name: "Sideswipe", rarity: "Legendary", redeemed: 1463, minted: 1550 },
+      { name: "Optimus Prime", rarity: "Grail", redeemed: 961, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1776, minted: 2397 },
+    ]},
+    { name: "Scooby-Doo x Funko Series 1", figures: [
+      { name: "Charlie the Robot", rarity: "Legendary", redeemed: 1515, minted: 1550 },
+      { name: "The Ghost of Redbeard", rarity: "Legendary", redeemed: 1513, minted: 1550 },
+      { name: "Snow Ghost", rarity: "Legendary", redeemed: 1515, minted: 1550 },
+      { name: "Witch Doctor Soda", rarity: "Legendary", redeemed: 1497, minted: 1550 },
+      { name: "Scooby-Doo Hero", rarity: "Grail", redeemed: 988, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1628, minted: 2000 },
+    ]},
+    { name: "DC x Funko Series 1", figures: [
+      { name: "Batman Gotham by Gaslight", rarity: "Legendary", redeemed: 1903, minted: 2050 },
+      { name: "The Eradicator", rarity: "Legendary", redeemed: 1898, minted: 2050 },
+      { name: "The Flash Rebirth", rarity: "Legendary", redeemed: 1899, minted: 2050 },
+      { name: "Green Lantern Kyle Rayner", rarity: "Legendary", redeemed: 1893, minted: 2050 },
+      { name: "Batman Rebirth", rarity: "Grail", redeemed: 929, minted: 999 },
+      { name: "Freddy Funko as Batman", rarity: "Royalty", redeemed: 2182, minted: 2694 },
+    ]},
+    { name: "Kellogg's x Funko Series 1", figures: [
+      { name: "Coco the Monkey", rarity: "Legendary", redeemed: 1504, minted: 1640 },
+      { name: "Cornelius", rarity: "Legendary", redeemed: 1523, minted: 1640 },
+      { name: "Sugar Pops Pete", rarity: "Legendary", redeemed: 1495, minted: 1640 },
+      { name: "Tony the Tiger Jr.", rarity: "Grail", redeemed: 915, minted: 999 },
+      { name: "Freddy Funko as Dig 'Em", rarity: "Royalty", redeemed: 2315, minted: 3000 },
+    ]},
+    { name: "My Little Pony x Funko Series 1", figures: [
+      { name: "Maud Pie", rarity: "Legendary", redeemed: 1437, minted: 1550 },
+      { name: "Princess Luna", rarity: "Legendary", redeemed: 1438, minted: 1550 },
+      { name: "Queen Chrysalis", rarity: "Legendary", redeemed: 1465, minted: 1550 },
+      { name: "Sunset Shimmer", rarity: "Legendary", redeemed: 1449, minted: 1550 },
+      { name: "Rarity", rarity: "Grail", redeemed: 931, minted: 999 },
+      { name: "Freddy Funko as Spike", rarity: "Royalty", redeemed: 1982, minted: 2400 },
+    ]},
+    { name: "Hanna-Barbera x Funko Series 1", figures: [
+      { name: "Astro", rarity: "Legendary", redeemed: 1584, minted: 1635 },
+      { name: "Elroy Jetson", rarity: "Legendary", redeemed: 1566, minted: 1635 },
+      { name: "George Jetson", rarity: "Legendary", redeemed: 1572, minted: 1635 },
+      { name: "Huckleberry Hound", rarity: "Grail", redeemed: 973, minted: 999 },
+      { name: "Freddy Funko as Space Ghost with Blip", rarity: "Royalty", redeemed: 2400, minted: 3000 },
+    ]},
+    { name: "Jay and Silent Bob x Funko Series 1", figures: [
+      { name: "Jay with No Pants", rarity: "Legendary", redeemed: 1983, minted: 2100 },
+      { name: "Silent Bob with Gas Mask", rarity: "Grail", redeemed: 968, minted: 999 },
+      { name: "Freddy Funko with Mooby Meal", rarity: "Royalty", redeemed: 2300, minted: 2600 },
+    ]},
+    { name: "Avatar Legends x Funko Series 1", figures: [
+      { name: "Bolin as Nuktuk", rarity: "Legendary", redeemed: 2029, minted: 2125 },
+      { name: "Kuruk", rarity: "Legendary", redeemed: 2030, minted: 2125 },
+      { name: "Painted Lady", rarity: "Legendary", redeemed: 2025, minted: 2125 },
+      { name: "Varrick", rarity: "Legendary", redeemed: 2026, minted: 2125 },
+      { name: "Fire Nation Aang", rarity: "Grail", redeemed: 969, minted: 999 },
+      { name: "Freddy Funko in Aang Costume", rarity: "Royalty", redeemed: 3161, minted: 4160 },
+    ]},
+    { name: "Power Rangers x Funko Series 1", figures: [
+      { name: "Red Ranger Dragon Shield, Power Sword and Dragon Dagger", rarity: "Legendary", redeemed: 1831, minted: 1875 },
+      { name: "Ranger Slayer", rarity: "Legendary", redeemed: 1831, minted: 1875 },
+      { name: "Scorpina", rarity: "Legendary", redeemed: 1815, minted: 1875 },
+      { name: "Zordon", rarity: "Legendary", redeemed: 1825, minted: 1875 },
+      { name: "Green Ranger with Sword Darkness", rarity: "Grail", redeemed: 981, minted: 999 },
+      { name: "Freddy Funko Megazord", rarity: "Royalty", redeemed: 2014, minted: 2400 },
+    ]},
+    { name: "DC x Funko Series 2", figures: [
+      { name: "Parallax Hal Jordan", rarity: "Legendary", redeemed: 3164, minted: 4250 },
+      { name: "Batman (Justice Armor)", rarity: "Legendary", redeemed: 3190, minted: 4250 },
+      { name: "Superman (Earth 23)", rarity: "Legendary", redeemed: 3193, minted: 4250 },
+      { name: "Green Arrow Connor Hawke", rarity: "Legendary", redeemed: 3199, minted: 4250 },
+      { name: "Batman Azrael", rarity: "Grail", redeemed: 761, minted: 999 },
+      { name: "Freddy Funko as The Riddler", rarity: "Royalty", redeemed: 3331, minted: 6000 },
+    ]},
+    { name: "Looney Tunes x Funko Series 1", figures: [
+      { name: "Foghorn Leghorn", rarity: "Legendary", redeemed: 1586, minted: 1635 },
+      { name: "Yosemite Sam", rarity: "Legendary", redeemed: 1581, minted: 1635 },
+      { name: "Road Runner", rarity: "Legendary", redeemed: 1583, minted: 1635 },
+      { name: "Wile E. Coyote", rarity: "Grail", redeemed: 983, minted: 999 },
+      { name: "Freddy Funko as Bugs Bunny", rarity: "Royalty", redeemed: 2528, minted: 3000 },
+    ]},
+    { name: "Game of Thrones x Funko Series 1", figures: [
+      { name: "Jaime Lannister with Gold Hand", rarity: "Legendary", redeemed: 2585, minted: 2700 },
+      { name: "Many Faced Arya Stark", rarity: "Legendary", redeemed: 2564, minted: 2700 },
+      { name: "Jaqen H'ghar with Mask", rarity: "Legendary", redeemed: 2570, minted: 2700 },
+      { name: "The Hound Beyond the Wall", rarity: "Legendary", redeemed: 2563, minted: 2700 },
+      { name: "Daenerys Targaryen with Egg", rarity: "Grail", redeemed: 966, minted: 999 },
+      { name: "Jon Snow Wildling", rarity: "Royalty", redeemed: 3155, minted: 4500 },
+    ]},
+    { name: "Freddy Funko Halloween Series 2", figures: [
+      { name: "Reaper Freddy Funko", rarity: "Legendary", redeemed: 1527, minted: 1550 },
+      { name: "Krampus Freddy Funko", rarity: "Legendary", redeemed: 1515, minted: 1550 },
+      { name: "Phantom Freddy Funko", rarity: "Legendary", redeemed: 1519, minted: 1550 },
+      { name: "Space Zombie Freddy Funko", rarity: "Legendary", redeemed: 1525, minted: 1550 },
+      { name: "Invisible Freddy Funko", rarity: "Grail", redeemed: 983, minted: 999 },
+      { name: "Jack-O-Lantern Freddy", rarity: "Royalty", redeemed: 2529, minted: 3000 },
+    ]},
+    { name: "WB Horror x Funko Series 1", figures: [
+      { name: "The Nun with Painting", rarity: "Legendary", redeemed: 1961, minted: 2050 },
+      { name: "The Crooked Man", rarity: "Legendary", redeemed: 1963, minted: 2050 },
+      { name: "Father Karras", rarity: "Legendary", redeemed: 1964, minted: 2050 },
+      { name: "Pennywise with Spider Legs", rarity: "Legendary", redeemed: 1980, minted: 2050 },
+      { name: "Malthus with Annabelle", rarity: "Grail", redeemed: 971, minted: 999 },
+      { name: "Freddy Funko as Georgie", rarity: "Royalty", redeemed: 1911, minted: 2694 },
+    ]},
+    { name: "Matrix x Funko Series 1", figures: [
+      { name: "Morpheus", rarity: "Legendary", redeemed: 1478, minted: 1550 },
+      { name: "Neo", rarity: "Legendary", redeemed: 1474, minted: 1550 },
+      { name: "Trinity", rarity: "Legendary", redeemed: 1491, minted: 1550 },
+      { name: "The Twins", rarity: "Legendary", redeemed: 1491, minted: 1550 },
+      { name: "Neo", rarity: "Grail", redeemed: 966, minted: 999 },
+      { name: "Freddy Funko as Neo", rarity: "Royalty", redeemed: 1522, minted: 2000 },
+    ]},
+    { name: "Elf x Funko Series 1", figures: [
+      { name: "Buddy The Elf", rarity: "Legendary", redeemed: 1527, minted: 1600 },
+      { name: "Leon", rarity: "Legendary", redeemed: 1520, minted: 1600 },
+      { name: "Jovie", rarity: "Legendary", redeemed: 1540, minted: 1600 },
+      { name: "Ming Ming", rarity: "Legendary", redeemed: 1523, minted: 1600 },
+      { name: "Buddy The Elf", rarity: "Grail", redeemed: 953, minted: 999 },
+      { name: "Freddy Funko as Buddy the Elf", rarity: "Royalty", redeemed: 1481, minted: 2000 },
+    ]},
+    { name: "Hasbro Retro Toys x Funko Series 1", figures: [
+      { name: "Furby", rarity: "Legendary", redeemed: 1468, minted: 1550 },
+      { name: "Hungry Hungry Hippos", rarity: "Legendary", redeemed: 1454, minted: 1550 },
+      { name: "Mr. Potato Head Bumblebee", rarity: "Legendary", redeemed: 1452, minted: 1550 },
+      { name: "Stretch Armstrong", rarity: "Legendary", redeemed: 1455, minted: 1550 },
+      { name: "Mr. Potato Head Optimus Prime", rarity: "Grail", redeemed: 952, minted: 999 },
+      { name: "Freddy Funko", rarity: "Royalty", redeemed: 1510, minted: 2000 },
+    ]},
+    { name: "Sid & Marty Krofft Pictures x Funko Series 1", figures: [
+      { name: "Jimmy", rarity: "Legendary", redeemed: 1304, minted: 1400 },
+      { name: "Seymour Spider", rarity: "Legendary", redeemed: 1327, minted: 1400 },
+      { name: "Sleestak", rarity: "Legendary", redeemed: 1331, minted: 1400 },
+      { name: "Horatio J. Hoodoo", rarity: "Grail", redeemed: 955, minted: 999 },
+      { name: "Freddy Funko as Sleestak", rarity: "Royalty", redeemed: 2307, minted: 2700 },
+    ]},
+    { name: "DC Teen Titans Go! x Funko Series 1", figures: [
+      { name: "Aqualad", rarity: "Legendary", redeemed: 1695, minted: 1800 },
+      { name: "Bumblebee", rarity: "Legendary", redeemed: 1718, minted: 1800 },
+      { name: "Red Robin", rarity: "Legendary", redeemed: 1722, minted: 1800 },
+      { name: "Slade", rarity: "Legendary", redeemed: 1737, minted: 1800 },
+      { name: "Titan Robot", rarity: "Grail", redeemed: 966, minted: 999 },
+      { name: "Freddy Funko as Beast Boy", rarity: "Royalty", redeemed: 2017, minted: 2500 },
+    ]},
+    { name: "Nicktoons x Funko Series 2", figures: [
+      { name: "Winslow", rarity: "Legendary", redeemed: 1742, minted: 1800 },
+      { name: "Ed Bighead", rarity: "Legendary", redeemed: 1713, minted: 1800 },
+      { name: "Cynthia", rarity: "Legendary", redeemed: 1732, minted: 1800 },
+      { name: "Professor Membrane", rarity: "Legendary", redeemed: 1731, minted: 1800 },
+      { name: "Rocko", rarity: "Grail", redeemed: 975, minted: 999 },
+      { name: "Freddy Funko as Reptar", rarity: "Royalty", redeemed: 2252, minted: 2700 },
+    ]},
+    { name: "House of the Dragon x Funko Series 1", figures: [
+      { name: "Aemond Targaryen", rarity: "Legendary", redeemed: 2152, minted: 2600 },
+      { name: "Viserys Targaryen", rarity: "Legendary", redeemed: 2177, minted: 2600 },
+      { name: "Rhaenyra Targaryen", rarity: "Legendary", redeemed: 2157, minted: 2600 },
+      { name: "Ser Criston Cole", rarity: "Legendary", redeemed: 2154, minted: 2600 },
+      { name: "Daemon Targaryen", rarity: "Grail", redeemed: 840, minted: 999 },
+      { name: "Vhagar", rarity: "Royalty", redeemed: 1990, minted: 3500 },
+    ]},
+    { name: "Dungeons & Dragons x Funko Series 1", figures: [
+      { name: "Owlbear", rarity: "Legendary", redeemed: 1581, minted: 1640 },
+      { name: "Displacer Beast", rarity: "Legendary", redeemed: 1588, minted: 1640 },
+      { name: "Demogorgon", rarity: "Legendary", redeemed: 1597, minted: 1640 },
+      { name: "Acererak", rarity: "Grail", redeemed: 974, minted: 999 },
+      { name: "Freddy Funko as High Elf", rarity: "Royalty", redeemed: 2113, minted: 2500 },
+    ]},
+    { name: "Hanna-Barbera x Funko Series 2", figures: [
+      { name: "Mighty Mightor", rarity: "Legendary", redeemed: 1925, minted: 2000 },
+      { name: "Birdman", rarity: "Legendary", redeemed: 1912, minted: 2000 },
+      { name: "Mr. Jinks with Dixie and Pixie", rarity: "Legendary", redeemed: 1929, minted: 2000 },
+      { name: "Huckleberry Hound", rarity: "Grail", redeemed: 975, minted: 999 },
+      { name: "Freddy Funko as Lettermen", rarity: "Royalty", redeemed: 1799, minted: 2300 },
+    ]},
+    { name: "Funko April Fools Series 2023", figures: [
+      { name: "Egg", rarity: "Legendary", redeemed: 1927, minted: 2000 },
+      { name: "Freddy Funko", rarity: "Grail", redeemed: 974, minted: 999 },
+      { name: "Baby Freddy", rarity: "Royalty", redeemed: 1984, minted: 2250 },
+    ]},
+    { name: "The Flintstones x Funko Series 1", figures: [
+      { name: "Dino", rarity: "Legendary", redeemed: 1745, minted: 1800 },
+      { name: "Barney Rubble", rarity: "Legendary", redeemed: 1737, minted: 1800 },
+      { name: "Wilma Flintstone holding Pebbles", rarity: "Legendary", redeemed: 1730, minted: 1800 },
+      { name: "Fred Flintstone", rarity: "Grail", redeemed: 977, minted: 999 },
+      { name: "Freddy Funko as Fred Flintstone", rarity: "Royalty", redeemed: 1571, minted: 2000 },
+    ]},
+    { name: "DC's The Dark Knight Trilogy x Funko Series 1", figures: [
+      { name: "Bruce Wayne In Tux", rarity: "Legendary", redeemed: 1820, minted: 1900 },
+      { name: "Scarecrow", rarity: "Legendary", redeemed: 1843, minted: 1900 },
+      { name: "Selina Kyle", rarity: "Legendary", redeemed: 1825, minted: 1900 },
+      { name: "Bane", rarity: "Legendary", redeemed: 1871, minted: 1900 },
+      { name: "Harvey Dent", rarity: "Grail", redeemed: 979, minted: 999 },
+      { name: "Freddy Funko as Lt. James Gordon", rarity: "Royalty", redeemed: 1669, minted: 2400 },
+    ]},
+    { name: "Adventure Time x Funko Series 1", figures: [
+      { name: "Peppermint Butler", rarity: "Legendary", redeemed: 1529, minted: 1600 },
+      { name: "Golb", rarity: "Legendary", redeemed: 1532, minted: 1600 },
+      { name: "Lady Rainicorn", rarity: "Legendary", redeemed: 1539, minted: 1600 },
+      { name: "Randy Butternubs", rarity: "Legendary", redeemed: 1513, minted: 1600 },
+      { name: "Finn the Human", rarity: "Grail", redeemed: 960, minted: 999 },
+      { name: "Freddy Funko in Jake Suit", rarity: "Royalty", redeemed: 1766, minted: 2300 },
+    ]},
+    { name: "IT x Funko Series 1", figures: [
+      { name: "Lumberjack", rarity: "Legendary", redeemed: 1745, minted: 1800 },
+      { name: "Leper", rarity: "Legendary", redeemed: 1723, minted: 1800 },
+      { name: "Henry Bowers", rarity: "Legendary", redeemed: 1734, minted: 1800 },
+      { name: "Patrick Hockstetter", rarity: "Legendary", redeemed: 1738, minted: 1800 },
+      { name: "Pennywise (Defeated)", rarity: "Grail", redeemed: 979, minted: 999 },
+      { name: "Freddy Funko as Pennywise (Meltdown)", rarity: "Royalty", redeemed: 1811, minted: 2500 },
+    ]},
+    { name: "Stranger Things x Funko Series 1", figures: [
+      { name: "Will The Wise", rarity: "Legendary", redeemed: 2362, minted: 3000 },
+      { name: "Lucas", rarity: "Legendary", redeemed: 2318, minted: 3000 },
+      { name: "Dustin", rarity: "Legendary", redeemed: 2314, minted: 3000 },
+      { name: "Mike", rarity: "Legendary", redeemed: 2302, minted: 3000 },
+      { name: "Dragon", rarity: "Grail", redeemed: 878, minted: 1106 },
+      { name: "Freddy Funko as Eddie Munson", rarity: "Royalty", redeemed: 2122, minted: 3600 },
+    ]},
+    { name: "Power Rangers x Funko Series 2", figures: [
+      { name: "Tommy", rarity: "Legendary", redeemed: 1718, minted: 1900 },
+      { name: "Kimberly", rarity: "Legendary", redeemed: 1688, minted: 1900 },
+      { name: "Billy", rarity: "Legendary", redeemed: 1684, minted: 1900 },
+      { name: "Aisha", rarity: "Legendary", redeemed: 1686, minted: 1900 },
+      { name: "Dulcea", rarity: "Grail", redeemed: 895, minted: 999 },
+      { name: "Freddy Funko as Ivan Ooze", rarity: "Royalty", redeemed: 1576, minted: 2400 },
+    ]},
+    { name: "Steven Universe x Funko Series 1", figures: [
+      { name: "Ruby", rarity: "Legendary", redeemed: 1103, minted: 2000 },
+      { name: "Garnet", rarity: "Legendary", redeemed: 1057, minted: 2000 },
+      { name: "Sapphire", rarity: "Legendary", redeemed: 1029, minted: 2000 },
+      { name: "Blue Diamond", rarity: "Grail", redeemed: 536, minted: 999 },
+      { name: "Freddy Funko as Steven", rarity: "Royalty", redeemed: 876, minted: 2300 },
+    ]},
+    { name: "Jurassic Park x Funko Series 1", figures: [
+      { name: "T-Rex With Banner", rarity: "Legendary", redeemed: 1432, minted: 1900 },
+      { name: "Dr. Alan Grant with Baby Dino", rarity: "Legendary", redeemed: 1381, minted: 1900 },
+      { name: "Dr. Ian Malcolm with Flare", rarity: "Legendary", redeemed: 1432, minted: 1900 },
+      { name: "Dr. Ellie Sattler", rarity: "Legendary", redeemed: 1414, minted: 1900 },
+      { name: "Mosquito in Amber", rarity: "Grail", redeemed: 739, minted: 999 },
+      { name: "Freddy Funko as Dr. Ian Malcolm", rarity: "Royalty", redeemed: 1325, minted: 2550 },
+    ]},
+    { name: "WB 100th Anniversary x Funko Series 1", figures: [
+      { name: "Road Runner as The Flash", rarity: "Legendary", redeemed: 1247, minted: 1300 },
+      { name: "Lola Bunny as Jane Jetson", rarity: "Legendary", redeemed: 1212, minted: 1300 },
+      { name: "Bugs Bunny as Morpheus", rarity: "Legendary", redeemed: 1235, minted: 1300 },
+      { name: "Porky Pig as Robin", rarity: "Legendary", redeemed: 1247, minted: 1300 },
+      { name: "Wile E. Coyote as Batman", rarity: "Grail", redeemed: 977, minted: 999 },
+      { name: "Daffy Duck as Pennywise", rarity: "Royalty", redeemed: 1329, minted: 1900 },
+    ]},
+    { name: "Back to the Future x Funko Series 1", figures: [
+      { name: "Lorraine Baines in a Prom Dress", rarity: "Legendary", redeemed: 1613, minted: 1900 },
+      { name: "Griff 2015", rarity: "Legendary", redeemed: 1617, minted: 1900 },
+      { name: "Doc 1885", rarity: "Legendary", redeemed: 1634, minted: 1900 },
+      { name: "George McFly", rarity: "Legendary", redeemed: 1609, minted: 1900 },
+      { name: "Marty Undercover", rarity: "Grail", redeemed: 861, minted: 999 },
+      { name: "Freddy Funko as Doc with Helmet", rarity: "Royalty", redeemed: 1558, minted: 2500 },
+    ]},
+    { name: "Funkoween Series 1", figures: [
+      { name: "Freddy Funko as Zombie Knight", rarity: "Legendary", redeemed: 1853, minted: 1900 },
+      { name: "Freddy Funko as Zombie Ninja", rarity: "Legendary", redeemed: 1842, minted: 1900 },
+      { name: "Freddy Funko as Zombie Gunslinger", rarity: "Legendary", redeemed: 1846, minted: 1900 },
+      { name: "Freddy Funko as Zombie Pirate", rarity: "Legendary", redeemed: 1848, minted: 1900 },
+      { name: "Freddy Funko as Zombie Samurai", rarity: "Grail", redeemed: 980, minted: 999 },
+      { name: "Proto as Zombie", rarity: "Royalty", redeemed: 1964, minted: 2500 },
+    ]},
+    { name: "The Powerpuff Girls x Funko Series 1", figures: [
+      { name: "Blossom", rarity: "Legendary", redeemed: 922, minted: 1800 },
+      { name: "Bubbles", rarity: "Legendary", redeemed: 963, minted: 1800 },
+      { name: "Buttercup", rarity: "Legendary", redeemed: 959, minted: 1800 },
+      { name: "Professor Utonium", rarity: "Legendary", redeemed: 955, minted: 1800 },
+      { name: "Mojo Jojo", rarity: "Grail", redeemed: 515, minted: 999 },
+      { name: "Freddy Funko as Mojo Jojo", rarity: "Royalty", redeemed: 960, minted: 2700 },
+    ]},
+    { name: "Disney's Mickey and Friends: Funko Digital Pop! Series 1", figures: [
+      { name: "Daisy Duck", rarity: "Legendary", redeemed: 820, minted: 1800 },
+      { name: "Donald Duck", rarity: "Legendary", redeemed: 780, minted: 1800 },
+      { name: "Goofy", rarity: "Legendary", redeemed: 813, minted: 1800 },
+      { name: "Pete", rarity: "Legendary", redeemed: 780, minted: 1800 },
+      { name: "Minnie Mouse", rarity: "Grail", redeemed: 445, minted: 999 },
+      { name: "Mickey Mouse", rarity: "Royalty", redeemed: 735, minted: 2500 },
+    ]},
+    { name: "Squid Game x Funko Series 1", figures: [
+      { name: "Masked Worker With Blood Splatter", rarity: "Legendary", redeemed: 926, minted: 2000 },
+      { name: "Player 101: Deok-Su", rarity: "Legendary", redeemed: 890, minted: 2000 },
+      { name: "Seong Gi-Hun", rarity: "Legendary", redeemed: 893, minted: 2000 },
+      { name: "The Front Man", rarity: "Grail", redeemed: 450, minted: 999 },
+      { name: "Freddy Funko as The Front Man", rarity: "Royalty", redeemed: 795, minted: 2200 },
+    ]},
+    { name: "Harry Potter x Funko Series 1", figures: [
+      { name: "Cedric Diggory", rarity: "Legendary", redeemed: 1649, minted: 2200 },
+      { name: "Fleur Delacour", rarity: "Legendary", redeemed: 1664, minted: 2200 },
+      { name: "Hungarian Horntail", rarity: "Legendary", redeemed: 1689, minted: 2200 },
+      { name: "Merperson", rarity: "Legendary", redeemed: 1636, minted: 2200 },
+      { name: "Viktor Krum With Shark Head", rarity: "Legendary", redeemed: 1682, minted: 2200 },
+      { name: "Harry Potter With Grindylow", rarity: "Grail", redeemed: 764, minted: 999 },
+      { name: "Freddy Funko as Death Eater", rarity: "Royalty", redeemed: 1664, minted: 3000 },
+    ]},
+    { name: "Fantastik Plastik x Funko Series 2", figures: [
+      { name: "Juan Calavera", rarity: "Legendary", redeemed: 1594, minted: 2850 },
+      { name: "Karl", rarity: "Legendary", redeemed: 1636, minted: 2850 },
+      { name: "Sugar Bomb", rarity: "Grail", redeemed: 571, minted: 999 },
+      { name: "Freddy Funko as Amazing Carlos", rarity: "Royalty", redeemed: 900, minted: 2000 },
+    ]},
+    { name: "Space Jam x Funko Series 1", figures: [
+      { name: "Bugs Bunny", rarity: "Legendary", redeemed: 1602, minted: 2000 },
+      { name: "Daffy Duck", rarity: "Legendary", redeemed: 1600, minted: 2000 },
+      { name: "Lola Bunny", rarity: "Legendary", redeemed: 1554, minted: 2000 },
+      { name: "Bupkus", rarity: "Legendary", redeemed: 1596, minted: 2000 },
+      { name: "Swackhammer With Nerdlucks", rarity: "Grail", redeemed: 818, minted: 999 },
+      { name: "Freddy Funko as Tune Squad Player", rarity: "Royalty", redeemed: 1326, minted: 2300 },
+    ]},
+    { name: "Transformers x Funko Series 2", figures: [
+      { name: "Arcee", rarity: "Legendary", redeemed: 1905, minted: 2000 },
+      { name: "Blitzwing", rarity: "Legendary", redeemed: 1899, minted: 2000 },
+      { name: "Cheetor", rarity: "Legendary", redeemed: 1911, minted: 2000 },
+      { name: "Ultra Magnus", rarity: "Legendary", redeemed: 1925, minted: 2000 },
+      { name: "King Starscream", rarity: "Grail", redeemed: 969, minted: 999 },
+      { name: "Freddy Funko as Grimlock", rarity: "Royalty", redeemed: 1974, minted: 2600 },
+    ]},
+    { name: "Star Trek: The Next Generation x Funko Series 1", figures: [
+      { name: "Captain Picard", rarity: "Legendary", redeemed: 1165, minted: 2400 },
+      { name: "Wesley Crusher", rarity: "Legendary", redeemed: 1223, minted: 2400 },
+      { name: "Worf", rarity: "Legendary", redeemed: 1216, minted: 2400 },
+      { name: "Judge Q", rarity: "Grail", redeemed: 497, minted: 999 },
+      { name: "Freddy Funko as Locutus of Borg", rarity: "Royalty", redeemed: 1043, minted: 2600 },
+    ]},
+    { name: "Star Wars: Funko Digital Pop! Series 1", figures: [
+      { name: "C-3PO", rarity: "Legendary", redeemed: 2157, minted: 3000 },
+      { name: "Darth Vader", rarity: "Legendary", redeemed: 2127, minted: 3000 },
+      { name: "Emperor Palpatine", rarity: "Legendary", redeemed: 2173, minted: 3000 },
+      { name: "Han Solo", rarity: "Legendary", redeemed: 2209, minted: 3000 },
+      { name: "Luke Skywalker", rarity: "Grail", redeemed: 1446, minted: 1980 },
+      { name: "Princess Leia", rarity: "Royalty", redeemed: 1605, minted: 3300 },
+    ]},
+    { name: "Funko April Fools Series 2", figures: [
+      { name: "Burning Pack", rarity: "Legendary", redeemed: 1331, minted: 1400 },
+      { name: "Chick", rarity: "Legendary", redeemed: 1328, minted: 1400 },
+      { name: "Popposite Freddy", rarity: "Grail", redeemed: 949, minted: 999 },
+      { name: "Balloon Proto", rarity: "Royalty", redeemed: 1257, minted: 1600 },
+    ]},
+    { name: "My Little Pony x Funko Series 2", figures: [
+      { name: "Applejack", rarity: "Legendary", redeemed: 980, minted: 1700 },
+      { name: "Princess Twilight Sparkle", rarity: "Legendary", redeemed: 1014, minted: 1700 },
+      { name: "Daybreaker", rarity: "Grail", redeemed: 580, minted: 999 },
+      { name: "King Sombra", rarity: "Royalty", redeemed: 926, minted: 2000 },
+    ]},
+    { name: "WB Horror x Funko Series 2", figures: [
+      { name: "Accordion Monkey", rarity: "Legendary", redeemed: 1808, minted: 1900 },
+      { name: "Black Shuck", rarity: "Legendary", redeemed: 1812, minted: 1900 },
+      { name: "Goat Demon", rarity: "Legendary", redeemed: 1809, minted: 1900 },
+      { name: "Pazuzu", rarity: "Legendary", redeemed: 1792, minted: 1900 },
+      { name: "The Ferryman", rarity: "Grail", redeemed: 965, minted: 999 },
+      { name: "Freddy Funko as Father Karras", rarity: "Royalty", redeemed: 1575, minted: 2200 },
+    ]},
+    { name: "Funko Presents Funime & Cosplay Series 1", figures: [
+      { name: "Celestial Franny", rarity: "Legendary", redeemed: 1907, minted: 2000 },
+      { name: "Fun Force Freddy", rarity: "Legendary", redeemed: 1895, minted: 2000 },
+      { name: "Kitsune Mask Franny", rarity: "Legendary", redeemed: 1923, minted: 2000 },
+      { name: "Ramen Freddy", rarity: "Legendary", redeemed: 1926, minted: 2000 },
+      { name: "Kaiju Proto", rarity: "Grail", redeemed: 966, minted: 999 },
+      { name: "Battle Mech Freddy", rarity: "Mythic", redeemed: 485, minted: 499 },
+      { name: "Ultimate Freddy", rarity: "Royalty", redeemed: 1804, minted: 2500 },
+    ]},
+    { name: "Scooby-Doo x Funko Series 2", figures: [
+      { name: "Scooby-Doo In Disguise", rarity: "Ultra", redeemed: 4828, minted: 5000 },
+      { name: "Headless Specter", rarity: "Legendary", redeemed: 1849, minted: 1900 },
+      { name: "Phantom Virus", rarity: "Legendary", redeemed: 1837, minted: 1900 },
+      { name: "Puppet Master", rarity: "Legendary", redeemed: 1838, minted: 1900 },
+      { name: "Black Knight", rarity: "Grail", redeemed: 983, minted: 999 },
+      { name: "Proto as Scooby-Doo", rarity: "Royalty", redeemed: 1744, minted: 2300 },
+    ]},
+    { name: "Batman 85th x Funko Series 1", figures: [
+      { name: "Batman", rarity: "Ultra", redeemed: 3348, minted: 5000 },
+      { name: "Batgirl", rarity: "Legendary", redeemed: 1464, minted: 2200 },
+      { name: "Robin", rarity: "Legendary", redeemed: 1510, minted: 2200 },
+      { name: "Batwoman", rarity: "Legendary", redeemed: 1524, minted: 2200 },
+      { name: "Alfred Pennyworth", rarity: "Grail", redeemed: 659, minted: 999 },
+      { name: "Freddy Funko as Nightwing", rarity: "Royalty", redeemed: 1164, minted: 2400 },
+    ]},
+    { name: "The Disney Afternoon: Funko Digital Pop! Series 1", figures: [
+      { name: "Flintheart Glomgold", rarity: "Ultra", redeemed: 2291, minted: 5000 },
+      { name: "Fat Cat", rarity: "Legendary", redeemed: 973, minted: 2100 },
+      { name: "Ma Beagle", rarity: "Legendary", redeemed: 991, minted: 2100 },
+      { name: "Quackerjack", rarity: "Legendary", redeemed: 1003, minted: 2100 },
+      { name: "Liquidator", rarity: "Grail", redeemed: 482, minted: 999 },
+      { name: "Don Karnage", rarity: "Royalty", redeemed: 751, minted: 2300 },
+    ]},
+    { name: "Daria x Funko Series 1", figures: [
+      { name: "Daria Morgendorffer", rarity: "Legendary", redeemed: 712, minted: 1800 },
+      { name: "Brittany Taylor", rarity: "Legendary", redeemed: 756, minted: 1800 },
+      { name: "Jane Lane", rarity: "Grail", redeemed: 405, minted: 999 },
+      { name: "Trent Lane", rarity: "Royalty", redeemed: 632, minted: 2000 },
+    ]},
+    { name: "Universal Monsters x Funko Series 1", figures: [
+      { name: "Bride Of Frankenstein", rarity: "Legendary", redeemed: 1550, minted: 1600 },
+      { name: "The Mummy", rarity: "Legendary", redeemed: 1551, minted: 1600 },
+      { name: "Frankenstein", rarity: "Grail", redeemed: 980, minted: 999 },
+      { name: "Freddy Funko as Dr. Frankenstein", rarity: "Royalty", redeemed: 1433, minted: 1800 },
+    ]},
+    { name: "Rick and Morty x Funko Series 1", figures: [
+      { name: "Space Beth", rarity: "Ultra", redeemed: 4687, minted: 5000 },
+      { name: "Blim Blam", rarity: "Legendary", redeemed: 1800, minted: 1900 },
+      { name: "Nimbus", rarity: "Legendary", redeemed: 1793, minted: 1900 },
+      { name: "Rick Prime", rarity: "Legendary", redeemed: 1809, minted: 1900 },
+      { name: "Rick And 2 Crows", rarity: "Grail", redeemed: 962, minted: 999 },
+      { name: "Freddy Funko as Evil Morty", rarity: "Royalty", redeemed: 1665, minted: 2200 },
+    ]},
+    { name: "TMNT x Funko Series 2", figures: [
+      { name: "Rocksteady", rarity: "Legendary", redeemed: 1936, minted: 2000 },
+      { name: "Triceraton", rarity: "Legendary", redeemed: 1931, minted: 2000 },
+      { name: "Leonardo & Michelangelo", rarity: "Grail", redeemed: 983, minted: 999 },
+      { name: "Raphael & Donatello", rarity: "Grail", redeemed: 981, minted: 999 },
+      { name: "Freddy Funko as Krang", rarity: "Royalty", redeemed: 2081, minted: 2500 },
+    ]},
+    { name: "Cartoon Network x Funko Series 1", figures: [
+      { name: "Samurai Jack", rarity: "Ultra", redeemed: 4264, minted: 5000 },
+      { name: "Ashi", rarity: "Legendary", redeemed: 1630, minted: 1900 },
+      { name: "Moltar", rarity: "Legendary", redeemed: 1646, minted: 1900 },
+      { name: "Robo-Dexo 2000", rarity: "Legendary", redeemed: 1659, minted: 1900 },
+      { name: "Eustace Bagge", rarity: "Grail", redeemed: 885, minted: 999 },
+      { name: "Freddy Funko as Jonny", rarity: "Royalty", redeemed: 1524, minted: 2400 },
+    ]},
+    { name: "The Alien: Funko Digital Pop! Series 1", figures: [
+      { name: "Xenomorph", rarity: "Ultra", redeemed: 3889, minted: 5000 },
+      { name: "Ash", rarity: "Legendary", redeemed: 1698, minted: 2200 },
+      { name: "Ripley With Flamethrower", rarity: "Legendary", redeemed: 1692, minted: 2200 },
+      { name: "Spacesuit With Egg", rarity: "Legendary", redeemed: 1741, minted: 2200 },
+      { name: "Pilot Engineer", rarity: "Grail", redeemed: 758, minted: 999 },
+      { name: "Freddy Funko with Chestburster", rarity: "Royalty", redeemed: 1406, minted: 2400 },
+    ]},
+    { name: "G.I. Joe x Funko Series 1", figures: [
+      { name: "Flint", rarity: "Legendary", redeemed: 1093, minted: 1900 },
+      { name: "Lady Jaye", rarity: "Legendary", redeemed: 1099, minted: 1900 },
+      { name: "Firefly", rarity: "Grail", redeemed: 585, minted: 999 },
+      { name: "Freddy Funko as Duke", rarity: "Royalty", redeemed: 933, minted: 2000 },
+    ]},
+    { name: "Stranger Things x Funko Series 2", figures: [
+      { name: "Erica", rarity: "Ultra", redeemed: 2425, minted: 5000 },
+      { name: "Karen", rarity: "Legendary", redeemed: 953, minted: 2000 },
+      { name: "Yuri", rarity: "Legendary", redeemed: 959, minted: 2000 },
+      { name: "Victor", rarity: "Legendary", redeemed: 1006, minted: 2000 },
+      { name: "Murray", rarity: "Grail", redeemed: 488, minted: 999 },
+      { name: "Freddy Funko as 001", rarity: "Royalty", redeemed: 896, minted: 2400 },
+    ]},
+    { name: "Funkoween Series 2", figures: [
+      { name: "Judy", rarity: "Legendary", redeemed: 1825, minted: 1900 },
+      { name: "Proto as P.O.P.", rarity: "Legendary", redeemed: 1828, minted: 1900 },
+      { name: "Ghost Proto", rarity: "Legendary", redeemed: 1830, minted: 1900 },
+      { name: "Franny Funko as Banshee", rarity: "Legendary", redeemed: 1839, minted: 1900 },
+      { name: "Nightmare Freddy", rarity: "Grail", redeemed: 977, minted: 999 },
+      { name: "Freddy & Franny as P.O.P.", rarity: "Mythic", redeemed: 490, minted: 499 },
+      { name: "Haunted Freddy Doll", rarity: "Royalty", redeemed: 1734, minted: 2200 },
+    ]},
+    { name: "Beetlejuice x Funko Series 1", figures: [
+      { name: "Adam Maitland", rarity: "Legendary", redeemed: 1712, minted: 1800 },
+      { name: "Barbara Maitland", rarity: "Legendary", redeemed: 1719, minted: 1800 },
+      { name: "Magician's Assistant", rarity: "Grail", redeemed: 964, minted: 999 },
+      { name: "Freddy Funko as Beetlejuice", rarity: "Royalty", redeemed: 1593, minted: 2000 },
+    ]},
+    { name: "Batman 85th x Funko Series 2", figures: [
+      { name: "Two-Face", rarity: "Ultra", redeemed: 3112, minted: 5000 },
+      { name: "Catwoman", rarity: "Legendary", redeemed: 1182, minted: 1900 },
+      { name: "Professor Pyg", rarity: "Legendary", redeemed: 1225, minted: 1900 },
+      { name: "The Riddler", rarity: "Legendary", redeemed: 1229, minted: 1900 },
+      { name: "The Joker", rarity: "Grail", redeemed: 665, minted: 999 },
+      { name: "Franny Funko as Poison Ivy", rarity: "Royalty", redeemed: 1082, minted: 2300 },
+    ]},
+    { name: "It's Always Sunny in Philadelphia: Funko Digital Series 1", figures: [
+      { name: "Mac with Duster", rarity: "Ultra", redeemed: 1846, minted: 5000 },
+      { name: "High School Dee", rarity: "Legendary", redeemed: 798, minted: 2100 },
+      { name: "Dennis at Tryouts", rarity: "Legendary", redeemed: 802, minted: 2100 },
+      { name: "Liam McPoyle", rarity: "Legendary", redeemed: 830, minted: 2100 },
+      { name: "Conspiracy Charlie", rarity: "Grail", redeemed: 391, minted: 999 },
+      { name: "Frank as Ongo Gablogian", rarity: "Royalty", redeemed: 724, minted: 2500 },
+    ]},
+    { name: "Festival of Fun Series 1", figures: [
+      { name: "Franny Funko As Ice Skater", rarity: "Legendary", redeemed: 1108, minted: 1900 },
+      { name: "Freddy Funko As Snowman", rarity: "Legendary", redeemed: 1085, minted: 1900 },
+      { name: "Proto As Santa", rarity: "Legendary", redeemed: 1116, minted: 1900 },
+      { name: "Franny Funko Riding Reindeer", rarity: "Grail", redeemed: 616, minted: 999 },
+      { name: "Proto As Nutcracker", rarity: "Mythic", redeemed: 486, minted: 499 },
+      { name: "Freddy Funko in Engine", rarity: "Royalty", redeemed: 1046, minted: 2300 },
+    ]},
+    { name: "Adventure Time x Funko Series 2", figures: [
+      { name: "Susan Strong", rarity: "Legendary", redeemed: 1299, minted: 1900 },
+      { name: "The Lich As Billy", rarity: "Legendary", redeemed: 1311, minted: 1900 },
+      { name: "Tree Trunks", rarity: "Legendary", redeemed: 1287, minted: 1900 },
+      { name: "BMO", rarity: "Grail", redeemed: 696, minted: 999 },
+      { name: "Freddy & Proto as Finn & Jake", rarity: "Royalty", redeemed: 1271, minted: 2400 },
+    ]},
+    { name: "Freddy's Dark Valentine Series 1", figures: [
+      { name: "Dark Heart Proto", rarity: "Legendary", redeemed: 865, minted: 1900 },
+      { name: "Dark Heart Franny", rarity: "Grail", redeemed: 467, minted: 999 },
+      { name: "Dark Heart Freddy", rarity: "Royalty", redeemed: 636, minted: 2000 },
+    ]},
+    { name: "Toy Story: Funko Digital Pop!", figures: [
+      { name: "Scud", rarity: "Ultra", redeemed: 4835, minted: 5000 },
+      { name: "Buzz With Darts", rarity: "Legendary", redeemed: 1850, minted: 1900 },
+      { name: "Pterodactyl With Janie Doll Body", rarity: "Legendary", redeemed: 1831, minted: 1900 },
+      { name: "Woody With Red Pencil", rarity: "Legendary", redeemed: 1839, minted: 1900 },
+      { name: "Baby Head", rarity: "Grail", redeemed: 981, minted: 999 },
+      { name: "Freddy Funko As Sid", rarity: "Royalty", redeemed: 1919, minted: 2400 },
+    ]},
+    { name: "Avatar Legends x Funko Series 2", figures: [
+      { name: "Aang With Armor", rarity: "Legendary", redeemed: 1727, minted: 1800 },
+      { name: "Korra (Spirit)", rarity: "Legendary", redeemed: 1730, minted: 1800 },
+      { name: "Sokka With Wolf Mask", rarity: "Legendary", redeemed: 1741, minted: 1800 },
+      { name: "Vaatu", rarity: "Legendary", redeemed: 1709, minted: 1800 },
+      { name: "Avatar Roku With Dragon", rarity: "Grail", redeemed: 971, minted: 999 },
+      { name: "Proto As Appa", rarity: "Royalty", redeemed: 1767, minted: 2300 },
+    ]},
+    { name: "DC Teen Titans Go! x Funko Series 2", figures: [
+      { name: "Cyborg As The Cyborg", rarity: "Legendary", redeemed: 1062, minted: 1900 },
+      { name: "Raven as Demon Of Azarath", rarity: "Legendary", redeemed: 1117, minted: 1900 },
+      { name: "Starfire as Starfire The Terrible", rarity: "Legendary", redeemed: 1096, minted: 1900 },
+      { name: "Beast Boy As Beast Monster", rarity: "Grail", redeemed: 583, minted: 999 },
+      { name: "Freddy Funko as Dick Gravestone", rarity: "Royalty", redeemed: 943, minted: 2300 },
+    ]},
+    { name: "Funko April Fools Series 3", figures: [
+      { name: "Damaged Box", rarity: "Legendary", redeemed: 1770, minted: 1900 },
+      { name: "Fundays Sandwich", rarity: "Legendary", redeemed: 1776, minted: 1900 },
+      { name: "Doodle Freddy", rarity: "Grail", redeemed: 945, minted: 999 },
+      { name: "Handsome Freddy", rarity: "Royalty", redeemed: 1620, minted: 2100 },
+    ]},
+    { name: "Dungeons & Dragons x Funko Series 2", figures: [
+      { name: "Death Tyrant", rarity: "Legendary", redeemed: 1307, minted: 1800 },
+      { name: "Juiblex", rarity: "Legendary", redeemed: 1302, minted: 1800 },
+      { name: "Mimic", rarity: "Legendary", redeemed: 1292, minted: 1800 },
+      { name: "Pseudodragon", rarity: "Legendary", redeemed: 1324, minted: 1800 },
+      { name: "Orcus", rarity: "Grail", redeemed: 716, minted: 999 },
+      { name: "Freddy Funko as Strongheart", rarity: "Royalty", redeemed: 1383, minted: 2400 },
+    ]},
+    { name: "Funko Presents Funime and Cosplay Season 2", figures: [
+      { name: "Idol Franny", rarity: "Legendary", redeemed: 875, minted: 1800 },
+      { name: "Ronin Freddy", rarity: "Legendary", redeemed: 909, minted: 1800 },
+      { name: "Spirit Candle Franny", rarity: "Legendary", redeemed: 845, minted: 1800 },
+      { name: "Yokai Crown Freddy", rarity: "Legendary", redeemed: 886, minted: 1800 },
+      { name: "Neko Mech Franny", rarity: "Grail", redeemed: 476, minted: 999 },
+      { name: "Ultimate Freddy in Proto Mech", rarity: "Royalty", redeemed: 865, minted: 2300 },
+    ]},
+    { name: "The West Coast Avengers: Funko Digital Pop! Series 1", figures: [
+      { name: "Mockingbird", rarity: "Ultra", redeemed: 3220, minted: 5000 },
+      { name: "High Evolutionary", rarity: "Legendary", redeemed: 1203, minted: 1900 },
+      { name: "Klaw", rarity: "Legendary", redeemed: 1236, minted: 1900 },
+      { name: "Scarlet Witch", rarity: "Legendary", redeemed: 1203, minted: 1900 },
+      { name: "Wonder Man", rarity: "Legendary", redeemed: 1203, minted: 1900 },
+      { name: "Tigra", rarity: "Grail", redeemed: 634, minted: 999 },
+      { name: "Ultron", rarity: "Grail", redeemed: 658, minted: 999 },
+      { name: "Freddy Funko as Hawkeye", rarity: "Royalty", redeemed: 1188, minted: 2400 },
+    ]},
+    { name: "Thundercats x Funko Series 1", figures: [
+      { name: "Ro-Bear Bill", rarity: "Legendary", redeemed: 1583, minted: 1900 },
+      { name: "Pumyra", rarity: "Legendary", redeemed: 1602, minted: 1900 },
+      { name: "Slithe", rarity: "Legendary", redeemed: 1603, minted: 1900 },
+      { name: "Ghost Jaga", rarity: "Grail", redeemed: 851, minted: 999 },
+      { name: "Freddy Funko as King Lion-O", rarity: "Royalty", redeemed: 1614, minted: 2400 },
+    ]},
+    { name: "Disney Villains x Funko Series 1", figures: [
+      { name: "Big Bad Wolf", rarity: "Legendary", redeemed: 1739, minted: 1800 },
+      { name: "Shan Yu", rarity: "Legendary", redeemed: 1734, minted: 1800 },
+      { name: "Nessus", rarity: "Grail", redeemed: 973, minted: 999 },
+      { name: "Franny Funko as Maleficent", rarity: "Royalty", redeemed: 1786, minted: 2200 },
+    ]},
+  ];
+
+  function fmt(n) { return n.toLocaleString(); }
+  function pct(r, m) { return Math.round((r / m) * 100); }
+  function rarityClass(r) { return 'rarity-' + r.toLowerCase(); }
+  function pctClass(p) { return p >= 90 ? 'high' : p < 50 ? 'low' : ''; }
+
+  function buildSets(sets) {
+    const list = document.getElementById('setsList');
+    list.innerHTML = '';
+    const totalSets = SETS.length;
+    const totalFigs = SETS.reduce((a, s) => a + s.figures.length, 0);
+
+    sets.forEach((set, idx) => {
+      const hasFigs = set.figures.length > 0;
+      const item = document.createElement('div');
+      item.className = 'set-item';
+      item.dataset.idx = idx;
+
+      const header = document.createElement('div');
+      header.className = 'set-header';
+      header.innerHTML = `
+        <svg class="set-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+        <span class="set-name">${set.name}</span>
+        <div class="set-meta">
+          <span class="set-count">${set.figures.length} figure${set.figures.length !== 1 ? 's' : ''}</span>
+        </div>
+      `;
+
+      const body = document.createElement('div');
+      body.className = 'set-body';
+
+      if (!hasFigs) {
+        body.innerHTML = '<div class="no-data">No data available for this set.</div>';
+      } else {
+        const table = document.createElement('table');
+        table.className = 'figures-table';
+        table.innerHTML = `
+          <thead><tr>
+            <th>Figure</th>
+            <th>Rarity</th>
+            <th>Redeemed</th>
+            <th>Minted</th>
+            <th>%</th>
+          </tr></thead>
+        `;
+        const tbody = document.createElement('tbody');
+        set.figures.forEach(fig => {
+          const p = pct(fig.redeemed, fig.minted);
+          const tr = document.createElement('tr');
+          tr.dataset.rarity = fig.rarity;
+          tr.innerHTML = `
+            <td>${fig.name}</td>
+            <td><span class="rarity-badge ${rarityClass(fig.rarity)}">${fig.rarity}</span></td>
+            <td>${fmt(fig.redeemed)}</td>
+            <td>${fmt(fig.minted)}</td>
+            <td>
+              <div class="pct-bar-wrap">
+                <span class="pct-label">${p}%</span>
+                <div class="pct-bar"><div class="pct-fill ${pctClass(p)}" style="width:${p}%"></div></div>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        body.appendChild(table);
+      }
+
+      header.addEventListener('click', () => item.classList.toggle('open'));
+      item.appendChild(header);
+      item.appendChild(body);
+      list.appendChild(item);
+    });
+
+    updateStats();
+  }
+
+  function updateStats() {
+    const visible = document.querySelectorAll('.set-item:not(.hidden)').length;
+    const total = SETS.length;
+    document.getElementById('stats').textContent =
+      visible === total ? `${total} sets` : `${visible} of ${total} sets`;
+  }
+
+  function applyFilters() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    const rarity = document.getElementById('rarityFilter').value;
+    let visibleCount = 0;
+
+    document.querySelectorAll('.set-item').forEach(item => {
+      const idx = parseInt(item.dataset.idx);
+      const set = SETS[idx];
+      const setNameMatch = set.name.toLowerCase().includes(query);
+      const matchingFigs = set.figures.filter(fig => {
+        const nameMatch = !query || setNameMatch || fig.name.toLowerCase().includes(query);
+        const rarityMatch = !rarity || fig.rarity === rarity;
+        return nameMatch && rarityMatch;
+      });
+
+      const show = !query && !rarity
+        ? true
+        : setNameMatch && !rarity
+        ? true
+        : matchingFigs.length > 0;
+
+      item.classList.toggle('hidden', !show);
+      if (show) {
+        visibleCount++;
+        // If searching, open matching sets and filter rows
+        if (query || rarity) {
+          item.classList.add('open');
+          item.querySelectorAll('tbody tr').forEach(tr => {
+            const figName = tr.cells[0]?.textContent.toLowerCase() || '';
+            const figRarity = tr.dataset.rarity || '';
+            const nameOk = !query || setNameMatch || figName.includes(query);
+            const rarityOk = !rarity || figRarity === rarity;
+            tr.style.display = nameOk && rarityOk ? '' : 'none';
+          });
+        } else {
+          item.querySelectorAll('tbody tr').forEach(tr => tr.style.display = '');
+        }
+      }
+    });
+
+    document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+    document.getElementById('stats').textContent =
+      visibleCount === SETS.length ? `${SETS.length} sets` : `${visibleCount} of ${SETS.length} sets`;
+  }
+
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('rarityFilter').addEventListener('change', applyFilters);
+  document.getElementById('expandAll').addEventListener('click', () => {
+    document.querySelectorAll('.set-item:not(.hidden)').forEach(i => i.classList.add('open'));
+  });
+  document.getElementById('collapseAll').addEventListener('click', () => {
+    document.querySelectorAll('.set-item').forEach(i => i.classList.remove('open'));
+  });
+
+  buildSets(SETS);
+  </script>
+</body>
+</html>

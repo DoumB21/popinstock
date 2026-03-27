@@ -1,0 +1,482 @@
+[
+  {
+    "collection": "alegnd.funko",
+    "schema": "series1.drop",
+    "displayname": "Avatar Legends x Funko"
+  },
+  {
+    "collection": "alegnd.funko",
+    "schema": "series2.drop",
+    "displayname": "Avatar Legends x Funko"
+  },
+  {
+    "collection": "alien.funko",
+    "schema": "series1.drop",
+    "displayname": "Alien: Funko Digital Pop!"
+  },
+  {
+    "collection": "atime.funko",
+    "schema": "series1.drop",
+    "displayname": "Adventure Time x Funko"
+  },
+  {
+    "collection": "atime.funko",
+    "schema": "series2.drop",
+    "displayname": "Adventure Time x Funko"
+  },
+  {
+    "collection": "batman.funko",
+    "schema": "series1.drop",
+    "displayname": "Batman 85th x Funko"
+  },
+  {
+    "collection": "batman.funko",
+    "schema": "series2.drop",
+    "displayname": "Batman 85th x Funko"
+  },
+  {
+    "collection": "beetle.funko",
+    "schema": "series1.drop",
+    "displayname": "Beetlejuice x Funko"
+  },
+  {
+    "collection": "bigboy.funko",
+    "schema": "series1.drop",
+    "displayname": "Big Boy x Funko"
+  },
+  {
+    "collection": "bobrss.funko",
+    "schema": "series1.drop",
+    "displayname": "Bob Ross x Funko"
+  },
+  {
+    "collection": "bonus.funko",
+    "schema": "bonus.drop",
+    "displayname": "Bonus Digital Pop!"
+  },
+  {
+    "collection": "bttf.funko",
+    "schema": "series1.drop",
+    "displayname": "Back to the Future x Funko"
+  },
+  {
+    "collection": "cn.funko",
+    "schema": "series1.drop",
+    "displayname": "Cartoon Network x Funko"
+  },
+  {
+    "collection": "daria.funko",
+    "schema": "series1.drop",
+    "displayname": "Daria x Funko"
+  },
+  {
+    "collection": "dc.funko",
+    "schema": "comic.drop",
+    "displayname": "DC x Funko"
+  },
+  {
+    "collection": "dc.funko",
+    "schema": "series1.drop",
+    "displayname": "DC x Funko"
+  },
+  {
+    "collection": "dc.funko",
+    "schema": "series2.drop",
+    "displayname": "DC x Funko"
+  },
+  {
+    "collection": "disvil.funko",
+    "schema": "series1.drop",
+    "displayname": "Disney Villains: Funko Digital"
+  },
+  {
+    "collection": "dnd.funko",
+    "schema": "series1.drop",
+    "displayname": "Dungeons & Dragons x Funko"
+  },
+  {
+    "collection": "dnd.funko",
+    "schema": "series2.drop",
+    "displayname": "Dungeons & Dragons x Funko"
+  },
+  {
+    "collection": "elf.funko",
+    "schema": "series1.drop",
+    "displayname": "Elf x Funko"
+  },
+  {
+    "collection": "fan.funko",
+    "schema": "cards.drop",
+    "displayname": "Funko Fan Rewards"
+  },
+  {
+    "collection": "fest.funko",
+    "schema": "series1.drop",
+    "displayname": "Festival of Fun"
+  },
+  {
+    "collection": "flint.funko",
+    "schema": "series1.drop",
+    "displayname": "The Flintstones x Funko"
+  },
+  {
+    "collection": "fools.funko",
+    "schema": "series1.drop",
+    "displayname": "Funko April Fools"
+  },
+  {
+    "collection": "fools.funko",
+    "schema": "series2.drop",
+    "displayname": "Funko April Fools"
+  },
+  {
+    "collection": "fools.funko",
+    "schema": "series3.drop",
+    "displayname": "Funko April Fools"
+  },
+  {
+    "collection": "freddy.funko",
+    "schema": "series1.drop",
+    "displayname": "Funko Halloween"
+  },
+  {
+    "collection": "freddy.funko",
+    "schema": "series2.drop",
+    "displayname": "Funko Halloween"
+  },
+  {
+    "collection": "fright.funko",
+    "schema": "series1.drop",
+    "displayname": "NYCC Fright Night"
+  },
+  {
+    "collection": "funday.funko",
+    "schema": "series1.drop",
+    "displayname": "Funko Fundays 2022"
+  },
+  {
+    "collection": "funime.funko",
+    "schema": "series1.drop",
+    "displayname": "Funko Presents Funime & Cosplay"
+  },
+  {
+    "collection": "funime.funko",
+    "schema": "series2.drop",
+    "displayname": "Funko Presents Funime & Cosplay"
+  },
+  {
+    "collection": "funko",
+    "schema": "promo.drop",
+    "displayname": "Digital Pop! Promo"
+  },
+  {
+    "collection": "gijoe.funko",
+    "schema": "series1.drop",
+    "displayname": "G.I. JOE x Funko Digital Pop!"
+  },
+  {
+    "collection": "got.funko",
+    "schema": "series1.drop",
+    "displayname": "Game of Thrones x Funko"
+  },
+  {
+    "collection": "hb.funko",
+    "schema": "series1.drop",
+    "displayname": "Hanna-Barbera x Funko"
+  },
+  {
+    "collection": "hb.funko",
+    "schema": "series2.drop",
+    "displayname": "Hanna-Barbera x Funko"
+  },
+  {
+    "collection": "hotd.funko",
+    "schema": "series1.drop",
+    "displayname": "House of the Dragon x Funko"
+  },
+  {
+    "collection": "invday.funko",
+    "schema": "series1.drop",
+    "displayname": "Funko Press and Investor Day"
+  },
+  {
+    "collection": "it.funko",
+    "schema": "series1.drop",
+    "displayname": "IT x Funko"
+  },
+  {
+    "collection": "jasb.funko",
+    "schema": "series1.drop",
+    "displayname": "Jay and Silent Bob x Funko"
+  },
+  {
+    "collection": "jpark.funko",
+    "schema": "series1.drop",
+    "displayname": "Jurassic Park x Funko"
+  },
+  {
+    "collection": "kllggs.funko",
+    "schema": "series1.drop",
+    "displayname": "Kellogg's x Funko"
+  },
+  {
+    "collection": "knight.funko",
+    "schema": "series1.drop",
+    "displayname": "DC's The Dark Knight Trilogy x Funko"
+  },
+  {
+    "collection": "krofft.funko",
+    "schema": "series1.drop",
+    "displayname": "Krofft Pictures x Funko"
+  },
+  {
+    "collection": "looney.funko",
+    "schema": "series1.drop",
+    "displayname": "Looney Tunes x Funko"
+  },
+  {
+    "collection": "love.funko",
+    "schema": "series1.drop",
+    "displayname": "Freddy's Dark Valentine"
+  },
+  {
+    "collection": "maiden.funko",
+    "schema": "series1.drop",
+    "displayname": "Iron Maiden x Funko"
+  },
+  {
+    "collection": "matrix.funko",
+    "schema": "series1.drop",
+    "displayname": "The Matrix x Funko"
+  },
+  {
+    "collection": "mickey.funko",
+    "schema": "series1.drop",
+    "displayname": "Disney's Mickey & Friends"
+  },
+  {
+    "collection": "mlpony.funko",
+    "schema": "series1.drop",
+    "displayname": "My Little Pony x Funko"
+  },
+  {
+    "collection": "mlpony.funko",
+    "schema": "series2.drop",
+    "displayname": "My Little Pony x Funko"
+  },
+  {
+    "collection": "ntoons.funko",
+    "schema": "series1.drop",
+    "displayname": "Nicktoons x Funko"
+  },
+  {
+    "collection": "ntoons.funko",
+    "schema": "series2.drop",
+    "displayname": "Nicktoons x Funko"
+  },
+  {
+    "collection": "plastk.funko",
+    "schema": "series1.drop",
+    "displayname": "Fantastik Plastik"
+  },
+  {
+    "collection": "plastk.funko",
+    "schema": "series2.drop",
+    "displayname": "Fantastik Plastik"
+  },
+  {
+    "collection": "potter.funko",
+    "schema": "series1.drop",
+    "displayname": "Harry Potter x Funko"
+  },
+  {
+    "collection": "ppg.funko",
+    "schema": "series1.drop",
+    "displayname": "The Powerpuff Girls x Funko"
+  },
+  {
+    "collection": "pr.funko",
+    "schema": "series1.drop",
+    "displayname": "Power Rangers x Funko"
+  },
+  {
+    "collection": "pr.funko",
+    "schema": "series2.drop",
+    "displayname": "Power Rangers x Funko"
+  },
+  {
+    "collection": "ram.funko",
+    "schema": "series1.drop",
+    "displayname": "Rick and Morty x Funko"
+  },
+  {
+    "collection": "rcade.droppp",
+    "schema": "season.drop",
+    "displayname": "Droppp Arcade"
+  },
+  {
+    "collection": "rcomic.funko",
+    "schema": "series1.drop",
+    "displayname": "Retro Comics x Funko"
+  },
+  {
+    "collection": "rtoys.funko",
+    "schema": "series1.drop",
+    "displayname": "Hasbro Retro Toys x Funko"
+  },
+  {
+    "collection": "scooby.funko",
+    "schema": "series1.drop",
+    "displayname": "Scooby-Doo x Funko"
+  },
+  {
+    "collection": "scooby.funko",
+    "schema": "series2.drop",
+    "displayname": "Scooby-Doo x Funko"
+  },
+  {
+    "collection": "sdance.funko",
+    "schema": "promo.drop",
+    "displayname": "Space Dancer Freddy Funko"
+  },
+  {
+    "collection": "sjam.funko",
+    "schema": "series1.drop",
+    "displayname": "Space Jam x Funko"
+  },
+  {
+    "collection": "social.funko",
+    "schema": "social.drop",
+    "displayname": "Social Media Freddy Funko"
+  },
+  {
+    "collection": "spooky.funko",
+    "schema": "series1.drop",
+    "displayname": "Funkoween"
+  },
+  {
+    "collection": "spooky.funko",
+    "schema": "series2.drop",
+    "displayname": "Funkoween"
+  },
+  {
+    "collection": "squid.funko",
+    "schema": "series1.drop",
+    "displayname": "Squid Game x Funko"
+  },
+  {
+    "collection": "stckr.droppp",
+    "schema": "arcade.drop",
+    "displayname": "Droppp Stickers"
+  },
+  {
+    "collection": "stckr.droppp",
+    "schema": "events.drop",
+    "displayname": "Droppp Stickers"
+  },
+  {
+    "collection": "steven.funko",
+    "schema": "series1.drop",
+    "displayname": "Steven Universe x Funko"
+  },
+  {
+    "collection": "strngr.funko",
+    "schema": "series1.drop",
+    "displayname": "Stranger Things x Funko"
+  },
+  {
+    "collection": "strngr.funko",
+    "schema": "series2.drop",
+    "displayname": "Stranger Things x Funko"
+  },
+  {
+    "collection": "strwrs.funko",
+    "schema": "series1.drop",
+    "displayname": "Star Wars: Funko Digital Pop!"
+  },
+  {
+    "collection": "sttrek.funko",
+    "schema": "series1.drop",
+    "displayname": "Star Trek x Funko"
+  },
+  {
+    "collection": "sunny.funko",
+    "schema": "series1.drop",
+    "displayname": "It's Always Sunny: Funko Digital"
+  },
+  {
+    "collection": "tcats.funko",
+    "schema": "series1.drop",
+    "displayname": "Thundercats X Funko"
+  },
+  {
+    "collection": "tda.funko",
+    "schema": "series1.drop",
+    "displayname": "The Disney Afternoon"
+  },
+  {
+    "collection": "tformr.funko",
+    "schema": "series1.drop",
+    "displayname": "Transformers x Funko"
+  },
+  {
+    "collection": "tformr.funko",
+    "schema": "series2.drop",
+    "displayname": "Transformers x Funko"
+  },
+  {
+    "collection": "tmnt.funko",
+    "schema": "series1.drop",
+    "displayname": "TMNT x Funko"
+  },
+  {
+    "collection": "tmnt.funko",
+    "schema": "series2.drop",
+    "displayname": "TMNT x Funko"
+  },
+  {
+    "collection": "tng.funko",
+    "schema": "series1.drop",
+    "displayname": "Star Trek: TNG x Funko"
+  },
+  {
+    "collection": "tstory.funko",
+    "schema": "series1.drop",
+    "displayname": "Toy Story: Funko Digital Pop!"
+  },
+  {
+    "collection": "ttgo.funko",
+    "schema": "series1.drop",
+    "displayname": "DC Teen Titans Go! x Funko"
+  },
+  {
+    "collection": "ttgo.funko",
+    "schema": "series2.drop",
+    "displayname": "DC Teen Titans Go! x Funko"
+  },
+  {
+    "collection": "umnstr.funko",
+    "schema": "series1.drop",
+    "displayname": "Universal Monsters x Funko"
+  },
+  {
+    "collection": "wb1oo.funko",
+    "schema": "series1.drop",
+    "displayname": "WB 100th Anniversary x Funko"
+  },
+  {
+    "collection": "wbh.funko",
+    "schema": "series1.drop",
+    "displayname": "WB Horror x Funko"
+  },
+  {
+    "collection": "wbh.funko",
+    "schema": "series2.drop",
+    "displayname": "WB Horror x Funko"
+  },
+  {
+    "collection": "wca.funko",
+    "schema": "series1.drop",
+    "displayname": "WC Avengers: Funko Digital Pop!"
+  }
+]

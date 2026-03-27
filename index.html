@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PopInStock</title>
+  <link rel="icon" type="image/png" href="images/FoxLogo.png" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #13131d;
+      --bg-card-hover: #1a1a2a;
+      --border: rgba(255, 255, 255, 0.07);
+      --border-hover: rgba(255, 255, 255, 0.15);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888aa;
+      --twitch: #9146ff;
+      --discord: #5865f2;
+      --x: #e7e7e7;
+      --funko: #ff6b35;
+      --topps: #e31837;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Subtle background grid ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 3rem 2rem 1rem;
+      text-align: center;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+
+    .logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 3rem 1.5rem 2.5rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      color: var(--text-primary);
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, #f0a840, #c07828);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      margin-top: 1rem;
+      color: var(--text-secondary);
+      font-size: clamp(0.95rem, 2vw, 1.1rem);
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+
+    /* ── Cards grid ── */
+    main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      padding: 1rem 1.5rem 4rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem 1.5rem;
+      text-decoration: none;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+    }
+
+    .card:hover::after {
+      opacity: 1;
+    }
+
+    /* Per-card accent glow */
+    .card--twitch:hover  { box-shadow: 0 8px 40px rgba(145, 70, 255, 0.2); }
+    .card--discord:hover { box-shadow: 0 8px 40px rgba(88, 101, 242, 0.2); }
+    .card--x:hover       { box-shadow: 0 8px 40px rgba(231, 231, 231, 0.1); }
+    .card--funko:hover   { box-shadow: 0 8px 40px rgba(255, 107, 53, 0.2); }
+    .card--topps:hover   { box-shadow: 0 8px 40px rgba(227, 24, 55, 0.2); }
+
+    .card-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .card--twitch  .card-icon { background: rgba(145, 70, 255, 0.15); }
+    .card--discord .card-icon { background: rgba(88, 101, 242, 0.15); }
+    .card--x       .card-icon { background: rgba(231, 231, 231, 0.1); }
+    .card--funko   .card-icon { background: rgba(50, 130, 220, 0.15); }
+    .card--topps   .card-icon { background: rgba(227, 24, 55, 0.15); }
+
+    .card-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .card--twitch  .card-icon svg { fill: var(--twitch); }
+    .card--discord .card-icon svg { fill: var(--discord); }
+    .card--x       .card-icon svg { fill: var(--x); }
+
+    .card--funko .card-icon img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .card-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .card-arrow {
+      margin-top: auto;
+      align-self: flex-end;
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .card:hover .card-arrow {
+      transform: translate(3px, -3px);
+    }
+
+    .card--twitch:hover  .card-arrow { color: var(--twitch); }
+    .card--discord:hover .card-arrow { color: var(--discord); }
+    .card--x:hover       .card-arrow { color: var(--x); }
+    .card--funko:hover   .card-arrow { color: var(--funko); }
+    .card--topps:hover   .card-arrow { color: var(--topps); }
+
+    /* ── Footer ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 540px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .hero {
+        padding: 2rem 1.25rem 2rem;
+      }
+    }
+
+    @media (min-width: 541px) and (max-width: 768px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a class="logo" href="/">
+      <div class="logo-icon"><img src="images/FoxLogo.png" alt="PopInStock logo" /></div>
+    </a>
+  </header>
+
+  <section class="hero">
+    <h1>Your hub for<br /><span>Everything PopInStock</span></h1>
+    <p>Live streams, community, and collectibles — all in one place.</p>
+  </section>
+
+  <main>
+    <div class="grid">
+
+      <!-- Twitch -->
+      <a href="https://www.twitch.tv/popinstock" target="_blank" rel="noopener noreferrer" class="card card--twitch">
+        <div class="card-icon">
+          <!-- Twitch logo -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Twitch</div>
+          <div class="card-desc">24/7 live streams, chat games, and prizes to win.</div>
+        </div>
+        <div class="card-arrow">↗</div>
+      </a>
+
+      <!-- Discord -->
+      <a href="https://discord.gg/xrxmMEJJ" target="_blank" rel="noopener noreferrer" class="card card--discord">
+        <div class="card-icon">
+          <!-- Discord logo -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.042.03.052a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Discord</div>
+          <div class="card-desc">Join the community, chat, and keep up with the latest news.</div>
+        </div>
+        <div class="card-arrow">↗</div>
+      </a>
+
+      <!-- X -->
+      <a href="https://x.com/popinstock" target="_blank" rel="noopener noreferrer" class="card card--x">
+        <div class="card-icon">
+          <!-- X logo -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.261 5.632 5.903-5.632zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="card-title">X</div>
+          <div class="card-desc">Stay in the loop with updates and announcements.</div>
+        </div>
+        <div class="card-arrow">↗</div>
+      </a>
+
+      <!-- Funko NFTs -->
+      <a href="funko/funko.html" class="card card--funko">
+        <div class="card-icon">
+          <img src="images/funko-icon.png" alt="Funko" />
+        </div>
+        <div class="card-body">
+          <div class="card-title">Funko</div>
+          <div class="card-desc">Explore key Funko digital collection data on the WAX blockchain and advanced collector tools.</div>
+        </div>
+        <div class="card-arrow">↗</div>
+      </a>
+
+      <!-- Topps NFTs -->
+      <a href="topps/topps.html" class="card card--topps">
+        <div class="card-icon">
+          <img src="images/topps.png" alt="Topps" style="width:42px;height:42px;object-fit:contain;" />
+        </div>
+        <div class="card-body">
+          <div class="card-title">Topps</div>
+          <div class="card-desc">Explore key Topps digital collection data on the WAX blockchain and advanced collector tools.</div>
+        </div>
+        <div class="card-arrow">↗</div>
+      </a>
+
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2026 PopInStock &mdash; All rights reserved.
+  </footer>
+
+</body>
+</html>

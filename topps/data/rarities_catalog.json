@@ -1,0 +1,26 @@
+[
+  {
+    "collection": "mlb.topps",
+    "schema": "series1",
+    "rarities": [
+      "Common",
+      "Uncommon",
+      "Rare",
+      "Super Rare",
+      "Epic",
+      "Epic Exclusive",
+      "Event Exclusive",
+      "Legendary Exclusive"
+    ]
+  },
+  {
+    "collection": "mlb.topps",
+    "schema": "promo",
+    "rarities": [
+      "Common",
+      "Super Rare",
+      "Epic",
+      "Legendary"
+    ]
+  }
+]

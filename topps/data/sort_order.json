@@ -1,0 +1,22 @@
+{
+  "series1": {
+    "rarity": [
+      "Common",
+      "Uncommon",
+      "Rare",
+      "Super Rare",
+      "Epic",
+      "Epic Exclusive",
+      "Event Exclusive",
+      "Legendary Exclusive"
+    ]
+  },
+  "promo": {
+    "rarity": [
+      "Common",
+      "Super Rare",
+      "Epic",
+      "Legendary"
+    ]
+  }
+}
