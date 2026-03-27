@@ -282,6 +282,113 @@
     .rarity-common    { color: var(--rarity-common);     border-color: var(--rarity-common);     background: rgba(156,163,175,0.10); }
     .rarity-redeemable{ color: var(--rarity-redeemable); border-color: var(--rarity-redeemable); background: rgba(249,115,22,0.12); }
     .rarity-pack      { color: var(--rarity-pack);       border-color: var(--rarity-pack);       background: rgba(148,163,184,0.10); }
+
+    /* ── Clickable / selected mints ── */
+    .mint-clickable {
+      cursor: pointer; border-radius: 999px; padding: 0.05rem 0.35rem;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s; display: inline-block;
+    }
+    .mint-clickable:hover { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .mint-selected {
+      background: rgba(74,222,128,0.18) !important; color: #4ade80 !important;
+      box-shadow: 0 0 0 2px #4ade80; font-weight: 700;
+    }
+
+    /* ── Trade tab ── */
+    .trade-tab {
+      position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+      background: linear-gradient(180deg, var(--accent-light), var(--accent));
+      color: #fff; border: none; border-radius: 10px 0 0 10px;
+      padding: 1.1rem 0.55rem; cursor: pointer; z-index: 200;
+      font-weight: 700; font-size: 0.78rem; writing-mode: vertical-lr;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      display: flex; align-items: center; gap: 0.5rem;
+      box-shadow: -3px 0 12px rgba(0,0,0,0.35); transition: opacity 0.2s;
+    }
+    .trade-tab:hover { opacity: 0.88; }
+    .trade-count-badge {
+      background: #fff; color: var(--accent); border-radius: 999px;
+      font-size: 0.72rem; font-weight: 800; min-width: 18px; height: 18px;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0 3px;
+    }
+
+    /* ── Trade sidebar ── */
+    .trade-sidebar {
+      position: fixed; right: -380px; top: 0; bottom: 0; width: 360px;
+      background: var(--bg-card); border-left: 1px solid var(--border);
+      z-index: 300; transition: right 0.3s ease;
+      display: flex; flex-direction: column; box-shadow: -6px 0 24px rgba(0,0,0,0.4);
+    }
+    .trade-sidebar.open { right: 0; }
+    .trade-sidebar-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .trade-sidebar-title { font-weight: 700; font-size: 1rem; color: var(--accent-light); letter-spacing: 0.03em; }
+    .trade-close-btn {
+      background: none; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 1.1rem; padding: 0.2rem 0.4rem; border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .trade-close-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .trade-entries { flex: 1; overflow-y: auto; padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .trade-empty { color: var(--text-secondary); font-size: 0.875rem; text-align: center; margin-top: 2rem; line-height: 1.6; }
+    .trade-wallet-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .trade-wallet-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.1rem 0.2rem; }
+    .trade-wallet-label { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; color: var(--accent-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trade-wallet-divider { flex: 1; height: 1px; background: var(--border); }
+    .trade-entry {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.55rem 0.85rem; position: relative; padding-right: 2.2rem;
+    }
+    .trade-entry-main { display: flex; align-items: baseline; gap: 0.5rem; }
+    .trade-entry-mint { color: #4ade80; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 0.92rem; flex-shrink: 0; }
+    .trade-entry-name { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trade-entry-sub { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.1rem; }
+    .trade-entry-drop { font-size: 0.82rem; color: var(--text-secondary); opacity: 0.85; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trade-remove-btn {
+      position: absolute; top: 50%; right: 0.6rem; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 0.85rem; padding: 0.25rem; border-radius: 4px; line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+    .trade-remove-btn:hover { color: #e05252; background: rgba(224,82,82,0.1); }
+    .trade-sidebar-footer { padding: 0.85rem 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .trade-action-btn {
+      flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text-primary); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .trade-action-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+    .trade-action-btn--danger:hover { background: rgba(224,82,82,0.1); border-color: #e05252; color: #e05252; }
+
+    /* ── Marketplace links ── */
+    .market-links {
+      position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; }
+    .market-link:hover { opacity: 1; }
+    .market-link img { width: 20px; height: 20px; object-fit: contain; }
+
+    /* ── Results header + trade filter toggle ── */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem; padding: 0 0.25rem; gap: 1rem;
+    }
+    .results-meta { color: var(--text-secondary); font-size: 0.8rem; }
+    .results-meta strong { color: var(--text-primary); }
+    .trade-filter-btn {
+      display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+      padding: 0.35rem 0.75rem; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .trade-filter-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text-primary); }
+    .trade-filter-btn--active { background: rgba(74,222,128,0.1); border-color: #4ade80; color: #4ade80; }
+    .trade-filter-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .trade-filter-empty { display: none; text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -333,7 +440,14 @@
     </div>
 
     <div id="resultsWrap" style="display:none;">
-      <div class="results-meta" id="resultsMeta"></div>
+      <div class="results-header">
+        <div class="results-meta" id="resultsMeta"></div>
+        <button id="tradeFilterBtn" class="trade-filter-btn" onclick="toggleTradeFilter()">
+          <span class="trade-filter-dot"></span>
+          <span id="tradeFilterLabel">Show trade only</span>
+        </button>
+      </div>
+      <div id="tradeFilterEmpty" class="trade-filter-empty">No cards from this drop are in your trade summary.</div>
       <div class="table-scroll">
         <table class="results-table">
           <thead id="tableHead"></thead>
@@ -342,6 +456,26 @@
       </div>
     </div>
   </main>
+
+  <!-- Trade Tab -->
+  <button id="tradeTab" class="trade-tab" onclick="toggleSidebar()">
+    Trade<span id="tradeCountBadge" class="trade-count-badge">0</span>
+  </button>
+
+  <!-- Trade Sidebar -->
+  <div id="tradeSidebar" class="trade-sidebar">
+    <div class="trade-sidebar-header">
+      <span class="trade-sidebar-title">Trade Summary</span>
+      <button class="trade-close-btn" onclick="toggleSidebar()">✕</button>
+    </div>
+    <div id="tradeEntries" class="trade-entries">
+      <p class="trade-empty">No mints selected yet.<br>Click a mint # in the table to add it.</p>
+    </div>
+    <div class="trade-sidebar-footer">
+      <button id="tradeCopyBtn" class="trade-action-btn" onclick="copyTrade()">Copy to Clipboard</button>
+      <button class="trade-action-btn trade-action-btn--danger" onclick="clearTrade()">Clear All</button>
+    </div>
+  </div>
 
   <script src="nav.js"></script>
   <script>
@@ -357,6 +491,38 @@
     let raritiesCatalog  = [];
     let sortOrderData    = {};
     let currentRarityMode = 'optional';
+    let lastWallets      = [];
+    let currentDropLabel = '';
+    let lastCollection   = '';
+    let lastSchema       = '';
+    let tradeFilterActive = false;
+
+    // ── Trade Summary state ───────────────────────────────────────────────────
+    let tradeSummary   = [];
+    let tradeIdCounter = 0;
+
+    const TRADE_STORAGE_KEY = 'popinstock_trade_topps';
+
+    function saveTrade() {
+      localStorage.setItem(TRADE_STORAGE_KEY, JSON.stringify({ items: tradeSummary, counter: tradeIdCounter }));
+    }
+    function loadTrade() {
+      try {
+        const raw = localStorage.getItem(TRADE_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          tradeSummary   = parsed.items   ?? [];
+          tradeIdCounter = parsed.counter ?? 0;
+        }
+      } catch { tradeSummary = []; tradeIdCounter = 0; }
+      renderSidebar();
+      updateTradeTab();
+    }
+
+    function tradeKey(templateId, wallet, mint) { return `${templateId}:${wallet}:${mint}`; }
+    function isInTrade(templateId, wallet, mint) {
+      return tradeSummary.some(e => e.key === tradeKey(templateId, wallet, mint));
+    }
 
     // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -397,8 +563,16 @@
 
       sel.addEventListener('change', onCollectionChange);
       document.getElementById('raritySelect').addEventListener('change', updateBtn);
-      document.getElementById('walletsInput').addEventListener('input', updateBtn);
+      const walletsInput = document.getElementById('walletsInput');
+      walletsInput.addEventListener('input', () => {
+        const { selectionStart, selectionEnd } = walletsInput;
+        walletsInput.value = walletsInput.value.toLowerCase();
+        walletsInput.setSelectionRange(selectionStart, selectionEnd);
+        updateBtn();
+      });
       document.getElementById('searchBtn').addEventListener('click', onSearch);
+
+      loadTrade();
     }
 
     function onCollectionChange() {
@@ -521,8 +695,15 @@
         setStatus(`Fetching assets for ${wallets.length} wallet${wallets.length > 1 ? 's' : ''}…`);
         const walletMaps = await Promise.all(wallets.map(w => fetchWalletAssets(collection, schema, w)));
 
+        lastWallets = wallets;
+        lastCollection = collection;
+        lastSchema = schema;
+        currentDropLabel = document.getElementById('dropSelect').selectedOptions[0].text;
+
         hideStatus();
         renderTable(templates, wallets, walletMaps);
+        reapplyHighlights();
+        applyTradeFilter();
 
       } catch (err) {
         hideStatus();
@@ -622,7 +803,27 @@
 
         // Name
         const tdName = document.createElement('td');
-        tdName.textContent = tmpl.name;
+        tdName.style.position = 'relative';
+        tdName.style.paddingRight = '5.5rem';
+        const nameText = document.createElement('div');
+        nameText.textContent = tmpl.name;
+        tdName.appendChild(nameText);
+        const nameMarkets = document.createElement('div');
+        nameMarkets.className = 'market-links';
+        [
+          { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&collection_name=${lastCollection}&template_id=${tmpl.templateId}&order=asc&primary_chain=wax-mainnet&schema_name=${lastSchema}&sort=template_mint&symbol=WAX&max_assets=1`, icon: '../images/atomic.svg',      title: 'View on AtomicHub' },
+          { href: `https://neftyblocks.com/marketplace/listing?collection_name=${lastCollection}&order=asc&page=1&sort=template_mint&template_id=${tmpl.templateId}`,                                                                                         icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
+          { href: `https://nfthive.io/market?term=${tmpl.templateId}&order_by=mint_asc&offer_type=listings`,                                                                                                                                                 icon: '../images/nfthive.svg',     title: 'View on NFTHive' },
+        ].forEach(({ href, icon, title }) => {
+          const a = document.createElement('a');
+          a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          a.className = 'market-link'; a.title = title;
+          const img = document.createElement('img');
+          img.src = icon; img.alt = title;
+          a.appendChild(img);
+          nameMarkets.appendChild(a);
+        });
+        tdName.appendChild(nameMarkets);
         row.appendChild(tdName);
 
         // Template ID
@@ -647,9 +848,7 @@
       tbody.appendChild(frag);
 
       // Meta
-      const dropLabel = document.getElementById('dropSelect').selectedOptions[0].text;
-      document.getElementById('resultsMeta').innerHTML =
-        `<strong>${sorted.length}</strong> templates &nbsp;·&nbsp; <strong>${wallets.length}</strong> wallet${wallets.length > 1 ? 's' : ''} &nbsp;·&nbsp; ${dropLabel}`;
+      updateResultsMeta(sorted.length, sorted.length);
 
       document.getElementById('filterRow').style.display = '';
       showResults();
@@ -661,11 +860,20 @@
       return (!hasMin || m >= min) && (!hasMax || m <= max);
     }
 
+    function makeMintSpan(tmpl, wallet, mint) {
+      const span = document.createElement('span');
+      span.className = 'mint-clickable';
+      const key = tradeKey(tmpl.templateId, wallet, mint);
+      span.dataset.tradeKey = key;
+      span.textContent = `#${mint}`;
+      if (isInTrade(tmpl.templateId, wallet, mint)) span.classList.add('mint-selected');
+      span.addEventListener('click', () => toggleMint(tmpl, wallet, mint, span));
+      return span;
+    }
+
     function fillWalletCells(row, tmpl, walletMaps, hasMin, min, hasMax, max) {
-      // Remove existing wallet TDs (keep first 4: Name, Card ID, Template ID, Rarity)
       while (row.cells.length > 4) row.deleteCell(4);
 
-      // Find lowest in-range mint across all wallets
       let lowest = Infinity;
       for (const wmap of walletMaps) {
         const e = wmap.get(tmpl.templateId);
@@ -676,7 +884,8 @@
         }
       }
 
-      for (const wmap of walletMaps) {
+      walletMaps.forEach((wmap, walletIdx) => {
+        const wallet = lastWallets[walletIdx] ?? `wallet${walletIdx}`;
         const td    = document.createElement('td');
         const entry = wmap.get(tmpl.templateId);
         if (entry) {
@@ -691,7 +900,11 @@
           spanCopies.textContent = `${entry.count}x`;
           const spanMint = document.createElement('span');
           spanMint.className = 'wallet-mint';
-          spanMint.textContent = visible.length > 0 ? `#${visible[0]}` : '—';
+          if (visible.length > 0) {
+            spanMint.appendChild(makeMintSpan(tmpl, wallet, visible[0]));
+          } else {
+            spanMint.textContent = '—';
+          }
           cell.appendChild(spanCopies);
           cell.appendChild(spanMint);
           td.appendChild(cell);
@@ -699,7 +912,10 @@
           if (visible.length > 1) {
             const next = document.createElement('div');
             next.className = 'wallet-next-mints';
-            next.textContent = visible.slice(1).map(m => `#${m}`).join(', ');
+            visible.slice(1).forEach((m, i) => {
+              if (i > 0) next.appendChild(document.createTextNode(', '));
+              next.appendChild(makeMintSpan(tmpl, wallet, m));
+            });
             td.appendChild(next);
           }
         } else {
@@ -707,7 +923,7 @@
           td.textContent = '—';
         }
         row.appendChild(td);
-      }
+      });
     }
 
     function applyFilter() {
@@ -720,6 +936,200 @@
       lastSorted.forEach((tmpl, i) => {
         fillWalletCells(rows[i], tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
       });
+      applyTradeFilter();
+    }
+
+    // ── Trade Summary logic ───────────────────────────────────────────────────
+
+    function toggleMint(tmpl, wallet, mint, spanEl) {
+      if (isInTrade(tmpl.templateId, wallet, mint)) {
+        const entry = tradeSummary.find(e => e.key === tradeKey(tmpl.templateId, wallet, mint));
+        if (entry) removeFromTrade(entry.id);
+      } else {
+        addToTrade(tmpl, wallet, mint);
+        spanEl.classList.add('mint-selected');
+      }
+      applyTradeFilter();
+    }
+
+    function addToTrade(tmpl, wallet, mint) {
+      const key = tradeKey(tmpl.templateId, wallet, mint);
+      if (isInTrade(tmpl.templateId, wallet, mint)) return;
+      tradeSummary.push({
+        id        : ++tradeIdCounter,
+        key,
+        templateId: tmpl.templateId,
+        mint,
+        cardId    : tmpl.cardId,
+        cardName  : tmpl.name,
+        rarity    : tmpl.rarity,
+        wallet,
+        dropLabel : currentDropLabel,
+      });
+      saveTrade();
+      renderSidebar();
+      updateTradeTab();
+    }
+
+    function removeFromTrade(id) {
+      const entry = tradeSummary.find(e => e.id === id);
+      if (!entry) return;
+      tradeSummary = tradeSummary.filter(e => e.id !== id);
+      saveTrade();
+      const span = document.querySelector(`[data-trade-key="${entry.key}"]`);
+      if (span) span.classList.remove('mint-selected');
+      renderSidebar();
+      updateTradeTab();
+    }
+
+    function clearTrade() {
+      tradeSummary = [];
+      saveTrade();
+      document.querySelectorAll('.mint-selected').forEach(el => el.classList.remove('mint-selected'));
+      renderSidebar();
+      updateTradeTab();
+    }
+
+    function reapplyHighlights() {
+      tradeSummary.forEach(entry => {
+        const span = document.querySelector(`[data-trade-key="${entry.key}"]`);
+        if (span) span.classList.add('mint-selected');
+      });
+    }
+
+    function renderSidebar() {
+      const container = document.getElementById('tradeEntries');
+      container.innerHTML = '';
+      if (tradeSummary.length === 0) {
+        container.innerHTML = '<p class="trade-empty">No mints selected yet.<br>Click a mint # in the table to add it.</p>';
+        return;
+      }
+      const byWallet = new Map();
+      tradeSummary.forEach(entry => {
+        if (!byWallet.has(entry.wallet)) byWallet.set(entry.wallet, []);
+        byWallet.get(entry.wallet).push(entry);
+      });
+      byWallet.forEach((entries, wallet) => {
+        entries.sort((a, b) => {
+          const dd = a.dropLabel.localeCompare(b.dropLabel);
+          if (dd !== 0) return dd;
+          const ca = parseInt(a.cardId, 10), cb = parseInt(b.cardId, 10);
+          if (!isNaN(ca) && !isNaN(cb)) return ca - cb;
+          return String(a.cardId).localeCompare(String(b.cardId));
+        });
+        const group = document.createElement('div');
+        group.className = 'trade-wallet-group';
+        const header = document.createElement('div');
+        header.className = 'trade-wallet-header';
+        const label = document.createElement('span');
+        label.className = 'trade-wallet-label';
+        label.textContent = wallet; label.title = wallet;
+        const divider = document.createElement('div');
+        divider.className = 'trade-wallet-divider';
+        header.appendChild(label); header.appendChild(divider);
+        group.appendChild(header);
+        entries.forEach(entry => {
+          const el = document.createElement('div');
+          el.className = 'trade-entry';
+          const main = document.createElement('div');
+          main.className = 'trade-entry-main';
+          const mintSpan = document.createElement('span');
+          mintSpan.className = 'trade-entry-mint';
+          mintSpan.textContent = `#${entry.mint}`;
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'trade-entry-name';
+          nameSpan.textContent = entry.cardName; nameSpan.title = entry.cardName;
+          main.appendChild(mintSpan); main.appendChild(nameSpan);
+          const sub = document.createElement('div');
+          sub.className = 'trade-entry-sub';
+          sub.textContent = `ID: ${entry.cardId}  ·  ${entry.rarity}`;
+          const drop = document.createElement('div');
+          drop.className = 'trade-entry-drop';
+          drop.textContent = entry.dropLabel; drop.title = entry.dropLabel;
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'trade-remove-btn';
+          removeBtn.textContent = '✕'; removeBtn.title = 'Remove from trade';
+          removeBtn.onclick = () => removeFromTrade(entry.id);
+          el.appendChild(main); el.appendChild(sub); el.appendChild(drop); el.appendChild(removeBtn);
+          group.appendChild(el);
+        });
+        container.appendChild(group);
+      });
+    }
+
+    function updateTradeTab() {
+      document.getElementById('tradeCountBadge').textContent = tradeSummary.length;
+    }
+
+    function toggleSidebar() {
+      document.getElementById('tradeSidebar').classList.toggle('open');
+    }
+
+    function copyTrade() {
+      if (tradeSummary.length === 0) return;
+      const byWallet = new Map();
+      tradeSummary.forEach(e => {
+        if (!byWallet.has(e.wallet)) byWallet.set(e.wallet, []);
+        byWallet.get(e.wallet).push(e);
+      });
+      const lines = [];
+      byWallet.forEach((entries, wallet) => {
+        entries.sort((a, b) => {
+          const dd = a.dropLabel.localeCompare(b.dropLabel);
+          if (dd !== 0) return dd;
+          const ca = parseInt(a.cardId, 10), cb = parseInt(b.cardId, 10);
+          if (!isNaN(ca) && !isNaN(cb)) return ca - cb;
+          return String(a.cardId).localeCompare(String(b.cardId));
+        });
+        lines.push(`[ ${wallet} ]`);
+        entries.forEach(e => lines.push(`  #${e.mint}  ${e.cardName} (ID: ${e.cardId})  —  ${e.dropLabel}`));
+        lines.push('');
+      });
+      lines.pop();
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        const btn = document.getElementById('tradeCopyBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy to Clipboard', 1800);
+      }).catch(() => alert(lines.join('\n')));
+    }
+
+    // ── Trade filter ──────────────────────────────────────────────────────────
+
+    function updateResultsMeta(visible, total) {
+      const wc = lastWallets.length;
+      const meta = document.getElementById('resultsMeta');
+      if (tradeFilterActive && visible < total) {
+        meta.innerHTML = `<strong>${visible}</strong> of <strong>${total}</strong> cards &nbsp;·&nbsp; <strong>${wc}</strong> wallet${wc > 1 ? 's' : ''} &nbsp;·&nbsp; ${currentDropLabel}`;
+      } else {
+        meta.innerHTML = `<strong>${total}</strong> templates &nbsp;·&nbsp; <strong>${wc}</strong> wallet${wc > 1 ? 's' : ''} &nbsp;·&nbsp; ${currentDropLabel}`;
+      }
+    }
+
+    function toggleTradeFilter() {
+      tradeFilterActive = !tradeFilterActive;
+      const btn = document.getElementById('tradeFilterBtn');
+      btn.classList.toggle('trade-filter-btn--active', tradeFilterActive);
+      document.getElementById('tradeFilterLabel').textContent = tradeFilterActive ? 'Show all cards' : 'Show trade only';
+      applyTradeFilter();
+    }
+
+    function applyTradeFilter() {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const tableScroll = document.querySelector('.table-scroll');
+      const emptyEl = document.getElementById('tradeFilterEmpty');
+      let visible = 0;
+      rows.forEach(row => {
+        if (!tradeFilterActive) { row.style.display = ''; visible++; }
+        else {
+          const hasSelected = row.querySelector('.mint-selected') !== null;
+          row.style.display = hasSelected ? '' : 'none';
+          if (hasSelected) visible++;
+        }
+      });
+      const isEmpty = tradeFilterActive && visible === 0;
+      tableScroll.style.display = isEmpty ? 'none' : '';
+      emptyEl.style.display     = isEmpty ? 'block' : 'none';
+      updateResultsMeta(visible, lastSorted.length);
     }
 
     // ── UI helpers ────────────────────────────────────────────────────────────
