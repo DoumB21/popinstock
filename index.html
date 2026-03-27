@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PopInStock</title>
+  <title>Pop In Stock</title>
   <link rel="icon" type="image/png" href="images/FoxLogo.png" />
   <style>
     *, *::before, *::after {
@@ -53,39 +53,34 @@
       z-index: 0;
     }
 
-    /* ── Header ── */
-    header {
-      position: relative;
-      z-index: 1;
-      padding: 3rem 2rem 1rem;
-      text-align: center;
-    }
-
-    .logo {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      text-decoration: none;
-    }
-
-    .logo-icon {
-      width: 44px;
-      height: 44px;
-      flex-shrink: 0;
-    }
-
-    .logo-icon img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
     /* ── Hero ── */
     .hero {
       position: relative;
       z-index: 1;
       text-align: center;
-      padding: 3rem 1.5rem 2.5rem;
+      padding: 3.5rem 1.5rem 2.5rem;
+    }
+
+    .hero-wordmark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-wordmark img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+    }
+
+    .hero-brand {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
     }
 
     .hero h1 {
@@ -270,14 +265,12 @@
 </head>
 <body>
 
-  <header>
-    <a class="logo" href="/">
-      <div class="logo-icon"><img src="images/FoxLogo.png" alt="PopInStock logo" /></div>
-    </a>
-  </header>
-
   <section class="hero">
-    <h1>Your hub for<br /><span>Everything PopInStock</span></h1>
+    <div class="hero-wordmark">
+      <img src="images/FoxLogo.png" alt="Pop In Stock logo" />
+      <span class="hero-brand">Pop In Stock</span>
+    </div>
+    <h1>The Hub For<br /><span>Advanced Collectors</span></h1>
     <p>Live streams, community, and collectibles — all in one place.</p>
   </section>
 
