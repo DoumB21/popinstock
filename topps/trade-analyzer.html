@@ -472,7 +472,7 @@
       <button class="trade-close-btn" onclick="toggleSidebar()">✕</button>
     </div>
     <div id="tradeEntries" class="trade-entries">
-      <p class="trade-empty">No mints selected yet.<br>Click a mint # in the table to add it.</p>
+      <p class="trade-empty">No assets selected yet.<br>Click a mint # in the table to add it.</p>
     </div>
     <div class="trade-sidebar-footer">
       <button id="tradeCopyBtn" class="trade-action-btn" onclick="copyTrade()">Copy to Clipboard</button>
@@ -1004,7 +1004,7 @@
       const container = document.getElementById('tradeEntries');
       container.innerHTML = '';
       if (tradeSummary.length === 0) {
-        container.innerHTML = '<p class="trade-empty">No mints selected yet.<br>Click a mint # in the table to add it.</p>';
+        container.innerHTML = '<p class="trade-empty">No assets selected yet.<br>Click a mint # in the table to add it.</p>';
         return;
       }
       const byWallet = new Map();
