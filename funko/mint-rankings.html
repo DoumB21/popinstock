@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Funko Mint Rankings — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #13131d;
+      --bg-card-hover: #1a1a2a;
+      --border: rgba(255, 255, 255, 0.07);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888aa;
+      --accent: #c07828;
+      --accent-light: #f0a840;
+      --nav-height: 64px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Nav (injected by nav.js) */
+    .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { display: flex; align-items: center; gap: 0.5rem; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; height: var(--nav-height); }
+    .nav-home { display: flex; align-items: center; flex-shrink: 0; margin-right: 1rem; }
+    .nav-home img { height: 36px; width: 36px; object-fit: contain; transition: opacity 0.2s; }
+    .nav-home:hover img { opacity: 0.75; }
+    .nav-links { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
+    .nav-link { text-decoration: none; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.85rem; border-radius: 999px; border: 1px solid transparent; transition: color 0.2s, background 0.2s, border-color 0.2s; white-space: nowrap; }
+    .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .nav-link--active { color: var(--accent-light); background: rgba(192,120,40,0.12); border-color: rgba(192,120,40,0.25); }
+    .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0.4rem; margin-left: auto; }
+    .nav-burger span { display: block; width: 22px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s; }
+    .nav-burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-burger--open span:nth-child(2) { opacity: 0; }
+    .nav-burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .nav-burger--open span { background: var(--text-primary); }
+    .nav-mobile { display: none; flex-direction: column; padding: 0.75rem 1.5rem 1rem; border-top: 1px solid var(--border); gap: 0.25rem; }
+    .nav-mobile .nav-link { font-size: 0.95rem; padding: 0.6rem 1rem; border-radius: 10px; }
+    .nav-mobile--open { display: flex; }
+    @media (max-width: 640px) { .nav-links { display: none; } .nav-burger { display: flex; } }
+
+    /* Page */
+    .page { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
+
+    /* Content */
+    .content { max-width: 1100px; width: 100%; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .page-header { margin-bottom: 2rem; }
+    .page-title { font-size: 1.75rem; font-weight: 700; }
+    .page-title .accent { color: var(--accent-light); }
+    .page-subtitle { margin-top: 0.35rem; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
+
+    /* Year group */
+    .year-group { margin-bottom: 2.5rem; }
+    .year-heading {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .year-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Grid */
+    .drops-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    /* Card */
+    .drop-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .drop-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(192,120,40,0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 24px rgba(192,120,40,0.1);
+    }
+    .drop-card-img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      background: #0d0d18;
+      display: block;
+    }
+    .drop-card-img-placeholder {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #0d0d18;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 1.8rem;
+    }
+    .drop-card-body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 3px; }
+    .drop-card-name {
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--text-primary);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .drop-card-schema {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Meta bar */
+    .page-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; margin-top: 1.25rem; margin-bottom: 2rem; flex-wrap: wrap;
+    }
+    .page-meta-count { font-size: 0.82rem; color: var(--text-secondary); }
+    .page-meta-count strong { color: var(--text-primary); font-weight: 600; }
+    .search-input {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 12px;
+      color: var(--text-primary); font-size: 0.85rem;
+      font-family: inherit; outline: none;
+      width: 220px; transition: border-color 0.2s;
+    }
+    .search-input::placeholder { color: var(--text-secondary); }
+    .search-input:focus { border-color: rgba(192,120,40,0.5); }
+
+    /* States */
+    .state { text-align: center; padding: 4rem 1.5rem; color: var(--text-secondary); font-size: 0.95rem; }
+    .state-error { color: #e74c3c; }
+
+    footer { position: relative; z-index: 1; text-align: center; padding: 1.5rem; font-size: 0.8rem; color: var(--text-secondary); border-top: 1px solid var(--border); }
+
+    @media (max-width: 480px) {
+      .drops-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4798734033365350" crossorigin="anonymous"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title">Mint <span class="accent">Rankings</span></div>
+      <div class="page-subtitle">Browse every Funko Digital Pop! drop on WAX. Click a drop to view mint rankings and collector stats.</div>
+      <div class="page-meta">
+        <div class="page-meta-count" id="dropsCount">&nbsp;</div>
+        <input class="search-input" id="searchInput" type="search" placeholder="Search drops…" autocomplete="off">
+      </div>
+    </div>
+    <div id="dropsContainer">
+      <div class="state">Loading drops...</div>
+    </div>
+  </div>
+</div>
+
+
+<script src="data/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  function ipfsUrl(cid) {
+    if (!cid) return '';
+    if (cid.startsWith('http')) return cid;
+    if (cid.startsWith('ipfs://')) return IPFS_GATEWAY + cid.slice(7);
+    return IPFS_GATEWAY + cid;
+  }
+
+  function cleanName(name) {
+    return name
+      .replace(/^Funko Presents\s+/i, '')
+      .replace(/:\s*Funko Digital Pop!$/i, '')
+      .replace(/\s+X\s+Funko$/i, '')
+      .replace(/:\s*Funko Digital$/i, '')
+      .replace(/\s+x\s+Funko Digital Pop!$/i, '')
+      .replace(/^Digital Pop!\s+/i, '')
+      .replace(/^Freddy Funko\s*/i, '')
+      .replace(/\s+Freddy Funko$/i, '')
+      .replace(/^Funko\s+/i, '')
+      .replace(/^Disney's\s+/i, '')
+      .replace(/^Freddy's\s+/i, '')
+      .replace(/^DC's\s+/i, '')
+      .replace(/^DC\s+/i, '')
+      .replace(/^Hasbro\s+/i, '')
+      .replace(/\s+Digital Pop!$/i, '');
+  }
+
+  function schemaLabel(schema_name) {
+    const s = schema_name.replace('.drop', '');
+    const m = s.match(/^series(\d+)$/);
+    if (m) return 'Series ' + m[1];
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  async function sbFetch(table, params) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + (params ? '?' + params : '');
+    const r = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase error ' + r.status);
+    return r.json();
+  }
+
+  async function init() {
+    const container = document.getElementById('dropsContainer');
+    try {
+      const [schemas, collections] = await Promise.all([
+        sbFetch('schema_stats', 'select=collection_name,schema_name,created_at&order=created_at.asc'),
+        sbFetch('collections',  'select=collection_name,display_name,img,logo'),
+      ]);
+
+      const collMap = new Map(collections.map(c => [c.collection_name, c]));
+
+      const isRegular = s => /^series\d+\.drop$/.test(s.schema_name);
+
+      // Split into regular (seriesX.drop) and other
+      const regular = schemas.filter(isRegular);
+      const other   = schemas.filter(s => !isRegular(s));
+
+      // Group regular by year DESC, within each year sort created_at DESC
+      const byYear = new Map();
+      for (const s of regular) {
+        const year = s.created_at ? new Date(s.created_at).getFullYear() : 0;
+        const arr = byYear.get(year) ?? [];
+        arr.push(s);
+        byYear.set(year, arr);
+      }
+      for (const arr of byYear.values()) {
+        arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      }
+      const years = Array.from(byYear.keys()).sort((a, b) => b - a);
+
+      const totalDrops = schemas.length;
+      document.getElementById('dropsCount').innerHTML =
+        `<strong>${totalDrops}</strong> drop${totalDrops !== 1 ? 's' : ''} across <strong>${collections.length}</strong> collection${collections.length !== 1 ? 's' : ''}`;
+
+      function buildCard(s) {
+        const col      = collMap.get(s.collection_name) || {};
+        const name     = cleanName(col.display_name || s.collection_name);
+        const href     = 'drop.html?c=' + encodeURIComponent(s.collection_name) + '&s=' + encodeURIComponent(s.schema_name);
+        const avifSrc  = `images/drops/${s.collection_name}_${s.schema_name}.avif`;
+        const imgCid   = col.logo || col.img;
+        const fallback = imgCid ? ipfsUrl(imgCid) : '';
+        const placeholder = `<div class=\\'drop-card-img-placeholder\\'>&#9670;</div>`;
+        const onAvifError = fallback
+          ? `this.onerror=function(){this.outerHTML='${placeholder}'};this.src='${fallback}'`
+          : `this.outerHTML='${placeholder}'`;
+        const imgTag = `<img class="drop-card-img" src="${avifSrc}" alt="${name}" loading="lazy" onerror="${onAvifError}">`;
+        const searchKey = [name, s.collection_name, s.schema_name].join(' ').toLowerCase();
+        return `<a class="drop-card" href="${href}" data-search="${searchKey.replace(/"/g, '&quot;')}">
+          ${imgTag}
+          <div class="drop-card-body">
+            <div class="drop-card-name">${name}</div>
+            <div class="drop-card-schema">${schemaLabel(s.schema_name)}</div>
+          </div>
+        </a>`;
+      }
+
+      let html = '';
+      for (const year of years) {
+        html += `<div class="year-group">
+          <div class="year-heading">${year}</div>
+          <div class="drops-grid">${byYear.get(year).map(buildCard).join('')}</div>
+        </div>`;
+      }
+
+      if (other.length) {
+        html += `<div class="year-group">
+          <div class="year-heading">Other Collections</div>
+          <div class="drops-grid">${other.map(buildCard).join('')}</div>
+        </div>`;
+      }
+
+      container.innerHTML = html || '<div class="state">No drops found.</div>';
+
+      document.getElementById('searchInput').addEventListener('input', function () {
+        const q = this.value.trim().toLowerCase();
+        container.querySelectorAll('.drop-card').forEach(card => {
+          card.style.display = (!q || card.dataset.search.includes(q)) ? '' : 'none';
+        });
+        container.querySelectorAll('.year-group').forEach(group => {
+          const hasVisible = [...group.querySelectorAll('.drop-card')].some(c => c.style.display !== 'none');
+          group.style.display = hasVisible ? '' : 'none';
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `<div class="state state-error">Failed to load: ${err.message}</div>`;
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

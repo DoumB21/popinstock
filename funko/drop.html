@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drop — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #13131d;
+      --bg-card-hover: #1a1a2a;
+      --border: rgba(255, 255, 255, 0.07);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888aa;
+      --accent: #c07828;
+      --accent-light: #f0a840;
+      --nav-height: 64px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Nav */
+    .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { display: flex; align-items: center; gap: 0.5rem; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; height: var(--nav-height); }
+    .nav-home { display: flex; align-items: center; flex-shrink: 0; margin-right: 1rem; }
+    .nav-home img { height: 36px; width: 36px; object-fit: contain; transition: opacity 0.2s; }
+    .nav-home:hover img { opacity: 0.75; }
+    .nav-links { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
+    .nav-link { text-decoration: none; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.85rem; border-radius: 999px; border: 1px solid transparent; transition: color 0.2s, background 0.2s, border-color 0.2s; white-space: nowrap; }
+    .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .nav-link--active { color: var(--accent-light); background: rgba(192,120,40,0.12); border-color: rgba(192,120,40,0.25); }
+    .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0.4rem; margin-left: auto; }
+    .nav-burger span { display: block; width: 22px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s; }
+    .nav-burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-burger--open span:nth-child(2) { opacity: 0; }
+    .nav-burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .nav-burger--open span { background: var(--text-primary); }
+    .nav-mobile { display: none; flex-direction: column; padding: 0.75rem 1.5rem 1rem; border-top: 1px solid var(--border); gap: 0.25rem; }
+    .nav-mobile .nav-link { font-size: 0.95rem; padding: 0.6rem 1rem; border-radius: 10px; }
+    .nav-mobile--open { display: flex; }
+    @media (max-width: 640px) { .nav-links { display: none; } .nav-burger { display: flex; } }
+
+    /* Page */
+    .page { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
+
+    /* Banner */
+    .drop-banner-wrap { position: relative; width: 100%; height: 200px; overflow: hidden; }
+    .drop-banner-img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
+    .drop-banner-fade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.5) 50%, var(--bg) 100%); }
+
+    /* Drop header */
+    .drop-header {
+      display: flex; align-items: flex-start; gap: 1.25rem;
+      padding: 1.5rem 1.5rem 0.5rem;
+      max-width: 1100px; margin: 0 auto; width: 100%;
+    }
+    .drop-header.has-banner { padding-top: 0; margin-top: -160px; position: relative; z-index: 1; }
+    .drop-logo {
+      width: 72px; height: 72px; border-radius: 10px;
+      object-fit: contain; background: #0d0d18;
+      border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .drop-logo-placeholder {
+      width: 72px; height: 72px; border-radius: 10px;
+      background: #0d0d18; border: 1px solid var(--border);
+      flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; color: #333; font-size: 1.5rem;
+    }
+    .drop-header-info { display: flex; flex-direction: column; gap: 0.25rem; padding-top: 4px; }
+    .back-link { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; transition: color 0.2s; margin-bottom: 0.2rem; }
+    .back-link:hover { color: var(--accent-light); }
+    .drop-schema-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+    .drop-name { font-size: clamp(1.2rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+    .drop-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Content */
+    .content { padding: 1.25rem 1.5rem 4rem; max-width: 1100px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 2rem; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+    .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); }
+    .stat-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-top: 3px; }
+    .stat-card.burned .stat-value { color: #e74c3c; }
+    .stat-card.owners .stat-value { color: #3b82f6; }
+
+    /* Section */
+    .section { display: flex; flex-direction: column; gap: 0.9rem; }
+    .section-heading {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent);
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .section-count { font-weight: 400; color: var(--text-secondary); font-size: 0.82rem; text-transform: none; letter-spacing: 0; }
+
+    /* Rarity pills */
+    .rarity-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rarity-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px; border-radius: 999px; border: 1px solid; font-size: 0.82rem; font-weight: 600; }
+    .pill-count { opacity: 0.7; font-weight: 500; }
+    .r-common     { color: #999;    border-color: rgba(153,153,153,0.35); background: rgba(153,153,153,0.08); }
+    .r-uncommon   { color: #4caf50; border-color: rgba(76,175,80,0.35);   background: rgba(76,175,80,0.08); }
+    .r-rare       { color: #64b5f6; border-color: rgba(100,181,246,0.35); background: rgba(100,181,246,0.08); }
+    .r-epic       { color: #ce93d8; border-color: rgba(206,147,216,0.35); background: rgba(206,147,216,0.08); }
+    .r-series     { color: #ffb74d; border-color: rgba(255,183,77,0.35);  background: rgba(255,183,77,0.08); }
+    .r-ultra      { color: #e8ff00; border-color: rgba(232,255,0,0.35);   background: rgba(232,255,0,0.08); }
+    .r-legendary  { color: #e93494; border-color: rgba(233,52,148,0.35);  background: rgba(233,52,148,0.08); }
+    .r-grail      { color: #faa500; border-color: rgba(250,165,0,0.35);   background: rgba(250,165,0,0.08); }
+    .r-mythic     { color: #01ffff; border-color: rgba(1,255,255,0.35);   background: rgba(1,255,255,0.08); }
+    .r-royalty    { color: #007deb; border-color: rgba(0,125,235,0.35);   background: rgba(0,125,235,0.08); }
+    .r-1of1       { color: #ffd700; border-color: rgba(255,215,0,0.35);   background: rgba(255,215,0,0.08); }
+    .r-redeemable { color: #888;    border-color: rgba(136,136,136,0.25); background: rgba(136,136,136,0.06); }
+
+    /* Packs table */
+    .packs-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .packs-table th { text-align: left; padding: 9px 14px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+    .packs-table th.col-r { text-align: right; }
+    .packs-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
+    .packs-table td.col-r { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .packs-table tr:last-child td { border-bottom: none; }
+
+
+    /* Info icon */
+    .info-tip { display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer; vertical-align: middle; }
+    .info-tip-icon { font-size: 0.78rem; color: var(--text-secondary); opacity: 0.55; transition: opacity 0.2s; line-height: 1; }
+    .info-tip:hover .info-tip-icon { opacity: 1; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #1a1a2a; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px; padding: 1.5rem 1.75rem;
+      max-width: 420px; width: 90%; position: relative;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+    .modal-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.85rem; }
+    .modal-body { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; }
+    .modal-body code { font-family: monospace; color: var(--accent-light); background: rgba(255,255,255,0.05); padding: 2px 5px; border-radius: 4px; font-size: 0.82rem; }
+    .modal-close {
+      position: absolute; top: 0.85rem; right: 1rem;
+      background: none; border: none; color: var(--text-secondary);
+      font-size: 1.2rem; cursor: pointer; line-height: 1;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+
+    /* Leaderboard tables */
+    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; }
+    thead th { text-align: left; padding: 9px 14px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    thead th.col-r { text-align: right; }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; cursor: pointer; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+    tbody td { padding: 9px 14px; color: var(--text-primary); vertical-align: middle; }
+    tbody td.col-r { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .rank-cell { font-weight: 700; color: var(--text-secondary); font-size: 0.88rem; width: 44px; }
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+    .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
+    .rating-cell { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+    .no-data { padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.88rem; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
+
+    /* Show top 100 button */
+    .show-more-wrap { text-align: center; padding-top: 0.5rem; }
+    .show-more-btn { padding: 7px 22px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+    .show-more-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); border-color: rgba(255,255,255,0.15); }
+    .show-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* State */
+    .state { text-align: center; padding: 4rem 1.5rem; color: var(--text-secondary); font-size: 0.95rem; }
+    .state-error { color: #e74c3c; }
+
+    footer { position: relative; z-index: 1; text-align: center; padding: 1.5rem; font-size: 0.8rem; color: var(--text-secondary); border-top: 1px solid var(--border); }
+
+    /* Side-by-side rankings */
+    .rankings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+    @media (max-width: 800px) {
+      .rankings-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      .drop-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+      .drop-header.has-banner { margin-top: -110px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .drop-banner-wrap { height: 140px; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4798734033365350" crossorigin="anonymous"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page" id="pageRoot">
+  <div class="state">Loading...</div>
+</div>
+
+<div class="modal-overlay" id="ratingModal">
+  <div class="modal-box">
+    <button class="modal-close" id="ratingModalClose">&times;</button>
+    <div class="modal-title">Rating Formula</div>
+    <div class="modal-body">
+      <code>(total assets &minus; sum of lowest mints + set size) &divide; total assets &times; 100</code>
+      <br><br>
+      <b>Total assets</b> — number of non-burned NFTs across all holders for that set's rarities.<br>
+      <b>Sum of lowest mints</b> — sum of your best mint number for each card in the set.<br>
+      <b>Set size</b> — number of cards in the set.<br><br>
+      Lower mints = higher rating. Max is 100 (every card at mint&nbsp;#1).
+    </div>
+  </div>
+</div>
+
+
+<script src="data/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  const RARITY_ORDER = ['Common','Uncommon','Rare','Epic','Series','Ultra','Legendary','Grail','Mythic','Royalty','1 of 1','Redeemable'];
+  const RARITY_CLASS = { 'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic','Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail','Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1','Redeemable':'r-redeemable' };
+
+  const params = new URLSearchParams(location.search);
+  const c = params.get('c');
+  const s = params.get('s');
+
+  function enc(v)        { return encodeURIComponent(v); }
+  function fmt(n)        { return Number(n).toLocaleString(); }
+  function fmtDec(n, d)  { return Number(n).toFixed(d ?? 2); }
+
+  function ipfsUrl(cid) {
+    if (!cid) return '';
+    if (cid.startsWith('http')) return cid;
+    if (cid.startsWith('ipfs://')) return IPFS_GATEWAY + cid.slice(7);
+    return IPFS_GATEWAY + cid;
+  }
+
+  function cleanName(name) {
+    return name
+      .replace(/^Funko Presents\s+/i, '')
+      .replace(/:\s*Funko Digital Pop!$/i, '')
+      .replace(/\s+X\s+Funko$/i, '')
+      .replace(/:\s*Funko Digital$/i, '')
+      .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+  }
+
+  function schemaLabel(sn) {
+    const base = sn.replace('.drop', '');
+    const m = base.match(/^series(\d+)$/);
+    if (m) return 'Series ' + m[1];
+    return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  async function sbFetch(table, qs) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+    const r = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase error ' + r.status + ' on ' + table);
+    return r.json();
+  }
+
+  async function sbFetchWithCount(table, qs) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+    const r = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+        'Prefer': 'count=exact',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase error ' + r.status + ' on ' + table);
+    const data = await r.json();
+    const cr = r.headers.get('Content-Range');
+    const count = cr ? parseInt(cr.split('/')[1], 10) : data.length;
+    return { data, count };
+  }
+
+  function rankClass(rank) {
+    if (rank === 1) return 'rank-1';
+    if (rank === 2) return 'rank-2';
+    if (rank === 3) return 'rank-3';
+    return '';
+  }
+
+  function renderLeaderboardTable(rows) {
+    const top20 = rows.slice(0, 20);
+    if (!top20.length) return '<div class="no-data">No complete sets found for this drop.</div>';
+
+    // Total sets owned per wallet (max set_number across all their entries)
+    const totalSets = new Map();
+    for (const e of rows) {
+      if ((e.set_number || 1) > (totalSets.get(e.wallet) || 0)) totalSets.set(e.wallet, e.set_number);
+    }
+
+    const tableRows = top20.map((e, i) => {
+      const pos    = i + 1;
+      const href   = 'wallet.html?w=' + enc(e.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
+      const setBadge = e.set_number > 1
+        ? `<span style="font-size:0.75rem;font-weight:700;color:var(--accent);background:rgba(192,120,40,0.12);border:1px solid rgba(192,120,40,0.3);border-radius:4px;padding:2px 7px;white-space:nowrap">Set #${e.set_number}</span>`
+        : '';
+      return `<tr onclick="window.location='${href}'">
+        <td class="rank-cell ${rankClass(pos)}">#${pos}</td>
+        <td class="wallet-cell" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${e.wallet}${setBadge}</td>
+        <td class="col-r">${totalSets.get(e.wallet) || 1}</td>
+        <td class="col-r">${fmtDec(e.avg_mint, 3)}</td>
+        <td class="rating-cell">${fmtDec(e.rating, 3)}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="table-wrap"><table>
+      <thead><tr>
+        <th style="width:52px">Rank</th><th>Wallet</th>
+        <th class="col-r" style="width:70px">Sets</th>
+        <th class="col-r" style="width:100px">Avg Mint</th>
+        <th class="col-r" style="width:100px">Rating <span class="info-tip" onclick="document.getElementById('ratingModal').classList.add('open')"><span class="info-tip-icon">ⓘ</span></span></th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table></div>`;
+  }
+
+  function renderHoldersTable(holders) {
+    if (!holders.length) return '<div class="no-data">No holder data available.</div>';
+    const rows = holders.map(h => {
+      const href = 'wallet.html?w=' + enc(h.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
+      const dim = h.is_official ? ' style="opacity:0.45"' : '';
+      const official = h.is_official ? ' <span style="font-size:0.78rem;color:#888">(official)</span>' : '';
+      return `<tr${dim} onclick="window.location='${href}'">
+        <td class="rank-cell ${rankClass(h.rank)}">#${h.rank}</td>
+        <td class="wallet-cell">${h.wallet}${official}</td>
+        <td class="col-r">${fmt(h.total_assets)}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="table-wrap"><table>
+      <thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
+  async function showTop100() {
+    const btn  = document.getElementById('showMoreBtn');
+    const wrap = document.getElementById('holdersTableWrap');
+    if (btn) btn.disabled = true;
+    try {
+      const data = await sbFetch('top_holders',
+        'select=wallet,total_assets,rank,is_official' +
+        '&collection_name=eq.' + enc(c) +
+        '&schema_name=eq.' + enc(s) +
+        '&order=rank.asc&limit=100');
+      wrap.innerHTML = renderHoldersTable(data);
+      const moreWrap = document.getElementById('showMoreWrap');
+      if (moreWrap) moreWrap.remove();
+    } catch {
+      if (btn) { btn.disabled = false; }
+    }
+  }
+
+  async function init() {
+    const root = document.getElementById('pageRoot');
+
+    if (!c || !s) {
+      root.innerHTML = '<div class="state state-error">Missing drop parameters. <a href="mint-rankings.html" style="color:var(--accent-light)">← Back to all drops</a></div>';
+      return;
+    }
+
+    try {
+      const [colData, statsData, royaltyResult, masteryResult, holdersData, packData, officialData] = await Promise.all([
+        sbFetch('collections', 'select=collection_name,display_name,img,logo,banner&collection_name=eq.' + enc(c) + '&limit=1'),
+        sbFetch('schema_stats', 'select=*&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&limit=1'),
+        sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,rank,rating,avg_mint&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.royalty&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
+        sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,rank,rating,avg_mint&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.mastery&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
+        sbFetch('top_holders', 'select=wallet,total_assets,rank,is_official&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&order=rank.asc&limit=15'),
+        sbFetch('pack_stats', 'select=template_id,name,issued_supply,packs_burned,packs_available&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&order=template_id.asc'),
+        sbFetch('top_holders', 'select=total_assets&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&is_official=eq.true'),
+      ]);
+
+      const royaltyEntries = royaltyResult.data;
+      const royaltyCount   = royaltyResult.count;
+      const masteryEntries = masteryResult.data;
+      const masteryCount   = masteryResult.count;
+
+      const col   = colData[0]   || {};
+      const stats = statsData[0] || {};
+      const name  = cleanName(col.display_name || c);
+      const label = schemaLabel(s);
+      const releaseDate = stats.created_at ? fmtDate(stats.created_at) : '';
+
+      document.title = name + ' ' + label + ' — PopInStock';
+
+      // Banner
+      const bannerCid = col.banner;
+      const bannerHtml = bannerCid
+        ? `<div class="drop-banner-wrap">
+             <img class="drop-banner-img" src="${ipfsUrl(bannerCid)}" alt="" onerror="this.closest('.drop-banner-wrap').remove()">
+             <div class="drop-banner-fade"></div>
+           </div>`
+        : '';
+
+      // Logo
+      const logoCid = col.logo || col.img;
+      const logoHtml = logoCid
+        ? `<img class="drop-logo" src="${ipfsUrl(logoCid)}" alt="${name}" onerror="this.outerHTML='<div class=\\'drop-logo-placeholder\\'>&#9670;</div>'">`
+        : `<div class="drop-logo-placeholder">&#9670;</div>`;
+
+      // Stats
+      const active      = stats.total_assets || 0;
+      const burned      = stats.total_burned  || 0;
+      const minted      = active + burned;
+      const inOfficial  = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
+      const circulation = active - inOfficial;
+
+      const statsHtml = `
+        <div class="stat-card">
+          <div class="stat-value">${fmt(minted)}</div>
+          <div class="stat-label">Minted</div>
+        </div>
+        <div class="stat-card burned">
+          <div class="stat-value">${fmt(burned)}</div>
+          <div class="stat-label">Burned</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${fmt(inOfficial)}</div>
+          <div class="stat-label">In Packs</div>
+        </div>
+        <div class="stat-card owners">
+          <div class="stat-value">${fmt(circulation)}</div>
+          <div class="stat-label">In Circulation</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${fmt(stats.unique_owners || 0)}</div>
+          <div class="stat-label">Unique Owners</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${fmt(stats.total_templates || 0)}</div>
+          <div class="stat-label">Templates</div>
+        </div>`;
+
+      // Rarity breakdown — from pre-compiled schema_stats.rarity_breakdown
+      const rarityCounts = stats.rarity_breakdown || {};
+      const rarityPills = RARITY_ORDER
+        .filter(r => rarityCounts[r])
+        .map(r => `<span class="rarity-pill ${RARITY_CLASS[r] || ''}">${r} <span class="pill-count">${rarityCounts[r]}</span></span>`)
+        .join('');
+      const extraPills = Object.entries(rarityCounts)
+        .filter(([r]) => !RARITY_ORDER.includes(r))
+        .map(([r, n]) => `<span class="rarity-pill">${r} <span class="pill-count">${n}</span></span>`)
+        .join('');
+
+      // Packs section
+      let packsSection = '';
+      if (packData.length) {
+        const packRows = packData.map(p => {
+          const packName  = p.name || ('Pack #' + p.template_id);
+          const burnedPct = p.issued_supply > 0
+            ? fmtDec(p.packs_burned / p.issued_supply * 100, 1) + '%'
+            : '—';
+          return `<tr>
+            <td>${packName}</td>
+            <td class="col-r">${fmt(p.issued_supply)}</td>
+            <td class="col-r">${fmt(p.packs_burned)} <span style="font-size:0.75rem;color:var(--text-secondary)">(${burnedPct})</span></td>
+            <td class="col-r">${fmt(p.packs_available)}</td>
+          </tr>`;
+        }).join('');
+        packsSection = `<div class="section">
+          <div class="section-heading">Packs</div>
+          <table class="packs-table">
+            <thead><tr>
+              <th>Pack</th>
+              <th class="col-r">Issued</th>
+              <th class="col-r">Burned</th>
+              <th class="col-r">Available</th>
+            </tr></thead>
+            <tbody>${packRows}</tbody>
+          </table>
+        </div>`;
+      }
+
+      // Top holders
+      const holdersHtml = renderHoldersTable(holdersData);
+      const showMoreBtn = holdersData.length === 15
+        ? `<div class="show-more-wrap" id="showMoreWrap">
+             <button class="show-more-btn" id="showMoreBtn" onclick="showTop100()">Show Top 100 Holders</button>
+           </div>`
+        : '';
+
+      root.innerHTML = `
+        ${bannerHtml}
+        <div class="drop-header${bannerCid ? ' has-banner' : ''}">
+          ${logoHtml}
+          <div class="drop-header-info">
+            <a class="back-link" href="mint-rankings.html">← Back to all drops</a>
+            <div class="drop-schema-label">${label}${releaseDate ? ' · ' + releaseDate : ''}</div>
+            <div class="drop-name">${name}</div>
+            <div class="drop-meta">${c}</div>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="section">
+            <div class="section-heading">Asset Stats <span style="font-size:0.72rem;font-weight:400;color:var(--text-secondary);text-transform:none;letter-spacing:0;margin-left:0.5rem">Last updated: ${stats.updated_at ? fmtDate(stats.updated_at) : '—'}</span></div>
+            <div class="stats-grid">${statsHtml}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-heading">Rarity Breakdown</div>
+            <div class="rarity-pills">${rarityPills}${extraPills}</div>
+          </div>
+
+          ${packsSection}
+
+          <div class="rankings-grid">
+            <div class="section">
+              <div class="section-heading">Royalty Rankings <span class="section-count">(top ${royaltyEntries.length} of ${royaltyCount})</span></div>
+              ${renderLeaderboardTable(royaltyEntries)}
+            </div>
+            <div class="section">
+              <div class="section-heading">Mastery Rankings <span class="section-count">(top ${masteryEntries.length} of ${masteryCount})</span></div>
+              ${renderLeaderboardTable(masteryEntries)}
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-heading">Top Holders</div>
+            <div id="holdersTableWrap">${holdersHtml}</div>
+            ${showMoreBtn}
+          </div>
+        </div>`;
+
+    } catch (err) {
+      root.innerHTML = `<div class="state state-error">Failed to load: ${err.message}<br><br><a href="mint-rankings.html" style="color:var(--accent-light)">← Back to all drops</a></div>`;
+    }
+  }
+
+  init();
+
+  // Rating modal
+  const ratingModal = document.getElementById('ratingModal');
+  document.getElementById('ratingModalClose').addEventListener('click', () => ratingModal.classList.remove('open'));
+  ratingModal.addEventListener('click', e => { if (e.target === ratingModal) ratingModal.classList.remove('open'); });
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 const NAV_LINKS = [
   { label: 'Redemptions', href: 'redemptions.html' },
   { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
+  { label: 'Mint Rankings', href: 'mint-rankings.html' },
 ];
 
 const SECTION_NAME = 'Funko';
@@ -99,4 +100,26 @@ function buildBackToTop() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); });
+function buildFooter() {
+  const style = document.createElement('style');
+  style.textContent = `
+    footer {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border);
+    }
+  `;
+  document.head.appendChild(style);
+
+  const footer = document.createElement('footer');
+  footer.innerHTML = `
+    &copy; 2026 PopInStock &mdash; All rights reserved.
+    <div style="margin-top:0.4rem;font-size:0.72rem;opacity:0.55">Collection images are owned by their respective rights holders, including Funko and Droppp. Used for informational purposes only.</div>
+  `;
+  document.body.appendChild(footer);
+}
+
+document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); });

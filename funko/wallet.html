@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Look Up — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f; --bg-card: #13131d; --bg-card-hover: #1a1a2a;
+      --border: rgba(255,255,255,0.07);
+      --text-primary: #f0f0f5; --text-secondary: #8888aa;
+      --accent: #c07828; --accent-light: #f0a840; --nav-height: 64px;
+    }
+
+    html, body { height: 100%; }
+    body { background-color: var(--bg); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; z-index: 0; }
+
+    /* Nav */
+    .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { display: flex; align-items: center; gap: 0.5rem; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; height: var(--nav-height); }
+    .nav-home { display: flex; align-items: center; flex-shrink: 0; margin-right: 1rem; }
+    .nav-home img { height: 36px; width: 36px; object-fit: contain; transition: opacity 0.2s; }
+    .nav-home:hover img { opacity: 0.75; }
+    .nav-links { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
+    .nav-link { text-decoration: none; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.85rem; border-radius: 999px; border: 1px solid transparent; transition: color 0.2s, background 0.2s, border-color 0.2s; white-space: nowrap; }
+    .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .nav-link--active { color: var(--accent-light); background: rgba(192,120,40,0.12); border-color: rgba(192,120,40,0.25); }
+    .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0.4rem; margin-left: auto; }
+    .nav-burger span { display: block; width: 22px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s; }
+    .nav-burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-burger--open span:nth-child(2) { opacity: 0; }
+    .nav-burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .nav-burger--open span { background: var(--text-primary); }
+    .nav-mobile { display: none; flex-direction: column; padding: 0.75rem 1.5rem 1rem; border-top: 1px solid var(--border); gap: 0.25rem; }
+    .nav-mobile .nav-link { font-size: 0.95rem; padding: 0.6rem 1rem; border-radius: 10px; }
+    .nav-mobile--open { display: flex; }
+    @media (max-width: 640px) { .nav-links { display: none; } .nav-burger { display: flex; } }
+
+    /* Page */
+    .page { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
+    .content { padding: 2.5rem 1.5rem 4rem; max-width: 1100px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 2rem; }
+
+    /* Page header */
+    .page-header { display: flex; flex-direction: column; gap: 0.35rem; }
+    .page-title { font-size: 1.75rem; font-weight: 700; }
+    .page-title .accent { color: var(--accent-light); }
+    .page-subtitle { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin-top: 0.35rem; }
+
+    /* Controls */
+    .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 600px; }
+    .controls-row { display: flex; gap: 0.5rem; }
+    .wallet-input { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 1rem; color: var(--text-primary); font-size: 0.88rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+    .wallet-input::placeholder { color: var(--text-secondary); }
+    .wallet-input:focus { border-color: rgba(192,120,40,0.45); }
+    .lookup-btn { padding: 0.65rem 1.25rem; background: rgba(192,120,40,0.15); border: 1px solid rgba(192,120,40,0.3); border-radius: 10px; color: var(--accent-light); font-size: 0.88rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 0.2s, border-color 0.2s; }
+    .lookup-btn:hover { background: rgba(192,120,40,0.25); border-color: rgba(192,120,40,0.5); }
+    .drop-select { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 1rem; color: var(--text-primary); font-size: 0.85rem; font-family: inherit; outline: none; cursor: pointer; transition: border-color 0.2s; }
+    .drop-select:focus { border-color: rgba(192,120,40,0.45); }
+    .clear-btn { padding: 0.65rem 1rem; background: none; border: 1px solid var(--border); border-radius: 10px; color: var(--text-secondary); font-size: 0.82rem; font-family: inherit; cursor: pointer; white-space: nowrap; transition: color 0.2s, border-color 0.2s; }
+    .clear-btn:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); }
+
+    /* Wallet content container */
+    #walletContent { display: flex; flex-direction: column; gap: 1.75rem; }
+
+    /* Wallet header (shown inside walletContent) */
+    .wallet-header { display: flex; flex-direction: column; gap: 0.25rem; }
+    .wallet-address { font-size: clamp(1.1rem, 3vw, 1.5rem); font-weight: 800; color: var(--accent-light); letter-spacing: -0.5px; word-break: break-all; }
+    .wallet-drop-context { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
+    .back-link { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; transition: color 0.2s; margin-bottom: 0.15rem; }
+    .back-link:hover { color: var(--accent-light); }
+
+    /* Section */
+    .section { display: flex; flex-direction: column; gap: 0.9rem; }
+    .section-heading { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; gap: 0.75rem; }
+    .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .section-count { font-weight: 400; color: var(--text-secondary); font-size: 0.82rem; text-transform: none; letter-spacing: 0; }
+
+    /* Stats grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-top: 4px; }
+    .stat-card.royalty .stat-value { color: #007deb; }
+    .stat-card.mastery .stat-value { color: #e93494; }
+    .stat-card.nfts .stat-value { color: var(--accent-light); }
+
+    /* Overview grid */
+    .overview-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .overview-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .overview-table thead th { text-align: left; padding: 7px 14px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card); white-space: nowrap; }
+    .overview-table thead tr:last-child th { border-bottom: 1px solid var(--border); }
+    .overview-table thead th.col-r { text-align: right; }
+    .overview-table thead th.col-group { text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .overview-table thead th.col-group-royalty { color: #007deb; border-left: 1px solid var(--border); }
+    .overview-table thead th.col-group-mastery { color: #e93494; border-left: 1px solid var(--border); }
+    .overview-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.15s; }
+    .overview-table tbody tr:last-child { border-bottom: none; }
+    .overview-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .overview-table tbody td { padding: 9px 14px; vertical-align: middle; }
+    .overview-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .overview-table tbody td.col-sep { border-left: 1px solid var(--border); }
+    .ov-collection { font-weight: 600; color: var(--text-primary); font-size: 0.88rem; }
+    .ov-schema { font-size: 0.68rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+    .ov-rating { font-weight: 600; color: var(--text-primary); }
+    .ov-rank { color: var(--text-secondary); }
+    .ov-sets { color: var(--text-secondary); }
+    .ov-avg { color: var(--text-secondary); }
+    .ov-none { color: rgba(255,255,255,0.15); }
+
+    /* Set selector */
+    .set-selector-wrap { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .set-selector-label { font-size: 0.75rem; color: var(--text-secondary); }
+    .set-selector { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 0.82rem; padding: 0.35rem 0.7rem; outline: none; cursor: pointer; transition: border-color 0.2s; font-family: inherit; }
+    .set-selector:focus { border-color: rgba(192,120,40,0.45); }
+
+    /* Set summary block */
+    .set-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+    .set-summary span { display: flex; flex-direction: column; gap: 2px; }
+    .set-summary strong { font-size: 1rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+    /* No set message */
+    .no-set { padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 0.88rem; color: var(--text-secondary); }
+
+    /* Side-by-side sets layout */
+    .sets-row { display: flex; gap: 2rem; align-items: flex-start; }
+    .sets-row .section { flex: 1; min-width: 0; }
+    @media (max-width: 700px) { .sets-row { flex-direction: column; } }
+
+    /* Cards table */
+    .cards-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .cards-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; table-layout: fixed; }
+    .cards-table thead th { text-align: left; padding: 8px 12px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .cards-table thead th.col-r { text-align: right; }
+    .cards-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .cards-table tbody tr:last-child { border-bottom: none; }
+    .cards-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .cards-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .card-name { font-size: 0.85rem; color: var(--text-primary); }
+    .mint-num { font-weight: 700; color: var(--text-primary); }
+    .mint-num.mint-high { color: #e74c3c; }
+    .mint-num.mint-mid { color: #f0a840; }
+    .mint-num.mint-low { color: #4caf50; }
+
+    /* Rarity pills */
+    .rarity-pill { display: inline-flex; padding: 2px 9px; border-radius: 999px; border: 1px solid; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+    .r-common     { color: #999;    border-color: rgba(153,153,153,0.35); background: rgba(153,153,153,0.08); }
+    .r-uncommon   { color: #4caf50; border-color: rgba(76,175,80,0.35);   background: rgba(76,175,80,0.08); }
+    .r-rare       { color: #64b5f6; border-color: rgba(100,181,246,0.35); background: rgba(100,181,246,0.08); }
+    .r-epic       { color: #ce93d8; border-color: rgba(206,147,216,0.35); background: rgba(206,147,216,0.08); }
+    .r-series     { color: #ffb74d; border-color: rgba(255,183,77,0.35);  background: rgba(255,183,77,0.08); }
+    .r-ultra      { color: #e8ff00; border-color: rgba(232,255,0,0.35);   background: rgba(232,255,0,0.08); }
+    .r-legendary  { color: #e93494; border-color: rgba(233,52,148,0.35);  background: rgba(233,52,148,0.08); }
+    .r-grail      { color: #faa500; border-color: rgba(250,165,0,0.35);   background: rgba(250,165,0,0.08); }
+    .r-mythic     { color: #01ffff; border-color: rgba(1,255,255,0.35);   background: rgba(1,255,255,0.08); }
+    .r-royalty    { color: #007deb; border-color: rgba(0,125,235,0.35);   background: rgba(0,125,235,0.08); }
+    .r-1of1       { color: #ffd700; border-color: rgba(255,215,0,0.35);   background: rgba(255,215,0,0.08); }
+    .r-redeemable { color: #888;    border-color: rgba(136,136,136,0.25); background: rgba(136,136,136,0.06); }
+
+    /* States */
+    .state { text-align: center; padding: 4rem 1.5rem; color: var(--text-secondary); font-size: 0.95rem; }
+    .state-error { color: #e74c3c; }
+
+    @media (max-width: 500px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4798734033365350" crossorigin="anonymous"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Wallet <span class="accent">Look Up</span></div>
+      <div class="page-subtitle">Search any WAX wallet to explore their Funko Digital collection stats, set rankings, and card details.</div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet address..." spellcheck="false" autocomplete="off" />
+        <button class="lookup-btn" onclick="lookupWallet()">Look Up</button>
+      </div>
+      <div class="controls-row">
+        <select class="drop-select" id="dropSelect" onchange="onDropChange()">
+          <option value="">Loading drops…</option>
+        </select>
+        <button class="clear-btn" onclick="clearDrop()">Clear</button>
+      </div>
+    </div>
+
+    <div id="walletContent"></div>
+
+  </div>
+</div>
+
+<script src="data/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const initW  = params.get('w') || '';
+  const initC  = params.get('c') || '';
+  const initS  = params.get('s') || '';
+
+  const RARITY_ORDER = ['Common','Uncommon','Rare','Epic','Series','Ultra','Legendary','Grail','Mythic','Royalty','1 of 1','Redeemable'];
+  const RARITY_CLASS = { 'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic','Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail','Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1','Redeemable':'r-redeemable' };
+
+  let currentWallet    = '';
+  let cachedLbData     = null;
+  let cachedHoldersData = null;
+  let collNameMap      = new Map(); // collection_name → display_name
+  let allDrops         = [];        // [{collection_name, schema_name, display_name, year}]
+
+  function fmt(n)    { return Number(n).toLocaleString(); }
+  function fmtDec(n) { return Number(n).toFixed(3); }
+  function enc(v)    { return encodeURIComponent(v); }
+
+  function ipfsUrl(cid) {
+    if (!cid) return '';
+    if (cid.startsWith('http')) return cid;
+    if (cid.startsWith('ipfs://')) return IPFS_GATEWAY + cid.slice(7);
+    return IPFS_GATEWAY + cid;
+  }
+
+  function cleanName(name) {
+    return name
+      .replace(/^Funko Presents\s+/i, '')
+      .replace(/:\s*Funko Digital Pop!$/i, '')
+      .replace(/\s+X\s+Funko$/i, '')
+      .replace(/:\s*Funko Digital$/i, '')
+      .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+  }
+
+  function schemaLabel(sn) {
+    const base = sn.replace('.drop', '');
+    const m = base.match(/^series(\d+)$/);
+    if (m) return 'Series ' + m[1];
+    return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+
+  async function sbFetch(table, qs) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+    const r = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase error ' + r.status + ' on ' + table);
+    return r.json();
+  }
+
+  function mintClass(mint, avgMint) {
+    if (mint <= avgMint * 0.5) return 'mint-low';
+    if (mint <= avgMint * 1.5) return 'mint-mid';
+    return 'mint-high';
+  }
+
+  // ── Drop selector ──────────────────────────────────────────────
+
+  async function initDropSelector() {
+    const [schemas, collections] = await Promise.all([
+      sbFetch('schema_stats', 'select=collection_name,schema_name,created_at&order=created_at.asc'),
+      sbFetch('collections',  'select=collection_name,display_name'),
+    ]);
+
+    collNameMap = new Map(collections.map(c => [c.collection_name, cleanName(c.display_name || c.collection_name)]));
+
+    allDrops = schemas.map(s => ({
+      collection_name: s.collection_name,
+      schema_name:     s.schema_name,
+      display_name:    collNameMap.get(s.collection_name) || s.collection_name,
+      year:            s.created_at ? new Date(s.created_at).getFullYear() : 0,
+    }));
+
+    const isRegular = d => /^series\d+\.drop$/.test(d.schema_name);
+    const regular   = allDrops.filter(isRegular);
+    const other     = allDrops.filter(d => !isRegular(d));
+
+    const byYear = new Map();
+    for (const d of regular) {
+      const arr = byYear.get(d.year) ?? [];
+      arr.push(d);
+      byYear.set(d.year, arr);
+    }
+    for (const arr of byYear.values()) {
+      arr.sort((a, b) => a.display_name.localeCompare(b.display_name));
+    }
+    const years = Array.from(byYear.keys()).sort((a, b) => b - a);
+
+    let html = '<option value="">— All Drops —</option>';
+    for (const year of years) {
+      html += `<optgroup label="${year}">`;
+      for (const d of byYear.get(year)) {
+        html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
+      }
+      html += '</optgroup>';
+    }
+    if (other.length) {
+      html += '<optgroup label="Other">';
+      for (const d of other) {
+        html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
+      }
+      html += '</optgroup>';
+    }
+
+    const select = document.getElementById('dropSelect');
+    select.innerHTML = html;
+
+    // Pre-select from URL params
+    if (initC && initS) select.value = initC + '|' + initS;
+  }
+
+  function clearDrop() {
+    document.getElementById('dropSelect').value = '';
+    onDropChange();
+  }
+
+  function onDropChange() {
+    if (!currentWallet) return;
+    const val = document.getElementById('dropSelect').value;
+    if (!val) {
+      renderOverview();
+    } else {
+      const [c, s] = val.split('|');
+      renderDropDetail(c, s);
+    }
+  }
+
+  function selectDrop(c, s) {
+    document.getElementById('dropSelect').value = c + '|' + s;
+    onDropChange();
+  }
+
+  // ── Wallet loading ─────────────────────────────────────────────
+
+  function lookupWallet() {
+    const w = document.getElementById('walletInput').value.trim();
+    if (!w) return;
+    currentWallet = w;
+    const url = new URL(location.href);
+    url.searchParams.set('w', w);
+    const dropVal = document.getElementById('dropSelect').value;
+    if (dropVal) {
+      const [c, s] = dropVal.split('|');
+      url.searchParams.set('c', c);
+      url.searchParams.set('s', s);
+    } else {
+      url.searchParams.delete('c');
+      url.searchParams.delete('s');
+    }
+    history.replaceState(null, '', url.toString());
+    loadWallet(w);
+  }
+
+  async function loadWallet(wallet) {
+    document.getElementById('walletContent').innerHTML = '<div class="state">Loading…</div>';
+    try {
+      [cachedLbData, cachedHoldersData] = await Promise.all([
+        sbFetch('leaderboard_ratings',
+          'select=set_type,set_number,collection_name,schema_name,rank,rating,avg_mint,set_size' +
+          '&wallet=eq.' + enc(wallet) + '&limit=2000'),
+        sbFetch('top_holders',
+          'select=total_assets,collection_name,schema_name&wallet=eq.' + enc(wallet) + '&limit=500'),
+      ]);
+
+      const dropVal = document.getElementById('dropSelect').value;
+      if (dropVal) {
+        const [c, s] = dropVal.split('|');
+        renderDropDetail(c, s);
+      } else {
+        renderOverview();
+      }
+    } catch (err) {
+      document.getElementById('walletContent').innerHTML =
+        `<div class="state state-error">Failed to load: ${err.message}</div>`;
+    }
+  }
+
+  // ── Overview ───────────────────────────────────────────────────
+
+  function buildOverviewGrid(lbData) {
+    const dropMap = new Map();
+    for (const r of lbData) {
+      const key = r.collection_name + '|' + r.schema_name;
+      if (!dropMap.has(key)) dropMap.set(key, { col: r.collection_name, schema: r.schema_name, royalty: [], mastery: [] });
+      dropMap.get(key)[r.set_type].push(r);
+    }
+
+    if (!dropMap.size) return '<div class="no-set">No complete sets found for this wallet.</div>';
+
+    const drops = Array.from(dropMap.values())
+      .sort((a, b) => (collNameMap.get(a.col) || a.col).localeCompare(collNameMap.get(b.col) || b.col));
+
+    const none = '<span class="ov-none">—</span>';
+
+    const rows = drops.map(d => {
+      const displayName = collNameMap.get(d.col) || d.col;
+      const royaltyBest = d.royalty.reduce((best, r) => (!best || r.set_number < best.set_number) ? r : best, null);
+      const masteryBest = d.mastery.reduce((best, r) => (!best || r.set_number < best.set_number) ? r : best, null);
+
+      const rRank    = royaltyBest ? `<span class="ov-rank">#${royaltyBest.rank}</span>`      : none;
+      const rSets    = d.royalty.length ? `<span class="ov-sets">${d.royalty.length}</span>`   : none;
+      const rAvg     = royaltyBest ? `<span class="ov-avg">${fmtDec(royaltyBest.avg_mint)}</span>` : none;
+      const rRating  = royaltyBest ? `<span class="ov-rating">${fmtDec(royaltyBest.rating)}</span>` : none;
+
+      const mRank    = masteryBest ? `<span class="ov-rank">#${masteryBest.rank}</span>`       : none;
+      const mSets    = d.mastery.length ? `<span class="ov-sets">${d.mastery.length}</span>`   : none;
+      const mAvg     = masteryBest ? `<span class="ov-avg">${fmtDec(masteryBest.avg_mint)}</span>` : none;
+      const mRating  = masteryBest ? `<span class="ov-rating">${fmtDec(masteryBest.rating)}</span>` : none;
+
+      return `<tr onclick="selectDrop('${d.col}', '${d.schema}')">
+        <td>
+          <div class="ov-collection">${displayName}</div>
+          <div class="ov-schema">${schemaLabel(d.schema)}</div>
+        </td>
+        <td class="col-r col-sep">${rRank}</td>
+        <td class="col-r">${rSets}</td>
+        <td class="col-r">${rAvg}</td>
+        <td class="col-r">${rRating}</td>
+        <td class="col-r col-sep">${mRank}</td>
+        <td class="col-r">${mSets}</td>
+        <td class="col-r">${mAvg}</td>
+        <td class="col-r">${mRating}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="overview-table-wrap"><table class="overview-table">
+      <thead>
+        <tr>
+          <th rowspan="2">Collection / Series</th>
+          <th colspan="4" class="col-group col-group-royalty">Royalty</th>
+          <th colspan="4" class="col-group col-group-mastery">Mastery</th>
+        </tr>
+        <tr>
+          <th class="col-r col-sep">Rank</th>
+          <th class="col-r">Sets</th>
+          <th class="col-r">Average</th>
+          <th class="col-r">Rating</th>
+          <th class="col-r col-sep">Rank</th>
+          <th class="col-r">Sets</th>
+          <th class="col-r">Average</th>
+          <th class="col-r">Rating</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
+  function buildOverviewStats() {
+    const royaltySets       = cachedLbData.filter(r => r.set_type === 'royalty').length;
+    const masterySets       = cachedLbData.filter(r => r.set_type === 'mastery').length;
+    const totalNFTs         = cachedHoldersData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
+    const uniqueCollections = new Set(cachedHoldersData.map(r => r.collection_name)).size;
+    const uniqueSeries      = new Set(cachedHoldersData.map(r => r.collection_name + '|' + r.schema_name)).size;
+    return { royaltySets, masterySets, totalNFTs, uniqueCollections, uniqueSeries };
+  }
+
+  function buildOverviewStatsHtml(stats) {
+    return `<div class="section">
+      <div class="section-heading">Overview</div>
+      <div class="stats-grid">
+        <div class="stat-card nfts"><div class="stat-value">${fmt(stats.totalNFTs)}</div><div class="stat-label">NFTs Owned</div></div>
+        <div class="stat-card"><div class="stat-value">${fmt(stats.uniqueCollections)}</div><div class="stat-label">Collections</div></div>
+        <div class="stat-card"><div class="stat-value">${fmt(stats.uniqueSeries)}</div><div class="stat-label">Series</div></div>
+        <div class="stat-card royalty"><div class="stat-value">${fmt(stats.royaltySets)}</div><div class="stat-label">Royalty Sets</div></div>
+        <div class="stat-card mastery"><div class="stat-value">${fmt(stats.masterySets)}</div><div class="stat-label">Mastery Sets</div></div>
+      </div>
+    </div>`;
+  }
+
+  function renderOverview() {
+    const stats = buildOverviewStats();
+    document.getElementById('walletContent').innerHTML = `
+      <div class="wallet-header">
+        <div class="wallet-address">${currentWallet}</div>
+      </div>
+      ${buildOverviewStatsHtml(stats)}
+      <div class="section">
+        <div class="section-heading">Sets by Drop <span class="section-count">(${stats.uniqueSeries} drop${stats.uniqueSeries !== 1 ? 's' : ''})</span></div>
+        ${buildOverviewGrid(cachedLbData)}
+      </div>`;
+  }
+
+  // ── Drop detail ────────────────────────────────────────────────
+
+  function renderCardsTable(cards, tplMap, avgMint) {
+    if (!cards) return '<div class="no-set">Card data not available.</div>';
+    const entries = Object.entries(cards)
+      .map(([tid, mint]) => ({ tid: parseInt(tid), mint, tpl: tplMap.get(parseInt(tid)) || {} }))
+      .sort((a, b) => (a.tpl.cardid ?? Infinity) - (b.tpl.cardid ?? Infinity));
+
+    const rows = entries.map(({ mint, tpl }) => {
+      const rarityPill = tpl.rarity
+        ? `<span class="rarity-pill ${RARITY_CLASS[tpl.rarity] || ''}">${tpl.rarity}</span>`
+        : '';
+      return `<tr>
+        <td class="col-r" style="width:70px;font-size:0.78rem;color:var(--text-secondary)">${tpl.cardid ?? '—'}</td>
+        <td><div class="card-name">${tpl.name || '—'}</div></td>
+        <td style="width:120px">${rarityPill}</td>
+        <td class="col-r" style="width:80px"><span class="mint-num ${mintClass(mint, avgMint)}">#${fmt(mint)}</span></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="cards-table-wrap"><table class="cards-table">
+      <thead><tr>
+        <th class="col-r" style="width:70px">Card ID</th>
+        <th>Card</th>
+        <th style="width:120px">Rarity</th>
+        <th class="col-r" style="width:80px">Mint</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
+  function renderSetSection(sectionId, title, rows, tplMap) {
+    const cardCount = rows.length > 0 ? rows[0].set_size : null;
+    const heading = `${title}${cardCount ? ` <span class="section-count">(${cardCount} cards)</span>` : ''}`;
+
+    if (!rows.length) {
+      return `<div class="section">
+        <div class="section-heading">${heading}</div>
+        <div class="no-set">No complete ${title.toLowerCase()} found for this drop.</div>
+      </div>`;
+    }
+
+    const options = rows.map(r =>
+      `<option value="${r.set_number}">Set #${r.set_number} &nbsp;·&nbsp; Rank #${r.rank} &nbsp;·&nbsp; Avg ${fmtDec(r.avg_mint)} &nbsp;·&nbsp; Rating ${fmtDec(r.rating)}</option>`
+    ).join('');
+
+    const tables = rows.map((r, i) => {
+      const summary = `<div class="set-summary">
+        <span>Set<strong>Set #${r.set_number}</strong></span>
+        <span>Rank<strong>#${r.rank}</strong></span>
+        <span>Avg Mint<strong>${fmtDec(r.avg_mint)}</strong></span>
+        <span>Rating<strong>${fmtDec(r.rating)}</strong></span>
+      </div>`;
+      return `<div id="${sectionId}-set-${r.set_number}" style="${i > 0 ? 'display:none' : ''}">
+        ${summary}
+        <div style="margin-top:1rem">${renderCardsTable(r.cards, tplMap, r.avg_mint)}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="section">
+      <div class="section-heading">${heading}</div>
+      <div class="set-selector-wrap">
+        <span class="set-selector-label">Viewing:</span>
+        <select class="set-selector" id="sel-${sectionId}" onchange="switchSet('${sectionId}', this.value)">
+          ${options}
+        </select>
+      </div>
+      ${tables}
+    </div>`;
+  }
+
+  function switchSet(sectionId, setNum) {
+    document.getElementById('walletContent').querySelectorAll(`[id^="${sectionId}-set-"]`).forEach(el => el.style.display = 'none');
+    const target = document.getElementById(`${sectionId}-set-${setNum}`);
+    if (target) target.style.display = '';
+  }
+
+  function buildDropOverviewHtml(c, s) {
+    const drop = allDrops.find(d => d.collection_name === c && d.schema_name === s);
+    const dropName = drop ? drop.display_name : c;
+    const dropNFTs = (cachedHoldersData.find(h => h.collection_name === c && h.schema_name === s) || {}).total_assets || 0;
+    const royaltySets = cachedLbData.filter(r => r.collection_name === c && r.schema_name === s && r.set_type === 'royalty').length;
+    const masterySets = cachedLbData.filter(r => r.collection_name === c && r.schema_name === s && r.set_type === 'mastery').length;
+    return `<div class="section">
+      <div class="section-heading">${dropName} — ${schemaLabel(s)}</div>
+      <div class="stats-grid">
+        <div class="stat-card nfts"><div class="stat-value">${fmt(dropNFTs)}</div><div class="stat-label">NFTs Owned</div></div>
+        <div class="stat-card royalty"><div class="stat-value">${fmt(royaltySets)}</div><div class="stat-label">Royalty Sets</div></div>
+        <div class="stat-card mastery"><div class="stat-value">${fmt(masterySets)}</div><div class="stat-label">Mastery Sets</div></div>
+      </div>
+    </div>`;
+  }
+
+  async function renderDropDetail(c, s) {
+    const drop = allDrops.find(d => d.collection_name === c && d.schema_name === s);
+    const dropName = drop ? drop.display_name : c;
+
+    const dropOverviewHtml = buildDropOverviewHtml(c, s);
+
+    document.getElementById('walletContent').innerHTML = `
+      <div class="wallet-header">
+        <div class="wallet-address">${currentWallet}</div>
+      </div>
+      ${buildOverviewStatsHtml(buildOverviewStats())}
+      ${dropOverviewHtml}
+      <div class="state">Loading cards…</div>`;
+
+    try {
+      const dropLbData = await sbFetch('leaderboard_ratings',
+        'select=set_type,set_number,rank,rating,avg_mint,set_size,cards' +
+        '&wallet=eq.' + enc(currentWallet) +
+        '&collection_name=eq.' + enc(c) +
+        '&schema_name=eq.' + enc(s) +
+        '&order=set_type.asc,set_number.asc'
+      );
+
+      const allTplIds = new Set();
+      for (const row of dropLbData) {
+        if (row.cards) Object.keys(row.cards).forEach(id => allTplIds.add(id));
+      }
+
+      let tplMap = new Map();
+      if (allTplIds.size > 0) {
+        const tplData = await sbFetch('templates',
+          'select=template_id,name,rarity,cardid' +
+          '&template_id=in.(' + [...allTplIds].join(',') + ')' +
+          '&limit=500'
+        );
+        tplMap = new Map(tplData.map(t => [t.template_id, t]));
+      }
+
+      const royaltyRows = dropLbData.filter(r => r.set_type === 'royalty');
+      const masteryRows = dropLbData.filter(r => r.set_type === 'mastery');
+
+      const backLink = (initC === c && initS === s)
+        ? `<a class="back-link" href="drop.html?c=${enc(c)}&s=${enc(s)}">← Back to drop page</a>`
+        : '';
+
+      document.getElementById('walletContent').innerHTML = `
+        <div class="wallet-header">
+          ${backLink}
+          <div class="wallet-address">${currentWallet}</div>
+        </div>
+        ${buildOverviewStatsHtml(buildOverviewStats())}
+        ${dropOverviewHtml}
+        <div class="sets-row">
+          ${renderSetSection('royalty', 'Royalty Set', royaltyRows, tplMap)}
+          ${renderSetSection('mastery', 'Mastery Set', masteryRows, tplMap)}
+        </div>`;
+    } catch (err) {
+      document.getElementById('walletContent').innerHTML =
+        `<div class="state state-error">Failed to load drop data: ${err.message}</div>`;
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────
+
+  document.getElementById('walletInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupWallet();
+  });
+
+  async function init() {
+    await initDropSelector();
+    if (initW) {
+      document.getElementById('walletInput').value = initW;
+      currentWallet = initW;
+      loadWallet(initW);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
