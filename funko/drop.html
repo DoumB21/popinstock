@@ -5,135 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Drop — Funko Digital — PopInStock</title>
   <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0a0a0f;
-      --bg-card: #13131d;
-      --bg-card-hover: #1a1a2a;
-      --border: rgba(255, 255, 255, 0.07);
-      --text-primary: #f0f0f5;
-      --text-secondary: #8888aa;
-      --accent: #c07828;
-      --accent-light: #f0a840;
-      --nav-height: 64px;
-    }
-
-    html, body { height: 100%; }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text-primary);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none; z-index: 0;
-    }
-
-    /* Nav */
-    .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
-    .nav-inner { display: flex; align-items: center; gap: 0.5rem; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; height: var(--nav-height); }
-    .nav-home { display: flex; align-items: center; flex-shrink: 0; margin-right: 1rem; }
-    .nav-home img { height: 36px; width: 36px; object-fit: contain; transition: opacity 0.2s; }
-    .nav-home:hover img { opacity: 0.75; }
-    .nav-links { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
-    .nav-link { text-decoration: none; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.85rem; border-radius: 999px; border: 1px solid transparent; transition: color 0.2s, background 0.2s, border-color 0.2s; white-space: nowrap; }
-    .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
-    .nav-link--active { color: var(--accent-light); background: rgba(192,120,40,0.12); border-color: rgba(192,120,40,0.25); }
-    .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0.4rem; margin-left: auto; }
-    .nav-burger span { display: block; width: 22px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s; }
-    .nav-burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-    .nav-burger--open span:nth-child(2) { opacity: 0; }
-    .nav-burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-    .nav-burger--open span { background: var(--text-primary); }
-    .nav-mobile { display: none; flex-direction: column; padding: 0.75rem 1.5rem 1rem; border-top: 1px solid var(--border); gap: 0.25rem; }
-    .nav-mobile .nav-link { font-size: 0.95rem; padding: 0.6rem 1rem; border-radius: 10px; }
-    .nav-mobile--open { display: flex; }
-    @media (max-width: 640px) { .nav-links { display: none; } .nav-burger { display: flex; } }
-
-    /* Page */
-    .page { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
-
-    /* Banner */
+    /* ── Banner ── */
     .drop-banner-wrap { position: relative; width: 100%; height: 200px; overflow: hidden; }
     .drop-banner-img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
     .drop-banner-fade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.5) 50%, var(--bg) 100%); }
 
-    /* Drop header */
-    .drop-header {
-      display: flex; align-items: flex-start; gap: 1.25rem;
-      padding: 1.5rem 1.5rem 0.5rem;
-      max-width: 1100px; margin: 0 auto; width: 100%;
-    }
+    /* ── Drop header ── */
+    .drop-header { display: flex; align-items: flex-start; gap: 1.25rem; padding: 1.5rem 1.5rem 0.5rem; max-width: 1100px; margin: 0 auto; width: 100%; }
     .drop-header.has-banner { padding-top: 0; margin-top: -160px; position: relative; z-index: 1; }
-    .drop-logo {
-      width: 72px; height: 72px; border-radius: 10px;
-      object-fit: contain; background: #0d0d18;
-      border: 1px solid var(--border); flex-shrink: 0;
-    }
-    .drop-logo-placeholder {
-      width: 72px; height: 72px; border-radius: 10px;
-      background: #0d0d18; border: 1px solid var(--border);
-      flex-shrink: 0; display: flex; align-items: center;
-      justify-content: center; color: #333; font-size: 1.5rem;
-    }
+    .drop-logo { width: 72px; height: 72px; border-radius: 10px; object-fit: contain; background: #0d0d18; border: 1px solid var(--border); flex-shrink: 0; }
+    .drop-logo-placeholder { width: 72px; height: 72px; border-radius: 10px; background: #0d0d18; border: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #333; font-size: 1.5rem; }
     .drop-header-info { display: flex; flex-direction: column; gap: 0.25rem; padding-top: 4px; }
-    .back-link { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; transition: color 0.2s; margin-bottom: 0.2rem; }
-    .back-link:hover { color: var(--accent-light); }
     .drop-schema-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
     .drop-name { font-size: clamp(1.2rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
     .drop-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
 
-    /* Content */
-    .content { padding: 1.25rem 1.5rem 4rem; max-width: 1100px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 2rem; }
+    /* ── Content container (custom padding for drop page) ── */
+    .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 2rem; }
 
-    /* Stats */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
-    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-    .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); }
-    .stat-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-top: 3px; }
+    /* ── Page-specific stat card colors ── */
     .stat-card.burned .stat-value { color: #e74c3c; }
     .stat-card.owners .stat-value { color: #3b82f6; }
 
-    /* Section */
-    .section { display: flex; flex-direction: column; gap: 0.9rem; }
-    .section-heading {
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: var(--accent);
-      display: flex; align-items: center; gap: 0.75rem;
-    }
-    .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-    .section-count { font-weight: 400; color: var(--text-secondary); font-size: 0.82rem; text-transform: none; letter-spacing: 0; }
-
-    /* Rarity pills */
+    /* ── Rarity pills (with pill-count support) ── */
     .rarity-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-    .rarity-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px; border-radius: 999px; border: 1px solid; font-size: 0.82rem; font-weight: 600; }
+    .rarity-pill { padding: 5px 13px; gap: 6px; font-size: 0.82rem; }
     .pill-count { opacity: 0.7; font-weight: 500; }
-    .r-common     { color: #999;    border-color: rgba(153,153,153,0.35); background: rgba(153,153,153,0.08); }
-    .r-uncommon   { color: #4caf50; border-color: rgba(76,175,80,0.35);   background: rgba(76,175,80,0.08); }
-    .r-rare       { color: #64b5f6; border-color: rgba(100,181,246,0.35); background: rgba(100,181,246,0.08); }
-    .r-epic       { color: #ce93d8; border-color: rgba(206,147,216,0.35); background: rgba(206,147,216,0.08); }
-    .r-series     { color: #ffb74d; border-color: rgba(255,183,77,0.35);  background: rgba(255,183,77,0.08); }
-    .r-ultra      { color: #e8ff00; border-color: rgba(232,255,0,0.35);   background: rgba(232,255,0,0.08); }
-    .r-legendary  { color: #e93494; border-color: rgba(233,52,148,0.35);  background: rgba(233,52,148,0.08); }
-    .r-grail      { color: #faa500; border-color: rgba(250,165,0,0.35);   background: rgba(250,165,0,0.08); }
-    .r-mythic     { color: #01ffff; border-color: rgba(1,255,255,0.35);   background: rgba(1,255,255,0.08); }
-    .r-royalty    { color: #007deb; border-color: rgba(0,125,235,0.35);   background: rgba(0,125,235,0.08); }
-    .r-1of1       { color: #ffd700; border-color: rgba(255,215,0,0.35);   background: rgba(255,215,0,0.08); }
-    .r-redeemable { color: #888;    border-color: rgba(136,136,136,0.25); background: rgba(136,136,136,0.06); }
 
-    /* Packs table */
+    /* ── Packs table ── */
     .packs-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
     .packs-table th { text-align: left; padding: 9px 14px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
     .packs-table th.col-r { text-align: right; }
@@ -141,38 +42,22 @@
     .packs-table td.col-r { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
     .packs-table tr:last-child td { border-bottom: none; }
 
-
-    /* Info icon */
+    /* ── Info icon ── */
     .info-tip { display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer; vertical-align: middle; }
     .info-tip-icon { font-size: 0.78rem; color: var(--text-secondary); opacity: 0.55; transition: opacity 0.2s; line-height: 1; }
     .info-tip:hover .info-tip-icon { opacity: 1; }
 
-    /* Modal */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-      z-index: 200; align-items: center; justify-content: center;
-    }
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
-    .modal-box {
-      background: #1a1a2a; border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 14px; padding: 1.5rem 1.75rem;
-      max-width: 420px; width: 90%; position: relative;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-    }
+    .modal-box { background: #1a1a2a; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 1.5rem 1.75rem; max-width: 420px; width: 90%; position: relative; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
     .modal-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.85rem; }
     .modal-body { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; }
     .modal-body code { font-family: monospace; color: var(--accent-light); background: rgba(255,255,255,0.05); padding: 2px 5px; border-radius: 4px; font-size: 0.82rem; }
-    .modal-close {
-      position: absolute; top: 0.85rem; right: 1rem;
-      background: none; border: none; color: var(--text-secondary);
-      font-size: 1.2rem; cursor: pointer; line-height: 1;
-      transition: color 0.2s;
-    }
+    .modal-close { position: absolute; top: 0.85rem; right: 1rem; background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; line-height: 1; transition: color 0.2s; }
     .modal-close:hover { color: var(--text-primary); }
 
-    /* Leaderboard tables */
-    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    /* ── Leaderboard tables ── */
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; }
     thead th { text-align: left; padding: 9px 14px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card); border-bottom: 1px solid var(--border); white-space: nowrap; }
     thead th.col-r { text-align: right; }
@@ -187,27 +72,14 @@
     .rank-3 { color: #cd7f32; }
     .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
     .rating-cell { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
-    .no-data { padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.88rem; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
 
-    /* Show top 100 button */
+    /* ── Show more ── */
     .show-more-wrap { text-align: center; padding-top: 0.5rem; }
-    .show-more-btn { padding: 7px 22px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; }
-    .show-more-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); border-color: rgba(255,255,255,0.15); }
-    .show-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* State */
-    .state { text-align: center; padding: 4rem 1.5rem; color: var(--text-secondary); font-size: 0.95rem; }
-    .state-error { color: #e74c3c; }
-
-    footer { position: relative; z-index: 1; text-align: center; padding: 1.5rem; font-size: 0.8rem; color: var(--text-secondary); border-top: 1px solid var(--border); }
-
-    /* Side-by-side rankings */
+    /* ── Side-by-side rankings ── */
     .rankings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 
-    @media (max-width: 800px) {
-      .rankings-grid { grid-template-columns: 1fr; }
-    }
-
+    @media (max-width: 800px) { .rankings-grid { grid-template-columns: 1fr; } }
     @media (max-width: 600px) {
       .drop-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
       .drop-header.has-banner { margin-top: -110px; }
@@ -574,5 +446,6 @@
   document.getElementById('ratingModalClose').addEventListener('click', () => ratingModal.classList.remove('open'));
   ratingModal.addEventListener('click', e => { if (e.target === ratingModal) ratingModal.classList.remove('open'); });
 </script>
+
 </body>
 </html>

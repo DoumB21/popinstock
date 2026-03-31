@@ -98,4 +98,13 @@ function buildBackToTop() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); });
+function buildFooter() {
+  const footer = document.createElement('footer');
+  footer.innerHTML = `
+    &copy; 2026 PopInStock &mdash; All rights reserved.
+    <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+  `;
+  document.body.appendChild(footer);
+}
+
+document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); });

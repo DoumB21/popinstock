@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Data directories — API config and catalog JSON files, not useful to crawl
+Disallow: /funko/data/
+Disallow: /topps/data/
+Disallow: /twitch/data/
+
+# Dynamic tool page — requires query parameters to function, no standalone content
+Disallow: /funko/drop.html
+
+# Not part of the main site
+Disallow: /stats/
+Disallow: /discord/
+
+Sitemap: https://www.popinstock.com/sitemap.xml

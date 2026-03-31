@@ -1,10 +1,8 @@
 const NAV_LINKS = [
-  { label: 'Redemptions', href: 'redemptions.html' },
-  { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
-  { label: 'Mint Rankings', href: 'mint-rankings.html' },
+  { label: 'Monthly Stats', href: 'twitch-monthly-stats.html' },
 ];
 
-const SECTION_NAME = 'Funko';
+const SECTION_NAME = 'Twitch';
 
 function buildNav() {
   const currentPage = location.pathname.split('/').pop();
@@ -29,7 +27,7 @@ function buildNav() {
         <img src="../images/FoxLogo.png" alt="PopInStock" />
       </a>
       <span class="nav-divider"></span>
-      <a href="funko.html" class="nav-section">${SECTION_NAME}</a>
+      <a href="twitch.html" class="nav-section">${SECTION_NAME}</a>
       <div class="nav-links">${links}</div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -84,7 +82,6 @@ function buildBackToTop() {
   btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
   document.body.appendChild(btn);
 
-  // Sentinel 300px from the top — when it leaves the viewport, show the button
   const sentinel = document.createElement('div');
   sentinel.style.cssText = 'position:absolute;top:300px;left:0;height:1px;width:1px;pointer-events:none;visibility:hidden;';
   document.body.insertAdjacentElement('afterbegin', sentinel);

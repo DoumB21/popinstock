@@ -5,75 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Funko Mint Rankings — PopInStock</title>
   <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0a0a0f;
-      --bg-card: #13131d;
-      --bg-card-hover: #1a1a2a;
-      --border: rgba(255, 255, 255, 0.07);
-      --text-primary: #f0f0f5;
-      --text-secondary: #8888aa;
-      --accent: #c07828;
-      --accent-light: #f0a840;
-      --nav-height: 64px;
-    }
-
-    html, body { height: 100%; }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text-primary);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Nav (injected by nav.js) */
-    .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
-    .nav-inner { display: flex; align-items: center; gap: 0.5rem; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; height: var(--nav-height); }
-    .nav-home { display: flex; align-items: center; flex-shrink: 0; margin-right: 1rem; }
-    .nav-home img { height: 36px; width: 36px; object-fit: contain; transition: opacity 0.2s; }
-    .nav-home:hover img { opacity: 0.75; }
-    .nav-links { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
-    .nav-link { text-decoration: none; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.85rem; border-radius: 999px; border: 1px solid transparent; transition: color 0.2s, background 0.2s, border-color 0.2s; white-space: nowrap; }
-    .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
-    .nav-link--active { color: var(--accent-light); background: rgba(192,120,40,0.12); border-color: rgba(192,120,40,0.25); }
-    .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0.4rem; margin-left: auto; }
-    .nav-burger span { display: block; width: 22px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s; }
-    .nav-burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-    .nav-burger--open span:nth-child(2) { opacity: 0; }
-    .nav-burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-    .nav-burger--open span { background: var(--text-primary); }
-    .nav-mobile { display: none; flex-direction: column; padding: 0.75rem 1.5rem 1rem; border-top: 1px solid var(--border); gap: 0.25rem; }
-    .nav-mobile .nav-link { font-size: 0.95rem; padding: 0.6rem 1rem; border-radius: 10px; }
-    .nav-mobile--open { display: flex; }
-    @media (max-width: 640px) { .nav-links { display: none; } .nav-burger { display: flex; } }
-
-    /* Page */
-    .page { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
-
-    /* Content */
-    .content { max-width: 1100px; width: 100%; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-    .page-header { margin-bottom: 2rem; }
-    .page-title { font-size: 1.75rem; font-weight: 700; }
-    .page-title .accent { color: var(--accent-light); }
-    .page-subtitle { margin-top: 0.35rem; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
-
     /* Year group */
     .year-group { margin-bottom: 2.5rem; }
     .year-heading {
@@ -157,21 +90,7 @@
     }
     .page-meta-count { font-size: 0.82rem; color: var(--text-secondary); }
     .page-meta-count strong { color: var(--text-primary); font-weight: 600; }
-    .search-input {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 8px; padding: 7px 12px;
-      color: var(--text-primary); font-size: 0.85rem;
-      font-family: inherit; outline: none;
-      width: 220px; transition: border-color 0.2s;
-    }
-    .search-input::placeholder { color: var(--text-secondary); }
-    .search-input:focus { border-color: rgba(192,120,40,0.5); }
-
-    /* States */
-    .state { text-align: center; padding: 4rem 1.5rem; color: var(--text-secondary); font-size: 0.95rem; }
-    .state-error { color: #e74c3c; }
-
-    footer { position: relative; z-index: 1; text-align: center; padding: 1.5rem; font-size: 0.8rem; color: var(--text-secondary); border-top: 1px solid var(--border); }
+    .search-input { width: 220px; }
 
     @media (max-width: 480px) {
       .drops-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
@@ -259,11 +178,20 @@
 
       const collMap = new Map(collections.map(c => [c.collection_name, c]));
 
-      const isRegular = s => /^series\d+\.drop$/.test(s.schema_name);
+      // Determine which drops have a local avif image — those are "regular"
+      const avifSet = new Set();
+      await Promise.all(schemas.map(async s => {
+        try {
+          const r = await fetch(`images/drops/${s.collection_name}_${s.schema_name}.avif`, { method: 'HEAD' });
+          if (r.ok) avifSet.add(`${s.collection_name}_${s.schema_name}`);
+        } catch {}
+      }));
 
-      // Split into regular (seriesX.drop) and other
+      const isRegular = s => avifSet.has(`${s.collection_name}_${s.schema_name}`);
+
+      // Split into regular (has avif) and other (no avif)
       const regular = schemas.filter(isRegular);
-      const other   = schemas.filter(s => !isRegular(s));
+      const other   = schemas.filter(s => !isRegular(s)).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
       // Group regular by year DESC, within each year sort created_at DESC
       const byYear = new Map();
@@ -286,7 +214,9 @@
         const col      = collMap.get(s.collection_name) || {};
         const name     = cleanName(col.display_name || s.collection_name);
         const href     = 'drop.html?c=' + encodeURIComponent(s.collection_name) + '&s=' + encodeURIComponent(s.schema_name);
-        const avifSrc  = `images/drops/${s.collection_name}_${s.schema_name}.avif`;
+        const avifSrc  = avifSet.has(`${s.collection_name}_${s.schema_name}`)
+          ? `images/drops/${s.collection_name}_${s.schema_name}.avif`
+          : `images/drops/others/${s.collection_name}_${s.schema_name}.avif`;
         const imgCid   = col.logo || col.img;
         const fallback = imgCid ? ipfsUrl(imgCid) : '';
         const placeholder = `<div class=\\'drop-card-img-placeholder\\'>&#9670;</div>`;
@@ -338,5 +268,6 @@
 
   init();
 </script>
+
 </body>
 </html>
