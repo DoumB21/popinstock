@@ -500,12 +500,12 @@
           playerGames[key] = (playerGames[key] || 0) + 1;
         }
 
-      // Player wins from results
+      // Player wins — exact guesses only (Guess === Mint), bonus wins excluded
       const playerWins = {};
-      for (const r of monthResults)
-        for (const w of (r.Winners || []))
-          if (w.Username) {
-            const key = w.Username.toLowerCase();
+      for (const [, g] of monthGuessGames)
+        for (const [name, guess] of Object.entries(g.Guesses || {}))
+          if (guess === g.Mint) {
+            const key = name.toLowerCase();
             playerWins[key] = (playerWins[key] || 0) + 1;
           }
 
