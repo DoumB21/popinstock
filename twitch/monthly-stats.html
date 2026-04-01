@@ -501,13 +501,19 @@
         }
 
       // Player wins — exact guesses only (Guess === Mint), bonus wins excluded
+      const mintByGame = {};
+      for (const r of monthResults) mintByGame[r.GameID] = r.Mint;
+
       const playerWins = {};
-      for (const [, g] of monthGuessGames)
+      for (const [gameId, g] of monthGuessGames) {
+        const mint = mintByGame[gameId];
+        if (mint == null) continue;
         for (const [name, guess] of Object.entries(g.Guesses || {}))
-          if (guess === g.Mint) {
+          if (guess === mint) {
             const key = name.toLowerCase();
             playerWins[key] = (playerWins[key] || 0) + 1;
           }
+      }
 
       // ── Top N most games entered ─────────────────────────────────────────
       const topGames = Object.entries(playerGames)
