@@ -17904,5 +17904,3008 @@
     "Wallet": "fzyr.wam",
     "PrizeSent": "AssetID: 1099982972613, Name: Lucky Willy, Mint: 2155",
     "Error": null
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "NashvilleLou",
+    "Wallet": ".fzqy.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "game_20260323_113207",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099980921089, Name: Lucky Willy, Mint: 1721",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "game_20260323_132949",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099981846017, Name: Lucky Willy, Mint: 1905",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "game_20260323_141234",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982606299, Name: Lucky Willy, Mint: 2033",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260323_150820",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982972542, Name: Lucky Willy, Mint: 2084",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "game_20260323_174314",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982972580, Name: Lucky Willy, Mint: 2122",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "game_20260323_210127",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099981846019, Name: Lucky Willy, Mint: 1907",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260323",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": null,
+    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
+  },
+  {
+    "GameId": "game_20260324_010735",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982606282, Name: Lucky Willy, Mint: 2016",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_014458",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982972609, Name: Lucky Willy, Mint: 2151",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_020104",
+    "Username": "NashvilleLou",
+    "Wallet": ".fzqy.wam",
+    "PrizeSent": "AssetID: 1099982606342, Name: Lucky Willy, Mint: 2076",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_021148",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982606310, Name: Lucky Willy, Mint: 2044",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973386, Name: Scroll Ashes, Mint: 68",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982973373, Name: Scroll Ashes, Mint: 55",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "NashvilleLou",
+    "Wallet": ".fzqy.wam",
+    "PrizeSent": "AssetID: 1099982973365, Name: Scroll Ashes, Mint: 50",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982973390, Name: Scroll Ashes, Mint: 72",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973376, Name: Scroll Ashes, Mint: 58",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982973401, Name: Scroll Ashes, Mint: 83",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_033207",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972550, Name: Lucky Willy, Mint: 2092",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_033729",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972581, Name: Lucky Willy, Mint: 2123",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982973335, Name: Scroll Ashes, Mint: 20",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_034801",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972624, Name: Lucky Willy, Mint: 2166",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982973414, Name: Scroll Ashes, Mint: 96",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_043620",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972540, Name: Lucky Willy, Mint: 2082",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "musicalman00",
+    "Wallet": "s4ssm.wam",
+    "PrizeSent": "AssetID: 1099982973345, Name: Scroll Ashes, Mint: 30",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982973319, Name: Scroll Ashes, Mint: 4",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973393, Name: Scroll Ashes, Mint: 75",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973371, Name: Scroll Ashes, Mint: 53",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982973388, Name: Scroll Ashes, Mint: 70",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973359, Name: Scroll Ashes, Mint: 44",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_074848",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099981619220, Name: Lucky Willy, Mint: 1855",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_090907",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982606306, Name: Lucky Willy, Mint: 2040",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_091951",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606324, Name: Lucky Willy, Mint: 2058",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "NashvilleLou",
+    "Wallet": ".fzqy.wam",
+    "PrizeSent": "AssetID: 1099982973362, Name: Scroll Ashes, Mint: 47",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982973396, Name: Scroll Ashes, Mint: 78",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973417, Name: Scroll Ashes, Mint: 99",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_103620",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099981619218, Name: Lucky Willy, Mint: 1853",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_103620",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982606321, Name: Lucky Willy, Mint: 2055",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_120712",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982606291, Name: Lucky Willy, Mint: 2025",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982973351, Name: Scroll Ashes, Mint: 36",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_140127",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982972545, Name: Lucky Willy, Mint: 2087",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_140649",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972589, Name: Lucky Willy, Mint: 2131",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973340, Name: Scroll Ashes, Mint: 25",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_142255",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982972549, Name: Lucky Willy, Mint: 2091",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_152708",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982606337, Name: Lucky Willy, Mint: 2071",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_154825",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982972639, Name: Lucky Willy, Mint: 2181",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "tofu_titan",
+    "Wallet": "nnxqy.wam",
+    "PrizeSent": "AssetID: 1099982973382, Name: Scroll Ashes, Mint: 64",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982973337, Name: Scroll Ashes, Mint: 22",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982973331, Name: Scroll Ashes, Mint: 16",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973344, Name: Scroll Ashes, Mint: 29",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_170930",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982606285, Name: Lucky Willy, Mint: 2019",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_194905",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606313, Name: Lucky Willy, Mint: 2047",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_200511",
+    "Username": "digitalpopkingdom",
+    "Wallet": "twjrg.wam",
+    "PrizeSent": "AssetID: 1099982606325, Name: Lucky Willy, Mint: 2059",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982973356, Name: Scroll Ashes, Mint: 41",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982973336, Name: Scroll Ashes, Mint: 21",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_214125",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982972554, Name: Lucky Willy, Mint: 2096",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_220816",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982972559, Name: Lucky Willy, Mint: 2101",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260324",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982973383, Name: Scroll Ashes, Mint: 65",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260324_221912",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099981619185, Name: Lucky Willy, Mint: 1820",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_000620",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099981845991, Name: Lucky Willy, Mint: 1879",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_002238",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972562, Name: Lucky Willy, Mint: 2104",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973316, Name: Scroll Ashes, Mint: 1",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973378, Name: Scroll Ashes, Mint: 60",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982973395, Name: Scroll Ashes, Mint: 77",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982973410, Name: Scroll Ashes, Mint: 92",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982973384, Name: Scroll Ashes, Mint: 66",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_031349",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982972546, Name: Lucky Willy, Mint: 2088",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_031912",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099981846032, Name: Lucky Willy, Mint: 1920",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982973330, Name: Scroll Ashes, Mint: 15",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_034040",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982606263, Name: Lucky Willy, Mint: 1997",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_035123",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "game_20260325_045015",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982606271, Name: Lucky Willy, Mint: 2005",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973332, Name: Scroll Ashes, Mint: 17",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_073041",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982606323, Name: Lucky Willy, Mint: 2057",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_080815",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982603246, Name: Lucky Willy, Mint: 1980",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982973389, Name: Scroll Ashes, Mint: 71",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_081350",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973413, Name: Scroll Ashes, Mint: 95",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_090208",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982973394, Name: Scroll Ashes, Mint: 76",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973342, Name: Scroll Ashes, Mint: 27",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_100621",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": null,
+    "Error": "Transfer failed: Script failed with no error message, check transfer-log.txt"
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982973380, Name: Scroll Ashes, Mint: 62",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "kyawngwe85",
+    "Wallet": "khaingzawtun",
+    "PrizeSent": "AssetID: 1099982973372, Name: Scroll Ashes, Mint: 54",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973358, Name: Scroll Ashes, Mint: 43",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_141802",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982972607, Name: Lucky Willy, Mint: 2149",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982973323, Name: Scroll Ashes, Mint: 8",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982973338, Name: Scroll Ashes, Mint: 23",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_161545",
+    "Username": "Chase_Elliott_II",
+    "Wallet": "bigblvd.gm",
+    "PrizeSent": "AssetID: 1099982972621, Name: Lucky Willy, Mint: 2163",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_161545",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982972558, Name: Lucky Willy, Mint: 2100",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973320, Name: Scroll Ashes, Mint: 5",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_165319",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982972620, Name: Lucky Willy, Mint: 2162",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982973353, Name: Scroll Ashes, Mint: 38",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_181327",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982972563, Name: Lucky Willy, Mint: 2105",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "titiro17",
+    "Wallet": "miaow.c.wam",
+    "PrizeSent": "AssetID: 1099982973328, Name: Scroll Ashes, Mint: 13",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_182933",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982606345, Name: Lucky Willy, Mint: 2079",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_203759",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982603306, Name: The Lost Treasure, Mint: 9",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260325_205927",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982972586, Name: Lucky Willy, Mint: 2128",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260325",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982973374, Name: Scroll Ashes, Mint: 56",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_010536",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982606295, Name: Lucky Willy, Mint: 2029",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_012653",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099981846080, Name: Lucky Willy, Mint: 1968",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973321, Name: Scroll Ashes, Mint: 6",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982973381, Name: Scroll Ashes, Mint: 63",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982973348, Name: Scroll Ashes, Mint: 33",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973416, Name: Scroll Ashes, Mint: 98",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982973406, Name: Scroll Ashes, Mint: 88",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_031351",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099981845999, Name: Lucky Willy, Mint: 1887",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982973375, Name: Scroll Ashes, Mint: 57",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982973334, Name: Scroll Ashes, Mint: 19",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982973349, Name: Scroll Ashes, Mint: 34",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973355, Name: Scroll Ashes, Mint: 40",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_054907",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982606334, Name: Lucky Willy, Mint: 2068",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_054907",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982972548, Name: Lucky Willy, Mint: 2090",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_055429",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982606301, Name: Lucky Willy, Mint: 2035",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973325, Name: Scroll Ashes, Mint: 10",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973357, Name: Scroll Ashes, Mint: 42",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982973399, Name: Scroll Ashes, Mint: 81",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_074649",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972585, Name: Lucky Willy, Mint: 2127",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_080255",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982972604, Name: Lucky Willy, Mint: 2146",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973412, Name: Scroll Ashes, Mint: 94",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_103800",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982606266, Name: Lucky Willy, Mint: 2000",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982973347, Name: Scroll Ashes, Mint: 32",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_113215",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982606249, Name: Lucky Willy, Mint: 1983",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_115344",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099982606320, Name: Lucky Willy, Mint: 2054",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973363, Name: Scroll Ashes, Mint: 48",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982973343, Name: Scroll Ashes, Mint: 28",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982973385, Name: Scroll Ashes, Mint: 67",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982973364, Name: Scroll Ashes, Mint: 49",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_155430",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982603244, Name: Lucky Willy, Mint: 1978",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_161035",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982972566, Name: Lucky Willy, Mint: 2108",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973326, Name: Scroll Ashes, Mint: 11",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982973318, Name: Scroll Ashes, Mint: 3",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983273708, Name: Scroll Ashes, Mint: 0",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983273674, Name: Scroll Ashes, Mint: 137",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_172022",
+    "Username": "Chase_Elliott_II",
+    "Wallet": "bigblvd.gm",
+    "PrizeSent": "AssetID: 1099982606294, Name: Lucky Willy, Mint: 2028",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_191243",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099981619148, Name: Lucky Willy, Mint: 1783",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983273642, Name: Scroll Ashes, Mint: 105",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982973317, Name: Scroll Ashes, Mint: 2",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_194455",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972626, Name: Lucky Willy, Mint: 2168",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099983273682, Name: Scroll Ashes, Mint: 145",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_201655",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982972600, Name: Lucky Willy, Mint: 2142",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_202218",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099981846036, Name: Lucky Willy, Mint: 1924",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_203301",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099981846035, Name: Lucky Willy, Mint: 1923",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_203301",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099981845998, Name: Lucky Willy, Mint: 1886",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260326_213153",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982606335, Name: Lucky Willy, Mint: 2069",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982973379, Name: Scroll Ashes, Mint: 61",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260326",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273695, Name: Scroll Ashes, Mint: 154",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_001220",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972544, Name: Lucky Willy, Mint: 2086",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273649, Name: Scroll Ashes, Mint: 112",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983273721, Name: Scroll Ashes, Mint: 180",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273640, Name: Scroll Ashes, Mint: 103",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973415, Name: Scroll Ashes, Mint: 97",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_031415",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982972572, Name: Lucky Willy, Mint: 2114",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_033542",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982606272, Name: Lucky Willy, Mint: 2006",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982973327, Name: Scroll Ashes, Mint: 12",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_052241",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982972541, Name: Lucky Willy, Mint: 2083",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983273673, Name: Scroll Ashes, Mint: 136",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273677, Name: Scroll Ashes, Mint: 140",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983273669, Name: Scroll Ashes, Mint: 132",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982973322, Name: Scroll Ashes, Mint: 7",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983273685, Name: Scroll Ashes, Mint: 148",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273724, Name: Scroll Ashes, Mint: 183",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983273709, Name: Scroll Ashes, Mint: 168",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_070950",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606288, Name: Lucky Willy, Mint: 2022",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983273704, Name: Scroll Ashes, Mint: 163",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983273644, Name: Scroll Ashes, Mint: 107",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_080342",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606254, Name: Lucky Willy, Mint: 1988",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982973341, Name: Scroll Ashes, Mint: 26",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983273706, Name: Scroll Ashes, Mint: 165",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273671, Name: Scroll Ashes, Mint: 134",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273741, Name: Scroll Ashes, Mint: 200",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983273663, Name: Scroll Ashes, Mint: 126",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_115345",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982972636, Name: Lucky Willy, Mint: 2178",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_120428",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099981619197, Name: Lucky Willy, Mint: 1832",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983273714, Name: Scroll Ashes, Mint: 173",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_124714",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982972632, Name: Lucky Willy, Mint: 2174",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099983273681, Name: Scroll Ashes, Mint: 144",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_130841",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099981619199, Name: Lucky Willy, Mint: 1834",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_130841",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099982972595, Name: Lucky Willy, Mint: 2137",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983273740, Name: Scroll Ashes, Mint: 199",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983273694, Name: Scroll Ashes, Mint: 153",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_143956",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972622, Name: Lucky Willy, Mint: 2164",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973339, Name: Scroll Ashes, Mint: 24",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983273697, Name: Scroll Ashes, Mint: 156",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099982973397, Name: Scroll Ashes, Mint: 79",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_184106",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982972565, Name: Lucky Willy, Mint: 2107",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "tofu_titan",
+    "Wallet": "nnxqy.wam",
+    "PrizeSent": "AssetID: 1099983273720, Name: Scroll Ashes, Mint: 179",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983273718, Name: Scroll Ashes, Mint: 177",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_193521",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982972590, Name: Lucky Willy, Mint: 2132",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983273722, Name: Scroll Ashes, Mint: 181",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983273715, Name: Scroll Ashes, Mint: 174",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_212241",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982972551, Name: Lucky Willy, Mint: 2093",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260327",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982973333, Name: Scroll Ashes, Mint: 18",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_232545",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099981619176, Name: Lucky Willy, Mint: 1811",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260327_234152",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982972593, Name: Lucky Willy, Mint: 2135",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273701, Name: Scroll Ashes, Mint: 160",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982973402, Name: Scroll Ashes, Mint: 84",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983273732, Name: Scroll Ashes, Mint: 191",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_024347",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099982972634, Name: Lucky Willy, Mint: 2176",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273723, Name: Scroll Ashes, Mint: 182",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983273675, Name: Scroll Ashes, Mint: 138",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_042524",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099981846078, Name: Lucky Willy, Mint: 1966",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273707, Name: Scroll Ashes, Mint: 166",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_045214",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972619, Name: Lucky Willy, Mint: 2161",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983273643, Name: Scroll Ashes, Mint: 106",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_052415",
+    "Username": "kyawngwe85",
+    "Wallet": "khaingzawtun",
+    "PrizeSent": "AssetID: 1099982603247, Name: Lucky Willy, Mint: 1981",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273664, Name: Scroll Ashes, Mint: 127",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973405, Name: Scroll Ashes, Mint: 87",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983273656, Name: Scroll Ashes, Mint: 119",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_062828",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099981846074, Name: Lucky Willy, Mint: 1962",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099983273684, Name: Scroll Ashes, Mint: 147",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273680, Name: Scroll Ashes, Mint: 143",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983273703, Name: Scroll Ashes, Mint: 162",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_064956",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099981846013, Name: Lucky Willy, Mint: 1901",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_064956",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982972638, Name: Lucky Willy, Mint: 2180",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_064956",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606305, Name: Lucky Willy, Mint: 2039",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983273650, Name: Scroll Ashes, Mint: 113",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983273738, Name: Scroll Ashes, Mint: 197",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983273712, Name: Scroll Ashes, Mint: 171",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983273659, Name: Scroll Ashes, Mint: 122",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983273711, Name: Scroll Ashes, Mint: 170",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_105628",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099982972561, Name: Lucky Willy, Mint: 2103",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983273658, Name: Scroll Ashes, Mint: 121",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983273700, Name: Scroll Ashes, Mint: 159",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_122243",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982972597, Name: Lucky Willy, Mint: 2139",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_130626",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972608, Name: Lucky Willy, Mint: 2150",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_134412",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972591, Name: Lucky Willy, Mint: 2133",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099983273639, Name: Scroll Ashes, Mint: 102",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983273729, Name: Scroll Ashes, Mint: 188",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099983273719, Name: Scroll Ashes, Mint: 178",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983273683, Name: Scroll Ashes, Mint: 146",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983273730, Name: Scroll Ashes, Mint: 189",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "tofu_titan",
+    "Wallet": "nnxqy.wam",
+    "PrizeSent": "AssetID: 1099983273716, Name: Scroll Ashes, Mint: 175",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_171246",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982972573, Name: Lucky Willy, Mint: 2115",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982973360, Name: Scroll Ashes, Mint: 45",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_175020",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982972631, Name: Lucky Willy, Mint: 2173",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_184911",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982972577, Name: Lucky Willy, Mint: 2119",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_191550",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099981619230, Name: Lucky Willy, Mint: 1865",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099983273667, Name: Scroll Ashes, Mint: 130",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_195324",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099981619143, Name: Lucky Willy, Mint: 1778",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099982973361, Name: Scroll Ashes, Mint: 46",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099983273735, Name: Scroll Ashes, Mint: 194",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260328_221744",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982972555, Name: Lucky Willy, Mint: 2097",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260328",
+    "Username": "tofu_titan",
+    "Wallet": "nnxqy.wam",
+    "PrizeSent": "AssetID: 1099983273655, Name: Scroll Ashes, Mint: 118",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_001527",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982972633, Name: Lucky Willy, Mint: 2175",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_005822",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606262, Name: Lucky Willy, Mint: 1996",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273657, Name: Scroll Ashes, Mint: 120",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973324, Name: Scroll Ashes, Mint: 9",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273713, Name: Scroll Ashes, Mint: 172",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982973352, Name: Scroll Ashes, Mint: 37",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_043219",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982972567, Name: Lucky Willy, Mint: 2109",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273672, Name: Scroll Ashes, Mint: 135",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983273734, Name: Scroll Ashes, Mint: 193",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273728, Name: Scroll Ashes, Mint: 187",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983273742, Name: Scroll Ashes, Mint: 201",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_052026",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982972599, Name: Lucky Willy, Mint: 2141",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983273705, Name: Scroll Ashes, Mint: 164",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983273661, Name: Scroll Ashes, Mint: 124",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099982973346, Name: Scroll Ashes, Mint: 31",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983273665, Name: Scroll Ashes, Mint: 128",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "tofu_titan",
+    "Wallet": "nnxqy.wam",
+    "PrizeSent": "AssetID: 1099983273668, Name: Scroll Ashes, Mint: 131",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983492409, Name: Scroll Ashes, Mint: 209",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983273693, Name: Scroll Ashes, Mint: 152",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983273646, Name: Scroll Ashes, Mint: 109",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983492419, Name: Scroll Ashes, Mint: 219",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983273739, Name: Scroll Ashes, Mint: 198",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_105215",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982606286, Name: Lucky Willy, Mint: 2020",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_111332",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099982972552, Name: Lucky Willy, Mint: 2094",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099983273651, Name: Scroll Ashes, Mint: 114",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983492404, Name: Scroll Ashes, Mint: 204",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983492445, Name: Scroll Ashes, Mint: 245",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_121745",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099980921041, Name: Lucky Willy, Mint: 1673",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_125519",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099981619190, Name: Lucky Willy, Mint: 1825",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099983273717, Name: Scroll Ashes, Mint: 176",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983492448, Name: Scroll Ashes, Mint: 248",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099983273641, Name: Scroll Ashes, Mint: 104",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099982973418, Name: Scroll Ashes, Mint: 100",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_142418",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982972614, Name: Lucky Willy, Mint: 2156",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_143501",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972579, Name: Lucky Willy, Mint: 2121",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983492425, Name: Scroll Ashes, Mint: 225",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_151746",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982606329, Name: Lucky Willy, Mint: 2063",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "Nadu6",
+    "Wallet": "aedd.wam",
+    "PrizeSent": "AssetID: 1099983492431, Name: Scroll Ashes, Mint: 231",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982973365, Name: Scroll Ashes, Mint: 50",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099983492447, Name: Scroll Ashes, Mint: 247",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983273725, Name: Scroll Ashes, Mint: 184",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_163415",
+    "Username": "Nadu6",
+    "Wallet": "aedd.wam",
+    "PrizeSent": "AssetID: 1099982606287, Name: Lucky Willy, Mint: 2021",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983492442, Name: Scroll Ashes, Mint: 242",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_171139",
+    "Username": "Nadu6",
+    "Wallet": "aedd.wam",
+    "PrizeSent": "AssetID: 1099982606283, Name: Lucky Willy, Mint: 2017",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_175434",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982606277, Name: Lucky Willy, Mint: 2011",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_180518",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982972564, Name: Lucky Willy, Mint: 2106",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_181040",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982972583, Name: Lucky Willy, Mint: 2125",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "Nadu6",
+    "Wallet": "aedd.wam",
+    "PrizeSent": "AssetID: 1099983492424, Name: Scroll Ashes, Mint: 224",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982973317, Name: Scroll Ashes, Mint: 2",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_200323",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099982972584, Name: Lucky Willy, Mint: 2126",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099983492445, Name: Scroll Ashes, Mint: 245",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_210736",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982972606, Name: Lucky Willy, Mint: 2148",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_212355",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099981846004, Name: Lucky Willy, Mint: 1892",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099983273678, Name: Scroll Ashes, Mint: 141",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_224413",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972627, Name: Lucky Willy, Mint: 2169",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_224935",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099981619224, Name: Lucky Willy, Mint: 1859",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_225457",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972615, Name: Lucky Willy, Mint: 2157",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_225457",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099981619164, Name: Lucky Willy, Mint: 1799",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273648, Name: Scroll Ashes, Mint: 111",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260329_233221",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099982606304, Name: Lucky Willy, Mint: 2038",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260329",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983492420, Name: Scroll Ashes, Mint: 220",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273702, Name: Scroll Ashes, Mint: 161",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983492441, Name: Scroll Ashes, Mint: 241",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982973356, Name: Scroll Ashes, Mint: 41",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983273662, Name: Scroll Ashes, Mint: 125",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983273631, Name: Scroll Ashes, Mint: 101",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_052005",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972592, Name: Lucky Willy, Mint: 2134",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_053049",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982972587, Name: Lucky Willy, Mint: 2129",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983492403, Name: Scroll Ashes, Mint: 203",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983273699, Name: Scroll Ashes, Mint: 158",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983492414, Name: Scroll Ashes, Mint: 214",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982973362, Name: Scroll Ashes, Mint: 47",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983492436, Name: Scroll Ashes, Mint: 236",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983273698, Name: Scroll Ashes, Mint: 157",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983273670, Name: Scroll Ashes, Mint: 133",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983273660, Name: Scroll Ashes, Mint: 123",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983492422, Name: Scroll Ashes, Mint: 222",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983273644, Name: Scroll Ashes, Mint: 107",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983492439, Name: Scroll Ashes, Mint: 239",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983492440, Name: Scroll Ashes, Mint: 240",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_095434",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982606341, Name: Lucky Willy, Mint: 2075",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983273680, Name: Scroll Ashes, Mint: 143",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_113048",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972616, Name: Lucky Willy, Mint: 2158",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983492402, Name: Scroll Ashes, Mint: 202",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_122417",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982972578, Name: Lucky Willy, Mint: 2120",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099983273733, Name: Scroll Ashes, Mint: 192",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983492407, Name: Scroll Ashes, Mint: 207",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_135131",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972588, Name: Lucky Willy, Mint: 2130",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_135131",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982972575, Name: Lucky Willy, Mint: 2117",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_140823",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982972571, Name: Lucky Willy, Mint: 2113",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099983273710, Name: Scroll Ashes, Mint: 169",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982973395, Name: Scroll Ashes, Mint: 77",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983492434, Name: Scroll Ashes, Mint: 234",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099982973411, Name: Scroll Ashes, Mint: 93",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983492437, Name: Scroll Ashes, Mint: 237",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982973333, Name: Scroll Ashes, Mint: 18",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_165544",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099982972602, Name: Lucky Willy, Mint: 2144",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_173306",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099982972593, Name: Lucky Willy, Mint: 2135",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "Nadu6",
+    "Wallet": "aedd.wam",
+    "PrizeSent": "AssetID: 1099983273673, Name: Scroll Ashes, Mint: 136",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983492405, Name: Scroll Ashes, Mint: 205",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_181552",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099982972634, Name: Lucky Willy, Mint: 2176",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099982973387, Name: Scroll Ashes, Mint: 69",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983273697, Name: Scroll Ashes, Mint: 156",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099983492428, Name: Scroll Ashes, Mint: 228",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983492415, Name: Scroll Ashes, Mint: 215",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983492423, Name: Scroll Ashes, Mint: 223",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_232052",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982972568, Name: Lucky Willy, Mint: 2110",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260330",
+    "Username": "Nadu6",
+    "Wallet": "aedd.wam",
+    "PrizeSent": "AssetID: 1099983492435, Name: Scroll Ashes, Mint: 235",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_234219",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099982972635, Name: Lucky Willy, Mint: 2177",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260330_234219",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972582, Name: Lucky Willy, Mint: 2124",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_003549",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099982972601, Name: Lucky Willy, Mint: 2143",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_003549",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099982972629, Name: Lucky Willy, Mint: 2171",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_003549",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982606290, Name: Lucky Willy, Mint: 2024",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_003549",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972637, Name: Lucky Willy, Mint: 2179",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_021226",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972574, Name: Lucky Willy, Mint: 2116",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983692037, Name: Scroll Ashes, Mint: 337",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099983691945, Name: Scroll Ashes, Mint: 258",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983691987, Name: Scroll Ashes, Mint: 300",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099982973350, Name: Scroll Ashes, Mint: 35",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_030605",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099982972570, Name: Lucky Willy, Mint: 2112",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983691950, Name: Scroll Ashes, Mint: 263",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_032201",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099981846048, Name: Lucky Willy, Mint: 1936",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983692372, Name: Scroll Ashes, Mint: 386",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_043658",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099982606261, Name: Lucky Willy, Mint: 1995",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099983692404, Name: Scroll Ashes, Mint: 407",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983691980, Name: Scroll Ashes, Mint: 293",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983692403, Name: Scroll Ashes, Mint: 406",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099983692427, Name: Scroll Ashes, Mint: 430",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "mtmide00",
+    "Wallet": "dossify53eos",
+    "PrizeSent": "AssetID: 1099983692360, Name: Scroll Ashes, Mint: 374",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "metame888",
+    "Wallet": "waxplayerwax",
+    "PrizeSent": "AssetID: 1099982973412, Name: Scroll Ashes, Mint: 94",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983692401, Name: Scroll Ashes, Mint: 404",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "lexxyyylex",
+    "Wallet": "cryptochickx",
+    "PrizeSent": "AssetID: 1099983692043, Name: Scroll Ashes, Mint: 343",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "geoff0079",
+    "Wallet": "b1nza.wam",
+    "PrizeSent": "AssetID: 1099983691966, Name: Scroll Ashes, Mint: 279",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273647, Name: Scroll Ashes, Mint: 110",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983692030, Name: Scroll Ashes, Mint: 330",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099983691944, Name: Scroll Ashes, Mint: 257",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "risingdragons7",
+    "Wallet": "123wombat123",
+    "PrizeSent": "AssetID: 1099983273737, Name: Scroll Ashes, Mint: 196",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "NashvilleLou",
+    "Wallet": "nashvillelou",
+    "PrizeSent": "AssetID: 1099983492449, Name: Scroll Ashes, Mint: 249",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099983691942, Name: Scroll Ashes, Mint: 255",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099983692441, Name: Scroll Ashes, Mint: 444",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983692411, Name: Scroll Ashes, Mint: 414",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099983492414, Name: Scroll Ashes, Mint: 214",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099983692367, Name: Scroll Ashes, Mint: 381",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983692371, Name: Scroll Ashes, Mint: 385",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_132453",
+    "Username": "treefrognada",
+    "Wallet": "fzyr.wam",
+    "PrizeSent": "AssetID: 1099982972569, Name: Lucky Willy, Mint: 2111",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099983692028, Name: Scroll Ashes, Mint: 328",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099983692036, Name: Scroll Ashes, Mint: 336",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "Juan_Filth",
+    "Wallet": "3d.qm.c.wam",
+    "PrizeSent": "AssetID: 1099983692407, Name: Scroll Ashes, Mint: 410",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099983692015, Name: Scroll Ashes, Mint: 315",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_172028",
+    "Username": "tekke_93",
+    "Wallet": "d..hi.wam",
+    "PrizeSent": "AssetID: 1099982606259, Name: Lucky Willy, Mint: 1993",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "ClintCrockett",
+    "Wallet": "4vwdg.wam",
+    "PrizeSent": "AssetID: 1099983492406, Name: Scroll Ashes, Mint: 206",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983492450, Name: Scroll Ashes, Mint: 250",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099983691939, Name: Scroll Ashes, Mint: 252",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_185705",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099982603241, Name: Lucky Willy, Mint: 1975",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_190749",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982972603, Name: Lucky Willy, Mint: 2145",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "FLANTALITY",
+    "Wallet": "ned1flanders",
+    "PrizeSent": "AssetID: 1099983692048, Name: Scroll Ashes, Mint: 348",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_193950",
+    "Username": "fawnyt",
+    "Wallet": "uota4.c.wam",
+    "PrizeSent": "AssetID: 1099982972618, Name: Lucky Willy, Mint: 2160",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_201724",
+    "Username": "misty0121",
+    "Wallet": ".fdbk.wam",
+    "PrizeSent": "AssetID: 1099982606339, Name: Lucky Willy, Mint: 2073",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "junglebanano",
+    "Wallet": "h2n2a.c.wam",
+    "PrizeSent": "AssetID: 1099983692002, Name: Scroll Ashes, Mint: 302",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_212648",
+    "Username": "Funkolover30",
+    "Wallet": "funkolover3o",
+    "PrizeSent": "AssetID: 1099981619214, Name: Lucky Willy, Mint: 1849",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_212648",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099981619172, Name: Lucky Willy, Mint: 1807",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_212648",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099982972553, Name: Lucky Willy, Mint: 2095",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_212648",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099982972543, Name: Lucky Willy, Mint: 2085",
+    "Error": null
+  },
+  {
+    "GameId": "loyalty_20260331",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099983273696, Name: Scroll Ashes, Mint: 155",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_230337",
+    "Username": "MeBeSwede",
+    "Wallet": "lgnam.c.wam",
+    "PrizeSent": "AssetID: 1099978788854, Name: Lucky Willy, Mint: 1560",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_230337",
+    "Username": "gee_r_99",
+    "Wallet": "n3xqk.c.wam",
+    "PrizeSent": "AssetID: 1099975005286, Name: Lucky Willy, Mint: 820",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_230337",
+    "Username": "azile2023",
+    "Wallet": "dhf3c.c.wam",
+    "PrizeSent": "AssetID: 1099982606262, Name: Lucky Willy, Mint: 1996",
+    "Error": null
+  },
+  {
+    "GameId": "game_20260331_230337",
+    "Username": "onyxouroboros",
+    "Wallet": "s.4bi.wam",
+    "PrizeSent": "AssetID: 1099981619220, Name: Lucky Willy, Mint: 1855",
+    "Error": null
   }
 ]
