@@ -318,7 +318,7 @@
     "GameId": "game_20250815_1201",
     "Username": "ClintCrockett",
     "Wallet": "4vwdg.wam",
-    "PrizeSent": "AssetID: 1099949195428, Name: Magician\u0027s Assistant, Mint: 1732",
+    "PrizeSent": "AssetID: 1099949195428, Name: Magician's Assistant, Mint: 1732",
     "Error": null
   },
   {
@@ -17157,46 +17157,11 @@
     "Error": "No loyalty NFTs available in toby.gm loyalty schema."
   },
   {
-    "GameId": "loyalty_20260321",
-    "Username": "musicalman00",
-    "Wallet": "s4ssm.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260321_123945",
     "Username": "Nadu6",
     "Wallet": "aedd.wam",
     "PrizeSent": "AssetID: 1099982606267, Name: Lucky Willy, Mint: 2001",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "NashvilleLou",
-    "Wallet": ".fzqy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "gee_r_99",
-    "Wallet": "n3xqk.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "Funkolover30",
-    "Wallet": "funkolover3o",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "musicalman00",
-    "Wallet": "s4ssm.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260321_152620",
@@ -17211,13 +17176,6 @@
     "Wallet": ".fzqy.wam",
     "PrizeSent": "AssetID: 1099982606280, Name: Lucky Willy, Mint: 2014",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "mtmide00",
-    "Wallet": "dossify53eos",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260321_162706",
@@ -17241,13 +17199,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260321",
-    "Username": "tofu_titan",
-    "Wallet": "nnxqy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260321_170952",
     "Username": "Mescalitos",
     "Wallet": "jl4am.c.wam",
@@ -17255,32 +17206,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260321",
-    "Username": "Funkolover30",
-    "Wallet": "funkolover3o",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "Mescalitos",
-    "Wallet": "jl4am.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260321_191256",
     "Username": "tekke_93",
     "Wallet": "d..hi.wam",
     "PrizeSent": "AssetID: 1099982606346, Name: Lucky Willy, Mint: 2080",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "tekke_93",
-    "Wallet": "d..hi.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260321_194456",
@@ -17295,13 +17225,6 @@
     "Wallet": "jl4am.c.wam",
     "PrizeSent": "AssetID: 1099982606330, Name: Lucky Willy, Mint: 2064",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260321",
-    "Username": "gee_r_99",
-    "Wallet": "n3xqk.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260321_204910",
@@ -17332,13 +17255,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260321",
-    "Username": "PopInStock",
-    "Wallet": "bw2vy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260321_223728",
     "Username": "Funkolover30",
     "Wallet": "funkolover3o",
@@ -17360,74 +17276,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260322",
-    "Username": "MeBeSwede",
-    "Wallet": "lgnam.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "azile2023",
-    "Wallet": "dhf3c.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "PopInStock",
-    "Wallet": "bw2vy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "metame888",
-    "Wallet": "waxplayerwax",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "mtmide00",
-    "Wallet": "dossify53eos",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "azile2023",
-    "Wallet": "dhf3c.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "metame888",
-    "Wallet": "waxplayerwax",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260322_051319",
     "Username": "lexxyyylex",
     "Wallet": "cryptochickx",
     "PrizeSent": "AssetID: 1099981619158, Name: Lucky Willy, Mint: 1793",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "treefrognada",
-    "Wallet": "fzyr.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "lexxyyylex",
-    "Wallet": "cryptochickx",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260322_054520",
@@ -17437,67 +17290,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260322",
-    "Username": "mtmide00",
-    "Wallet": "dossify53eos",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "treefrognada",
-    "Wallet": "fzyr.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "geoff0079",
-    "Wallet": "b1nza.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "lexxyyylex",
-    "Wallet": "cryptochickx",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "Funkolover30",
-    "Wallet": "funkolover3o",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "MeBeSwede",
-    "Wallet": "lgnam.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "PopInStock",
-    "Wallet": "bw2vy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260322_100213",
     "Username": "metame888",
     "Wallet": "waxplayerwax",
     "PrizeSent": "AssetID: 1099981846054, Name: Lucky Willy, Mint: 1942",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "geoff0079",
-    "Wallet": "b1nza.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260322_110625",
@@ -17512,13 +17309,6 @@
     "Wallet": "funkolover3o",
     "PrizeSent": "AssetID: 1099978201425, Name: Lucky Willy, Mint: 1399",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "Funkolover30",
-    "Wallet": "funkolover3o",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260322_113837",
@@ -17570,46 +17360,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260322",
-    "Username": "fawnyt",
-    "Wallet": "uota4.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "Juan_Filth",
-    "Wallet": "3d.qm.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260322_142013",
     "Username": "MeBeSwede",
     "Wallet": "lgnam.c.wam",
     "PrizeSent": "AssetID: 1099982606319, Name: Lucky Willy, Mint: 2053",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "tekke_93",
-    "Wallet": "d..hi.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "ClintCrockett",
-    "Wallet": "4vwdg.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "Juan_Filth",
-    "Wallet": "3d.qm.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260322_172731",
@@ -17633,13 +17388,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260322",
-    "Username": "NashvilleLou",
-    "Wallet": ".fzqy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260322_185300",
     "Username": "lexxyyylex",
     "Wallet": "cryptochickx",
@@ -17647,25 +17395,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260322",
-    "Username": "gee_r_99",
-    "Wallet": "n3xqk.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260322_195151",
     "Username": "ClintCrockett",
     "Wallet": "4vwdg.wam",
     "PrizeSent": "AssetID: 1099981845995, Name: Lucky Willy, Mint: 1883",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "Mescalitos",
-    "Wallet": "jl4am.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260322_205604",
@@ -17680,20 +17414,6 @@
     "Wallet": "funkolover3o",
     "PrizeSent": "AssetID: 1099982606264, Name: Lucky Willy, Mint: 1998",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "NashvilleLou",
-    "Wallet": ".fzqy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260322",
-    "Username": "ClintCrockett",
-    "Wallet": "4vwdg.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260322_234204",
@@ -17738,27 +17458,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "MeBeSwede",
-    "Wallet": "lgnam.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "treefrognada",
-    "Wallet": "fzyr.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "azile2023",
-    "Wallet": "dhf3c.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_033533",
     "Username": "lexxyyylex",
     "Wallet": "cryptochickx",
@@ -17766,39 +17465,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "metame888",
-    "Wallet": "waxplayerwax",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "mtmide00",
-    "Wallet": "dossify53eos",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_043946",
     "Username": "lexxyyylex",
     "Wallet": "cryptochickx",
     "PrizeSent": "AssetID: 1099981846033, Name: Lucky Willy, Mint: 1921",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "treefrognada",
-    "Wallet": "fzyr.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "geoff0079",
-    "Wallet": "b1nza.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260323_051732",
@@ -17815,46 +17486,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "azile2023",
-    "Wallet": "dhf3c.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "NashvilleLou",
-    "Wallet": ".fzqy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_061623",
     "Username": "lexxyyylex",
     "Wallet": "cryptochickx",
     "PrizeSent": "AssetID: 1099981619175, Name: Lucky Willy, Mint: 1810",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "metame888",
-    "Wallet": "waxplayerwax",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "lexxyyylex",
-    "Wallet": "cryptochickx",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "geoff0079",
-    "Wallet": "b1nza.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260323_081406",
@@ -17885,13 +17521,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "MeBeSwede",
-    "Wallet": "lgnam.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_095020",
     "Username": "geoff0079",
     "Wallet": "b1nza.wam",
@@ -17906,20 +17535,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "NashvilleLou",
-    "Wallet": ".fzqy.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "mtmide00",
-    "Wallet": "dossify53eos",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_113207",
     "Username": "treefrognada",
     "Wallet": "fzyr.wam",
@@ -17927,25 +17542,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "ClintCrockett",
-    "Wallet": "4vwdg.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_132949",
     "Username": "lexxyyylex",
     "Wallet": "cryptochickx",
     "PrizeSent": "AssetID: 1099981846017, Name: Lucky Willy, Mint: 1905",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "Juan_Filth",
-    "Wallet": "3d.qm.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260323_141234",
@@ -17962,20 +17563,6 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "ClintCrockett",
-    "Wallet": "4vwdg.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "Juan_Filth",
-    "Wallet": "3d.qm.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_174314",
     "Username": "Funkolover30",
     "Wallet": "funkolover3o",
@@ -17983,32 +17570,11 @@
     "Error": null
   },
   {
-    "GameId": "loyalty_20260323",
-    "Username": "misty0121",
-    "Wallet": ".fdbk.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "onyxouroboros",
-    "Wallet": "s.4bi.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
-  },
-  {
     "GameId": "game_20260323_210127",
     "Username": "azile2023",
     "Wallet": "dhf3c.c.wam",
     "PrizeSent": "AssetID: 1099981846019, Name: Lucky Willy, Mint: 1907",
     "Error": null
-  },
-  {
-    "GameId": "loyalty_20260323",
-    "Username": "gee_r_99",
-    "Wallet": "n3xqk.c.wam",
-    "PrizeSent": null,
-    "Error": "LoyaltyDailyTemplateId is not configured in settings.json."
   },
   {
     "GameId": "game_20260324_010735",
