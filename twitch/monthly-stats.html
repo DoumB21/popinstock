@@ -122,16 +122,15 @@
     .num-cell .pct  { font-size: 10px; color: var(--text-secondary); }
 
     /* Heat levels */
-    .heat-0 { background: var(--bg-card); }
-    .heat-1 { background: rgba(88,166,255,0.10); border-color: rgba(88,166,255,0.3); }
-    .heat-2 { background: rgba(88,166,255,0.22); border-color: rgba(88,166,255,0.5); }
-    .heat-3 { background: rgba(63,185,80,0.22);  border-color: rgba(63,185,80,0.5);  }
-    .heat-4 { background: rgba(232,184,75,0.22); border-color: rgba(232,184,75,0.5); }
-    .heat-5 { background: rgba(248,81,73,0.25);  border-color: rgba(248,81,73,0.6);  }
-    .heat-1 .n, .heat-2 .n { color: var(--blue); }
-    .heat-3 .n              { color: var(--green); }
-    .heat-4 .n              { color: var(--gold); }
-    .heat-5 .n              { color: var(--red); }
+    .heat-0        { background: var(--bg-card); }
+    .heat-rare     { background: rgba(88,166,255,0.10);  border-color: rgba(88,166,255,0.30); }
+    .heat-common   { background: rgba(63,185,80,0.10);   border-color: rgba(63,185,80,0.25);  }
+    .heat-frequent { background: rgba(232,184,75,0.25);  border-color: rgba(232,184,75,0.55); }
+    .heat-hot      { background: rgba(248,81,73,0.30);   border-color: rgba(248,81,73,0.70);  }
+    .heat-rare     .n { color: var(--blue); }
+    .heat-common   .n { color: var(--green); }
+    .heat-frequent .n { color: var(--gold); }
+    .heat-hot      .n { color: var(--red); }
 
     /* ── Ranking tables ── */
     .tables-row {
@@ -266,6 +265,13 @@
     }
     .prizes-panel table { border-radius: 0; border: none; }
     .prizes-panel th    { background: transparent; }
+
+    .failed-transfers {
+      border-top: 1px solid rgba(248, 81, 73, 0.25);
+      padding: 0.6rem 1rem;
+      font-size: 0.78rem;
+      color: var(--red);
+    }
 
     .wax-val     { color: var(--accent-light); font-weight: 700; }
     .unknown-wax { color: var(--text-secondary); font-style: italic; text-align: right; }
@@ -405,7 +411,13 @@
 
       // ── Summary numbers ─────────────────────────────────────────────────
       const gamesPlayed = monthResults.length;
-      const totalWins   = monthResults.reduce((s, r) => s + (r.WinnerCount || 0), 0);
+      let totalPrizes = 0, totalWins = 0;
+      for (const r of monthResults)
+        for (const w of (r.Winners || []))
+          if (w.Username) {
+            totalPrizes++;
+            if (w.Guess === r.Mint) totalWins++;
+          }
 
       const uniquePlayers = new Set();
       let totalGuesses = 0;
@@ -421,7 +433,24 @@
         for (const w of (r.Winners || []))
           if (w.Username) uniqueWinners.add(w.Username.toLowerCase());
 
-      const winRate = gamesPlayed ? ((totalWins / gamesPlayed) * 100).toFixed(1) : '0.0';
+      function shortDate(ts) {
+        if (!ts) return '';
+        return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      const maxWinnersGame = monthResults.reduce((best, r) => {
+        const c = (r.Winners || []).filter(w => w.Username).length;
+        if (c > best.count) return { count: c, ts: r.Timestamp, ties: 1 };
+        if (c === best.count && c > 0) return { ...best, ties: best.ties + 1 };
+        return best;
+      }, { count: 0, ts: null, ties: 0 });
+
+      const maxPlayersGame = monthGuessGames.reduce((best, [, g]) => {
+        const c = Object.keys(g.Guesses || {}).length;
+        if (c > best.count) return { count: c, ts: g.Timestamp, ties: 1 };
+        if (c === best.count && c > 0) return { ...best, ties: best.ties + 1 };
+        return best;
+      }, { count: 0, ts: null, ties: 0 });
 
       const monthLabel = new Date(month + '-15').toLocaleDateString('en-US',
         { month: 'long', year: 'numeric' });
@@ -436,14 +465,14 @@
           <div class="sub">${monthLabel}</div>
         </div>
         <div class="stat-card">
-          <div class="label">Unique Players</div>
-          <div class="value" style="color:var(--green)">${uniquePlayers.size.toLocaleString()}</div>
-          <div class="sub">joined at least one game</div>
+          <div class="label">Total Game Prizes</div>
+          <div class="value" style="color:var(--purple)">${totalPrizes.toLocaleString()}</div>
+          <div class="sub">exact guesses or bonuses</div>
         </div>
         <div class="stat-card">
-          <div class="label">Total Wins</div>
+          <div class="label">Total Game Wins</div>
           <div class="value" style="color:var(--gold)">${totalWins.toLocaleString()}</div>
-          <div class="sub">${winRate}% games had a winner</div>
+          <div class="sub">exact guesses only</div>
         </div>
         <div class="stat-card">
           <div class="label">Total Guesses</div>
@@ -451,14 +480,29 @@
           <div class="sub">avg ${gamesPlayed ? (totalGuesses / gamesPlayed).toFixed(1) : '—'} per game</div>
         </div>
         <div class="stat-card">
+          <div class="label">No-Winner Games</div>
+          <div class="value" style="color:var(--red)">${(gamesPlayed - totalWins > 0 ? gamesPlayed - monthResults.filter(r => r.WinnerCount > 0).length : 0).toLocaleString()}</div>
+          <div class="sub">${gamesPlayed ? (((gamesPlayed - monthResults.filter(r => r.WinnerCount > 0).length) / gamesPlayed) * 100).toFixed(1) : 0}% of games</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Unique Players</div>
+          <div class="value" style="color:var(--green)">${uniquePlayers.size.toLocaleString()}</div>
+          <div class="sub">joined at least one game</div>
+        </div>
+        <div class="stat-card">
           <div class="label">Unique Winners</div>
           <div class="value" style="color:var(--green)">${uniqueWinners.size.toLocaleString()}</div>
           <div class="sub">${uniquePlayers.size ? ((uniqueWinners.size / uniquePlayers.size) * 100).toFixed(1) : '0'}% of players won at least once</div>
         </div>
         <div class="stat-card">
-          <div class="label">No-Winner Games</div>
-          <div class="value" style="color:var(--red)">${(gamesPlayed - totalWins > 0 ? gamesPlayed - monthResults.filter(r => r.WinnerCount > 0).length : 0).toLocaleString()}</div>
-          <div class="sub">${gamesPlayed ? (((gamesPlayed - monthResults.filter(r => r.WinnerCount > 0).length) / gamesPlayed) * 100).toFixed(1) : 0}% of games</div>
+          <div class="label">Most Winners in a Game</div>
+          <div class="value" style="color:var(--gold)">${maxWinnersGame.count}</div>
+          <div class="sub">${shortDate(maxWinnersGame.ts)}${maxWinnersGame.ties > 1 ? ` (+${maxWinnersGame.ties - 1} more times)` : ''}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Most Players in a Game</div>
+          <div class="value" style="color:var(--blue)">${maxPlayersGame.count}</div>
+          <div class="sub">${shortDate(maxPlayersGame.ts)}${maxPlayersGame.ties > 1 ? ` (+${maxPlayersGame.ties - 1} more times)` : ''}</div>
         </div>
       `;
 
@@ -468,16 +512,19 @@
       for (const r of monthResults)
         if (r.Mint >= 1 && r.Mint <= 99) mintCounts[r.Mint]++;
 
-      const maxHits = Math.max(...Object.values(mintCounts));
+      // Percentile thresholds across all 99 numbers
+      const sortedCounts = Array.from({ length: 99 }, (_, i) => mintCounts[i + 1] || 0)
+        .sort((a, b) => a - b);
+      const hotMin  = sortedCounts[Math.floor(99 * 0.95)]; // top 5%
+      const freqMin = sortedCounts[Math.floor(99 * 0.85)]; // top 15%
+      const rareMax = sortedCounts[Math.ceil(99 * 0.05) - 1]; // bottom 5%
 
       function heatClass(hits) {
-        if (hits === 0)                      return 'heat-0';
-        const pct = hits / maxHits;
-        if (pct <= 0.20)                     return 'heat-1';
-        if (pct <= 0.40)                     return 'heat-2';
-        if (pct <= 0.60)                     return 'heat-3';
-        if (pct <= 0.80)                     return 'heat-4';
-        return                                      'heat-5';
+        if (hits === 0)          return 'heat-0';
+        if (hits >= hotMin)      return 'heat-hot';
+        if (hits >= freqMin)     return 'heat-frequent';
+        if (hits <= rareMax)     return 'heat-rare';
+        return                          'heat-common';
       }
 
       const totalMints = monthResults.length;
@@ -500,20 +547,19 @@
           playerGames[key] = (playerGames[key] || 0) + 1;
         }
 
-      // Player wins — exact guesses only (Guess === Mint), bonus wins excluded
-      const mintByGame = {};
-      for (const r of monthResults) mintByGame[r.GameID] = r.Mint;
-
-      const playerWins = {};
-      for (const [gameId, g] of monthGuessGames) {
-        const mint = mintByGame[gameId];
-        if (mint == null) continue;
-        for (const [name, guess] of Object.entries(g.Guesses || {}))
-          if (guess === mint) {
-            const key = name.toLowerCase();
-            playerWins[key] = (playerWins[key] || 0) + 1;
+      // Player prizes, wins & bonuses — all from Winners array
+      // Prize = any entry; Win = Guess === Mint; Bonus = Guess !== Mint
+      const playerPrizes  = {};
+      const playerWins    = {};
+      const playerBonuses = {};
+      for (const r of monthResults)
+        for (const w of (r.Winners || []))
+          if (w.Username) {
+            const key = w.Username.toLowerCase();
+            playerPrizes[key] = (playerPrizes[key] || 0) + 1;
+            if (w.Guess === r.Mint) playerWins[key]    = (playerWins[key]    || 0) + 1;
+            else                    playerBonuses[key] = (playerBonuses[key] || 0) + 1;
           }
-      }
 
       // ── Top N most games entered ─────────────────────────────────────────
       const topGames = Object.entries(playerGames)
@@ -545,7 +591,7 @@
         ${rankLabel(i)}
         <td class="username">${name}</td>
         <td class="val blue">${g}</td>
-        <td class="sub-val">${playerWins[name] || 0} wins</td>
+        <td class="sub-val">${playerPrizes[name] || 0}P / ${playerWins[name] || 0}W</td>
       </tr>`).join('');
 
       const tableBest = topBest.map((p, i) => {
@@ -562,8 +608,20 @@
         ${rankLabel(i)}
         <td class="username">${p.name}</td>
         <td class="val red">${p.games}</td>
-        <td class="sub-val">0 wins</td>
+        <td class="sub-val">${playerPrizes[p.name] || 0}P / 0W</td>
       </tr>`).join('') || `<tr><td colspan="4" style="color:var(--text-dim);padding:16px">Everyone won at least once!</td></tr>`;
+
+      // ── Most Bonus Wins ──────────────────────────────────────────────────
+      const topBonus = Object.entries(playerBonuses)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, TOP_N);
+
+      const tableBonus = topBonus.map(([name, b], i) => `<tr>
+        ${rankLabel(i)}
+        <td class="username">${name}</td>
+        <td class="val purple">${b}</td>
+        <td class="sub-val">${playerPrizes[name] || 0}P / ${playerWins[name] || 0}W</td>
+      </tr>`).join('') || `<tr><td colspan="4" style="color:var(--text-dim);padding:16px">No bonus wins this month.</td></tr>`;
 
       // ── Prizes distributed ───────────────────────────────────────────────
       // Normalise: accept both array and object (keyed by GameId)
@@ -606,15 +664,25 @@
 
         const gameCounts    = {};
         const loyaltyCounts = {};
+        const gameFailures    = [];
+        const loyaltyFailures = [];
 
         for (const t of monthTransfers) {
           const name = extractName(t.PrizeSent);
-          if (!name) continue;
           if (t.GameId && t.GameId.startsWith('game_')) {
-            gameCounts[name] = (gameCounts[name] || 0) + 1;
+            if (name) gameCounts[name] = (gameCounts[name] || 0) + 1;
+            else gameFailures.push(t);
           } else if (t.GameId && t.GameId.startsWith('loyalty_')) {
-            loyaltyCounts[name] = (loyaltyCounts[name] || 0) + 1;
+            if (name) loyaltyCounts[name] = (loyaltyCounts[name] || 0) + 1;
+            else loyaltyFailures.push(t);
           }
+        }
+
+        function buildFailedHtml(failures) {
+          if (!failures.length) return '';
+          return `<div class="failed-transfers">
+            ⚠ ${failures.length} failed transfer${failures.length !== 1 ? 's' : ''} — sent manually
+          </div>`;
         }
 
         function buildPrizeRows(counts, showWax) {
@@ -660,6 +728,7 @@
                   <thead><tr><th>Prize</th><th class="num">Count</th><th class="num">WAX value</th></tr></thead>
                   <tbody>${buildPrizeRows(gameCounts, true)}</tbody>
                 </table>
+                ${buildFailedHtml(gameFailures)}
               </div>
               <div class="prizes-panel">
                 <div class="prizes-panel-header">
@@ -669,6 +738,7 @@
                   <thead><tr><th>Prize</th><th class="num">Count</th></tr></thead>
                   <tbody>${buildPrizeRows(loyaltyCounts, false)}</tbody>
                 </table>
+                ${buildFailedHtml(loyaltyFailures)}
               </div>
             </div>
           </div>`;
@@ -677,10 +747,11 @@
       // ── Most Wins — full list ─────────────────────────────────────────────
       const allPlayers = Object.keys(playerGames).map(name => ({
         name,
-        games: playerGames[name],
-        wins:  playerWins[name] || 0,
+        games:  playerGames[name],
+        prizes: playerPrizes[name] || 0,
+        wins:   playerWins[name] || 0,
       })).filter(p => p.games > 0)
-        .sort((a, b) => b.wins - a.wins || (b.wins / b.games) - (a.wins / a.games) || b.games - a.games);
+        .sort((a, b) => b.wins - a.wins || b.prizes - a.prizes || (b.wins / b.games) - (a.wins / a.games) || b.games - a.games);
 
       const tableMostWins = allPlayers.map((p, i) => {
         const rate     = p.games ? ((p.wins / p.games) * 100).toFixed(1) : '0.0';
@@ -697,10 +768,11 @@
           ${rankCell}
           <td class="username">${p.name}${badge}</td>
           <td class="val blue">${p.games}</td>
+          <td class="val purple">${p.prizes}</td>
           <td class="val gold">${p.wins}</td>
           <td class="val green">${rate}%</td>
         </tr>`;
-      }).join('') || `<tr><td colspan="5" style="color:var(--text-dim);padding:16px">No data for this month.</td></tr>`;
+      }).join('') || `<tr><td colspan="6" style="color:var(--text-dim);padding:16px">No data for this month.</td></tr>`;
 
       document.getElementById('content').innerHTML = `
         ${prizesHtml}
@@ -708,11 +780,10 @@
           <h2>🎯 Winning Numbers — ${monthLabel}</h2>
           <div class="legend">
             <div class="legend-item"><div class="legend-dot" style="background:var(--panel);border-color:var(--border)"></div> Never drawn</div>
-            <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.10);border-color:rgba(88,166,255,0.3)"></div> Rare</div>
-            <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.22);border-color:rgba(88,166,255,0.5)"></div> Uncommon</div>
-            <div class="legend-item"><div class="legend-dot" style="background:rgba(63,185,80,0.22);border-color:rgba(63,185,80,0.5)"></div> Common</div>
-            <div class="legend-item"><div class="legend-dot" style="background:rgba(232,184,75,0.22);border-color:rgba(232,184,75,0.5)"></div> Frequent</div>
-            <div class="legend-item"><div class="legend-dot" style="background:rgba(248,81,73,0.25);border-color:rgba(248,81,73,0.6)"></div> Hot 🔥</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(88,166,255,0.10);border-color:rgba(88,166,255,0.30)"></div> Rare (bottom 5%)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(63,185,80,0.10);border-color:rgba(63,185,80,0.25)"></div> Common (middle 80%)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(232,184,75,0.25);border-color:rgba(232,184,75,0.55)"></div> Frequent (next 10%)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(248,81,73,0.30);border-color:rgba(248,81,73,0.70)"></div> Hot 🔥 (top 5%)</div>
           </div>
           <div class="numbers-grid">${numCells}</div>
         </div>
@@ -741,13 +812,20 @@
                 <tbody>${tableWorst}</tbody>
               </table></div>
             </div>
+            <div>
+              <h2 style="color:var(--purple);margin-bottom:12px">Most Bonus Wins</h2>
+              <div class="table-scroll"><table>
+                <thead><tr><th>#</th><th>Player</th><th class="num">Bonuses</th><th class="num">P / W</th></tr></thead>
+                <tbody>${tableBonus}</tbody>
+              </table></div>
+            </div>
           </div>
         </div>
 
         <div class="section">
           <h2>🏅 Most Wins — Full Leaderboard &nbsp;<span style="font-size:12px;color:var(--text-dim);font-weight:400">${allPlayers.length} players · top 5 win a prize</span></h2>
           <div class="table-scroll"><table>
-            <thead><tr><th>#</th><th>Player</th><th class="num">Games</th><th class="num">Wins</th><th class="num">Win %</th></tr></thead>
+            <thead><tr><th>#</th><th>Player</th><th class="num">Games</th><th class="num">Prizes</th><th class="num">Wins</th><th class="num">Win %</th></tr></thead>
             <tbody>${tableMostWins}</tbody>
           </table></div>
         </div>
