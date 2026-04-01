@@ -25,6 +25,7 @@
       --x: #e7e7e7;
       --funko: #ff6b35;
       --topps: #e31837;
+      --wombat: #a259ff;
     }
 
     html, body {
@@ -167,6 +168,7 @@
     .card--x:hover       { box-shadow: 0 8px 40px rgba(231, 231, 231, 0.1); }
     .card--funko:hover   { box-shadow: 0 8px 40px rgba(255, 107, 53, 0.2); }
     .card--topps:hover   { box-shadow: 0 8px 40px rgba(227, 24, 55, 0.2); }
+    .card--wombat:hover  { box-shadow: 0 8px 40px rgba(162, 89, 255, 0.2); }
 
     .card-icon {
       width: 52px;
@@ -183,6 +185,7 @@
     .card--x       .card-icon { background: rgba(231, 231, 231, 0.1); }
     .card--funko   .card-icon { background: rgba(50, 130, 220, 0.15); }
     .card--topps   .card-icon { background: rgba(227, 24, 55, 0.15); }
+    .card--wombat  .card-icon { background: rgba(162, 89, 255, 0.15); }
 
     .card-icon svg {
       width: 26px;
@@ -234,6 +237,7 @@
     .card--x:hover       .card-arrow { color: var(--x); }
     .card--funko:hover   .card-arrow { color: var(--funko); }
     .card--topps:hover   .card-arrow { color: var(--topps); }
+    .card--wombat:hover  .card-arrow { color: var(--wombat); }
 
     /* ── Footer ── */
     footer {
@@ -314,6 +318,18 @@
         <div class="card-body">
           <div class="card-title">Topps</div>
           <div class="card-desc">Explore key Topps digital collection data on the WAX blockchain and advanced collector tools.</div>
+        </div>
+        <div class="card-arrow">↗</div>
+      </a>
+
+      <!-- Wombat Dungeon Master -->
+      <a href="wombat/wombat.html" class="card card--wombat">
+        <div class="card-icon">
+          <img src="images/wombat-icon.png" alt="Wombat" style="width:28px;height:28px;object-fit:contain;" />
+        </div>
+        <div class="card-body">
+          <div class="card-title">Wombat Dungeon Master</div>
+          <div class="card-desc">Tools and stats for Wombat Dungeon Master collectors.</div>
         </div>
         <div class="card-arrow">↗</div>
       </a>

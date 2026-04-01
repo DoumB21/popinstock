@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mining Power Search — PopInStock</title>
+  <meta name="description" content="Find Wombat Dungeon Master NFTs by mining power, price, and collection." />
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+
+    .page-header { margin-bottom: 1.75rem; }
+
+    /* ── Controls card ── */
+    .controls-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    .filter-row + .filter-row {
+      margin-top: 1.1rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .filter-group--narrow { max-width: 160px; }
+    .filter-group--wide   { flex: 2; }
+
+    .control-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* Range inputs (low – high) */
+    .range-pair {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .range-pair .control-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .range-sep {
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Checkbox row */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      padding: 0.6rem 0;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .checkbox-label input[type="checkbox"]:disabled { opacity: 0.35; cursor: not-allowed; }
+    .checkbox-label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+    .checkbox-hint {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+      opacity: 0.7;
+    }
+
+    .include-all-block {
+      background: rgba(192, 120, 40, 0.06);
+      border: 1px solid rgba(192, 120, 40, 0.18);
+      border-radius: 10px;
+      padding: 0.4rem 0.75rem 0.5rem;
+    }
+
+    /* Bottom row of controls */
+    .filter-actions {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.75rem;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .info-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.6rem 0.9rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.2s, border-color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      white-space: nowrap;
+    }
+
+    .info-btn:hover { color: var(--text-primary); border-color: var(--border-hover); }
+
+    /* Disabled state for price filters in Polygon mode */
+    .control-input:disabled,
+    .control-select:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ── Info modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      position: relative;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .modal-body p + p { margin-top: 0.75rem; }
+
+    .modal-warning {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      background: rgba(231, 76, 60, 0.08);
+      border: 1px solid rgba(231, 76, 60, 0.25);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #e07070;
+      line-height: 1.6;
+    }
+
+    .modal-close {
+      margin-top: 1.5rem;
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 0.65rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .modal-close:hover { color: var(--text-primary); border-color: var(--border-hover); }
+
+    /* ── Results area ── */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      padding: 0 0.25rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .results-meta {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .results-meta strong { color: var(--text-primary); }
+
+    .table-scroll {
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .results-table th {
+      text-align: left;
+      padding: 0.65rem 1rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .results-table th.col-r { text-align: right; }
+
+    .results-table tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.15s;
+    }
+
+    .results-table tbody tr:last-child { border-bottom: none; }
+    .results-table tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+
+    .results-table td {
+      padding: 0.6rem 1rem;
+      vertical-align: middle;
+    }
+
+    .results-table td.col-r {
+      text-align: right;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Collection name */
+    .col-collection {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* NFT name + marketplace links */
+    .nft-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-width: 200px;
+    }
+
+    .nft-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .market-links {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+
+    .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; }
+    .market-link:hover { opacity: 1; }
+    .market-link img { width: 20px; height: 20px; object-fit: contain; }
+
+    /* Material cell */
+    .material-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .material-icon { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+
+    .mining-power-val {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    /* Price cells */
+    .price-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .price-usd   { color: var(--text-secondary); font-size: 0.8rem; }
+    .price-token { font-weight: 600; }
+
+    /* Token ID (Polygon) */
+    .token-id {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Show more ── */
+    .show-more-wrap { text-align: center; padding-top: 0.5rem; }
+
+    /* ── Last updated ── */
+    .last-updated {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 0.4rem;
+      opacity: 0.75;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .filter-group { min-width: 140px; }
+      .filter-actions { width: 100%; justify-content: flex-end; }
+    }
+
+    @media (max-width: 480px) {
+      .filter-group { min-width: 100%; }
+    }
+
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4798734033365350" crossorigin="anonymous"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+  <div class="page-main">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <h1 class="page-title">Mining Power <span class="accent">Search</span></h1>
+      <p class="page-subtitle">Find the cheapest NFTs by mining power across Wombat Dungeon Master collections.</p>
+      <p class="last-updated" id="lastUpdated" style="display:none">Last updated: <strong id="updatedAt">—</strong></p>
+    </div>
+
+    <!-- Filters card -->
+    <div class="controls-card">
+
+      <!-- Row 1: Dropdowns + checkbox -->
+      <div class="filter-row">
+
+        <div class="filter-group filter-group--narrow">
+          <label class="control-label" for="selBlockchain">Blockchain</label>
+          <select id="selBlockchain" class="control-select">
+            <option value="EOS">EOS</option>
+            <option value="WAX" selected>WAX</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="control-label" for="selCollection">Collection</label>
+          <select id="selCollection" class="control-select">
+            <option value="">All collections</option>
+          </select>
+        </div>
+
+        <div class="filter-group filter-group--narrow">
+          <label class="control-label" for="selMaterial">Material</label>
+          <select id="selMaterial" class="control-select">
+            <option value="">All materials</option>
+            <option value="Gold">Gold</option>
+            <option value="Iron">Iron</option>
+            <option value="Uranium">Uranium</option>
+            <option value="Coal">Coal</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="control-label">&nbsp;</label>
+          <div class="include-all-block">
+            <label class="checkbox-label" id="lblIncludeAll">
+              <input type="checkbox" id="chkIncludeAll" disabled />
+              <span>Include NFTs not on the market</span>
+            </label>
+            <div class="checkbox-hint" id="hintIncludeAll">Select a collection to enable</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Row 2: Range filters -->
+      <div class="filter-row" id="rowRangeFilters">
+
+        <div class="filter-group">
+          <label class="control-label" for="txtMPLow">Mining Power</label>
+          <div class="range-pair">
+            <input type="text" id="txtMPLow"   class="control-input" placeholder="Min" maxlength="5"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+            <span class="range-sep">–</span>
+            <input type="text" id="txtMPHigh"  class="control-input" placeholder="Max" maxlength="5"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+          </div>
+        </div>
+
+        <div class="filter-group" id="groupPricePerMP">
+          <label class="control-label" id="lblPricePerMP">WAX / Mining Power</label>
+          <div class="range-pair">
+            <input type="text" id="txtPricePMLow"  class="control-input" placeholder="Min" maxlength="8"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')" />
+            <span class="range-sep">–</span>
+            <input type="text" id="txtPricePMHigh" class="control-input" placeholder="Max" maxlength="8"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')" />
+          </div>
+        </div>
+
+        <div class="filter-group" id="groupPrice">
+          <label class="control-label" id="lblPrice">WAX Price</label>
+          <div class="range-pair">
+            <input type="text" id="txtPriceLow"  class="control-input" placeholder="Min" maxlength="8"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')" />
+            <span class="range-sep">–</span>
+            <input type="text" id="txtPriceHigh" class="control-input" placeholder="Max" maxlength="8"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')" />
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Row 3: Sort + actions -->
+      <div class="filter-row">
+
+        <div class="filter-group filter-group--narrow">
+          <label class="control-label" for="selSort1">Sort by</label>
+          <select id="selSort1" class="control-select"></select>
+        </div>
+
+        <div class="filter-group filter-group--narrow">
+          <label class="control-label" for="selSort2">Then by</label>
+          <select id="selSort2" class="control-select"></select>
+        </div>
+
+        <div class="filter-group filter-group--narrow">
+          <label class="control-label" for="selSort3">Then by</label>
+          <select id="selSort3" class="control-select"></select>
+        </div>
+
+        <div class="filter-actions">
+          <button type="button" class="info-btn" onclick="openInfoModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Info
+          </button>
+          <button type="button" class="search-btn" id="btnSearch" onclick="handleSearch()">Search</button>
+        </div>
+
+      </div>
+
+    </div><!-- /controls-card -->
+
+    <!-- Results area -->
+    <div id="resultsArea">
+      <div class="state" id="stateInitial">Use the filters above and click <strong>Search</strong> to find NFTs.</div>
+    </div>
+
+  </div><!-- /page-main -->
+
+
+  <!-- Info modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+    <div class="modal-box">
+      <div class="modal-title">About this tool</div>
+      <div class="modal-body">
+        <p>If you don't see a collection in the list it means there are currently no NFTs available on the market for that collection.</p>
+        <p>In those situations, you can check <strong>Include NFTs not on the market</strong> to show them (requires selecting a specific collection first).</p>
+        <p>For performance purposes, results are limited to <strong>100 records</strong> based on the sort filters selected.</p>
+        <div class="modal-warning">
+          <strong>Data is not real-time.</strong> Collections update on average every 2 hours — prices and availability may differ from the current market.
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeInfoModal()">Close</button>
+    </div>
+  </div>
+
+
+  <script src="data/supabase-config.js"></script>
+  <script src="nav.js"></script>
+  <script>
+
+    /* ── Supabase helpers ── */
+    async function sbFetch(path, qs) {
+      const url = SUPABASE_URL + path + (qs ? '?' + qs : '');
+      const r = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        }
+      });
+      if (!r.ok) throw new Error('Supabase ' + r.status + ': ' + await r.text());
+      return r.json();
+    }
+
+    async function sbRpc(fn, body) {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error('Supabase RPC ' + fn + ' ' + r.status + ': ' + await r.text());
+      return r.json();
+    }
+
+    /* ── Sort options (PostgREST column.direction format) ── */
+    const SORT_OPTIONS_WAX = [
+      { label: '—',                    value: '' },
+      { label: 'WAX/MP ↓',  value: 'token_per_mp.asc.nullslast' },
+      { label: 'WAX/MP ↑',  value: 'token_per_mp.desc.nullslast' },
+      { label: 'Mining Power ↓',       value: 'mining_power.desc' },
+      { label: 'Mining Power ↑',       value: 'mining_power.asc' },
+      { label: 'WAX Price ↑',          value: 'price_token.asc.nullslast' },
+      { label: 'WAX Price ↓',          value: 'price_token.desc.nullslast' },
+      { label: 'USD/MP ↑',             value: 'usd_per_mp.asc.nullslast' },
+      { label: 'USD/MP ↓',             value: 'usd_per_mp.desc.nullslast' },
+    ];
+
+    const SORT_OPTIONS_EOS = [
+      { label: '—',                    value: '' },
+      { label: 'EOS/MP ↓',  value: 'token_per_mp.asc.nullslast' },
+      { label: 'EOS/MP ↑',  value: 'token_per_mp.desc.nullslast' },
+      { label: 'Mining Power ↓',       value: 'mining_power.desc' },
+      { label: 'Mining Power ↑',       value: 'mining_power.asc' },
+      { label: 'EOS Price ↑',          value: 'price_token.asc.nullslast' },
+      { label: 'EOS Price ↓',          value: 'price_token.desc.nullslast' },
+      { label: 'USD/MP ↑',             value: 'usd_per_mp.asc.nullslast' },
+      { label: 'USD/MP ↓',             value: 'usd_per_mp.desc.nullslast' },
+    ];
+
+    const SORT_OPTIONS_POLYGON = [
+      { label: '—',              value: '' },
+      { label: 'Mining Power ↓', value: 'mining_power.desc' },
+      { label: 'Mining Power ↑', value: 'mining_power.asc' },
+    ];
+
+    /* ── DOM refs ── */
+    const selBlockchain  = document.getElementById('selBlockchain');
+    const selCollection  = document.getElementById('selCollection');
+    const selMaterial    = document.getElementById('selMaterial');
+    const chkIncludeAll  = document.getElementById('chkIncludeAll');
+    const hintIncludeAll = document.getElementById('hintIncludeAll');
+    const lblPricePerMP  = document.getElementById('lblPricePerMP');
+    const lblPrice       = document.getElementById('lblPrice');
+    const txtPricePMLow  = document.getElementById('txtPricePMLow');
+    const txtPricePMHigh = document.getElementById('txtPricePMHigh');
+    const txtPriceLow    = document.getElementById('txtPriceLow');
+    const txtPriceHigh   = document.getElementById('txtPriceHigh');
+    const selSort1       = document.getElementById('selSort1');
+    const selSort2       = document.getElementById('selSort2');
+    const selSort3       = document.getElementById('selSort3');
+    const resultsArea    = document.getElementById('resultsArea');
+
+    /* ── Init ── */
+    populateSortDropdowns(SORT_OPTIONS_WAX);
+    loadCollections('WAX');
+    loadLastUpdated();
+    handleSearch();
+
+    /* ── Load collections via RPC ── */
+    async function loadCollections(blockchain) {
+      selCollection.innerHTML = '<option value="">All collections</option>';
+      try {
+        const data = await sbRpc('get_wombat_collections', { p_blockchain: blockchain });
+        data.forEach(row => {
+          const opt = document.createElement('option');
+          opt.value = row.collection_name;
+          opt.textContent = row.collection_name;
+          selCollection.appendChild(opt);
+        });
+      } catch (e) {
+        console.warn('loadCollections failed:', e);
+      }
+    }
+
+    /* ── Load last updated timestamp ── */
+    async function loadLastUpdated() {
+      try {
+        const data = await sbFetch('/rest/v1/wombat_meta', 'id=eq.1&select=updated_at');
+        if (data.length > 0 && data[0].updated_at) {
+          const d = new Date(data[0].updated_at);
+          document.getElementById('updatedAt').textContent =
+            d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+          document.getElementById('lastUpdated').style.display = '';
+        }
+      } catch (e) {
+        console.warn('loadLastUpdated failed:', e);
+      }
+    }
+
+    /* ── Blockchain change ── */
+    selBlockchain.addEventListener('change', () => {
+      const bc = selBlockchain.value;
+      const isPolygon = bc === 'Polygon';
+
+      lblPricePerMP.textContent = bc + ' / Mining Power';
+      lblPrice.textContent      = bc + ' Price';
+
+      txtPricePMLow.disabled  = isPolygon;
+      txtPricePMHigh.disabled = isPolygon;
+      txtPriceLow.disabled    = isPolygon;
+      txtPriceHigh.disabled   = isPolygon;
+
+      if (isPolygon) {
+        chkIncludeAll.checked  = true;
+        chkIncludeAll.disabled = true;
+        hintIncludeAll.textContent = 'All NFTs included for Polygon';
+      } else {
+        chkIncludeAll.checked  = false;
+        chkIncludeAll.disabled = true;
+        hintIncludeAll.textContent = 'Select a collection to enable';
+      }
+
+      const opts = isPolygon ? SORT_OPTIONS_POLYGON : (bc === 'EOS' ? SORT_OPTIONS_EOS : SORT_OPTIONS_WAX);
+      populateSortDropdowns(opts);
+
+      loadCollections(bc);
+    });
+
+    /* ── Collection change ── */
+    selCollection.addEventListener('change', () => {
+      const bc = selBlockchain.value;
+      if (bc === 'Polygon') return;
+
+      if (selCollection.value !== '') {
+        chkIncludeAll.disabled = false;
+        hintIncludeAll.textContent = '';
+      } else {
+        chkIncludeAll.checked  = false;
+        chkIncludeAll.disabled = true;
+        hintIncludeAll.textContent = 'Select a collection to enable';
+      }
+    });
+
+    /* ── Populate sort dropdowns ── */
+    function populateSortDropdowns(options) {
+      [selSort1, selSort2, selSort3].forEach(sel => {
+        sel.innerHTML = options.map(o =>
+          `<option value="${o.value}">${o.label}</option>`
+        ).join('');
+      });
+    }
+
+    /* ── Build sort string (PostgREST format) ── */
+    function buildSortString() {
+      const bc = selBlockchain.value;
+      const parts = [selSort1.value, selSort2.value, selSort3.value].filter(v => v !== '');
+      if (parts.length > 0) return parts.join(',');
+      if (bc === 'Polygon') return 'mining_power.desc';
+      return 'token_per_mp.asc.nullslast,mining_power.desc,price_token.asc.nullslast';
+    }
+
+    /* ── Search handler ── */
+    async function handleSearch(limit = 50) {
+      const bc         = selBlockchain.value;
+      const isPolygon  = bc === 'Polygon';
+      const collection = selCollection.value;
+      const material   = selMaterial.value;
+      const includeAll = chkIncludeAll.checked;
+      const mpLow      = document.getElementById('txtMPLow').value.trim();
+      const mpHigh     = document.getElementById('txtMPHigh').value.trim();
+      const pricePMLow  = txtPricePMLow.value.trim();
+      const pricePMHigh = txtPricePMHigh.value.trim();
+      const priceLow    = txtPriceLow.value.trim();
+      const priceHigh   = txtPriceHigh.value.trim();
+
+      showLoading();
+
+      try {
+        const qs = [];
+        qs.push('select=blockchain,collection_name,card_name,template_id,material,mining_power,price_token,price_usd,token_per_mp,usd_per_mp,is_on_market');
+        qs.push('blockchain=eq.' + encodeURIComponent(bc));
+
+        if (!includeAll) qs.push('is_on_market=eq.true');
+        if (collection)  qs.push('collection_name=eq.' + encodeURIComponent(collection));
+        if (material)    qs.push('material=eq.' + encodeURIComponent(material));
+
+        if (mpLow)  qs.push('mining_power=gte.' + mpLow);
+        if (mpHigh) qs.push('mining_power=lte.' + mpHigh);
+
+        if (!isPolygon) {
+          if (pricePMLow)  qs.push('token_per_mp=gte.' + pricePMLow);
+          if (pricePMHigh) qs.push('token_per_mp=lte.' + pricePMHigh);
+          if (priceLow)    qs.push('price_token=gte.' + priceLow);
+          if (priceHigh)   qs.push('price_token=lte.' + priceHigh);
+        }
+
+        qs.push('order=' + buildSortString());
+        qs.push('limit=' + limit);
+
+        const rows = await sbFetch('/rest/v1/wombat_listings', qs.join('&'));
+        renderResults(rows, bc, limit);
+      } catch (e) {
+        renderNoData('Search failed: ' + e.message);
+      }
+    }
+
+    /* ── Render helpers ── */
+    function showLoading() {
+      resultsArea.innerHTML = `
+        <div class="status-wrap">
+          <div class="spinner"></div>
+          <div class="status-text">Searching…</div>
+        </div>`;
+    }
+
+    function renderNoData(msg) {
+      resultsArea.innerHTML = `<div class="state state-error">${msg}</div>`;
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function fmt(n, digits) {
+      return n != null ? Number(n).toFixed(digits) : '—';
+    }
+
+    function buildMarketLinks(row, blockchain) {
+      const tid = encodeURIComponent(row.template_id || '');
+      const col = encodeURIComponent(row.collection_name || '');
+      if (blockchain === 'EOS') {
+        return `<a href="https://eos.atomichub.io/market?blockchain=eos-mainnet&collection_name=${col}&template_id=${tid}&order=asc&sort=price" target="_blank" rel="noopener" class="market-link" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub" width="20" height="20"></a>`;
+      }
+      return `<a href="https://wax.atomichub.io/market?blockchain=wax-mainnet&collection_name=${col}&template_id=${tid}&order=asc&sort=price&symbol=WAX" target="_blank" rel="noopener" class="market-link" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub" width="20" height="20"></a>
+              <a href="https://neftyblocks.com/marketplace/listing?collection_name=${col}&order=asc&page=1&sort=price&template_id=${tid}" target="_blank" rel="noopener" class="market-link" title="View on NeftyBlocks"><img src="../images/neftyblocks.svg" alt="NeftyBlocks" width="20" height="20"></a>
+              <a href="https://nfthive.io/market?term=${tid}&order_by=price_asc&offer_type=listings" target="_blank" rel="noopener" class="market-link" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive" width="20" height="20"></a>`;
+    }
+
+    function renderResults(rows, blockchain, limit) {
+      if (!rows || rows.length === 0) {
+        resultsArea.innerHTML = `<div class="state">No NFTs found for this search.</div>`;
+        return;
+      }
+
+      const isPolygon = blockchain === 'Polygon';
+      const currency  = blockchain === 'EOS' ? 'EOS' : 'WAX';
+
+      let html = `
+        <div class="results-header">
+          <div class="results-meta">Showing <strong>${rows.length}</strong> result${rows.length !== 1 ? 's' : ''} (max ${limit})</div>
+        </div>
+        <div class="table-scroll">
+          <table class="results-table">
+            <thead><tr>`;
+
+      html += isPolygon
+        ? `<th>Collection / Name</th><th>Mining Power</th>`
+        : `<th>Collection</th><th>Name</th><th>Mining Power</th><th class="col-r">Price</th><th class="col-r">Price / Mining Power</th>`;
+
+      html += `</tr></thead><tbody>`;
+
+      for (const row of rows) {
+        html += isPolygon ? buildRowPolygon(row) : buildRowWaxEos(row, currency, blockchain);
+      }
+
+      html += `</tbody></table></div>`;
+
+      if (rows.length === limit && limit < 100) {
+        html += `<div class="show-more-wrap" id="showMoreWrap">
+          <button class="show-more-btn" id="showMoreBtn" onclick="showMore()">Show 100 Results</button>
+        </div>`;
+      }
+
+      resultsArea.innerHTML = html;
+    }
+
+    async function showMore() {
+      const btn = document.getElementById('showMoreBtn');
+      if (btn) btn.disabled = true;
+      await handleSearch(100);
+    }
+
+    function buildRowWaxEos(row, currency, blockchain) {
+      const matKey = (row.material || '').toLowerCase();
+      const links  = row.is_on_market ? buildMarketLinks(row, blockchain) : '';
+
+      const priceHtml = row.is_on_market && row.price_token != null
+        ? `<div class="price-token">${fmt(row.price_token, 4)} ${currency}</div>
+           <div class="price-usd">$${fmt(row.price_usd, 4)}</div>`
+        : `<div class="price-token" style="opacity:.4">—</div>`;
+
+      const perMpHtml = row.is_on_market && row.token_per_mp != null
+        ? `<div class="price-token">${fmt(row.token_per_mp, 4)} ${currency}/MP</div>
+           <div class="price-usd">$${fmt(row.usd_per_mp, 4)}/MP</div>`
+        : `<div class="price-token" style="opacity:.4">—</div>`;
+
+      return `<tr>
+        <td><span class="col-collection">${escHtml(row.collection_name || '')}</span></td>
+        <td>
+          <div class="nft-name-row">
+            <span class="nft-name">${escHtml(row.card_name || '')}</span>
+            <div class="market-links">${links}</div>
+          </div>
+        </td>
+        <td>
+          <div class="material-cell">
+            <img src="images/${matKey}-icon.svg" alt="${row.material}" class="material-icon">
+            <span class="mining-power-val">${row.mining_power ?? ''}</span>
+          </div>
+        </td>
+        <td class="col-r price-cell">${priceHtml}</td>
+        <td class="col-r price-cell">${perMpHtml}</td>
+      </tr>`;
+    }
+
+    function buildRowPolygon(row) {
+      const matKey = (row.material || '').toLowerCase();
+
+      return `<tr>
+        <td>
+          <div class="nft-name-row">
+            <div>
+              <span class="col-collection">${escHtml(row.collection_name || '')}</span><br>
+              <span class="nft-name">${escHtml(row.card_name || '')}</span>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="material-cell">
+            <img src="images/${matKey}-icon.svg" alt="${row.material}" class="material-icon">
+            <span class="mining-power-val">${row.mining_power ?? ''}</span>
+          </div>
+        </td>
+      </tr>`;
+    }
+
+    /* ── Modal ── */
+    function openInfoModal()  { document.getElementById('modalOverlay').classList.add('open'); }
+    function closeInfoModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('modalOverlay')) closeInfoModal();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeInfoModal();
+    });
+
+  </script>
+</body>
+</html>
