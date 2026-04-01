@@ -5,6 +5,7 @@ Allow: /
 Disallow: /funko/data/
 Disallow: /topps/data/
 Disallow: /twitch/data/
+Disallow: /wombat/data/
 
 # Dynamic tool page — requires query parameters to function, no standalone content
 Disallow: /funko/drop.html
