@@ -123,7 +123,7 @@
 
     /* Heat levels */
     .heat-0        { background: var(--bg-card); }
-    .heat-rare     { background: rgba(88,166,255,0.10);  border-color: rgba(88,166,255,0.30); }
+    .heat-rare     { background: rgba(88,166,255,0.22);  border-color: rgba(88,166,255,0.55); }
     .heat-common   { background: rgba(63,185,80,0.10);   border-color: rgba(63,185,80,0.25);  }
     .heat-frequent { background: rgba(232,184,75,0.25);  border-color: rgba(232,184,75,0.55); }
     .heat-hot      { background: rgba(248,81,73,0.30);   border-color: rgba(248,81,73,0.70);  }
@@ -229,7 +229,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1.25rem;
-      margin-bottom: 2.5rem;
+      margin-bottom: 0;
     }
     .prizes-panel {
       background: var(--bg-card);
@@ -276,6 +276,19 @@
     .wax-val     { color: var(--accent-light); font-weight: 700; }
     .unknown-wax { color: var(--text-secondary); font-style: italic; text-align: right; }
     th.num       { text-align: right; }
+
+    /* ── Second Chance pills ── */
+    .pill {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 2px 8px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .pill-claimed   { background: rgba(63,185,80,0.15);  color: var(--green); border: 1px solid rgba(63,185,80,0.4);  }
+    .pill-unclaimed { background: rgba(248,81,73,0.12);  color: var(--red);   border: 1px solid rgba(248,81,73,0.35); }
 
     /* ── Responsive ── */
     @media (max-width: 1000px) {
@@ -348,9 +361,10 @@
     const TOP_N         = 25;         // size of each ranking list
     const MIN_GAMES     = 5;          // minimum games to appear in win-rate lists
 
-    const RESULTS_URL   = 'data/archiveGameResults.json';
-    const GUESSES_URL   = 'data/archiveGuesses.json';
-    const TRANSFERS_URL = 'data/transfer-results.json';
+    const RESULTS_URL      = 'data/archiveGameResults.json';
+    const GUESSES_URL      = 'data/archiveGuesses.json';
+    const TRANSFERS_URL    = 'data/transfer-results.json';
+    const SECONDCHANCE_URL = 'data/archiveSecondChance.json';
 
     // ── WAX values per prize name (Game prizes only) ──────────────────────
     // Edit this object to assign WAX values to your prizes.
@@ -366,9 +380,10 @@
     };
 
     // ── Cached data — loaded once ─────────────────────────────────────────
-    let _results   = null;
-    let _guesses   = null;
-    let _transfers = null;
+    let _results      = null;
+    let _guesses      = null;
+    let _transfers    = null;
+    let _secondChance = null;
 
     // ── Init ──────────────────────────────────────────────────────────────
     const picker = document.getElementById('month-picker');
@@ -378,20 +393,22 @@
       const month = picker.value;
       if (!month) return;
       if (_results && _guesses) {
-        render(_results, _guesses, _transfers, month);
+        render(_results, _guesses, _transfers, _secondChance, month);
       }
     });
 
     (async () => {
       try {
-        const [resResults, resGuesses, resTransfers] = await Promise.all([
-          fetch(RESULTS_URL   + '?t=' + Date.now()),
-          fetch(GUESSES_URL   + '?t=' + Date.now()),
-          fetch(TRANSFERS_URL + '?t=' + Date.now()).catch(() => null),
+        const [resResults, resGuesses, resTransfers, resSecondChance] = await Promise.all([
+          fetch(RESULTS_URL      + '?t=' + Date.now()),
+          fetch(GUESSES_URL      + '?t=' + Date.now()),
+          fetch(TRANSFERS_URL    + '?t=' + Date.now()).catch(() => null),
+          fetch(SECONDCHANCE_URL + '?t=' + Date.now()).catch(() => null),
         ]);
         [_results, _guesses] = await Promise.all([resResults.json(), resGuesses.json()]);
-        _transfers = resTransfers ? await resTransfers.json().catch(() => null) : null;
-        render(_results, _guesses, _transfers, DEFAULT_MONTH);
+        _transfers    = resTransfers    ? await resTransfers.json().catch(() => null)    : null;
+        _secondChance = resSecondChance ? await resSecondChance.json().catch(() => null) : null;
+        render(_results, _guesses, _transfers, _secondChance, DEFAULT_MONTH);
       } catch (e) {
         document.getElementById('subtitle').textContent = 'Error loading data.';
         document.getElementById('content').innerHTML =
@@ -401,7 +418,7 @@
       }
     })();
 
-    function render(results, guesses, transfers, month) {
+    function render(results, guesses, transfers, secondChance, month) {
       // ── Filter to selected month ────────────────────────────────────────
       const monthResults = results.filter(r => r.Timestamp && r.Timestamp.startsWith(month));
 
@@ -638,6 +655,7 @@
           <div class="section">
             <h2>🎁 Prizes Distributed — ${monthLabel}</h2>
             <div class="error" style="font-size:13px">Transfer data not available — make sure IIS is running and <code>transfer-results.json</code> exists at <code>${TRANSFERS_URL}</code>.</div>
+            ${buildSecondChanceHtml(secondChance, month)}
           </div>`;
       } else {
         transfers = transfersArray;
@@ -741,7 +759,60 @@
                 ${buildFailedHtml(loyaltyFailures)}
               </div>
             </div>
+            ${buildSecondChanceHtml(secondChance, month)}
           </div>`;
+      }
+
+      // ── Second Chance wheel spins ────────────────────────────────────────
+      function buildSecondChanceHtml(secondChance, month) {
+        if (!Array.isArray(secondChance)) return '';
+        const spins = secondChance.filter(e =>
+          e.WheelTriggered === true &&
+          e.Timestamp && e.Timestamp.startsWith(month)
+        );
+        if (spins.length === 0)
+          return `<div class="prizes-panel" style="margin-top:1.25rem">
+            <div class="prizes-panel-header">
+              <span class="title">Second Chance Wheel &nbsp;<span style="font-size:12px;font-weight:400;color:var(--text-dim)">0 spins</span></span>
+            </div>
+            <table>
+              <tbody><tr><td colspan="3" style="color:var(--text-dim);padding:16px">No wheel spins this month.</td></tr></tbody>
+            </table>
+          </div>`;
+
+        const claimedCount = spins.filter(e => e.PrizeClaimed === true).length;
+        const userTally = {}; // username → { total, claimed }
+        const rows = spins.map(e => {
+          const dt = new Date(e.Timestamp);
+          const date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            + ' ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+          const pill = e.PrizeClaimed === true
+            ? `<span class="pill pill-claimed">Claimed</span>`
+            : `<span class="pill pill-unclaimed">Not Claimed</span>`;
+          const key = (e.WheelWinner || '').toLowerCase();
+          if (!userTally[key]) userTally[key] = { total: 0, claimed: 0 };
+          userTally[key].total++;
+          if (e.PrizeClaimed === true) userTally[key].claimed++;
+          const { total, claimed } = userTally[key];
+          const tallyColor = claimed > 0 ? 'var(--green)' : 'var(--text-secondary)';
+          return `<tr>
+            <td style="color:var(--text-secondary);font-size:0.78rem;white-space:nowrap">${date}</td>
+            <td class="username">${e.WheelWinner || '—'}</td>
+            <td>${pill}</td>
+            <td style="color:${tallyColor};font-weight:700;font-size:0.8rem;text-align:right;white-space:nowrap">${claimed}/${total}</td>
+          </tr>`;
+        }).join('');
+
+        return `<div class="prizes-panel" style="margin-top:1.25rem">
+          <div class="prizes-panel-header">
+            <span class="title">Second Chance Wheel &nbsp;<span style="font-size:12px;font-weight:400;color:var(--text-dim)">${spins.length} spin${spins.length !== 1 ? 's' : ''}</span></span>
+            <span style="font-size:0.8rem;color:var(--green);font-weight:700">${claimedCount} / ${spins.length} <span style="font-size:0.68rem;color:var(--text-secondary);font-weight:400">claimed</span></span>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>Winner</th><th>Status</th><th class="num">Claimed / Opportunities</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
       }
 
       // ── Most Wins — full list ─────────────────────────────────────────────
