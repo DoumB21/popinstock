@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OG Banner — 1200×630</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+    }
+
+    body {
+      background-color: #0a0a0f;
+      color: #f0f0f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* Subtle radial glow behind the content */
+    body::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(192, 120, 40, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .banner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      text-align: center;
+      padding: 0 80px;
+    }
+
+    /* Wordmark row */
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .wordmark img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+    }
+
+    .wordmark-text {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #8888aa;
+    }
+
+    /* Main headline */
+    h1 {
+      font-size: 5rem;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      color: #f0f0f5;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #f0a840, #c07828);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Tagline */
+    .tagline {
+      font-size: 1.35rem;
+      color: #8888aa;
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+    }
+
+    .wax-pill {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 7px 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(192, 120, 40, 0.35);
+      background: rgba(192, 120, 40, 0.08);
+      color: #c07828;
+    }
+
+    /* Bottom border accent */
+    .accent-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #c07828 30%, #f0a840 50%, #c07828 70%, transparent);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="banner">
+    <div class="wordmark">
+      <img src="images/FoxLogo.png" alt="Pop In Stock" />
+      <span class="wordmark-text">Pop In Stock</span>
+    </div>
+
+    <h1>Tools for<br /><span>Digital Collectors</span></h1>
+
+    <p class="tagline">Funko, Topps &amp; Wombat collector tools — plus live Twitch streams.</p>
+
+    <span class="wax-pill">Powered by the WAX Blockchain</span>
+  </div>
+
+  <div class="accent-bar"></div>
+
+</body>
+</html>
