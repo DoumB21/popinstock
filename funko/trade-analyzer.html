@@ -392,7 +392,7 @@
           <span id="tradeFilterLabel">Show trade only</span>
         </button>
       </div>
-      <div id="tradeFilterEmpty" class="trade-filter-empty">No cards from this drop are in your trade summary.</div>
+      <div id="tradeFilterEmpty" class="trade-filter-empty">No cards from this search are in your trade summary.</div>
       <div class="table-scroll">
         <table class="results-table">
           <thead id="tableHead"></thead>
@@ -674,7 +674,7 @@
           const right = document.createElement('span');
           right.className = 'template-id-suffix';
           right.style.opacity = '0.4';
-          right.textContent = '(Template ID)';
+          right.textContent = 'Template ID';
           wrap.appendChild(left);
           wrap.appendChild(right);
           th.appendChild(wrap);
@@ -723,7 +723,7 @@
         nameLeft.appendChild(document.createTextNode(tmpl.name));
         const tidSpan = document.createElement('span');
         tidSpan.className = 'template-id-suffix';
-        tidSpan.textContent = `(${tmpl.templateId})`;
+        tidSpan.textContent = tmpl.templateId;
         nameLine.appendChild(nameLeft);
         nameLine.appendChild(tidSpan);
         tdName.appendChild(nameLine);
