@@ -38,10 +38,10 @@
     .results-table th:first-child {
       position: sticky; left: 0; z-index: 3; background: #141419;
     }
-    .results-table td:first-child {
+    .results-table .card-main-row td:first-child {
       position: sticky; left: 0; z-index: 1; background: #0a0a0f;
     }
-    .results-table tr:hover td:first-child { background: #101015; }
+    .card-group:hover .card-main-row td:first-child { background: #101015; }
 
     /* ── Mint filter ── */
     .controls-filter { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
@@ -78,13 +78,13 @@
     }
     .results-table th.col-wallet { text-align: right; color: var(--accent-light); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
     .results-table td { border-top: 1px solid var(--border); padding: 0.5rem 0.85rem; vertical-align: top; }
-    .results-table tr:hover td { background: var(--bg-row-alt); }
+    .card-group:hover td { background: var(--bg-row-alt); }
     .results-table td.col-num { color: var(--text-secondary); font-size: 0.9rem; text-align: right; font-variant-numeric: tabular-nums; }
     .results-table td.col-wallet { white-space: nowrap; padding-left: 0.6rem; padding-right: 0.6rem; }
     .wallet-cell { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .wallet-copies { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
     .wallet-mint { font-variant-numeric: tabular-nums; text-align: right; }
-    .wallet-next-mints { font-size: 0.8rem; color: var(--text-secondary); text-align: right; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
+    .wallet-next-mints { font-size: 0.8rem; color: var(--text-secondary); text-align: right; font-variant-numeric: tabular-nums; }
     .mint-lowest .wallet-next-mints { opacity: 0.6; }
     .results-table td.col-empty { color: var(--text-secondary); text-align: right; padding-left: 0.6rem; padding-right: 0.6rem; }
     .mint-lowest { background: rgba(250,165,0,0.1) !important; }
@@ -272,15 +272,14 @@
       color: var(--text-secondary);
       margin-top: 0.1rem;
     }
-    .market-links {
-      position: absolute;
-      right: 0.6rem;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
+    /* ── Double-row card layout ── */
+    .card-sub-row td { border-top: none !important; padding-top: 0; padding-bottom: 0.45rem; }
+    .card-id-prefix { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .template-id-suffix { color: var(--text-secondary); font-size: 0.88em; opacity: 0.55; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .card-name-line { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; }
+    .card-meta-line { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+
+    .market-links { display: flex; align-items: center; gap: 1rem; }
     .market-link {
       display: flex;
       align-items: center;
@@ -372,9 +371,9 @@
         <div class="control-group control-group--filter">
           <label class="control-label">Filter by Mint Range</label>
           <div class="mint-range-inputs">
-            <input id="mintMin" class="control-input" type="number" min="1" placeholder="Min" oninput="applyFilter()" />
+            <input id="mintMin" class="control-input" type="number" min="1" placeholder="Min" value="1" oninput="applyFilter()" />
             <span class="range-sep">—</span>
-            <input id="mintMax" class="control-input" type="number" min="1" placeholder="Max" oninput="applyFilter()" />
+            <input id="mintMax" class="control-input" type="number" min="1" placeholder="Max" value="99" oninput="applyFilter()" />
           </div>
         </div>
       </div>
@@ -665,21 +664,32 @@
       const thead = document.getElementById('tableHead');
       thead.innerHTML = '';
       const hr = document.createElement('tr');
-      ['Card ID', 'Name', 'Template ID', 'Rarity', ...wallets.map(abbrev)].forEach((col, i) => {
+      ['ID — Card', ...wallets.map(abbrev)].forEach((col, i) => {
         const th = document.createElement('th');
-        th.textContent = col;
-        if (i === 0 || i === 2) th.style.textAlign = 'right';
-        if (i >= 4) {
+        if (i === 0) {
+          const wrap = document.createElement('div');
+          wrap.className = 'card-name-line';
+          const left = document.createElement('span');
+          left.textContent = 'ID — Card';
+          const right = document.createElement('span');
+          right.className = 'template-id-suffix';
+          right.style.opacity = '0.4';
+          right.textContent = '(Template ID)';
+          wrap.appendChild(left);
+          wrap.appendChild(right);
+          th.appendChild(wrap);
+        } else {
+          th.textContent = col;
           th.className = 'col-wallet';
-          th.title = wallets[i - 4];
+          th.title = wallets[i - 1];
         }
         hr.appendChild(th);
       });
       thead.appendChild(hr);
 
-      // Body
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = '';
+      // Body — one <tbody class="card-group"> per card (main row + market sub-row)
+      const tableEl = document.querySelector('.results-table');
+      tableEl.querySelectorAll('tbody').forEach(b => b.remove());
       const frag = document.createDocumentFragment();
 
       lastSorted     = sorted;
@@ -690,24 +700,49 @@
       const curHasMin = !isNaN(curMin);
       const curHasMax = !isNaN(curMax);
 
+
       for (const tmpl of sorted) {
+        const cardTbody = document.createElement('tbody');
+        cardTbody.className = 'card-group';
+
+        // ── Main row ──
         const row = document.createElement('tr');
+        row.className = 'card-main-row';
 
-        // Card ID
-        const tdCard = document.createElement('td');
-        tdCard.textContent = tmpl.cardId;
-        tdCard.className = 'col-num';
-        row.appendChild(tdCard);
-
-        // Name
+        // Card info cell — row 1: [ID — Name] (space-between) [templateId]
         const tdName = document.createElement('td');
-        tdName.style.position = 'relative';
-        tdName.style.paddingRight = '7rem';
-        const nameText = document.createElement('div');
-        nameText.textContent = tmpl.name;
-        tdName.appendChild(nameText);
-        const nameMarkets = document.createElement('div');
-        nameMarkets.className = 'market-links';
+        const nameLine = document.createElement('div');
+        nameLine.className = 'card-name-line';
+        const nameLeft = document.createElement('span');
+        if (tmpl.cardId !== '—') {
+          const idSpan = document.createElement('span');
+          idSpan.className = 'card-id-prefix';
+          idSpan.textContent = `${tmpl.cardId} — `;
+          nameLeft.appendChild(idSpan);
+        }
+        nameLeft.appendChild(document.createTextNode(tmpl.name));
+        const tidSpan = document.createElement('span');
+        tidSpan.className = 'template-id-suffix';
+        tidSpan.textContent = `(${tmpl.templateId})`;
+        nameLine.appendChild(nameLeft);
+        nameLine.appendChild(tidSpan);
+        tdName.appendChild(nameLine);
+        row.appendChild(tdName);
+
+        // ── Meta sub-row: rarity (left) + market links (right) in first col,
+        //    wallet sub-cells (other mints) filled by fillWalletCells ──
+        const subRow = document.createElement('tr');
+        subRow.className = 'card-sub-row';
+        const tdMeta = document.createElement('td');
+        tdMeta.className = 'card-meta-cell';
+        const metaLine = document.createElement('div');
+        metaLine.className = 'card-meta-line';
+        const rarityBadge = document.createElement('span');
+        rarityBadge.className = `rarity-badge rarity-${rarityKey(tmpl.rarity)}`;
+        rarityBadge.textContent = tmpl.rarity;
+        metaLine.appendChild(rarityBadge);
+        const linksWrap = document.createElement('div');
+        linksWrap.className = 'market-links';
         [
           { href: `https://droppp.io/products/${tmpl.templateId}/`,                                                                                                                                                                                           icon: '../images/droppp.svg',      title: 'View on Droppp' },
           { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&collection_name=${lastCollection}&template_id=${tmpl.templateId}&order=asc&primary_chain=wax-mainnet&schema_name=${lastSchema}&sort=template_mint&symbol=WAX&max_assets=1`,         icon: '../images/atomic.svg',      title: 'View on AtomicHub' },
@@ -724,31 +759,20 @@
           img.src = icon;
           img.alt = title;
           a.appendChild(img);
-          nameMarkets.appendChild(a);
+          linksWrap.appendChild(a);
         });
-        tdName.appendChild(nameMarkets);
-        row.appendChild(tdName);
+        metaLine.appendChild(linksWrap);
+        tdMeta.appendChild(metaLine);
+        subRow.appendChild(tdMeta);
 
-        // Template ID
-        const tdTid = document.createElement('td');
-        tdTid.textContent = tmpl.templateId;
-        tdTid.className = 'col-num';
-        row.appendChild(tdTid);
+        fillWalletCells(row, subRow, tmpl, walletMaps, curHasMin, curMin, curHasMax, curMax);
+        cardTbody.appendChild(row);
+        cardTbody.appendChild(subRow);
 
-        // Rarity
-        const tdRarity = document.createElement('td');
-        const badge = document.createElement('span');
-        badge.className = `rarity-badge rarity-${rarityKey(tmpl.rarity)}`;
-        badge.textContent = tmpl.rarity;
-        tdRarity.appendChild(badge);
-        row.appendChild(tdRarity);
-
-        fillWalletCells(row, tmpl, walletMaps, curHasMin, curMin, curHasMax, curMax);
-
-        frag.appendChild(row);
+        frag.appendChild(cardTbody);
       }
 
-      tbody.appendChild(frag);
+      tableEl.appendChild(frag);
 
       // Meta
       updateResultsMeta(sorted.length, sorted.length);
@@ -774,9 +798,10 @@
       return span;
     }
 
-    function fillWalletCells(row, tmpl, walletMaps, hasMin, min, hasMax, max) {
-      // Remove existing wallet TDs (keep first 4: Card ID, Name, Template ID, Rarity)
-      while (row.cells.length > 4) row.deleteCell(4);
+    function fillWalletCells(mainRow, subRow, tmpl, walletMaps, hasMin, min, hasMax, max) {
+      // Remove existing wallet TDs (keep first 1: card info in main, meta cell in sub)
+      while (mainRow.cells.length > 1) mainRow.deleteCell(1);
+      while (subRow.cells.length > 1) subRow.deleteCell(1);
 
       // Find lowest in-range mint across all wallets
       let lowest = Infinity;
@@ -790,20 +815,23 @@
       }
 
       walletMaps.forEach((wmap, walletIdx) => {
-        const wallet = lastWallets[walletIdx] ?? `wallet${walletIdx}`;
-        const td    = document.createElement('td');
-        const entry = wmap.get(tmpl.templateId);
+        const wallet  = lastWallets[walletIdx] ?? `wallet${walletIdx}`;
+        const tdMain  = document.createElement('td');
+        const tdSub   = document.createElement('td');
+        const entry   = wmap.get(tmpl.templateId);
+
         if (entry) {
-          const visible = entry.mints.filter(m => mintInRange(m, hasMin, min, hasMax, max));
+          const visible  = entry.mints.filter(m => mintInRange(m, hasMin, min, hasMax, max));
           const isLowest = visible.length > 0 && visible[0] === lowest;
-          td.className = 'col-wallet' + (isLowest ? ' mint-lowest' : '');
+          const cls      = 'col-wallet' + (isLowest ? ' mint-lowest' : '');
+          tdMain.className = cls;
+          tdSub.className  = cls;
 
           const cell = document.createElement('div');
           cell.className = 'wallet-cell';
           const spanCopies = document.createElement('span');
           spanCopies.className = 'wallet-copies';
           spanCopies.textContent = `${entry.count}x`;
-
           const spanMint = document.createElement('span');
           spanMint.className = 'wallet-mint';
           if (visible.length > 0) {
@@ -811,10 +839,9 @@
           } else {
             spanMint.textContent = '—';
           }
-
           cell.appendChild(spanCopies);
           cell.appendChild(spanMint);
-          td.appendChild(cell);
+          tdMain.appendChild(cell);
 
           if (visible.length > 1) {
             const next = document.createElement('div');
@@ -823,13 +850,15 @@
               if (i > 0) next.appendChild(document.createTextNode(', '));
               next.appendChild(makeMintSpan(tmpl, wallet, m));
             });
-            td.appendChild(next);
+            tdSub.appendChild(next);
           }
         } else {
-          td.className = 'col-empty';
-          td.textContent = '—';
+          tdMain.className = 'col-empty';
+          tdMain.textContent = '—';
         }
-        row.appendChild(td);
+
+        mainRow.appendChild(tdMain);
+        subRow.appendChild(tdSub);
       });
     }
 
@@ -839,9 +868,10 @@
       const hasMin = !isNaN(minVal);
       const hasMax = !isNaN(maxVal);
 
-      const rows = document.querySelectorAll('#tableBody tr');
+      const mainRows = document.querySelectorAll('.card-main-row');
+      const subRows  = document.querySelectorAll('.card-sub-row');
       lastSorted.forEach((tmpl, i) => {
-        fillWalletCells(rows[i], tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
+        fillWalletCells(mainRows[i], subRows[i], tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
       });
       applyTradeFilter();
     }
@@ -1046,18 +1076,18 @@
     }
 
     function applyTradeFilter() {
-      const rows = document.querySelectorAll('#tableBody tr');
+      const groups = document.querySelectorAll('.card-group');
       const tableScroll = document.querySelector('.table-scroll');
       const emptyEl = document.getElementById('tradeFilterEmpty');
       let visible = 0;
 
-      rows.forEach(row => {
+      groups.forEach(group => {
         if (!tradeFilterActive) {
-          row.style.display = '';
+          group.style.display = '';
           visible++;
         } else {
-          const hasSelected = row.querySelector('.mint-selected') !== null;
-          row.style.display = hasSelected ? '' : 'none';
+          const hasSelected = group.querySelector('.mint-selected') !== null;
+          group.style.display = hasSelected ? '' : 'none';
           if (hasSelected) visible++;
         }
       });
