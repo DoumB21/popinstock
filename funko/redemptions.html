@@ -112,9 +112,50 @@
     .pct-fill.low  { background: #e05252; }
 
     @media (max-width: 600px) {
-      .pct-bar { display: none; }
-      .figures-table th:nth-child(3),
-      .figures-table td:nth-child(3) { display: none; }
+      .page { padding: 1.5rem 0.75rem 3rem; }
+
+      /* ── Stacked card layout: each row becomes a block ── */
+      .figures-table { display: block; }
+      .figures-table thead { display: none; }
+      .figures-table tbody { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; }
+      .figures-table tbody tr {
+        display: block;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+      }
+      .figures-table tr:nth-child(even) td { background: transparent; }
+      .figures-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.3rem 0;
+        border-bottom: none;
+        text-align: right;
+        font-size: 0.875rem;
+      }
+      .figures-table tbody td::before {
+        content: attr(data-label);
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+        text-align: left;
+        margin-right: 0.75rem;
+      }
+      /* Figure name is the card header — no label prefix */
+      .figures-table tbody td:first-child {
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding-bottom: 0.6rem;
+        margin-bottom: 0.25rem;
+        border-bottom: 1px solid var(--border);
+        justify-content: flex-start;
+      }
+      .figures-table tbody td:first-child::before { display: none; }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -208,10 +249,10 @@
           tr.dataset.rarity = fig.rarity;
           tr.innerHTML = `
             <td>${fig.name}</td>
-            <td><span class="rarity-badge ${rarityClass(fig.rarity)}">${fig.rarity}</span></td>
-            <td>${fmt(fig.redeemed)}</td>
-            <td>${fmt(fig.minted)}</td>
-            <td>
+            <td data-label="Rarity"><span class="rarity-badge ${rarityClass(fig.rarity)}">${fig.rarity}</span></td>
+            <td data-label="Redeemed">${fmt(fig.redeemed)}</td>
+            <td data-label="Supply">${fmt(fig.minted)}</td>
+            <td data-label="% Redeemed">
               <div class="pct-bar-wrap">
                 <span class="pct-label">${p}%</span>
                 <div class="pct-bar"><div class="pct-fill ${pctClass(p)}" style="width:${p}%"></div></div>
