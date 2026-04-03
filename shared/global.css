@@ -24,16 +24,18 @@
   --accent-light:    #f0a840;
   --nav-height:      64px;
   /* Rarity */
-  --rarity-common:     #9ca3af;
-  --rarity-uncommon:   #4ade80;
-  --rarity-rare:       #60a5fa;
-  --rarity-epic:       #c084fc;
+  --rarity-common:     #999;
+  --rarity-uncommon:   #4caf50;
+  --rarity-rare:       #64b5f6;
+  --rarity-epic:       #ce93d8;
+  --rarity-series:     #ffb74d;
   --rarity-ultra:      #e8ff00;
   --rarity-legendary:  #e93494;
   --rarity-grail:      #faa500;
   --rarity-mythic:     #01ffff;
   --rarity-royalty:    #007deb;
-  --rarity-redeemable: #f97316;
+  --rarity-1of1:       #ffd700;
+  --rarity-redeemable: #888;
   --rarity-pack:       #94a3b8;
 }
 
@@ -577,11 +579,13 @@ body::before {
 .rarity-grail     { color: var(--rarity-grail);     border-color: var(--rarity-grail);     background: rgba(250, 165,   0, 0.12); }
 .rarity-legendary { color: var(--rarity-legendary); border-color: var(--rarity-legendary); background: rgba(233,  52, 148, 0.12); }
 .rarity-royalty   { color: var(--rarity-royalty);   border-color: var(--rarity-royalty);   background: rgba(  0, 125, 235, 0.12); }
-.rarity-epic      { color: var(--rarity-epic);      border-color: var(--rarity-epic);      background: rgba(192, 132, 252, 0.12); }
-.rarity-rare      { color: var(--rarity-rare);      border-color: var(--rarity-rare);      background: rgba( 96, 165, 250, 0.12); }
-.rarity-uncommon  { color: var(--rarity-uncommon);  border-color: var(--rarity-uncommon);  background: rgba( 74, 222, 128, 0.10); }
-.rarity-common    { color: var(--rarity-common);    border-color: var(--rarity-common);    background: rgba(156, 163, 175, 0.10); }
-.rarity-redeemable{ color: var(--rarity-redeemable);border-color: var(--rarity-redeemable);background: rgba(249, 115,  22, 0.10); }
+.rarity-epic      { color: var(--rarity-epic);      border-color: var(--rarity-epic);      background: rgba(206, 147, 216, 0.12); }
+.rarity-series    { color: var(--rarity-series);    border-color: var(--rarity-series);    background: rgba(255, 183,  77, 0.10); }
+.rarity-rare      { color: var(--rarity-rare);      border-color: var(--rarity-rare);      background: rgba(100, 181, 246, 0.10); }
+.rarity-uncommon  { color: var(--rarity-uncommon);  border-color: var(--rarity-uncommon);  background: rgba( 76, 175,  80, 0.10); }
+.rarity-common    { color: var(--rarity-common);    border-color: var(--rarity-common);    background: rgba(153, 153, 153, 0.08); }
+.rarity-1of1      { color: var(--rarity-1of1);      border-color: var(--rarity-1of1);      background: rgba(255, 215,   0, 0.10); }
+.rarity-redeemable{ color: var(--rarity-redeemable);border-color: var(--rarity-redeemable);background: rgba(136, 136, 136, 0.08); }
 .rarity-pack      { color: var(--rarity-pack);      border-color: var(--rarity-pack);      background: rgba(148, 163, 184, 0.10); }
 
 
