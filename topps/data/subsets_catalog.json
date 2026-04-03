@@ -1,0 +1,23 @@
+[
+  {
+    "collection": "mlb.topps",
+    "schema": "series1",
+    "subsets": [
+      "1-of-1 70th Anniversary Facsimile Signature",
+      "1952 Redux",
+      "1986 Anniversary",
+      "1986 Anniversary Chrome Facsimile Signature",
+      "Base",
+      "Base (70th Anniversary)",
+      "Base (Gold)",
+      "Base (Independence Day)",
+      "Base (Rainbow)",
+      "Blue Facsimile Signature",
+      "Opening Day Base",
+      "Red Facsimile Signature",
+      "Short Print",
+      "Super Short Print",
+      "Team Cube"
+    ]
+  }
+]

@@ -4,20 +4,23 @@
     "schema": "series1",
     "displayname": "2021 Topps Series 1 Baseball",
     "defaultvalue": 1,
-    "rarity_mode": "required"
+    "rarity_mode": "required",
+    "subset_mode": "optional"
   },
   {
     "collection": "mlb.topps",
     "schema": "packs",
     "displayname": "2021 Topps Series 1 Baseball",
     "defaultvalue": 0,
-    "rarity_mode": "disabled"
+    "rarity_mode": "disabled",
+    "subset_mode": "disabled"
   },
   {
     "collection": "mlb.topps",
     "schema": "promo",
     "displayname": "2021 Topps Series 1 Baseball",
     "defaultvalue": 0,
-    "rarity_mode": "optional"
+    "rarity_mode": "optional",
+    "subset_mode": "disabled"
   }
 ]
