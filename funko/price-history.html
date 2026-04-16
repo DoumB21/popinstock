@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Price History — PopInStock</title>
+  <meta name="description" content="Full price history across all three phases: Digital Card, Redemption Token, and Physical Pop sold on eBay." />
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.0/dist/apexcharts.min.js"></script>
+  <style>
+    .page {
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5rem;
+    }
+
+    /* ── Back link ── */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.8rem; color: var(--text-secondary);
+      text-decoration: none; margin-bottom: 2rem;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--text-primary); }
+
+    /* ── Pop header ── */
+    .pop-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; flex-wrap: wrap;
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .pop-eyebrow {
+      display: flex; align-items: center; gap: 0.45rem;
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-secondary); margin-bottom: 0.45rem;
+    }
+    .pop-eyebrow .sep { opacity: 0.35; }
+    .pop-name {
+      font-size: 1.8rem; font-weight: 700; line-height: 1.2;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem;
+    }
+    .pop-num {
+      font-size: 0.9rem; font-weight: 600;
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.06);
+      border-radius: 999px; padding: 0.2rem 0.65rem;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Chart card ── */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Phase nav tabs ── */
+    .phase-nav {
+      display: flex; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .phase-btn {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding: 0.8rem 1.25rem;
+      font-size: 0.8rem; font-weight: 600;
+      background: transparent;
+      border: none; border-right: 1px solid var(--border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap; line-height: 1;
+    }
+    .phase-btn:last-child { border-right: none; }
+    .phase-btn:hover { background: rgba(255,255,255,0.035); color: var(--text-primary); }
+    .phase-btn.active { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+    .phase-btn[data-phase="all"].active { color: var(--accent-light); }
+
+    .phase-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .phase-btn.active .phase-dot,
+    .phase-btn:hover .phase-dot { opacity: 1; }
+
+    /* ── Phase info bar ── */
+    .phase-info {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 1rem;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.77rem; color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .phase-info-label {
+      font-weight: 700; transition: color 0.2s;
+    }
+    .phase-info-sep { opacity: 0.3; }
+    .phase-info-desc { flex: 1; min-width: 0; }
+    .phase-info-range {
+      margin-left: auto; font-variant-numeric: tabular-nums;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 999px; padding: 0.15rem 0.65rem;
+      white-space: nowrap;
+    }
+
+    /* ── Chart area ── */
+    .chart-wrap { padding: 1.25rem 0.5rem 0.25rem; }
+
+    /* ── Phase legend ── */
+    .phase-legend {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+      padding: 0.75rem 1.25rem 1rem;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 0.45rem;
+      font-size: 0.74rem; color: var(--text-secondary);
+    }
+    .legend-swatch {
+      width: 22px; height: 3px; border-radius: 999px; flex-shrink: 0;
+    }
+
+    /* ── Stats grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.1rem 1.25rem;
+      transition: border-color 0.2s;
+    }
+    .stat-card:hover { border-color: var(--border-hover); }
+    .stat-label {
+      font-size: 0.67rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text-secondary); margin-bottom: 0.5rem;
+    }
+    .stat-value {
+      font-size: 1.5rem; font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .stat-sub {
+      font-size: 0.7rem; color: var(--text-secondary);
+      margin-top: 0.3rem; line-height: 1.3;
+    }
+
+    /* ── Current estimated value card ── */
+    .current-value-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(34,197,94,0.35);
+      border-radius: 14px;
+      padding: 1.1rem 1.5rem;
+      margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+      transition: border-color 0.2s;
+    }
+    .current-value-card:hover { border-color: rgba(34,197,94,0.6); }
+    .current-value-header { min-width: 120px; }
+    .current-value-label {
+      font-size: 0.67rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #22c55e; margin-bottom: 0.3rem;
+    }
+    .current-value-sub {
+      font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem;
+    }
+    .current-value-metrics {
+      display: flex; align-items: center; gap: 0; flex-wrap: wrap; flex: 1;
+    }
+    .cv-metric {
+      padding: 0 1.5rem;
+      border-left: 1px solid var(--border);
+    }
+    .cv-metric:first-child { border-left: none; padding-left: 0; }
+    .cv-metric-label {
+      font-size: 0.65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-secondary); margin-bottom: 0.3rem;
+    }
+    .cv-metric-value {
+      font-size: 1.5rem; font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums; line-height: 1;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .section-title {
+      font-size: 0.8rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-primary);
+    }
+    .section-badge {
+      font-size: 0.72rem; color: var(--text-secondary);
+      background: rgba(255,255,255,0.06);
+      border-radius: 999px; padding: 0.15rem 0.6rem;
+      border: 1px solid var(--border);
+    }
+    .section-note {
+      font-size: 0.73rem; color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    /* ── Listings table ── */
+    .listings-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .listings-table {
+      width: 100%; border-collapse: collapse;
+    }
+    .listings-table th {
+      font-size: 0.67rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-secondary);
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left; white-space: nowrap;
+    }
+    .listings-table th:nth-child(2),
+    .listings-table th:nth-child(3) { text-align: right; }
+    .listings-table th:last-child { text-align: center; }
+
+    .listings-table td {
+      padding: 0.6rem 1rem;
+      font-size: 0.84rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+    }
+    .listings-table tr:last-child td { border-bottom: none; }
+    .listings-table tr:nth-child(even) td { background: var(--bg-row-alt); }
+    .listings-table td:nth-child(2),
+    .listings-table td:nth-child(3) { text-align: right; }
+    .listings-table td:last-child { text-align: center; }
+
+    .listing-title {
+      max-width: 420px; display: block;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .listing-date {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .listing-price {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn-action-row {
+      display: flex; gap: 0.4rem;
+      justify-content: center; align-items: center;
+    }
+    .btn-ebay {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      font-size: 0.73rem; font-weight: 600;
+      padding: 0.3rem 0.65rem; border-radius: 7px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-ebay:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+    .btn-report {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      font-size: 0.72rem; font-weight: 600;
+      padding: 0.28rem 0.55rem; border-radius: 7px;
+      background: transparent;
+      border: 1px solid rgba(224, 82, 82, 0.22);
+      color: rgba(224, 82, 82, 0.6);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .btn-report:hover {
+      background: rgba(224, 82, 82, 0.08);
+      border-color: rgba(224, 82, 82, 0.45);
+      color: #e05252;
+    }
+
+    /* ── Hidden sections ── */
+    .listings-section { display: none; }
+    .listings-section.visible { display: block; }
+
+    /* ── Empty state ── */
+    .no-data-msg {
+      padding: 2.5rem; text-align: center;
+      font-size: 0.85rem; color: var(--text-secondary);
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 5.5rem; left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.6rem 1.2rem;
+      font-size: 0.82rem; color: var(--text-primary);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 1000; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .toast.show {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .pop-name { font-size: 1.4rem; }
+      .phase-btn { padding: 0.65rem 0.9rem; font-size: 0.76rem; }
+      .phase-info { display: none; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .listing-title { max-width: 180px; }
+      .phase-btn span:not(.phase-dot) {
+        /* keep short labels on mobile */
+      }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="data/supabase-config.js"></script>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="redemptions.html" class="back-link">← Back to Redemptions</a>
+
+  <div id="pageLoading" style="padding:4rem;text-align:center;color:var(--text-secondary);font-size:0.85rem;">Loading price history…</div>
+  <div id="pageError" style="display:none;padding:4rem;text-align:center;color:var(--text-secondary);font-size:0.85rem;"></div>
+
+  <div id="pageContent" style="display:none">
+
+  <div class="pop-header">
+    <div>
+      <div class="pop-eyebrow">
+        <span>Marvel</span>
+        <span class="sep">/</span>
+        <span>Funko Digital Pop!</span>
+      </div>
+      <h1 class="pop-name">
+        Spider-Man
+        <span class="pop-num">#03</span>
+      </h1>
+    </div>
+  </div>
+
+  <!-- Chart card -->
+  <div class="chart-card">
+
+    <div class="phase-nav" id="phaseNav">
+      <button class="phase-btn active" data-phase="all">All Phases</button>
+      <button class="phase-btn" data-phase="1">
+        <span class="phase-dot" style="background:#6366f1"></span>
+        Phase 1 — Digital Card
+      </button>
+      <button class="phase-btn" data-phase="2">
+        <span class="phase-dot" style="background:#f59e0b"></span>
+        Phase 2 — Redemption Token
+      </button>
+      <button class="phase-btn" data-phase="3">
+        <span class="phase-dot" style="background:#22c55e"></span>
+        Phase 3 — Physical Pop
+      </button>
+    </div>
+
+    <div class="phase-info">
+      <span class="phase-info-label" id="phaseInfoLabel">Full Price History</span>
+      <span class="phase-info-sep">—</span>
+      <span class="phase-info-desc" id="phaseInfoDesc">All phases · Digital Card → Redemption Token → Physical Pop</span>
+      <span class="phase-info-range" id="phaseInfoRange">Mar 2022 – Mar 2024</span>
+    </div>
+
+    <div class="chart-wrap">
+      <div id="priceChart"></div>
+    </div>
+
+    <div class="phase-legend">
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#6366f1"></span>
+        Phase 1 — Digital Card
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#f59e0b"></span>
+        Phase 2 — Redemption Token
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#22c55e"></span>
+        Phase 3 — Physical Pop
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Current estimated value -->
+  <div class="current-value-card">
+    <div class="current-value-header">
+      <div class="current-value-label">Current Estimated Value</div>
+      <div class="current-value-sub" id="currentValueSub"></div>
+    </div>
+    <div class="current-value-metrics">
+      <div class="cv-metric">
+        <div class="cv-metric-label">Avg</div>
+        <div class="cv-metric-value" id="cvAvg">—</div>
+      </div>
+      <div class="cv-metric">
+        <div class="cv-metric-label">Median</div>
+        <div class="cv-metric-value" id="cvMedian">—</div>
+      </div>
+      <div class="cv-metric">
+        <div class="cv-metric-label">Range</div>
+        <div class="cv-metric-value" id="cvRange">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Avg Price</div>
+      <div class="stat-value" id="statAvg">—</div>
+      <div class="stat-sub" id="statAvgSub"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Lowest Sale</div>
+      <div class="stat-value" id="statMin">—</div>
+      <div class="stat-sub" id="statMinSub"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Highest Sale</div>
+      <div class="stat-value" id="statMax">—</div>
+      <div class="stat-sub" id="statMaxSub"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sales Recorded</div>
+      <div class="stat-value" id="statCount">—</div>
+      <div class="stat-sub" id="statCountSub"></div>
+    </div>
+  </div>
+
+  <!-- Phase 3 eBay listings — visible for Phase 3 and All Phases -->
+  <div class="listings-section visible" id="listingsSection">
+    <div class="section-header">
+      <span class="section-title">eBay Sales</span>
+      <span class="section-badge" id="listingsBadge">32 sales</span>
+      <span class="section-note">Phase 3 — Physical Pop Pop · verified sold listings</span>
+    </div>
+    <div class="listings-wrap">
+      <table class="listings-table">
+        <thead>
+          <tr>
+            <th>Listing Title</th>
+            <th>Date</th>
+            <th>Sold Price</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="listingsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  </div><!-- #pageContent -->
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="nav.js"></script>
+<script>
+
+// ── Supabase helpers ────────────────────────────────────────────────────────────────────────────
+
+async function sbFetch(path) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+    }
+  });
+  if (!res.ok) throw new Error('Supabase error (' + res.status + ')');
+  return res.json();
+}
+
+async function sbPatch(table, id, body) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + id, {
+    method: 'PATCH',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Supabase PATCH error (' + res.status + ')');
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────────────────────────
+
+let currentPhase = 'all';
+let chart;
+let P1 = [], P2 = [], P3 = [], P3_RAW = [], P3_DISPLAY = [];
+let P1_AGG = [], P2_AGG = [], P3_AGG = [], P3_DISPLAY_AGG = [];
+let ALL_MIN, ALL_MAX;
+let GAP_SHIFT_MS = 0;
+let P3_ORIGINAL_BOUNDS = { start: null, end: null }; // real Phase 3 dates, for Phase-3-only zoom
+const GAP_VISUAL_BUFFER = 0; // P3 starts exactly at P2 end — no visible gap between phases
+
+const PHASES_META = [
+  { id: 1, label: 'Phase 1 — Digital Card',     short: 'Digital Card',     color: '#6366f1', desc: 'Original digital card on WAX blockchain',            start: null, end: null, range: '—' },
+  { id: 2, label: 'Phase 2 — Redemption Token', short: 'Redemption Token', color: '#f59e0b', desc: 'Redemption Token · awaiting physical fulfilment',     start: null, end: null, range: '—' },
+  { id: 3, label: 'Phase 3 — Physical Pop',     short: 'Physical Pop',     color: '#22c55e', desc: 'Physical Funko Pop · eBay sold listings',             start: null, end: null, range: '—' },
+];
+
+// ── Gap compression ───────────────────────────────────────────────────────────────────────────
+// When Phase 2 and Phase 3 are separated by > 60 days, shift P3 points left so the
+// "all phases" chart doesn't show a giant empty void. The real dates are preserved in
+// P3 itself and shown in tooltips / the phase info bar.
+function computeGap() {
+  P3_DISPLAY = P3;
+  GAP_SHIFT_MS = 0;
+  if (!P2.length || !P3.length) { console.log('[gap] skipped: P2='+P2.length+', P3='+P3.length); return; }
+
+  const p2End   = Math.max(...P2.map(d => d.x));
+  const p3Start = Math.min(...P3.map(d => d.x));
+  const realGap = p3Start - p2End;
+  console.log('[gap] p2End='+new Date(p2End).toISOString().slice(0,10)+', p3Start='+new Date(p3Start).toISOString().slice(0,10)+', gap='+(realGap/864e5).toFixed(1)+' days');
+
+  if (realGap < 60 * 24 * 60 * 60 * 1000) { console.log('[gap] < 60 days, no shift'); return; }
+
+  GAP_SHIFT_MS = realGap - GAP_VISUAL_BUFFER;
+  P3_DISPLAY = P3.map(d => ({ x: d.x - GAP_SHIFT_MS, y: d.y }));
+  console.log('[gap] shifted by '+(GAP_SHIFT_MS/864e5).toFixed(1)+' days. P3_DISPLAY[0]='+new Date(P3_DISPLAY[0].x).toISOString().slice(0,10));
+
+  // Update PHASES_META[2] zoom bounds to shifted timestamps (keeps range label real)
+  PHASES_META[2].start = Math.min(...P3_DISPLAY.map(d => d.x));
+  PHASES_META[2].end   = Math.max(...P3_DISPLAY.map(d => d.x));
+}
+
+// ── Per-day aggregation ──────────────────────────────────────────────────────────────────────
+// Groups raw sale data into one point per calendar day.
+// Each point: { x (noon UTC), y (avg price), count, low, high }
+function aggregateByDay(data) {
+  const days = new Map();
+  for (const d of data) {
+    const key = new Date(d.x).toISOString().slice(0, 10);
+    if (!days.has(key)) days.set(key, { prices: [], sources: [] });
+    days.get(key).prices.push(d.y);
+    if (d.source) days.get(key).sources.push(d.source);
+  }
+  return [...days.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, { prices, sources }]) => {
+    const sorted = [...prices].sort((a, b) => a - b);
+    const mid    = Math.floor(sorted.length / 2);
+    const med    = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    return {
+      x:           new Date(key + 'T12:00:00Z').getTime(),
+      y:           parseFloat((prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2)),
+      count:       prices.length,
+      low:         parseFloat(Math.min(...prices).toFixed(2)),
+      high:        parseFloat(Math.max(...prices).toFixed(2)),
+      median:      parseFloat(med.toFixed(2)),
+      waxCount:    sources.filter(s => s === 'wax').length,
+      dropppCount: sources.filter(s => s === 'droppp').length,
+    };
+  });
+}
+
+// ── X-axis label formatter ───────────────────────────────────────────────────────────────────
+// In "all phases" view P3 timestamps are shifted left (gap compression).
+// Labels that fall inside the P3_DISPLAY region have their real date restored by adding GAP_SHIFT_MS.
+function formatXAxisLabel(val) {
+  const ts = Number(val);
+  if (isNaN(ts) || ts < 1e12) return val;
+  if (currentPhase === 'all' && GAP_SHIFT_MS > 0 && PHASES_META[2].start != null && ts >= PHASES_META[2].start) {
+    return new Date(ts + GAP_SHIFT_MS).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────────────────────────
+
+function fmtMonthYear(ts) {
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+function fmtRange(min, max) {
+  return fmtMonthYear(min) + ' – ' + fmtMonthYear(max);
+}
+
+// ── Data loading ───────────────────────────────────────────────────────────────────────────
+
+async function loadAll(popId) {
+  const [popRows, linkRows] = await Promise.all([
+    sbFetch('ebay_funko_pops?id=eq.' + popId + '&select=name,ip,pop_number'),
+    sbFetch('pop_phase_links?ebay_funko_pop_id=eq.' + popId + '&select=nft_template_id,token_template_id'),
+  ]);
+
+  if (!popRows.length) throw new Error('Pop not found (id=' + popId + ')');
+  const pop  = popRows[0];
+  const link = linkRows[0] ?? null;
+
+  const [p1Rows, p2Rows, p3Rows, catalogJson] = await Promise.all([
+    link ? sbFetch('template_sold_listings?template_id=eq.' + link.nft_template_id   + '&select=sold_price,usd_price,sold_at,source&order=sold_at.asc&limit=5000')   : Promise.resolve([]),
+    link ? sbFetch('template_sold_listings?template_id=eq.' + link.token_template_id + '&select=sold_price,usd_price,sold_at,source&order=sold_at.asc&limit=5000')   : Promise.resolve([]),
+    sbFetch('ebay_sold_listings?funko_pop_id=eq.' + popId + '&is_valid=not.is.false&select=id,sold_price,sold_date,title,listing_url&order=sold_date.asc&limit=5000'),
+    fetch('data/redemptions_sets_catalog.json').then(r => r.json()).catch(() => []),
+  ]);
+
+  const id = parseInt(popId, 10);
+  const catalogFig = catalogJson.flatMap(s => s.figures ?? []).find(f => f.ebay_id === id) ?? null;
+
+  P1 = p1Rows.map(r => ({ x: new Date(r.sold_at).getTime(), y: parseFloat(r.usd_price ?? r.sold_price), source: r.source }));
+  P2 = p2Rows.map(r => ({ x: new Date(r.sold_at).getTime(), y: parseFloat(r.usd_price ?? r.sold_price), source: r.source }));
+  P3 = p3Rows.map(r => ({ x: new Date(r.sold_date).getTime(), y: parseFloat(r.sold_price) }));
+  P3_RAW = p3Rows;
+
+  function setRange(meta, timestamps) {
+    if (!timestamps.length) return;
+    meta.start = Math.min(...timestamps);
+    meta.end   = Math.max(...timestamps);
+    meta.range = fmtRange(meta.start, meta.end);
+  }
+  setRange(PHASES_META[0], p1Rows.map(r => new Date(r.sold_at).getTime()));
+  setRange(PHASES_META[1], p2Rows.map(r => new Date(r.sold_at).getTime()));
+  setRange(PHASES_META[2], p3Rows.map(r => new Date(r.sold_date).getTime()));
+
+  // Snapshot real P3 bounds before computeGap shifts PHASES_META[2].start/end
+  P3_ORIGINAL_BOUNDS = { start: PHASES_META[2].start, end: PHASES_META[2].end };
+
+  // Must run AFTER setRange so it can override PHASES_META[2].start/end with shifted
+  // timestamps, while setRange has already set the real date range string.
+  computeGap();
+
+  P1_AGG          = aggregateByDay(P1);
+  P2_AGG          = aggregateByDay(P2);
+  P3_AGG          = aggregateByDay(P3);
+  P3_DISPLAY_AGG  = aggregateByDay(P3_DISPLAY);
+
+  const allAgg = [...P1_AGG, ...P2_AGG, ...P3_DISPLAY_AGG];
+  const pad = 86400000 * 5; // 5-day padding so first/last dots aren't flush against the axis
+  ALL_MIN = allAgg.length ? Math.min(...allAgg.map(d => d.x)) - pad : Date.now() - 86400000 * 365;
+  ALL_MAX = allAgg.length ? Math.max(...allAgg.map(d => d.x)) + pad : Date.now();
+
+  const rarity = catalogFig?.rarity ?? null;
+  const rarityHtml = rarity
+    ? '<span class="rarity-badge rarity-' + rarity.toLowerCase() + '">' + rarity + '</span>'
+    : '';
+  document.querySelector('.pop-eyebrow').innerHTML =
+    '<span>' + (pop.ip || 'Funko') + '</span><span class="sep">/</span>' + rarityHtml;
+  document.querySelector('.pop-name').innerHTML =
+    pop.name + '<span class="pop-num">#' + pop.pop_number + '</span>';
+  document.title = pop.name + ' — Price History · PopInStock';
+}
+
+// ── Chart annotations ────────────────────────────────────────────────────────────────────────
+
+function buildAnnotations() {
+  const ann = [];
+  PHASES_META.forEach(p => {
+    if (p.start == null) return;
+    ann.push({ x: p.start, x2: p.end, fillColor: p.color + '12', borderColor: 'transparent', label: { text: '' } });
+  });
+  if (PHASES_META[0].start != null) ann.push({
+    x: PHASES_META[0].start, borderColor: 'rgba(99,102,241,0.35)', borderWidth: 1, strokeDashArray: 4,
+    label: { text: 'Digital Card', position: 'top', orientation: 'horizontal', borderColor: 'transparent', offsetY: -2, offsetX: 6, textAnchor: 'start',
+      style: { background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontSize: '0.63rem', fontWeight: 700,
+               padding: { top:3, bottom:3, left:6, right:6 } } }
+  });
+  if (PHASES_META[1].start != null) ann.push({
+    x: PHASES_META[1].start, borderColor: 'rgba(245,158,11,0.35)', borderWidth: 1, strokeDashArray: 4,
+    label: { text: 'Redemption Token', position: 'top', orientation: 'horizontal', borderColor: 'transparent', offsetY: -2, offsetX: 6, textAnchor: 'start',
+      style: { background: 'rgba(245,158,11,0.12)', color: '#f59e0b', fontSize: '0.63rem', fontWeight: 700,
+               padding: { top:3, bottom:3, left:6, right:6 } } }
+  });
+  if (PHASES_META[2].start != null) ann.push({
+    x: PHASES_META[2].start, borderColor: 'rgba(34,197,94,0.35)', borderWidth: 1, strokeDashArray: 4,
+    label: { text: 'Physical Pop', position: 'top', orientation: 'horizontal', borderColor: 'transparent', offsetY: -2, offsetX: 6, textAnchor: 'start',
+      style: { background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontSize: '0.63rem', fontWeight: 700,
+               padding: { top:3, bottom:3, left:6, right:6 } } }
+  });
+
+  return ann;
+}
+
+// ── Chart ──────────────────────────────────────────────────────────────────────────────────────────
+
+function buildTooltip({ seriesIndex, dataPointIndex }) {
+  const srcMap = (currentPhase === 'all')
+    ? [P1_AGG, P2_AGG, P3_DISPLAY_AGG]
+    : (currentPhase === 1 ? [P1_AGG, [], []] : currentPhase === 2 ? [[], P2_AGG, []] : [[], [], P3_AGG]);
+  const d = (srcMap[seriesIndex] ?? [])[dataPointIndex];
+  if (!d) return '';
+
+  // Restore real date for shifted P3 data in "all phases" view
+  const realTs = (currentPhase === 'all' && seriesIndex === 2 && GAP_SHIFT_MS > 0)
+    ? d.x + GAP_SHIFT_MS : d.x;
+  const dateStr = new Date(realTs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const colors = ['#6366f1', '#f59e0b', '#22c55e'];
+  const labels = ['Phase 1 — Digital Card', 'Phase 2 — Redemption Token', 'Phase 3 — Physical Pop'];
+  const c = colors[seriesIndex];
+
+  const td1 = 'style="color:#8888aa;padding:1px 12px 1px 0;font-size:0.75rem"';
+  const td2 = 'style="font-weight:600;text-align:right"';
+
+  let rows =
+    '<tr><td ' + td1 + '>Sales</td><td ' + td2 + '>' + d.count + '</td></tr>' +
+    '<tr><td ' + td1 + '>Avg</td><td '   + td2 + '>$' + d.y.toFixed(2) + '</td></tr>' +
+    '<tr><td ' + td1 + '>Median</td><td '+ td2 + '>$' + d.median.toFixed(2) + '</td></tr>' +
+    '<tr><td ' + td1 + '>Low</td><td '   + td2 + '>$' + d.low.toFixed(2) + '</td></tr>' +
+    '<tr><td ' + td1 + '>High</td><td '  + td2 + '>$' + d.high.toFixed(2) + '</td></tr>';
+
+  // Source breakdown — only for P1 / P2 (WAX + Droppp data)
+  if (seriesIndex < 2 && (d.waxCount > 0 || d.dropppCount > 0)) {
+    rows +=
+      '<tr><td colspan="2" style="padding-top:6px;padding-bottom:2px;color:#555577;font-size:0.7rem;border-top:1px solid #333355">by marketplace</td></tr>' +
+      (d.dropppCount > 0 ? '<tr><td ' + td1 + '>Droppp</td><td ' + td2 + '>' + d.dropppCount + '</td></tr>' : '') +
+      (d.waxCount    > 0 ? '<tr><td ' + td1 + '>WAX</td><td '    + td2 + '>' + d.waxCount    + '</td></tr>' : '');
+  }
+
+  return '<div style="padding:10px 14px;font-size:0.82rem;min-width:165px">' +
+    '<div style="color:' + c + ';font-weight:700;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px">' + labels[seriesIndex] + '</div>' +
+    '<div style="color:#c8c8dd;font-weight:600;margin-bottom:8px">' + dateStr + '</div>' +
+    '<table style="border-collapse:collapse;width:100%">' + rows + '</table></div>';
+}
+
+function initChart() {
+  chart = new ApexCharts(document.getElementById('priceChart'), {
+    chart: {
+      type: 'line', height: 350,
+      background: 'transparent', foreColor: '#8888aa', fontFamily: 'inherit',
+      toolbar: {
+        show: true,
+        tools: { download: false, selection: false, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true },
+        autoSelected: 'zoom'
+      },
+      zoom: { enabled: true, type: 'xy', autoScaleYaxis: true },
+      animations: { enabled: false },
+    },
+    series: [
+      { name: 'Phase 1 — Digital Card',      data: P1_AGG },
+      { name: 'Phase 2 — Redemption Token',    data: P2_AGG },
+      { name: 'Phase 3 — Physical Pop', data: P3_DISPLAY_AGG },
+    ],
+    colors: ['#6366f1', '#f59e0b', '#22c55e'],
+    xaxis: {
+      type: 'datetime', min: ALL_MIN, max: ALL_MAX,
+      labels: { datetimeUTC: false, formatter: formatXAxisLabel, style: { colors: '#8888aa', fontSize: '0.71rem' } },
+      axisBorder: { color: 'rgba(255,255,255,0.07)' },
+      axisTicks:  { color: 'rgba(255,255,255,0.07)' },
+    },
+    yaxis: {
+      min: 0,
+      labels: { formatter: v => '$' + Math.round(v), style: { colors: '#8888aa', fontSize: '0.71rem' } }
+    },
+    stroke: { width: 2, curve: 'smooth' },
+    markers: { size: 5, hover: { sizeOffset: 3 } },
+    grid: { borderColor: 'rgba(255,255,255,0.05)', xaxis: { lines: { show: false } }, padding: { left: 0, right: 12 } },
+    tooltip: { theme: 'dark', custom: buildTooltip },
+    legend: { show: false },
+    annotations: { xaxis: buildAnnotations() },
+  });
+  chart.render();
+}
+
+// ── Stats ───────────────────────────────────────────────────────────────────────────────────────────
+
+function getDataForPhase(ph) {
+  if (ph === 'all') return [...P1, ...P2, ...P3];
+  if (ph === 1) return P1;
+  if (ph === 2) return P2;
+  if (ph === 3) return P3;
+  return [];
+}
+
+function updateStats(ph) {
+  const prices = getDataForPhase(ph).map(d => d.y).filter(v => !isNaN(v));
+  if (!prices.length) {
+    ['statAvg','statMin','statMax','statCount'].forEach(id => document.getElementById(id).textContent = '—');
+    return;
+  }
+  const avg = prices.reduce((a,b) => a+b, 0) / prices.length;
+  document.getElementById('statAvg').textContent   = '$' + avg.toFixed(2);
+  document.getElementById('statMin').textContent   = '$' + Math.min(...prices).toFixed(2);
+  document.getElementById('statMax').textContent   = '$' + Math.max(...prices).toFixed(2);
+  document.getElementById('statCount').textContent = prices.length;
+  const sub = ph === 'all' ? 'across all phases' : (PHASES_META.find(p => p.id === ph)?.short ?? '');
+  ['statAvgSub','statMinSub','statMaxSub'].forEach(id => document.getElementById(id).textContent = sub);
+  document.getElementById('statCountSub').textContent = ph === 'all' ? 'across all phases' : 'in ' + sub;
+}
+
+// ── Current estimated value ──────────────────────────────────────────────────────────────────────
+
+function computeCurrentValue() {
+  const TWO_MONTHS = 60 * 86400000;
+  const cutoff = Date.now() - TWO_MONTHS;
+  const recent = P3.filter(d => d.x >= cutoff && !isNaN(d.y)).map(d => d.y).sort((a, b) => a - b);
+
+  let avg = '—', median = '—', range = '—', sub;
+
+  if (recent.length) {
+    const sum = recent.reduce((s, v) => s + v, 0);
+    const mid = Math.floor(recent.length / 2);
+    const med = recent.length % 2 === 0
+      ? (recent[mid - 1] + recent[mid]) / 2
+      : recent[mid];
+
+    avg    = '$' + (sum / recent.length).toFixed(2);
+    median = '$' + med.toFixed(2);
+    range  = '$' + recent[0].toFixed(2) + ' – $' + recent[recent.length - 1].toFixed(2);
+    sub    = 'last 2 months · ' + recent.length + ' sale' + (recent.length !== 1 ? 's' : '');
+  } else if (P3.length) {
+    const last = P3.filter(d => !isNaN(d.y)).reduce((a, b) => a.x > b.x ? a : b);
+    const d = new Date(last.x);
+    avg    = '$' + last.y.toFixed(2);
+    sub    = 'no recent sales · last sale ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } else {
+    sub = 'no eBay sales recorded';
+  }
+
+  document.getElementById('cvAvg').textContent    = avg;
+  document.getElementById('cvMedian').textContent = median;
+  document.getElementById('cvRange').textContent  = range;
+  document.getElementById('currentValueSub').textContent = sub;
+}
+
+// ── Phase info bar ───────────────────────────────────────────────────────────────────────────────
+
+function updatePhaseInfo(ph) {
+  const label = document.getElementById('phaseInfoLabel');
+  const desc  = document.getElementById('phaseInfoDesc');
+  const range = document.getElementById('phaseInfoRange');
+  if (ph === 'all') {
+    label.textContent = 'Full Price History';
+    label.style.color = '';
+    desc.textContent  = 'All phases · Digital Card → Redemption Token → Physical Pop';
+    const realMax = (P3_ORIGINAL_BOUNDS.end ?? ALL_MAX + GAP_SHIFT_MS);
+    range.textContent = fmtRange(ALL_MIN, realMax);
+  } else {
+    const p = PHASES_META.find(pm => pm.id === ph);
+    label.textContent = p.label;
+    label.style.color = p.color;
+    desc.textContent  = p.desc;
+    range.textContent = p.range;
+  }
+}
+
+// ── Listings table ───────────────────────────────────────────────────────────────────────────────
+
+function buildListings() {
+  const tbody  = document.getElementById('listingsTbody');
+  const sorted = [...P3_RAW].sort((a,b) => new Date(b.sold_date) - new Date(a.sold_date));
+  tbody.innerHTML = '';
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="no-data-msg">No eBay listings recorded yet.</td></tr>';
+    document.getElementById('listingsBadge').textContent = '0 sales';
+    return;
+  }
+  sorted.forEach(item => {
+    const dateStr = new Date(item.sold_date).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+    const price   = parseFloat(item.sold_price);
+    const title   = item.title ?? '';
+    const url     = item.listing_url ?? '#';
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><span class="listing-title" title="' + title.replace(/"/g,'&quot;') + '">' + title + '</span></td>' +
+      '<td class="listing-date">' + dateStr + '</td>' +
+      '<td class="listing-price">$' + price.toFixed(2) + '</td>' +
+      '<td><div class="btn-action-row">' +
+        '<a href="' + url + '" target="_blank" rel="noopener" class="btn-ebay">↗ eBay</a>' +
+        '<button class="btn-report" data-id="' + item.id + '" onclick="handleReport(this)">⚐ Report</button>' +
+      '</div></td>';
+    tbody.appendChild(tr);
+  });
+  document.getElementById('listingsBadge').textContent = sorted.length + ' sale' + (sorted.length === 1 ? '' : 's');
+}
+
+// ── Phase switch ───────────────────────────────────────────────────────────────────────────────────
+
+function switchPhase(ph) {
+  currentPhase = ph;
+  document.querySelectorAll('.phase-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.phase === String(ph));
+  });
+
+  // Only pass data for the active phase — keeping all series loaded forces ApexCharts
+  // to auto-extend the datetime axis past our explicit min/max.
+  let p1Data, p2Data, p3Data, xMin, xMax;
+
+  const pad = 86400000 * 5;
+  if (ph === 'all') {
+    p1Data = P1_AGG; p2Data = P2_AGG; p3Data = P3_DISPLAY_AGG;
+    xMin = ALL_MIN; xMax = ALL_MAX;
+  } else if (ph === 1) {
+    p1Data = P1_AGG; p2Data = []; p3Data = [];
+    xMin = (P1_AGG[0]?.x ?? ALL_MIN) - pad; xMax = (P1_AGG[P1_AGG.length-1]?.x ?? ALL_MAX) + pad;
+  } else if (ph === 2) {
+    p1Data = []; p2Data = P2_AGG; p3Data = [];
+    xMin = (P2_AGG[0]?.x ?? ALL_MIN) - pad; xMax = (P2_AGG[P2_AGG.length-1]?.x ?? ALL_MAX) + pad;
+  } else { // ph === 3
+    p1Data = []; p2Data = []; p3Data = P3_AGG;
+    xMin = (P3_AGG[0]?.x ?? ALL_MIN) - pad; xMax = (P3_AGG[P3_AGG.length-1]?.x ?? ALL_MAX) + pad;
+  }
+
+  chart.updateSeries([
+    { name: 'Phase 1 — Digital Card',      data: p1Data },
+    { name: 'Phase 2 — Redemption Token',    data: p2Data },
+    { name: 'Phase 3 — Physical Pop', data: p3Data },
+  ], false);
+
+  chart.updateOptions({
+    xaxis: { type: 'datetime', min: xMin, max: xMax, labels: { datetimeUTC: false, formatter: formatXAxisLabel, style: { colors: '#8888aa', fontSize: '0.71rem' } } },
+    annotations: { xaxis: buildAnnotations() },
+  }, false, true);
+  updateStats(ph);
+  updatePhaseInfo(ph);
+  document.getElementById('listingsSection').classList.toggle('visible', ph === 'all' || ph === 3);
+}
+
+// ── Report ──────────────────────────────────────────────────────────────────────────────────────────
+
+async function handleReport(btn) {
+  const id = btn.dataset.id;
+  if (!id || btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await sbPatch('ebay_sold_listings', id, { is_reported: true, reported_at: new Date().toISOString() });
+    btn.textContent = '✓ Reported';
+    btn.style.color = '#22c55e';
+    btn.style.borderColor = 'rgba(34,197,94,0.35)';
+    showToast('Listing reported — thank you!');
+  } catch {
+    btn.disabled = false;
+    showToast('Could not submit report — please try again');
+  }
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────────────────────────────
+
+let _toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Loading / error ──────────────────────────────────────────────────────────────────────────────
+
+function showLoading(on) {
+  document.getElementById('pageLoading').style.display = on ? 'block' : 'none';
+  document.getElementById('pageContent').style.display = on ? 'none'  : 'block';
+}
+function showError(msg) {
+  document.getElementById('pageLoading').style.display = 'none';
+  document.getElementById('pageContent').style.display = 'none';
+  const el = document.getElementById('pageError');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[boot] price-history v2 loaded');
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { showError('No pop ID specified. Use ?id=N in the URL.'); return; }
+
+  showLoading(true);
+  try {
+    await loadAll(id);
+  } catch (err) {
+    showError('Failed to load data: ' + err.message);
+    return;
+  }
+  showLoading(false);
+
+  initChart();
+  buildListings();
+  computeCurrentValue();
+  updateStats('all');
+  updatePhaseInfo('all');
+
+  document.getElementById('phaseNav').addEventListener('click', e => {
+    const btn = e.target.closest('.phase-btn');
+    if (!btn) return;
+    const raw = btn.dataset.phase;
+    switchPhase(raw === 'all' ? 'all' : parseInt(raw, 10));
+  });
+});
+</script>
+
+</body>
+</html>

@@ -6,37 +6,43 @@
         "name": "Peppermint Butler",
         "rarity": "Legendary",
         "redeemed": 1529,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 176
       },
       {
         "name": "Golb",
         "rarity": "Legendary",
         "redeemed": 1532,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 177
       },
       {
         "name": "Lady Rainicorn",
         "rarity": "Legendary",
         "redeemed": 1539,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 178
       },
       {
         "name": "Randy Butternubs",
         "rarity": "Legendary",
         "redeemed": 1513,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 179
       },
       {
         "name": "Finn the Human",
         "rarity": "Grail",
         "redeemed": 960,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 180
       },
       {
         "name": "Freddy Funko in Jake Suit",
         "rarity": "Royalty",
         "redeemed": 1766,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 181
       }
     ]
   },
@@ -47,31 +53,36 @@
         "name": "Susan Strong",
         "rarity": "Legendary",
         "redeemed": 1299,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 390
       },
       {
         "name": "The Lich As Billy",
         "rarity": "Legendary",
         "redeemed": 1311,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 391
       },
       {
         "name": "Tree Trunks",
         "rarity": "Legendary",
         "redeemed": 1287,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 389
       },
       {
         "name": "BMO",
         "rarity": "Grail",
         "redeemed": 696,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 392
       },
       {
         "name": "Freddy & Proto as Finn & Jake",
         "rarity": "Royalty",
         "redeemed": 1271,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 393
       }
     ]
   },
@@ -82,37 +93,43 @@
         "name": "Xenomorph",
         "rarity": "Ultra",
         "redeemed": 3889,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 344
       },
       {
         "name": "Ash",
         "rarity": "Legendary",
         "redeemed": 1698,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 346
       },
       {
         "name": "Ripley With Flamethrower",
         "rarity": "Legendary",
         "redeemed": 1692,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 347
       },
       {
         "name": "Spacesuit With Egg",
         "rarity": "Legendary",
         "redeemed": 1741,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 345
       },
       {
         "name": "Pilot Engineer",
         "rarity": "Grail",
         "redeemed": 758,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 348
       },
       {
         "name": "Freddy Funko with Chestburster",
         "rarity": "Royalty",
         "redeemed": 1406,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 349
       }
     ]
   },
@@ -123,19 +140,22 @@
         "name": "Egg",
         "rarity": "Legendary",
         "redeemed": 1927,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 162
       },
       {
         "name": "Freddy Funko",
         "rarity": "Grail",
         "redeemed": 974,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 163
       },
       {
         "name": "Baby Freddy",
         "rarity": "Royalty",
         "redeemed": 1984,
-        "minted": 2250
+        "minted": 2250,
+        "ebay_id": 164
       }
     ]
   },
@@ -146,25 +166,29 @@
         "name": "Burning Pack",
         "rarity": "Legendary",
         "redeemed": 1331,
-        "minted": 1400
+        "minted": 1400,
+        "ebay_id": 281
       },
       {
         "name": "Chick",
         "rarity": "Legendary",
         "redeemed": 1328,
-        "minted": 1400
+        "minted": 1400,
+        "ebay_id": 280
       },
       {
         "name": "Popposite Freddy",
         "rarity": "Grail",
         "redeemed": 949,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 283
       },
       {
         "name": "Balloon Proto",
         "rarity": "Royalty",
         "redeemed": 1257,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 282
       }
     ]
   },
@@ -175,25 +199,29 @@
         "name": "Damaged Box",
         "rarity": "Legendary",
         "redeemed": 1770,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 414
       },
       {
         "name": "Fundays Sandwich",
         "rarity": "Legendary",
         "redeemed": 1776,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 415
       },
       {
         "name": "Doodle Freddy",
         "rarity": "Grail",
         "redeemed": 945,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 416
       },
       {
         "name": "Handsome Freddy",
         "rarity": "Royalty",
         "redeemed": 1620,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 417
       }
     ]
   },
@@ -204,37 +232,43 @@
         "name": "Bolin as Nuktuk",
         "rarity": "Legendary",
         "redeemed": 2029,
-        "minted": 2125
+        "minted": 2125,
+        "ebay_id": 51
       },
       {
         "name": "Kuruk",
         "rarity": "Legendary",
         "redeemed": 2030,
-        "minted": 2125
+        "minted": 2125,
+        "ebay_id": 53
       },
       {
         "name": "Painted Lady",
         "rarity": "Legendary",
         "redeemed": 2025,
-        "minted": 2125
+        "minted": 2125,
+        "ebay_id": 54
       },
       {
         "name": "Varrick",
         "rarity": "Legendary",
         "redeemed": 2026,
-        "minted": 2125
+        "minted": 2125,
+        "ebay_id": 55
       },
       {
         "name": "Fire Nation Aang",
         "rarity": "Grail",
         "redeemed": 969,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 52
       },
       {
         "name": "Freddy Funko in Aang Costume",
         "rarity": "Royalty",
         "redeemed": 3161,
-        "minted": 4160
+        "minted": 4160,
+        "ebay_id": 56
       }
     ]
   },
@@ -245,37 +279,43 @@
         "name": "Aang With Armor",
         "rarity": "Legendary",
         "redeemed": 1727,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 406
       },
       {
         "name": "Korra (Spirit)",
         "rarity": "Legendary",
         "redeemed": 1730,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 404
       },
       {
         "name": "Sokka With Wolf Mask",
         "rarity": "Legendary",
         "redeemed": 1741,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 403
       },
       {
         "name": "Vaatu",
         "rarity": "Legendary",
         "redeemed": 1709,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 405
       },
       {
         "name": "Avatar Roku With Dragon",
         "rarity": "Grail",
         "redeemed": 971,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 407
       },
       {
         "name": "Proto As Appa",
         "rarity": "Royalty",
         "redeemed": 1767,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 408
       }
     ]
   },
@@ -286,37 +326,43 @@
         "name": "Lorraine Baines in a Prom Dress",
         "rarity": "Legendary",
         "redeemed": 1613,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 217
       },
       {
         "name": "Griff 2015",
         "rarity": "Legendary",
         "redeemed": 1617,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 218
       },
       {
         "name": "Doc 1885",
         "rarity": "Legendary",
         "redeemed": 1634,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 219
       },
       {
         "name": "George McFly",
         "rarity": "Legendary",
         "redeemed": 1609,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 220
       },
       {
         "name": "Marty Undercover",
         "rarity": "Grail",
         "redeemed": 861,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 221
       },
       {
         "name": "Freddy Funko as Doc with Helmet",
         "rarity": "Royalty",
         "redeemed": 1558,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 222
       }
     ]
   },
@@ -327,37 +373,43 @@
         "name": "Batman",
         "rarity": "Ultra",
         "redeemed": 3348,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 307
       },
       {
         "name": "Batgirl",
         "rarity": "Legendary",
         "redeemed": 1464,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 310
       },
       {
         "name": "Robin",
         "rarity": "Legendary",
         "redeemed": 1510,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 308
       },
       {
         "name": "Batwoman",
         "rarity": "Legendary",
         "redeemed": 1524,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 309
       },
       {
         "name": "Alfred Pennyworth",
         "rarity": "Grail",
         "redeemed": 659,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 311
       },
       {
         "name": "Freddy Funko as Nightwing",
         "rarity": "Royalty",
         "redeemed": 1164,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 312
       }
     ]
   },
@@ -368,37 +420,43 @@
         "name": "Two-Face",
         "rarity": "Ultra",
         "redeemed": 3112,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 371
       },
       {
         "name": "Catwoman",
         "rarity": "Legendary",
         "redeemed": 1182,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 372
       },
       {
         "name": "Professor Pyg",
         "rarity": "Legendary",
         "redeemed": 1225,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 374
       },
       {
         "name": "The Riddler",
         "rarity": "Legendary",
         "redeemed": 1229,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 373
       },
       {
         "name": "The Joker",
         "rarity": "Grail",
         "redeemed": 665,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 375
       },
       {
         "name": "Franny Funko as Poison Ivy",
         "rarity": "Royalty",
         "redeemed": 1082,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 376
       }
     ]
   },
@@ -409,25 +467,29 @@
         "name": "Adam Maitland",
         "rarity": "Legendary",
         "redeemed": 1712,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 368
       },
       {
         "name": "Barbara Maitland",
         "rarity": "Legendary",
         "redeemed": 1719,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 367
       },
       {
         "name": "Magician's Assistant",
         "rarity": "Grail",
         "redeemed": 964,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 369
       },
       {
         "name": "Freddy Funko as Beetlejuice",
         "rarity": "Royalty",
         "redeemed": 1593,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 370
       }
     ]
   },
@@ -438,19 +500,22 @@
         "name": "Big Boy Burger",
         "rarity": "Legendary",
         "redeemed": 1107,
-        "minted": 1500
+        "minted": 1500,
+        "ebay_id": 7
       },
       {
         "name": "Big Boy 1st Edition",
         "rarity": "Grail",
         "redeemed": 758,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 6
       },
       {
         "name": "Big Boy with Shake",
         "rarity": "Royalty",
         "redeemed": 1335,
-        "minted": 2250
+        "minted": 2250,
+        "ebay_id": 8
       }
     ]
   },
@@ -461,25 +526,29 @@
         "name": "Bob Ross Paint Can",
         "rarity": "Legendary",
         "redeemed": 675,
-        "minted": 1200
+        "minted": 1200,
+        "ebay_id": 22
       },
       {
         "name": "Bob Ross Palette",
         "rarity": "Legendary",
         "redeemed": 688,
-        "minted": 1200
+        "minted": 1200,
+        "ebay_id": 23
       },
       {
         "name": "Bob Ross Paint Can",
         "rarity": "Grail",
         "redeemed": 557,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 20
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1426,
-        "minted": 3600
+        "minted": 3600,
+        "ebay_id": 21
       }
     ]
   },
@@ -490,37 +559,43 @@
         "name": "Samurai Jack",
         "rarity": "Ultra",
         "redeemed": 4264,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 338
       },
       {
         "name": "Ashi",
         "rarity": "Legendary",
         "redeemed": 1630,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 340
       },
       {
         "name": "Moltar",
         "rarity": "Legendary",
         "redeemed": 1646,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 339
       },
       {
         "name": "Robo-Dexo 2000",
         "rarity": "Legendary",
         "redeemed": 1659,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 341
       },
       {
         "name": "Eustace Bagge",
         "rarity": "Grail",
         "redeemed": 885,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 342
       },
       {
         "name": "Freddy Funko as Jonny",
         "rarity": "Royalty",
         "redeemed": 1524,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 343
       }
     ]
   },
@@ -531,25 +606,29 @@
         "name": "Daria Morgendorffer",
         "rarity": "Legendary",
         "redeemed": 712,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 319
       },
       {
         "name": "Brittany Taylor",
         "rarity": "Legendary",
         "redeemed": 756,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 320
       },
       {
         "name": "Jane Lane",
         "rarity": "Grail",
         "redeemed": 405,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 321
       },
       {
         "name": "Trent Lane",
         "rarity": "Royalty",
         "redeemed": 632,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 322
       }
     ]
   },
@@ -560,19 +639,22 @@
         "name": "Dark Heart Proto",
         "rarity": "Legendary",
         "redeemed": 865,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 394
       },
       {
         "name": "Dark Heart Franny",
         "rarity": "Grail",
         "redeemed": 467,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 395
       },
       {
         "name": "Dark Heart Freddy",
         "rarity": "Royalty",
         "redeemed": 636,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 396
       }
     ]
   },
@@ -583,37 +665,43 @@
         "name": "Batman Gotham by Gaslight",
         "rarity": "Legendary",
         "redeemed": 1903,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 39
       },
       {
         "name": "The Eradicator",
         "rarity": "Legendary",
         "redeemed": 1898,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 40
       },
       {
         "name": "The Flash Rebirth",
         "rarity": "Legendary",
         "redeemed": 1899,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 42
       },
       {
         "name": "Green Lantern Kyle Rayner",
         "rarity": "Legendary",
         "redeemed": 1893,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 43
       },
       {
         "name": "Batman Rebirth",
         "rarity": "Grail",
         "redeemed": 929,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 41
       },
       {
         "name": "Freddy Funko as Batman",
         "rarity": "Royalty",
         "redeemed": 2182,
-        "minted": 2694
+        "minted": 2694,
+        "ebay_id": 44
       }
     ]
   },
@@ -624,37 +712,43 @@
         "name": "Parallax Hal Jordan",
         "rarity": "Legendary",
         "redeemed": 3164,
-        "minted": 4250
+        "minted": 4250,
+        "ebay_id": 82
       },
       {
         "name": "Batman (Justice Armor)",
         "rarity": "Legendary",
         "redeemed": 3190,
-        "minted": 4250
+        "minted": 4250,
+        "ebay_id": 83
       },
       {
         "name": "Superman (Earth 23)",
         "rarity": "Legendary",
         "redeemed": 3193,
-        "minted": 4250
+        "minted": 4250,
+        "ebay_id": 84
       },
       {
         "name": "Green Arrow Connor Hawke",
         "rarity": "Legendary",
         "redeemed": 3199,
-        "minted": 4250
+        "minted": 4250,
+        "ebay_id": 85
       },
       {
         "name": "Batman Azrael",
         "rarity": "Grail",
         "redeemed": 761,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 86
       },
       {
         "name": "Freddy Funko as The Riddler",
         "rarity": "Royalty",
         "redeemed": 3331,
-        "minted": 6000
+        "minted": 6000,
+        "ebay_id": 87
       }
     ]
   },
@@ -665,25 +759,29 @@
         "name": "Big Bad Wolf",
         "rarity": "Legendary",
         "redeemed": 1739,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 444
       },
       {
         "name": "Shan Yu",
         "rarity": "Legendary",
         "redeemed": 1734,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 443
       },
       {
         "name": "Nessus",
         "rarity": "Grail",
         "redeemed": 973,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 445
       },
       {
         "name": "Franny Funko as Maleficent",
         "rarity": "Royalty",
         "redeemed": 1786,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 446
       }
     ]
   },
@@ -694,31 +792,36 @@
         "name": "Owlbear",
         "rarity": "Legendary",
         "redeemed": 1581,
-        "minted": 1640
+        "minted": 1640,
+        "ebay_id": 152
       },
       {
         "name": "Displacer Beast",
         "rarity": "Legendary",
         "redeemed": 1588,
-        "minted": 1640
+        "minted": 1640,
+        "ebay_id": 153
       },
       {
         "name": "Demogorgon",
         "rarity": "Legendary",
         "redeemed": 1597,
-        "minted": 1640
+        "minted": 1640,
+        "ebay_id": 154
       },
       {
         "name": "Acererak",
         "rarity": "Grail",
         "redeemed": 974,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 155
       },
       {
         "name": "Freddy Funko as High Elf",
         "rarity": "Royalty",
         "redeemed": 2113,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 156
       }
     ]
   },
@@ -729,37 +832,43 @@
         "name": "Death Tyrant",
         "rarity": "Legendary",
         "redeemed": 1307,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 418
       },
       {
         "name": "Juiblex",
         "rarity": "Legendary",
         "redeemed": 1302,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 421
       },
       {
         "name": "Mimic",
         "rarity": "Legendary",
         "redeemed": 1292,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 420
       },
       {
         "name": "Pseudodragon",
         "rarity": "Legendary",
         "redeemed": 1324,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 419
       },
       {
         "name": "Orcus",
         "rarity": "Grail",
         "redeemed": 716,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 422
       },
       {
         "name": "Freddy Funko as Strongheart",
         "rarity": "Royalty",
         "redeemed": 1383,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 423
       }
     ]
   },
@@ -770,37 +879,43 @@
         "name": "Buddy The Elf",
         "rarity": "Legendary",
         "redeemed": 1527,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 117
       },
       {
         "name": "Leon",
         "rarity": "Legendary",
         "redeemed": 1520,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 118
       },
       {
         "name": "Jovie",
         "rarity": "Legendary",
         "redeemed": 1540,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 119
       },
       {
         "name": "Ming Ming",
         "rarity": "Legendary",
         "redeemed": 1523,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 120
       },
       {
         "name": "Buddy The Elf",
         "rarity": "Grail",
         "redeemed": 953,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 121
       },
       {
         "name": "Freddy Funko as Buddy the Elf",
         "rarity": "Royalty",
         "redeemed": 1481,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 122
       }
     ]
   },
@@ -811,25 +926,29 @@
         "name": "Juan Calavera",
         "rarity": "Legendary",
         "redeemed": 1594,
-        "minted": 2850
+        "minted": 2850,
+        "ebay_id": 254
       },
       {
         "name": "Karl",
         "rarity": "Legendary",
         "redeemed": 1636,
-        "minted": 2850
+        "minted": 2850,
+        "ebay_id": 253
       },
       {
         "name": "Sugar Bomb",
         "rarity": "Grail",
         "redeemed": 571,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 255
       },
       {
         "name": "Freddy Funko as Amazing Carlos",
         "rarity": "Royalty",
         "redeemed": 900,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 256
       }
     ]
   },
@@ -840,37 +959,43 @@
         "name": "Franny Funko As Ice Skater",
         "rarity": "Legendary",
         "redeemed": 1108,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 385
       },
       {
         "name": "Freddy Funko As Snowman",
         "rarity": "Legendary",
         "redeemed": 1085,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 384
       },
       {
         "name": "Proto As Santa",
         "rarity": "Legendary",
         "redeemed": 1116,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 383
       },
       {
         "name": "Franny Funko Riding Reindeer",
         "rarity": "Grail",
         "redeemed": 616,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 386
       },
       {
         "name": "Proto As Nutcracker",
         "rarity": "Mythic",
         "redeemed": 486,
-        "minted": 499
+        "minted": 499,
+        "ebay_id": 388
       },
       {
         "name": "Freddy Funko in Engine",
         "rarity": "Royalty",
         "redeemed": 1046,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 387
       }
     ]
   },
@@ -881,43 +1006,50 @@
         "name": "Celestial Franny",
         "rarity": "Legendary",
         "redeemed": 1907,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 296
       },
       {
         "name": "Fun Force Freddy",
         "rarity": "Legendary",
         "redeemed": 1895,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 295
       },
       {
         "name": "Kitsune Mask Franny",
         "rarity": "Legendary",
         "redeemed": 1923,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 297
       },
       {
         "name": "Ramen Freddy",
         "rarity": "Legendary",
         "redeemed": 1926,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 294
       },
       {
         "name": "Kaiju Proto",
         "rarity": "Grail",
         "redeemed": 966,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 298
       },
       {
         "name": "Battle Mech Freddy",
         "rarity": "Mythic",
         "redeemed": 485,
-        "minted": 499
+        "minted": 499,
+        "ebay_id": 300
       },
       {
         "name": "Ultimate Freddy",
         "rarity": "Royalty",
         "redeemed": 1804,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 299
       }
     ]
   },
@@ -928,37 +1060,43 @@
         "name": "Idol Franny",
         "rarity": "Legendary",
         "redeemed": 875,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 426
       },
       {
         "name": "Ronin Freddy",
         "rarity": "Legendary",
         "redeemed": 909,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 425
       },
       {
         "name": "Spirit Candle Franny",
         "rarity": "Legendary",
         "redeemed": 845,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 424
       },
       {
         "name": "Yokai Crown Freddy",
         "rarity": "Legendary",
         "redeemed": 886,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 427
       },
       {
         "name": "Neko Mech Franny",
         "rarity": "Grail",
         "redeemed": 476,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 429
       },
       {
         "name": "Ultimate Freddy in Proto Mech",
         "rarity": "Royalty",
         "redeemed": 865,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 428
       }
     ]
   },
@@ -969,37 +1107,43 @@
         "name": "Freddy Funko as Zombie Knight",
         "rarity": "Legendary",
         "redeemed": 1853,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 223
       },
       {
         "name": "Freddy Funko as Zombie Ninja",
         "rarity": "Legendary",
         "redeemed": 1842,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 224
       },
       {
         "name": "Freddy Funko as Zombie Gunslinger",
         "rarity": "Legendary",
         "redeemed": 1846,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 225
       },
       {
         "name": "Freddy Funko as Zombie Pirate",
         "rarity": "Legendary",
         "redeemed": 1848,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 226
       },
       {
         "name": "Freddy Funko as Zombie Samurai",
         "rarity": "Grail",
         "redeemed": 980,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 227
       },
       {
         "name": "Proto as Zombie",
         "rarity": "Royalty",
         "redeemed": 1964,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 228
       }
     ]
   },
@@ -1010,43 +1154,50 @@
         "name": "Judy",
         "rarity": "Legendary",
         "redeemed": 1825,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 361
       },
       {
         "name": "Proto as P.O.P.",
         "rarity": "Legendary",
         "redeemed": 1828,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 360
       },
       {
         "name": "Ghost Proto",
         "rarity": "Legendary",
         "redeemed": 1830,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 362
       },
       {
         "name": "Franny Funko as Banshee",
         "rarity": "Legendary",
         "redeemed": 1839,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 363
       },
       {
         "name": "Nightmare Freddy",
         "rarity": "Grail",
         "redeemed": 977,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 364
       },
       {
         "name": "Freddy & Franny as P.O.P.",
         "rarity": "Mythic",
         "redeemed": 490,
-        "minted": 499
+        "minted": 499,
+        "ebay_id": 366
       },
       {
         "name": "Haunted Freddy Doll",
         "rarity": "Royalty",
         "redeemed": 1734,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 365
       }
     ]
   },
@@ -1057,25 +1208,29 @@
         "name": "Flint",
         "rarity": "Legendary",
         "redeemed": 1093,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 350
       },
       {
         "name": "Lady Jaye",
         "rarity": "Legendary",
         "redeemed": 1099,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 351
       },
       {
         "name": "Firefly",
         "rarity": "Grail",
         "redeemed": 585,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 352
       },
       {
         "name": "Freddy Funko as Duke",
         "rarity": "Royalty",
         "redeemed": 933,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 353
       }
     ]
   },
@@ -1086,37 +1241,43 @@
         "name": "Jaime Lannister with Gold Hand",
         "rarity": "Legendary",
         "redeemed": 2585,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 88
       },
       {
         "name": "Many Faced Arya Stark",
         "rarity": "Legendary",
         "redeemed": 2564,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 89
       },
       {
         "name": "Jaqen H'ghar with Mask",
         "rarity": "Legendary",
         "redeemed": 2570,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 90
       },
       {
         "name": "The Hound Beyond the Wall",
         "rarity": "Legendary",
         "redeemed": 2563,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 91
       },
       {
         "name": "Daenerys Targaryen with Egg",
         "rarity": "Grail",
         "redeemed": 966,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 92
       },
       {
         "name": "Jon Snow Wildling",
         "rarity": "Royalty",
         "redeemed": 3155,
-        "minted": 4500
+        "minted": 4500,
+        "ebay_id": 93
       }
     ]
   },
@@ -1127,25 +1288,29 @@
         "name": "Freddy Mummy Soda",
         "rarity": "Legendary",
         "redeemed": 1185,
-        "minted": 1260
+        "minted": 1260,
+        "ebay_id": 447
       },
       {
         "name": "Freddy Funko as Skeleton",
         "rarity": "Legendary",
         "redeemed": 1189,
-        "minted": 1260
+        "minted": 1260,
+        "ebay_id": 13
       },
       {
         "name": "Freddy Funko as Devil",
         "rarity": "Grail",
         "redeemed": 927,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 12
       },
       {
         "name": "Freddy Funko as Vampire",
         "rarity": "Royalty",
         "redeemed": 1201,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 14
       }
     ]
   },
@@ -1156,37 +1321,43 @@
         "name": "Reaper Freddy Funko",
         "rarity": "Legendary",
         "redeemed": 1527,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 99
       },
       {
         "name": "Krampus Freddy Funko",
         "rarity": "Legendary",
         "redeemed": 1515,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 102
       },
       {
         "name": "Phantom Freddy Funko",
         "rarity": "Legendary",
         "redeemed": 1519,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 103
       },
       {
         "name": "Space Zombie Freddy Funko",
         "rarity": "Legendary",
         "redeemed": 1525,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 104
       },
       {
         "name": "Invisible Freddy Funko",
         "rarity": "Grail",
         "redeemed": 983,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 100
       },
       {
         "name": "Jack-O-Lantern Freddy",
         "rarity": "Royalty",
         "redeemed": 2529,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 101
       }
     ]
   },
@@ -1197,31 +1368,36 @@
         "name": "Astro",
         "rarity": "Legendary",
         "redeemed": 1584,
-        "minted": 1635
+        "minted": 1635,
+        "ebay_id": 62
       },
       {
         "name": "Elroy Jetson",
         "rarity": "Legendary",
         "redeemed": 1566,
-        "minted": 1635
+        "minted": 1635,
+        "ebay_id": 63
       },
       {
         "name": "George Jetson",
         "rarity": "Legendary",
         "redeemed": 1572,
-        "minted": 1635
+        "minted": 1635,
+        "ebay_id": 64
       },
       {
         "name": "Huckleberry Hound",
         "rarity": "Grail",
         "redeemed": 973,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 65
       },
       {
         "name": "Freddy Funko as Space Ghost with Blip",
         "rarity": "Royalty",
         "redeemed": 2400,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 66
       }
     ]
   },
@@ -1232,31 +1408,36 @@
         "name": "Mighty Mightor",
         "rarity": "Legendary",
         "redeemed": 1925,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 157
       },
       {
         "name": "Birdman",
         "rarity": "Legendary",
         "redeemed": 1912,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 158
       },
       {
         "name": "Mr. Jinks with Dixie and Pixie",
         "rarity": "Legendary",
         "redeemed": 1929,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 159
       },
       {
         "name": "Huckleberry Hound",
         "rarity": "Grail",
         "redeemed": 975,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 160
       },
       {
         "name": "Freddy Funko as Lettermen",
         "rarity": "Royalty",
         "redeemed": 1799,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 161
       }
     ]
   },
@@ -1267,43 +1448,50 @@
         "name": "Cedric Diggory",
         "rarity": "Legendary",
         "redeemed": 1649,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 249
       },
       {
         "name": "Fleur Delacour",
         "rarity": "Legendary",
         "redeemed": 1664,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 250
       },
       {
         "name": "Hungarian Horntail",
         "rarity": "Legendary",
         "redeemed": 1689,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 247
       },
       {
         "name": "Merperson",
         "rarity": "Legendary",
         "redeemed": 1636,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 246
       },
       {
         "name": "Viktor Krum With Shark Head",
         "rarity": "Legendary",
         "redeemed": 1682,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 248
       },
       {
         "name": "Harry Potter With Grindylow",
         "rarity": "Grail",
         "redeemed": 764,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 251
       },
       {
         "name": "Freddy Funko as Death Eater",
         "rarity": "Royalty",
         "redeemed": 1664,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 252
       }
     ]
   },
@@ -1314,37 +1502,43 @@
         "name": "Aemond Targaryen",
         "rarity": "Legendary",
         "redeemed": 2152,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 146
       },
       {
         "name": "Viserys Targaryen",
         "rarity": "Legendary",
         "redeemed": 2177,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 147
       },
       {
         "name": "Rhaenyra Targaryen",
         "rarity": "Legendary",
         "redeemed": 2157,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 150
       },
       {
         "name": "Ser Criston Cole",
         "rarity": "Legendary",
         "redeemed": 2154,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 151
       },
       {
         "name": "Daemon Targaryen",
         "rarity": "Grail",
         "redeemed": 840,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 149
       },
       {
         "name": "Vhagar",
         "rarity": "Royalty",
         "redeemed": 1990,
-        "minted": 3500
+        "minted": 3500,
+        "ebay_id": 148
       }
     ]
   },
@@ -1355,19 +1549,22 @@
         "name": "Iron Maiden Seventh Son Eddie",
         "rarity": "Legendary",
         "redeemed": 1334,
-        "minted": 1620
+        "minted": 1620,
+        "ebay_id": 10
       },
       {
         "name": "Nights of the Dead Eddie",
         "rarity": "Grail",
         "redeemed": 557,
-        "minted": 666
+        "minted": 666,
+        "ebay_id": 9
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1635,
-        "minted": 2430
+        "minted": 2430,
+        "ebay_id": 11
       }
     ]
   },
@@ -1378,37 +1575,43 @@
         "name": "Lumberjack",
         "rarity": "Legendary",
         "redeemed": 1745,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 182
       },
       {
         "name": "Leper",
         "rarity": "Legendary",
         "redeemed": 1723,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 183
       },
       {
         "name": "Henry Bowers",
         "rarity": "Legendary",
         "redeemed": 1734,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 184
       },
       {
         "name": "Patrick Hockstetter",
         "rarity": "Legendary",
         "redeemed": 1738,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 185
       },
       {
         "name": "Pennywise (Defeated)",
         "rarity": "Grail",
         "redeemed": 979,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 186
       },
       {
         "name": "Freddy Funko as Pennywise (Meltdown)",
         "rarity": "Royalty",
         "redeemed": 1811,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 187
       }
     ]
   },
@@ -1419,37 +1622,43 @@
         "name": "Mac with Duster",
         "rarity": "Ultra",
         "redeemed": 1846,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 377
       },
       {
         "name": "High School Dee",
         "rarity": "Legendary",
         "redeemed": 798,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 379
       },
       {
         "name": "Dennis at Tryouts",
         "rarity": "Legendary",
         "redeemed": 802,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 378
       },
       {
         "name": "Liam McPoyle",
         "rarity": "Legendary",
         "redeemed": 830,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 380
       },
       {
         "name": "Conspiracy Charlie",
         "rarity": "Grail",
         "redeemed": 391,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 381
       },
       {
         "name": "Frank as Ongo Gablogian",
         "rarity": "Royalty",
         "redeemed": 724,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 382
       }
     ]
   },
@@ -1460,19 +1669,22 @@
         "name": "Jay with No Pants",
         "rarity": "Legendary",
         "redeemed": 1983,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 73
       },
       {
         "name": "Silent Bob with Gas Mask",
         "rarity": "Grail",
         "redeemed": 968,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 74
       },
       {
         "name": "Freddy Funko with Mooby Meal",
         "rarity": "Royalty",
         "redeemed": 2300,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 75
       }
     ]
   },
@@ -1483,37 +1695,43 @@
         "name": "T-Rex With Banner",
         "rarity": "Legendary",
         "redeemed": 1432,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 200
       },
       {
         "name": "Dr. Alan Grant with Baby Dino",
         "rarity": "Legendary",
         "redeemed": 1381,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 201
       },
       {
         "name": "Dr. Ian Malcolm with Flare",
         "rarity": "Legendary",
         "redeemed": 1432,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 202
       },
       {
         "name": "Dr. Ellie Sattler",
         "rarity": "Legendary",
         "redeemed": 1414,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 203
       },
       {
         "name": "Mosquito in Amber",
         "rarity": "Grail",
         "redeemed": 739,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 204
       },
       {
         "name": "Freddy Funko as Dr. Ian Malcolm",
         "rarity": "Royalty",
         "redeemed": 1325,
-        "minted": 2550
+        "minted": 2550,
+        "ebay_id": 205
       }
     ]
   },
@@ -1524,31 +1742,36 @@
         "name": "Coco the Monkey",
         "rarity": "Legendary",
         "redeemed": 1504,
-        "minted": 1640
+        "minted": 1640,
+        "ebay_id": 57
       },
       {
         "name": "Cornelius",
         "rarity": "Legendary",
         "redeemed": 1523,
-        "minted": 1640
+        "minted": 1640,
+        "ebay_id": 58
       },
       {
         "name": "Sugar Pops Pete",
         "rarity": "Legendary",
         "redeemed": 1495,
-        "minted": 1640
+        "minted": 1640,
+        "ebay_id": 60
       },
       {
         "name": "Tony the Tiger Jr.",
         "rarity": "Grail",
         "redeemed": 915,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 61
       },
       {
         "name": "Freddy Funko as Dig 'Em",
         "rarity": "Royalty",
         "redeemed": 2315,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 59
       }
     ]
   },
@@ -1559,31 +1782,36 @@
         "name": "Foghorn Leghorn",
         "rarity": "Legendary",
         "redeemed": 1586,
-        "minted": 1635
+        "minted": 1635,
+        "ebay_id": 94
       },
       {
         "name": "Yosemite Sam",
         "rarity": "Legendary",
         "redeemed": 1581,
-        "minted": 1635
+        "minted": 1635,
+        "ebay_id": 95
       },
       {
         "name": "Road Runner",
         "rarity": "Legendary",
         "redeemed": 1583,
-        "minted": 1635
+        "minted": 1635,
+        "ebay_id": 96
       },
       {
         "name": "Wile E. Coyote",
         "rarity": "Grail",
         "redeemed": 983,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 97
       },
       {
         "name": "Freddy Funko as Bugs Bunny",
         "rarity": "Royalty",
         "redeemed": 2528,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 98
       }
     ]
   },
@@ -1594,37 +1822,43 @@
         "name": "Morpheus",
         "rarity": "Legendary",
         "redeemed": 1478,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 111
       },
       {
         "name": "Neo",
         "rarity": "Legendary",
         "redeemed": 1474,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 112
       },
       {
         "name": "Trinity",
         "rarity": "Legendary",
         "redeemed": 1491,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 113
       },
       {
         "name": "The Twins",
         "rarity": "Legendary",
         "redeemed": 1491,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 114
       },
       {
         "name": "Neo",
         "rarity": "Grail",
         "redeemed": 966,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 115
       },
       {
         "name": "Freddy Funko as Neo",
         "rarity": "Royalty",
         "redeemed": 1522,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 116
       }
     ]
   },
@@ -1635,37 +1869,43 @@
         "name": "Daisy Duck",
         "rarity": "Legendary",
         "redeemed": 820,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 241
       },
       {
         "name": "Donald Duck",
         "rarity": "Legendary",
         "redeemed": 780,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 242
       },
       {
         "name": "Goofy",
         "rarity": "Legendary",
         "redeemed": 813,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 243
       },
       {
         "name": "Pete",
         "rarity": "Legendary",
         "redeemed": 780,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 240
       },
       {
         "name": "Minnie Mouse",
         "rarity": "Grail",
         "redeemed": 445,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 244
       },
       {
         "name": "Mickey Mouse",
         "rarity": "Royalty",
         "redeemed": 735,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 245
       }
     ]
   },
@@ -1676,37 +1916,43 @@
         "name": "Maud Pie",
         "rarity": "Legendary",
         "redeemed": 1437,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 70
       },
       {
         "name": "Princess Luna",
         "rarity": "Legendary",
         "redeemed": 1438,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 69
       },
       {
         "name": "Queen Chrysalis",
         "rarity": "Legendary",
         "redeemed": 1465,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 68
       },
       {
         "name": "Sunset Shimmer",
         "rarity": "Legendary",
         "redeemed": 1449,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 67
       },
       {
         "name": "Rarity",
         "rarity": "Grail",
         "redeemed": 931,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 71
       },
       {
         "name": "Freddy Funko as Spike",
         "rarity": "Royalty",
         "redeemed": 1982,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 72
       }
     ]
   },
@@ -1717,25 +1963,29 @@
         "name": "Applejack",
         "rarity": "Legendary",
         "redeemed": 980,
-        "minted": 1700
+        "minted": 1700,
+        "ebay_id": 284
       },
       {
         "name": "Princess Twilight Sparkle",
         "rarity": "Legendary",
         "redeemed": 1014,
-        "minted": 1700
+        "minted": 1700,
+        "ebay_id": 285
       },
       {
         "name": "Daybreaker",
         "rarity": "Grail",
         "redeemed": 580,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 287
       },
       {
         "name": "King Sombra",
         "rarity": "Royalty",
         "redeemed": 926,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 286
       }
     ]
   },
@@ -1746,37 +1996,43 @@
         "name": "Superhero Chuckie",
         "rarity": "Legendary",
         "redeemed": 1410,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 29
       },
       {
-        "name": "Ember McClain",
+        "name": "Ember McLain",
         "rarity": "Legendary",
         "redeemed": 1425,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 25
       },
       {
         "name": "Vlad Plasmius",
         "rarity": "Legendary",
         "redeemed": 1430,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 27
       },
       {
         "name": "Slimed Arnold",
         "rarity": "Legendary",
         "redeemed": 1430,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 24
       },
       {
         "name": "Superhero Tommy",
         "rarity": "Grail",
         "redeemed": 936,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 28
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1307,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 26
       }
     ]
   },
@@ -1787,37 +2043,43 @@
         "name": "Winslow",
         "rarity": "Legendary",
         "redeemed": 1742,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 145
       },
       {
         "name": "Ed Bighead",
         "rarity": "Legendary",
         "redeemed": 1713,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 144
       },
       {
         "name": "Cynthia",
         "rarity": "Legendary",
         "redeemed": 1732,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 143
       },
       {
         "name": "Professor Membrane",
         "rarity": "Legendary",
         "redeemed": 1731,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 142
       },
       {
         "name": "Rocko",
         "rarity": "Grail",
         "redeemed": 975,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 141
       },
       {
         "name": "Freddy Funko as Reptar",
         "rarity": "Royalty",
         "redeemed": 2252,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 140
       }
     ]
   },
@@ -1828,37 +2090,43 @@
         "name": "Red Ranger Dragon Shield, Power Sword and Dragon Dagger",
         "rarity": "Legendary",
         "redeemed": 1831,
-        "minted": 1875
+        "minted": 1875,
+        "ebay_id": 76
       },
       {
         "name": "Ranger Slayer",
         "rarity": "Legendary",
         "redeemed": 1831,
-        "minted": 1875
+        "minted": 1875,
+        "ebay_id": 77
       },
       {
         "name": "Scorpina",
         "rarity": "Legendary",
         "redeemed": 1815,
-        "minted": 1875
+        "minted": 1875,
+        "ebay_id": 78
       },
       {
         "name": "Zordon",
         "rarity": "Legendary",
         "redeemed": 1825,
-        "minted": 1875
+        "minted": 1875,
+        "ebay_id": 79
       },
       {
         "name": "Green Ranger with Sword Darkness",
         "rarity": "Grail",
         "redeemed": 981,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 80
       },
       {
         "name": "Freddy Funko Megazord",
         "rarity": "Royalty",
         "redeemed": 2014,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 81
       }
     ]
   },
@@ -1869,37 +2137,43 @@
         "name": "Tommy",
         "rarity": "Legendary",
         "redeemed": 1718,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 206
       },
       {
         "name": "Kimberly",
         "rarity": "Legendary",
         "redeemed": 1688,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 207
       },
       {
         "name": "Billy",
         "rarity": "Legendary",
         "redeemed": 1684,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 208
       },
       {
         "name": "Aisha",
         "rarity": "Legendary",
         "redeemed": 1686,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 209
       },
       {
         "name": "Dulcea",
         "rarity": "Grail",
         "redeemed": 895,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 210
       },
       {
         "name": "Freddy Funko as Ivan Ooze",
         "rarity": "Royalty",
         "redeemed": 1576,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 211
       }
     ]
   },
@@ -1910,25 +2184,29 @@
         "name": "Bluto",
         "rarity": "Legendary",
         "redeemed": 1763,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 31
       },
       {
         "name": "Flash Gordon Helmet",
         "rarity": "Legendary",
         "redeemed": 1730,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 33
       },
       {
-        "name": "Popeye",
+        "name": "Popeye With Swee'Pea",
         "rarity": "Grail",
         "redeemed": 945,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 30
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 2144,
-        "minted": 3198
+        "minted": 3198,
+        "ebay_id": 32
       }
     ]
   },
@@ -1939,37 +2217,43 @@
         "name": "Furby",
         "rarity": "Legendary",
         "redeemed": 1468,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 123
       },
       {
         "name": "Hungry Hungry Hippos",
         "rarity": "Legendary",
         "redeemed": 1454,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 124
       },
       {
         "name": "Mr. Potato Head Bumblebee",
         "rarity": "Legendary",
         "redeemed": 1452,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 125
       },
       {
         "name": "Stretch Armstrong",
         "rarity": "Legendary",
         "redeemed": 1455,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 126
       },
       {
         "name": "Mr. Potato Head Optimus Prime",
         "rarity": "Grail",
         "redeemed": 952,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 127
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1510,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 128
       }
     ]
   },
@@ -1980,37 +2264,43 @@
         "name": "Space Beth",
         "rarity": "Ultra",
         "redeemed": 4687,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 327
       },
       {
         "name": "Blim Blam",
         "rarity": "Legendary",
         "redeemed": 1800,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 328
       },
       {
         "name": "Nimbus",
         "rarity": "Legendary",
         "redeemed": 1793,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 329
       },
       {
         "name": "Rick Prime",
         "rarity": "Legendary",
         "redeemed": 1809,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 330
       },
       {
         "name": "Rick And 2 Crows",
         "rarity": "Grail",
         "redeemed": 962,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 331
       },
       {
         "name": "Freddy Funko as Evil Morty",
         "rarity": "Royalty",
         "redeemed": 1665,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 332
       }
     ]
   },
@@ -2021,37 +2311,43 @@
         "name": "Charlie the Robot",
         "rarity": "Legendary",
         "redeemed": 1515,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 34
       },
       {
         "name": "The Ghost of Redbeard",
         "rarity": "Legendary",
         "redeemed": 1513,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 35
       },
       {
         "name": "Snow Ghost",
         "rarity": "Legendary",
         "redeemed": 1515,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 36
       },
       {
         "name": "Witch Doctor Soda",
         "rarity": "Legendary",
         "redeemed": 1497,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 448
       },
       {
         "name": "Scooby-Doo Hero",
         "rarity": "Grail",
         "redeemed": 988,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 37
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1628,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 38
       }
     ]
   },
@@ -2062,37 +2358,43 @@
         "name": "Scooby-Doo In Disguise",
         "rarity": "Ultra",
         "redeemed": 4828,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 301
       },
       {
         "name": "Headless Specter",
         "rarity": "Legendary",
         "redeemed": 1849,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 302
       },
       {
         "name": "Phantom Virus",
         "rarity": "Legendary",
         "redeemed": 1837,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 304
       },
       {
         "name": "Puppet Master",
         "rarity": "Legendary",
         "redeemed": 1838,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 303
       },
       {
         "name": "Black Knight",
         "rarity": "Grail",
         "redeemed": 983,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 305
       },
       {
         "name": "Proto as Scooby-Doo",
         "rarity": "Royalty",
         "redeemed": 1744,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 306
       }
     ]
   },
@@ -2103,31 +2405,36 @@
         "name": "Jimmy",
         "rarity": "Legendary",
         "redeemed": 1304,
-        "minted": 1400
+        "minted": 1400,
+        "ebay_id": 129
       },
       {
         "name": "Seymour Spider",
         "rarity": "Legendary",
         "redeemed": 1327,
-        "minted": 1400
+        "minted": 1400,
+        "ebay_id": 130
       },
       {
         "name": "Sleestak",
         "rarity": "Legendary",
         "redeemed": 1331,
-        "minted": 1400
+        "minted": 1400,
+        "ebay_id": 133
       },
       {
         "name": "Horatio J. Hoodoo",
         "rarity": "Grail",
         "redeemed": 955,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 131
       },
       {
         "name": "Freddy Funko as Sleestak",
         "rarity": "Royalty",
         "redeemed": 2307,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 132
       }
     ]
   },
@@ -2138,37 +2445,43 @@
         "name": "Bugs Bunny",
         "rarity": "Legendary",
         "redeemed": 1602,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 257
       },
       {
         "name": "Daffy Duck",
         "rarity": "Legendary",
         "redeemed": 1600,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 260
       },
       {
         "name": "Lola Bunny",
         "rarity": "Legendary",
         "redeemed": 1554,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 258
       },
       {
         "name": "Bupkus",
         "rarity": "Legendary",
         "redeemed": 1596,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 259
       },
       {
         "name": "Swackhammer With Nerdlucks",
         "rarity": "Grail",
         "redeemed": 818,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 261
       },
       {
         "name": "Freddy Funko as Tune Squad Player",
         "rarity": "Royalty",
         "redeemed": 1326,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 262
       }
     ]
   },
@@ -2179,31 +2492,36 @@
         "name": "Masked Worker With Blood Splatter",
         "rarity": "Legendary",
         "redeemed": 926,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 237
       },
       {
         "name": "Player 101: Deok-Su",
         "rarity": "Legendary",
         "redeemed": 890,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 235
       },
       {
         "name": "Seong Gi-Hun",
         "rarity": "Legendary",
         "redeemed": 893,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 236
       },
       {
         "name": "The Front Man",
         "rarity": "Grail",
         "redeemed": 450,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 238
       },
       {
         "name": "Freddy Funko as The Front Man",
         "rarity": "Royalty",
         "redeemed": 795,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 239
       }
     ]
   },
@@ -2214,31 +2532,36 @@
         "name": "Captain Kirk Blacklight",
         "rarity": "Legendary",
         "redeemed": 1697,
-        "minted": 1967
+        "minted": 1967,
+        "ebay_id": 18
       },
       {
         "name": "Klingon Blacklight",
         "rarity": "Legendary",
         "redeemed": 1720,
-        "minted": 1967
+        "minted": 1967,
+        "ebay_id": 17
       },
       {
         "name": "Scotty Blacklight",
         "rarity": "Legendary",
         "redeemed": 1698,
-        "minted": 1967
+        "minted": 1967,
+        "ebay_id": 19
       },
       {
         "name": "Spock Blacklight",
         "rarity": "Grail",
         "redeemed": 874,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 16
       },
       {
         "name": "Freddy Funko Blacklight",
         "rarity": "Royalty",
         "redeemed": 1548,
-        "minted": 2422
+        "minted": 2422,
+        "ebay_id": 15
       }
     ]
   },
@@ -2249,31 +2572,36 @@
         "name": "Captain Picard",
         "rarity": "Legendary",
         "redeemed": 1165,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 269
       },
       {
         "name": "Wesley Crusher",
         "rarity": "Legendary",
         "redeemed": 1223,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 270
       },
       {
         "name": "Worf",
         "rarity": "Legendary",
         "redeemed": 1216,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 271
       },
       {
         "name": "Judge Q",
         "rarity": "Grail",
         "redeemed": 497,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 272
       },
       {
         "name": "Freddy Funko as Locutus of Borg",
         "rarity": "Royalty",
         "redeemed": 1043,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 273
       }
     ]
   },
@@ -2284,37 +2612,43 @@
         "name": "C-3PO",
         "rarity": "Legendary",
         "redeemed": 2157,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 277
       },
       {
         "name": "Darth Vader",
         "rarity": "Legendary",
         "redeemed": 2127,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 275
       },
       {
         "name": "Emperor Palpatine",
         "rarity": "Legendary",
         "redeemed": 2173,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 276
       },
       {
         "name": "Han Solo",
         "rarity": "Legendary",
         "redeemed": 2209,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 274
       },
       {
         "name": "Luke Skywalker",
         "rarity": "Grail",
         "redeemed": 1446,
-        "minted": 1980
+        "minted": 1980,
+        "ebay_id": 278
       },
       {
         "name": "Princess Leia",
         "rarity": "Royalty",
         "redeemed": 1605,
-        "minted": 3300
+        "minted": 3300,
+        "ebay_id": 279
       }
     ]
   },
@@ -2325,31 +2659,36 @@
         "name": "Ruby",
         "rarity": "Legendary",
         "redeemed": 1103,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 212
       },
       {
         "name": "Garnet",
         "rarity": "Legendary",
         "redeemed": 1057,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 213
       },
       {
         "name": "Sapphire",
         "rarity": "Legendary",
         "redeemed": 1029,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 214
       },
       {
         "name": "Blue Diamond",
         "rarity": "Grail",
         "redeemed": 536,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 215
       },
       {
         "name": "Freddy Funko as Steven",
         "rarity": "Royalty",
         "redeemed": 876,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 216
       }
     ]
   },
@@ -2360,37 +2699,43 @@
         "name": "Will The Wise",
         "rarity": "Legendary",
         "redeemed": 2362,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 188
       },
       {
         "name": "Lucas",
         "rarity": "Legendary",
         "redeemed": 2318,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 189
       },
       {
         "name": "Dustin",
         "rarity": "Legendary",
         "redeemed": 2314,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 190
       },
       {
         "name": "Mike",
         "rarity": "Legendary",
         "redeemed": 2302,
-        "minted": 3000
+        "minted": 3000,
+        "ebay_id": 191
       },
       {
         "name": "Dragon",
         "rarity": "Grail",
         "redeemed": 878,
-        "minted": 1106
+        "minted": 1106,
+        "ebay_id": 192
       },
       {
         "name": "Freddy Funko as Eddie Munson",
         "rarity": "Royalty",
         "redeemed": 2122,
-        "minted": 3600
+        "minted": 3600,
+        "ebay_id": 193
       }
     ]
   },
@@ -2401,37 +2746,43 @@
         "name": "Erica",
         "rarity": "Ultra",
         "redeemed": 2425,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 354
       },
       {
         "name": "Karen",
         "rarity": "Legendary",
         "redeemed": 953,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 356
       },
       {
         "name": "Yuri",
         "rarity": "Legendary",
         "redeemed": 959,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 355
       },
       {
         "name": "Victor",
         "rarity": "Legendary",
         "redeemed": 1006,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 357
       },
       {
         "name": "Murray",
         "rarity": "Grail",
         "redeemed": 488,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 358
       },
       {
         "name": "Freddy Funko as 001",
         "rarity": "Royalty",
         "redeemed": 896,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 359
       }
     ]
   },
@@ -2442,37 +2793,43 @@
         "name": "Aqualad",
         "rarity": "Legendary",
         "redeemed": 1695,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 134
       },
       {
         "name": "Bumblebee",
         "rarity": "Legendary",
         "redeemed": 1718,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 135
       },
       {
         "name": "Red Robin",
         "rarity": "Legendary",
         "redeemed": 1722,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 137
       },
       {
         "name": "Slade",
         "rarity": "Legendary",
         "redeemed": 1737,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 138
       },
       {
         "name": "Titan Robot",
         "rarity": "Grail",
         "redeemed": 966,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 139
       },
       {
         "name": "Freddy Funko as Beast Boy",
         "rarity": "Royalty",
         "redeemed": 2017,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 136
       }
     ]
   },
@@ -2483,31 +2840,36 @@
         "name": "Cyborg As The Cyborg",
         "rarity": "Legendary",
         "redeemed": 1062,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 409
       },
       {
         "name": "Raven as Demon Of Azarath",
         "rarity": "Legendary",
         "redeemed": 1117,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 411
       },
       {
         "name": "Starfire as Starfire The Terrible",
         "rarity": "Legendary",
         "redeemed": 1096,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 410
       },
       {
         "name": "Beast Boy As Beast Monster",
         "rarity": "Grail",
         "redeemed": 583,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 412
       },
       {
         "name": "Freddy Funko as Dick Gravestone",
         "rarity": "Royalty",
         "redeemed": 943,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 413
       }
     ]
   },
@@ -2518,37 +2880,43 @@
         "name": "Bruce Wayne In Tux",
         "rarity": "Legendary",
         "redeemed": 1820,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 170
       },
       {
         "name": "Scarecrow",
         "rarity": "Legendary",
         "redeemed": 1843,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 171
       },
       {
         "name": "Selina Kyle",
         "rarity": "Legendary",
         "redeemed": 1825,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 172
       },
       {
         "name": "Bane",
         "rarity": "Legendary",
         "redeemed": 1871,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 173
       },
       {
         "name": "Harvey Dent",
         "rarity": "Grail",
         "redeemed": 979,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 174
       },
       {
         "name": "Freddy Funko as Lt. James Gordon",
         "rarity": "Royalty",
         "redeemed": 1669,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 175
       }
     ]
   },
@@ -2559,37 +2927,43 @@
         "name": "Flintheart Glomgold",
         "rarity": "Ultra",
         "redeemed": 2291,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 313
       },
       {
         "name": "Fat Cat",
         "rarity": "Legendary",
         "redeemed": 973,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 314
       },
       {
         "name": "Ma Beagle",
         "rarity": "Legendary",
         "redeemed": 991,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 316
       },
       {
         "name": "Quackerjack",
         "rarity": "Legendary",
         "redeemed": 1003,
-        "minted": 2100
+        "minted": 2100,
+        "ebay_id": 315
       },
       {
         "name": "Liquidator",
         "rarity": "Grail",
         "redeemed": 482,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 317
       },
       {
         "name": "Don Karnage",
         "rarity": "Royalty",
         "redeemed": 751,
-        "minted": 2300
+        "minted": 2300,
+        "ebay_id": 318
       }
     ]
   },
@@ -2600,31 +2974,36 @@
         "name": "Dino",
         "rarity": "Legendary",
         "redeemed": 1745,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 166
       },
       {
         "name": "Barney Rubble",
         "rarity": "Legendary",
         "redeemed": 1737,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 167
       },
       {
         "name": "Wilma Flintstone holding Pebbles",
         "rarity": "Legendary",
         "redeemed": 1730,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 169
       },
       {
         "name": "Fred Flintstone",
         "rarity": "Grail",
         "redeemed": 977,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 165
       },
       {
         "name": "Freddy Funko as Fred Flintstone",
         "rarity": "Royalty",
         "redeemed": 1571,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 168
       }
     ]
   },
@@ -2635,37 +3014,43 @@
         "name": "Blossom",
         "rarity": "Legendary",
         "redeemed": 922,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 231
       },
       {
         "name": "Bubbles",
         "rarity": "Legendary",
         "redeemed": 963,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 230
       },
       {
         "name": "Buttercup",
         "rarity": "Legendary",
         "redeemed": 959,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 229
       },
       {
         "name": "Professor Utonium",
         "rarity": "Legendary",
         "redeemed": 955,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 232
       },
       {
         "name": "Mojo Jojo",
         "rarity": "Grail",
         "redeemed": 515,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 233
       },
       {
         "name": "Freddy Funko as Mojo Jojo",
         "rarity": "Royalty",
         "redeemed": 960,
-        "minted": 2700
+        "minted": 2700,
+        "ebay_id": 234
       }
     ]
   },
@@ -2676,49 +3061,57 @@
         "name": "Mockingbird",
         "rarity": "Ultra",
         "redeemed": 3220,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 434
       },
       {
         "name": "High Evolutionary",
         "rarity": "Legendary",
         "redeemed": 1203,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 432
       },
       {
         "name": "Klaw",
         "rarity": "Legendary",
         "redeemed": 1236,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 430
       },
       {
         "name": "Scarlet Witch",
         "rarity": "Legendary",
         "redeemed": 1203,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 431
       },
       {
         "name": "Wonder Man",
         "rarity": "Legendary",
         "redeemed": 1203,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 433
       },
       {
         "name": "Tigra",
         "rarity": "Grail",
         "redeemed": 634,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 436
       },
       {
         "name": "Ultron",
         "rarity": "Grail",
         "redeemed": 658,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 437
       },
       {
         "name": "Freddy Funko as Hawkeye",
         "rarity": "Royalty",
         "redeemed": 1188,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 435
       }
     ]
   },
@@ -2729,31 +3122,36 @@
         "name": "Ro-Bear Bill",
         "rarity": "Legendary",
         "redeemed": 1583,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 438
       },
       {
         "name": "Pumyra",
         "rarity": "Legendary",
         "redeemed": 1602,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 439
       },
       {
         "name": "Slithe",
         "rarity": "Legendary",
         "redeemed": 1603,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 440
       },
       {
         "name": "Ghost Jaga",
         "rarity": "Grail",
         "redeemed": 851,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 442
       },
       {
         "name": "Freddy Funko as King Lion-O",
         "rarity": "Royalty",
         "redeemed": 1614,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 441
       }
     ]
   },
@@ -2764,31 +3162,36 @@
         "name": "Bebop",
         "rarity": "Legendary",
         "redeemed": 1166,
-        "minted": 1467
+        "minted": 1467,
+        "ebay_id": 4
       },
       {
         "name": "Casey Jones",
         "rarity": "Legendary",
         "redeemed": 1145,
-        "minted": 1467
+        "minted": 1467,
+        "ebay_id": 3
       },
       {
         "name": "Shredder",
         "rarity": "Legendary",
         "redeemed": 1123,
-        "minted": 1467
+        "minted": 1467,
+        "ebay_id": 2
       },
       {
         "name": "Leonardo",
         "rarity": "Grail",
         "redeemed": 909,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 1
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1183,
-        "minted": 2160
+        "minted": 2160,
+        "ebay_id": 5
       }
     ]
   },
@@ -2799,31 +3202,36 @@
         "name": "Rocksteady",
         "rarity": "Legendary",
         "redeemed": 1936,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 333
       },
       {
         "name": "Triceraton",
         "rarity": "Legendary",
         "redeemed": 1931,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 334
       },
       {
         "name": "Leonardo & Michelangelo",
         "rarity": "Grail",
         "redeemed": 983,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 335
       },
       {
         "name": "Raphael & Donatello",
         "rarity": "Grail",
         "redeemed": 981,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 336
       },
       {
         "name": "Freddy Funko as Krang",
         "rarity": "Royalty",
         "redeemed": 2081,
-        "minted": 2500
+        "minted": 2500,
+        "ebay_id": 337
       }
     ]
   },
@@ -2834,37 +3242,43 @@
         "name": "Scud",
         "rarity": "Ultra",
         "redeemed": 4835,
-        "minted": 5000
+        "minted": 5000,
+        "ebay_id": 397
       },
       {
         "name": "Buzz With Darts",
         "rarity": "Legendary",
         "redeemed": 1850,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 398
       },
       {
         "name": "Pterodactyl With Janie Doll Body",
         "rarity": "Legendary",
         "redeemed": 1831,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 399
       },
       {
         "name": "Woody With Red Pencil",
         "rarity": "Legendary",
         "redeemed": 1839,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 400
       },
       {
         "name": "Baby Head",
         "rarity": "Grail",
         "redeemed": 981,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 401
       },
       {
         "name": "Freddy Funko As Sid",
         "rarity": "Royalty",
         "redeemed": 1919,
-        "minted": 2400
+        "minted": 2400,
+        "ebay_id": 402
       }
     ]
   },
@@ -2875,37 +3289,43 @@
         "name": "Devastator",
         "rarity": "Legendary",
         "redeemed": 1479,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 45
       },
       {
         "name": "Hot Rod",
         "rarity": "Legendary",
         "redeemed": 1478,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 48
       },
       {
         "name": "Rumble",
         "rarity": "Legendary",
         "redeemed": 1469,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 47
       },
       {
         "name": "Sideswipe",
         "rarity": "Legendary",
         "redeemed": 1463,
-        "minted": 1550
+        "minted": 1550,
+        "ebay_id": 46
       },
       {
         "name": "Optimus Prime",
         "rarity": "Grail",
         "redeemed": 961,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 49
       },
       {
         "name": "Freddy Funko",
         "rarity": "Royalty",
         "redeemed": 1776,
-        "minted": 2397
+        "minted": 2397,
+        "ebay_id": 50
       }
     ]
   },
@@ -2916,37 +3336,43 @@
         "name": "Arcee",
         "rarity": "Legendary",
         "redeemed": 1905,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 265
       },
       {
         "name": "Blitzwing",
         "rarity": "Legendary",
         "redeemed": 1899,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 264
       },
       {
         "name": "Cheetor",
         "rarity": "Legendary",
         "redeemed": 1911,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 266
       },
       {
         "name": "Ultra Magnus",
         "rarity": "Legendary",
         "redeemed": 1925,
-        "minted": 2000
+        "minted": 2000,
+        "ebay_id": 263
       },
       {
         "name": "King Starscream",
         "rarity": "Grail",
         "redeemed": 969,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 267
       },
       {
         "name": "Freddy Funko as Grimlock",
         "rarity": "Royalty",
         "redeemed": 1974,
-        "minted": 2600
+        "minted": 2600,
+        "ebay_id": 268
       }
     ]
   },
@@ -2957,25 +3383,29 @@
         "name": "Bride Of Frankenstein",
         "rarity": "Legendary",
         "redeemed": 1550,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 323
       },
       {
         "name": "The Mummy",
         "rarity": "Legendary",
         "redeemed": 1551,
-        "minted": 1600
+        "minted": 1600,
+        "ebay_id": 324
       },
       {
         "name": "Frankenstein",
         "rarity": "Grail",
         "redeemed": 980,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 326
       },
       {
         "name": "Freddy Funko as Dr. Frankenstein",
         "rarity": "Royalty",
         "redeemed": 1433,
-        "minted": 1800
+        "minted": 1800,
+        "ebay_id": 325
       }
     ]
   },
@@ -2986,37 +3416,43 @@
         "name": "Road Runner as The Flash",
         "rarity": "Legendary",
         "redeemed": 1247,
-        "minted": 1300
+        "minted": 1300,
+        "ebay_id": 194
       },
       {
         "name": "Lola Bunny as Jane Jetson",
         "rarity": "Legendary",
         "redeemed": 1212,
-        "minted": 1300
+        "minted": 1300,
+        "ebay_id": 195
       },
       {
         "name": "Bugs Bunny as Morpheus",
         "rarity": "Legendary",
         "redeemed": 1235,
-        "minted": 1300
+        "minted": 1300,
+        "ebay_id": 196
       },
       {
         "name": "Porky Pig as Robin",
         "rarity": "Legendary",
         "redeemed": 1247,
-        "minted": 1300
+        "minted": 1300,
+        "ebay_id": 197
       },
       {
         "name": "Wile E. Coyote as Batman",
         "rarity": "Grail",
         "redeemed": 977,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 198
       },
       {
         "name": "Daffy Duck as Pennywise",
         "rarity": "Royalty",
         "redeemed": 1329,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 199
       }
     ]
   },
@@ -3027,37 +3463,43 @@
         "name": "The Nun with Painting",
         "rarity": "Legendary",
         "redeemed": 1961,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 105
       },
       {
         "name": "The Crooked Man",
         "rarity": "Legendary",
         "redeemed": 1963,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 106
       },
       {
         "name": "Father Karras",
         "rarity": "Legendary",
         "redeemed": 1964,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 107
       },
       {
         "name": "Pennywise with Spider Legs",
         "rarity": "Legendary",
         "redeemed": 1980,
-        "minted": 2050
+        "minted": 2050,
+        "ebay_id": 110
       },
       {
         "name": "Malthus with Annabelle",
         "rarity": "Grail",
         "redeemed": 971,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 108
       },
       {
         "name": "Freddy Funko as Georgie",
         "rarity": "Royalty",
         "redeemed": 1911,
-        "minted": 2694
+        "minted": 2694,
+        "ebay_id": 109
       }
     ]
   },
@@ -3068,37 +3510,43 @@
         "name": "Accordion Monkey",
         "rarity": "Legendary",
         "redeemed": 1808,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 289
       },
       {
         "name": "Black Shuck",
         "rarity": "Legendary",
         "redeemed": 1812,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 290
       },
       {
         "name": "Goat Demon",
         "rarity": "Legendary",
         "redeemed": 1809,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 288
       },
       {
         "name": "Pazuzu",
         "rarity": "Legendary",
         "redeemed": 1792,
-        "minted": 1900
+        "minted": 1900,
+        "ebay_id": 291
       },
       {
         "name": "The Ferryman",
         "rarity": "Grail",
         "redeemed": 965,
-        "minted": 999
+        "minted": 999,
+        "ebay_id": 293
       },
       {
         "name": "Freddy Funko as Father Karras",
         "rarity": "Royalty",
         "redeemed": 1575,
-        "minted": 2200
+        "minted": 2200,
+        "ebay_id": 292
       }
     ]
   }

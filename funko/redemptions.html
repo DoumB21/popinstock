@@ -92,6 +92,7 @@
       border-bottom: 1px solid var(--border);
     }
     .figures-table th:not(:first-child) { text-align: right; }
+    .figures-table th:last-child { text-align: center; }
 
     .figures-table td {
       padding: 0.65rem 1.25rem; font-size: 0.875rem;
@@ -100,6 +101,24 @@
     .figures-table tr:last-child td { border-bottom: none; }
     .figures-table tr:nth-child(even) td { background: var(--bg-row-alt); }
     .figures-table td:not(:first-child) { text-align: right; }
+    .figures-table td:last-child { text-align: center; }
+
+    .btn-price-history {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      font-size: 0.72rem; font-weight: 600;
+      padding: 0.28rem 0.65rem; border-radius: 7px;
+      background: rgba(99,102,241,0.1);
+      border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .btn-price-history:hover {
+      background: rgba(99,102,241,0.2);
+      border-color: rgba(99,102,241,0.55);
+      color: #c7d2fe;
+    }
 
     .pct-bar-wrap { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
     .pct-label { font-size: 0.8rem; width: 42px; text-align: right; color: var(--text-secondary); }
@@ -156,6 +175,12 @@
         justify-content: flex-start;
       }
       .figures-table tbody td:first-child::before { display: none; }
+      /* Price History button sits full-width at the bottom of the card */
+      .figures-table tbody td:last-child {
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+      }
+      .figures-table tbody td:last-child::before { display: none; }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -240,6 +265,7 @@
             <th>Redeemed</th>
             <th>Supply</th>
             <th>% redeemed</th>
+            <th>Price History</th>
           </tr></thead>
         `;
         const tbody = document.createElement('tbody');
@@ -247,6 +273,9 @@
           const p = pct(fig.redeemed, fig.minted);
           const tr = document.createElement('tr');
           tr.dataset.rarity = fig.rarity;
+          const priceBtn = fig.ebay_id
+            ? `<a href="price-history.html?id=${fig.ebay_id}" class="btn-price-history">&#9196; Prices</a>`
+            : `<span style="color:var(--text-secondary);font-size:0.75rem">\u2014</span>`;
           tr.innerHTML = `
             <td>${fig.name}</td>
             <td data-label="Rarity"><span class="rarity-badge ${rarityClass(fig.rarity)}">${fig.rarity}</span></td>
@@ -258,6 +287,7 @@
                 <div class="pct-bar"><div class="pct-fill ${pctClass(p)}" style="width:${p}%"></div></div>
               </div>
             </td>
+            <td data-label="Price History">${priceBtn}</td>
           `;
           tbody.appendChild(tr);
         });
