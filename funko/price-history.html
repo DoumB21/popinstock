@@ -704,6 +704,24 @@ function buildAnnotations() {
                padding: { top:3, bottom:3, left:6, right:6 } } }
   });
 
+  // When P3 has only 1 data point, ApexCharts won't auto-place a tick there.
+  // Force a month/year label at the bottom of the chart at that x position.
+  if (currentPhase === 'all' && P3_DISPLAY_AGG.length === 1) {
+    const ts    = P3_DISPLAY_AGG[0].x;
+    const lbl   = new Date(ts + GAP_SHIFT_MS).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    ann.push({ x: ts, borderColor: 'transparent',
+      label: { text: lbl, position: 'bottom', orientation: 'horizontal', borderColor: 'transparent',
+        style: { background: 'transparent', color: '#8888aa', fontSize: '0.71rem',
+                 padding: { top: 0, bottom: 0, left: 4, right: 4 } } } });
+  } else if (currentPhase === 3 && P3_AGG.length === 1) {
+    const ts    = P3_AGG[0].x;
+    const lbl   = new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    ann.push({ x: ts, borderColor: 'transparent',
+      label: { text: lbl, position: 'bottom', orientation: 'horizontal', borderColor: 'transparent',
+        style: { background: 'transparent', color: '#8888aa', fontSize: '0.71rem',
+                 padding: { top: 0, bottom: 0, left: 4, right: 4 } } } });
+  }
+
   return ann;
 }
 
@@ -749,6 +767,10 @@ function buildTooltip({ seriesIndex, dataPointIndex }) {
     '<table style="border-collapse:collapse;width:100%">' + rows + '</table></div>';
 }
 
+function seriesStroke(...seriesArrays) {
+  return seriesArrays.map(s => s.length <= 1 ? 0 : 2);
+}
+
 function initChart() {
   chart = new ApexCharts(document.getElementById('priceChart'), {
     chart: {
@@ -778,7 +800,7 @@ function initChart() {
       min: 0,
       labels: { formatter: v => '$' + Math.round(v), style: { colors: '#8888aa', fontSize: '0.71rem' } }
     },
-    stroke: { width: 2, curve: 'smooth' },
+    stroke: { width: seriesStroke(P1_AGG, P2_AGG, P3_DISPLAY_AGG), curve: 'smooth' },
     markers: { size: 5, hover: { sizeOffset: 3 } },
     grid: { borderColor: 'rgba(255,255,255,0.05)', xaxis: { lines: { show: false } }, padding: { left: 0, right: 12 } },
     tooltip: { theme: 'dark', custom: buildTooltip },
@@ -936,6 +958,7 @@ function switchPhase(ph) {
   chart.updateOptions({
     xaxis: { type: 'datetime', min: xMin, max: xMax, labels: { datetimeUTC: false, formatter: formatXAxisLabel, style: { colors: '#8888aa', fontSize: '0.71rem' } } },
     annotations: { xaxis: buildAnnotations() },
+    stroke: { width: seriesStroke(p1Data, p2Data, p3Data), curve: 'smooth' },
   }, false, true);
   updateStats(ph);
   updatePhaseInfo(ph);
