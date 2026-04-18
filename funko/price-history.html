@@ -234,7 +234,8 @@
       text-align: left; white-space: nowrap;
     }
     .listings-table th:nth-child(2),
-    .listings-table th:nth-child(3) { text-align: right; }
+    .listings-table th:nth-child(4) { text-align: right; }
+    .listings-table th:nth-child(3),
     .listings-table th:last-child { text-align: center; }
 
     .listings-table td {
@@ -246,7 +247,8 @@
     .listings-table tr:last-child td { border-bottom: none; }
     .listings-table tr:nth-child(even) td { background: var(--bg-row-alt); }
     .listings-table td:nth-child(2),
-    .listings-table td:nth-child(3) { text-align: right; }
+    .listings-table td:nth-child(4) { text-align: right; }
+    .listings-table td:nth-child(3),
     .listings-table td:last-child { text-align: center; }
 
     .listing-title {
@@ -298,6 +300,44 @@
       border-color: rgba(224, 82, 82, 0.45);
       color: #e05252;
     }
+
+    /* ── Listing type filter ── */
+    .listing-type-filter {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.45rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .listing-type-filter.hidden { display: none; }
+    .ltf-label {
+      font-size: 0.67rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-secondary); white-space: nowrap;
+    }
+    .ltf-btns { display: flex; gap: 0.3rem; }
+    .ltf-btn {
+      padding: 0.22rem 0.7rem;
+      font-size: 0.74rem; font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .ltf-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+    .ltf-btn.active { background: rgba(255,255,255,0.1); color: var(--text-primary); border-color: var(--border-hover); }
+
+    /* ── Listing type badge ── */
+    .listing-type-badge {
+      display: inline-block;
+      font-size: 0.65rem; font-weight: 700;
+      padding: 0.12rem 0.45rem; border-radius: 999px;
+      white-space: nowrap; vertical-align: middle;
+    }
+    .type-bin     { background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+    .type-auction { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+    .type-unknown { background: rgba(255,255,255,0.04); color: var(--text-secondary); border: 1px solid var(--border); }
 
     /* ── Hidden sections ── */
     .listings-section { display: none; }
@@ -396,6 +436,15 @@
       <span class="phase-info-range" id="phaseInfoRange">Mar 2022 – Mar 2024</span>
     </div>
 
+    <div class="listing-type-filter" id="listingTypeFilter">
+      <span class="ltf-label">eBay Listing Type</span>
+      <div class="ltf-btns">
+        <button class="ltf-btn active" data-type="all">All</button>
+        <button class="ltf-btn" data-type="bin">Buy It Now</button>
+        <button class="ltf-btn" data-type="auction">Auction</button>
+      </div>
+    </div>
+
     <div class="chart-wrap">
       <div id="priceChart"></div>
     </div>
@@ -476,6 +525,7 @@
           <tr>
             <th>Listing Title</th>
             <th>Date</th>
+            <th>Type</th>
             <th>Sold Price</th>
             <th>Actions</th>
           </tr>
@@ -524,8 +574,9 @@ async function sbPatch(table, id, body) {
 // ── State ─────────────────────────────────────────────────────────────────────────────────────────
 
 let currentPhase = 'all';
+let currentListingType = 'all';
 let chart;
-let P1 = [], P2 = [], P3 = [], P3_RAW = [], P3_DISPLAY = [];
+let P1 = [], P2 = [], P3 = [], P3_RAW = [], P3_ALL_RAW = [], P3_DISPLAY = [];
 let P1_AGG = [], P2_AGG = [], P3_AGG = [], P3_DISPLAY_AGG = [];
 let ALL_MIN, ALL_MAX;
 let GAP_SHIFT_MS = 0;
@@ -570,23 +621,26 @@ function aggregateByDay(data) {
   const days = new Map();
   for (const d of data) {
     const key = new Date(d.x).toISOString().slice(0, 10);
-    if (!days.has(key)) days.set(key, { prices: [], sources: [] });
+    if (!days.has(key)) days.set(key, { prices: [], sources: [], types: [] });
     days.get(key).prices.push(d.y);
-    if (d.source) days.get(key).sources.push(d.source);
+    if (d.source)       days.get(key).sources.push(d.source);
+    if (d.listing_type) days.get(key).types.push(d.listing_type);
   }
-  return [...days.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, { prices, sources }]) => {
+  return [...days.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, { prices, sources, types }]) => {
     const sorted = [...prices].sort((a, b) => a - b);
     const mid    = Math.floor(sorted.length / 2);
     const med    = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
     return {
-      x:           new Date(key + 'T12:00:00Z').getTime(),
-      y:           parseFloat((prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2)),
-      count:       prices.length,
-      low:         parseFloat(Math.min(...prices).toFixed(2)),
-      high:        parseFloat(Math.max(...prices).toFixed(2)),
-      median:      parseFloat(med.toFixed(2)),
-      waxCount:    sources.filter(s => s === 'wax').length,
-      dropppCount: sources.filter(s => s === 'droppp').length,
+      x:            new Date(key + 'T12:00:00Z').getTime(),
+      y:            parseFloat((prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2)),
+      count:        prices.length,
+      low:          parseFloat(Math.min(...prices).toFixed(2)),
+      high:         parseFloat(Math.max(...prices).toFixed(2)),
+      median:       parseFloat(med.toFixed(2)),
+      waxCount:     sources.filter(s => s === 'wax').length,
+      dropppCount:  sources.filter(s => s === 'droppp').length,
+      auctionCount: types.filter(t => t === 'auction').length,
+      binCount:     types.filter(t => t === 'bin').length,
     };
   });
 }
@@ -627,7 +681,7 @@ async function loadAll(popId) {
   const [p1Rows, p2Rows, p3Rows, catalogJson] = await Promise.all([
     link ? sbFetch('template_sold_listings?template_id=eq.' + link.nft_template_id   + '&select=sold_price,usd_price,sold_at,source&order=sold_at.asc&limit=5000')   : Promise.resolve([]),
     link ? sbFetch('template_sold_listings?template_id=eq.' + link.token_template_id + '&select=sold_price,usd_price,sold_at,source&order=sold_at.asc&limit=5000')   : Promise.resolve([]),
-    sbFetch('ebay_sold_listings?funko_pop_id=eq.' + popId + '&is_valid=not.is.false&select=id,sold_price,sold_date,title,listing_url&order=sold_date.asc&limit=5000'),
+    sbFetch('ebay_sold_listings?funko_pop_id=eq.' + popId + '&is_valid=not.is.false&select=id,sold_price,sold_date,title,listing_url,listing_type&order=sold_date.asc&limit=5000'),
     fetch('data/redemptions_sets_catalog.json').then(r => r.json()).catch(() => []),
   ]);
 
@@ -636,8 +690,9 @@ async function loadAll(popId) {
 
   P1 = p1Rows.map(r => ({ x: new Date(r.sold_at).getTime(), y: parseFloat(r.usd_price ?? r.sold_price), source: r.source }));
   P2 = p2Rows.map(r => ({ x: new Date(r.sold_at).getTime(), y: parseFloat(r.usd_price ?? r.sold_price), source: r.source }));
-  P3 = p3Rows.map(r => ({ x: new Date(r.sold_date).getTime(), y: parseFloat(r.sold_price) }));
+  P3 = p3Rows.map(r => ({ x: new Date(r.sold_date).getTime(), y: parseFloat(r.sold_price), listing_type: r.listing_type }));
   P3_RAW = p3Rows;
+  P3_ALL_RAW = p3Rows;
 
   function setRange(meta, timestamps) {
     if (!timestamps.length) return;
@@ -759,6 +814,14 @@ function buildTooltip({ seriesIndex, dataPointIndex }) {
       '<tr><td colspan="2" style="padding-top:6px;padding-bottom:2px;color:#555577;font-size:0.7rem;border-top:1px solid #333355">by marketplace</td></tr>' +
       (d.dropppCount > 0 ? '<tr><td ' + td1 + '>Droppp</td><td ' + td2 + '>' + d.dropppCount + '</td></tr>' : '') +
       (d.waxCount    > 0 ? '<tr><td ' + td1 + '>WAX</td><td '    + td2 + '>' + d.waxCount    + '</td></tr>' : '');
+  }
+
+  // Listing type breakdown — only for P3 (eBay data)
+  if (seriesIndex === 2 && (d.auctionCount > 0 || d.binCount > 0)) {
+    rows +=
+      '<tr><td colspan="2" style="padding-top:6px;padding-bottom:2px;color:#555577;font-size:0.7rem;border-top:1px solid #333355">by listing type</td></tr>' +
+      (d.binCount     > 0 ? '<tr><td ' + td1 + '>Buy It Now</td><td ' + td2 + '>' + d.binCount     + '</td></tr>' : '') +
+      (d.auctionCount > 0 ? '<tr><td ' + td1 + '>Auction</td><td '    + td2 + '>' + d.auctionCount + '</td></tr>' : '');
   }
 
   return '<div style="padding:10px 14px;font-size:0.82rem;min-width:165px">' +
@@ -899,7 +962,7 @@ function buildListings() {
   const sorted = [...P3_RAW].sort((a,b) => new Date(b.sold_date) - new Date(a.sold_date));
   tbody.innerHTML = '';
   if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="no-data-msg">No eBay listings recorded yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="no-data-msg">No eBay listings recorded yet.</td></tr>';
     document.getElementById('listingsBadge').textContent = '0 sales';
     return;
   }
@@ -908,10 +971,13 @@ function buildListings() {
     const price   = parseFloat(item.sold_price);
     const title   = item.title ?? '';
     const url     = item.listing_url ?? '#';
+    const typeClass = item.listing_type === 'auction' ? 'type-auction' : item.listing_type === 'bin' ? 'type-bin' : 'type-unknown';
+    const typeLabel = item.listing_type === 'auction' ? 'Auction' : item.listing_type === 'bin' ? 'BIN' : '—';
     const tr = document.createElement('tr');
     tr.innerHTML =
       '<td><span class="listing-title" title="' + title.replace(/"/g,'&quot;') + '">' + title + '</span></td>' +
       '<td class="listing-date">' + dateStr + '</td>' +
+      '<td><span class="listing-type-badge ' + typeClass + '">' + typeLabel + '</span></td>' +
       '<td class="listing-price">$' + price.toFixed(2) + '</td>' +
       '<td><div class="btn-action-row">' +
         '<a href="' + url + '" target="_blank" rel="noopener" class="btn-ebay">↗ eBay</a>' +
@@ -920,6 +986,48 @@ function buildListings() {
     tbody.appendChild(tr);
   });
   document.getElementById('listingsBadge').textContent = sorted.length + ' sale' + (sorted.length === 1 ? '' : 's');
+}
+
+// ── Listing type filter ─────────────────────────────────────────────────────────────────────────────
+
+function applyListingTypeFilter(type) {
+  currentListingType = type;
+
+  document.querySelectorAll('.ltf-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === type);
+  });
+
+  const filtered = type === 'all' ? P3_ALL_RAW : P3_ALL_RAW.filter(r => r.listing_type === type);
+
+  P3 = filtered.map(r => ({ x: new Date(r.sold_date).getTime(), y: parseFloat(r.sold_price), listing_type: r.listing_type }));
+  P3_RAW = filtered;
+
+  if (filtered.length) {
+    const timestamps = filtered.map(r => new Date(r.sold_date).getTime());
+    PHASES_META[2].start = Math.min(...timestamps);
+    PHASES_META[2].end   = Math.max(...timestamps);
+    PHASES_META[2].range = fmtRange(PHASES_META[2].start, PHASES_META[2].end);
+  } else {
+    PHASES_META[2].start = null;
+    PHASES_META[2].end   = null;
+    PHASES_META[2].range = '—';
+  }
+
+  P3_ORIGINAL_BOUNDS = { start: PHASES_META[2].start, end: PHASES_META[2].end };
+
+  computeGap();
+
+  P3_AGG         = aggregateByDay(P3);
+  P3_DISPLAY_AGG = aggregateByDay(P3_DISPLAY);
+
+  const allAgg = [...P1_AGG, ...P2_AGG, ...P3_DISPLAY_AGG];
+  const pad = 86400000 * 5;
+  ALL_MIN = allAgg.length ? Math.min(...allAgg.map(d => d.x)) - pad : Date.now() - 86400000 * 365;
+  ALL_MAX = allAgg.length ? Math.max(...allAgg.map(d => d.x)) + pad : Date.now();
+
+  switchPhase(currentPhase);
+  computeCurrentValue();
+  buildListings();
 }
 
 // ── Phase switch ───────────────────────────────────────────────────────────────────────────────────
@@ -963,6 +1071,7 @@ function switchPhase(ph) {
   updateStats(ph);
   updatePhaseInfo(ph);
   document.getElementById('listingsSection').classList.toggle('visible', ph === 'all' || ph === 3);
+  document.getElementById('listingTypeFilter').classList.toggle('hidden', ph === 1 || ph === 2);
 }
 
 // ── Report ──────────────────────────────────────────────────────────────────────────────────────────
@@ -1035,6 +1144,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!btn) return;
     const raw = btn.dataset.phase;
     switchPhase(raw === 'all' ? 'all' : parseInt(raw, 10));
+  });
+
+  document.getElementById('listingTypeFilter').addEventListener('click', e => {
+    const btn = e.target.closest('.ltf-btn');
+    if (!btn || btn.classList.contains('active')) return;
+    applyListingTypeFilter(btn.dataset.type);
   });
 });
 </script>

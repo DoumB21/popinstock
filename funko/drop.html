@@ -195,12 +195,6 @@
     const top20 = rows.slice(0, 20);
     if (!top20.length) return '<div class="no-data">No complete sets found for this drop.</div>';
 
-    // Total sets owned per wallet (max set_number across all their entries)
-    const totalSets = new Map();
-    for (const e of rows) {
-      if ((e.set_number || 1) > (totalSets.get(e.wallet) || 0)) totalSets.set(e.wallet, e.set_number);
-    }
-
     const tableRows = top20.map((e, i) => {
       const pos    = i + 1;
       const href   = 'wallet.html?w=' + enc(e.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
@@ -210,7 +204,7 @@
       return `<tr onclick="window.location='${href}'">
         <td class="rank-cell ${rankClass(pos)}">#${pos}</td>
         <td class="wallet-cell" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${e.wallet}${setBadge}</td>
-        <td class="col-r">${totalSets.get(e.wallet) || 1}</td>
+        <td class="col-r">${e.total_sets ?? 1}</td>
         <td class="col-r">${fmtDec(e.avg_mint, 3)}</td>
         <td class="rating-cell">${fmtDec(e.rating, 3)}</td>
       </tr>`;
@@ -274,8 +268,8 @@
       const [colData, statsData, royaltyResult, masteryResult, holdersData, packData, officialData] = await Promise.all([
         sbFetch('collections', 'select=collection_name,display_name,img,logo,banner&collection_name=eq.' + enc(c) + '&limit=1'),
         sbFetch('schema_stats', 'select=*&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&limit=1'),
-        sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,rank,rating,avg_mint&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.royalty&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
-        sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,rank,rating,avg_mint&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.mastery&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
+        sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,total_sets,rank,rating,avg_mint&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.royalty&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
+        sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,total_sets,rank,rating,avg_mint&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.mastery&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
         sbFetch('top_holders', 'select=wallet,total_assets,rank,is_official&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&order=rank.asc&limit=15'),
         sbFetch('pack_stats', 'select=template_id,name,issued_supply,packs_burned,packs_available&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&order=template_id.asc'),
         sbFetch('top_holders', 'select=total_assets&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&is_official=eq.true'),

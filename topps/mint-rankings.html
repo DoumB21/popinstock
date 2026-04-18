@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topps Mint Rankings — PopInStock</title>
+  <meta name="description" content="Browse Topps Digital subsets on WAX. View mint rankings, collector standings, and stats for each subset." />
+  <link rel="canonical" href="https://www.popinstock.com/topps/mint-rankings.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.popinstock.com/topps/mint-rankings.html" />
+  <meta property="og:title" content="Topps Mint Rankings — PopInStock" />
+  <meta property="og:description" content="Browse Topps Digital subsets on WAX. View mint rankings, collector standings, and stats for each subset." />
+  <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Topps Mint Rankings — PopInStock" />
+  <meta name="twitter:description" content="Browse Topps Digital subsets on WAX. View mint rankings, collector standings, and stats for each subset." />
+  <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    /* Collection group */
+    .collection-group { margin-bottom: 2.5rem; }
+    .collection-heading {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .collection-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Grid */
+    .subsets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    /* Card */
+    .subset-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      padding: 14px 16px 16px;
+      gap: 6px;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .subset-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(192,120,40,0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 24px rgba(192,120,40,0.1);
+    }
+    .subset-card-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--text-primary);
+    }
+    .subset-card-collection {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Meta bar */
+    .page-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; margin-top: 1.25rem; margin-bottom: 2rem; flex-wrap: wrap;
+    }
+    .page-meta-count { font-size: 0.82rem; color: var(--text-secondary); }
+    .page-meta-count strong { color: var(--text-primary); font-weight: 600; }
+    .search-input { width: 220px; }
+
+    @media (max-width: 480px) {
+      .subsets-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title">Mint <span class="accent">Rankings</span></div>
+      <div class="page-subtitle">Browse Topps Digital subsets on WAX. Click a subset to view mint rankings and collector stats.</div>
+      <div class="page-meta">
+        <div class="page-meta-count" id="subsetsCount">&nbsp;</div>
+        <input class="search-input" id="searchInput" type="search" placeholder="Search subsets…" autocomplete="off">
+      </div>
+    </div>
+    <div id="subsetsContainer">
+      <div class="state">Loading subsets...</div>
+    </div>
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+  async function init() {
+    const container = document.getElementById('subsetsContainer');
+    try {
+      const [drops, subsetsData] = await Promise.all([
+        fetch('data/drops_catalog.json').then(r => r.json()),
+        fetch('data/subsets_catalog.json').then(r => r.json()),
+      ]);
+
+      const subsetsMap = new Map(subsetsData.map(s => [s.collection + '_' + s.schema, s.subsets]));
+
+      let totalSubsets = 0;
+      let html = '';
+
+      for (const drop of drops) {
+        const key = drop.collection + '_' + drop.schema;
+        const subsets = subsetsMap.get(key) || [];
+        if (!subsets.length) continue;
+
+        totalSubsets += subsets.length;
+
+        const cards = subsets.map(subset => {
+          const href = 'subset.html?c=' + encodeURIComponent(drop.collection)
+            + '&s=' + encodeURIComponent(drop.schema)
+            + '&subset=' + encodeURIComponent(subset);
+          const searchKey = [subset, drop.collection, drop.schema, drop.displayname].join(' ').toLowerCase();
+          return `<a class="subset-card" href="${href}" data-search="${searchKey.replace(/"/g, '&quot;')}">
+            <div class="subset-card-name">${subset}</div>
+            <div class="subset-card-collection">${drop.displayname}</div>
+          </a>`;
+        }).join('');
+
+        html += `<div class="collection-group">
+          <div class="collection-heading">${drop.displayname} — ${drop.schema}</div>
+          <div class="subsets-grid">${cards}</div>
+        </div>`;
+      }
+
+      document.getElementById('subsetsCount').innerHTML =
+        `<strong>${totalSubsets}</strong> subset${totalSubsets !== 1 ? 's' : ''}`;
+
+      container.innerHTML = html || '<div class="state">No subsets found.</div>';
+
+      document.getElementById('searchInput').addEventListener('input', function () {
+        const q = this.value.trim().toLowerCase();
+        container.querySelectorAll('.subset-card').forEach(card => {
+          card.style.display = (!q || card.dataset.search.includes(q)) ? '' : 'none';
+        });
+        container.querySelectorAll('.collection-group').forEach(group => {
+          const hasVisible = [...group.querySelectorAll('.subset-card')].some(c => c.style.display !== 'none');
+          group.style.display = hasVisible ? '' : 'none';
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `<div class="state state-error">Failed to load: ${err.message}</div>`;
+    }
+  }
+
+  init();
+</script>
+
+</body>
+</html>

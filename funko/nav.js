@@ -2,6 +2,7 @@ const NAV_LINKS = [
   { label: 'Redemptions', href: 'redemptions.html' },
   { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
   { label: 'Mint Rankings', href: 'mint-rankings.html' },
+  { label: 'Wallet Look Up', href: 'wallet.html' },
 ];
 
 const SECTION_NAME = 'Funko';

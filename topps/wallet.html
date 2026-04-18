@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Look Up — Topps Digital — PopInStock</title>
+  <meta name="description" content="Search any WAX wallet to explore their Topps Digital MLB collection stats, subset rankings, and card details." />
+  <link rel="canonical" href="https://www.popinstock.com/topps/wallet.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.popinstock.com/topps/wallet.html" />
+  <meta property="og:title" content="Wallet Look Up — Topps Digital — PopInStock" />
+  <meta property="og:description" content="Search any WAX wallet to explore their Topps Digital MLB collection stats, subset rankings, and card details." />
+  <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Wallet Look Up — Topps Digital — PopInStock" />
+  <meta name="twitter:description" content="Search any WAX wallet to explore their Topps Digital MLB collection stats, subset rankings, and card details." />
+  <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Controls ── */
+    .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 600px; }
+    .controls-row { display: flex; gap: 0.5rem; }
+    .wallet-input { flex: 1; }
+    .drop-select  { flex: 1; cursor: pointer; }
+
+    /* ── Wallet content ── */
+    #walletContent { display: flex; flex-direction: column; gap: 1.75rem; }
+    .wallet-address { font-size: clamp(1.1rem, 3vw, 1.5rem); font-weight: 800; color: var(--accent-light); letter-spacing: -0.5px; word-break: break-all; }
+
+    /* ── Stat accent colors + no-wrap labels ── */
+    .stat-card .stat-label { white-space: nowrap; }
+    .stat-card.nfts .stat-value      { color: var(--accent-light); }
+    .stat-card.complete .stat-value  { color: #007deb; }
+
+    /* ── Overview table ── */
+    .overview-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .overview-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .overview-table thead th { text-align: left; padding: 8px 14px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .overview-table thead th.col-r { text-align: right; }
+    .overview-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.15s; }
+    .overview-table tbody tr:last-child { border-bottom: none; }
+    .overview-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .overview-table tbody td { padding: 9px 14px; vertical-align: middle; }
+    .overview-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+    .ov-subset { font-weight: 600; color: var(--text-primary); font-size: 0.88rem; }
+    .ov-rank-1 { color: #ffd700 !important; }
+    .ov-rank-2 { color: #c0c0c0 !important; }
+    .ov-rank-3 { color: #cd7f32 !important; }
+
+    /* ── Subset context label ── */
+    .subset-context { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ── Set selector ── */
+    .set-selector-wrap { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .set-selector-label { font-size: 0.75rem; color: var(--text-secondary); }
+    .set-selector { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 0.82rem; padding: 0.35rem 0.7rem; outline: none; cursor: pointer; transition: border-color 0.2s; font-family: inherit; }
+    .set-selector:focus { border-color: rgba(245,158,11,0.45); }
+
+    /* ── Set summary ── */
+    .set-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+    .set-summary span { display: flex; flex-direction: column; gap: 2px; }
+    .set-summary strong { font-size: 1rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+    /* ── No set ── */
+    .no-set { padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 0.88rem; color: var(--text-secondary); }
+
+    /* ── Cards table ── */
+    .cards-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .cards-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; table-layout: fixed; }
+    .cards-table thead th { text-align: left; padding: 8px 12px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .cards-table thead th.col-r { text-align: right; }
+    .cards-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .cards-table tbody tr:last-child { border-bottom: none; }
+    .cards-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .cards-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .card-name { font-size: 0.85rem; color: var(--text-primary); }
+    .mint-num { font-weight: 700; color: var(--text-primary); }
+    .mint-num.mint-high { color: #e74c3c; }
+    .mint-num.mint-mid  { color: #f0a840; }
+    .mint-num.mint-low  { color: #4caf50; }
+
+    @media (max-width: 500px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Wallet <span class="accent">Look Up</span></div>
+      <div class="page-subtitle">Search any WAX wallet to explore their Topps Digital MLB collection stats, subset rankings, and card details.</div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet address…" spellcheck="false" autocomplete="off" />
+        <button class="lookup-btn" onclick="lookupWallet()">Look Up</button>
+      </div>
+      <div class="controls-row">
+        <select class="drop-select" id="subsetSelect" onchange="onSubsetChange()">
+          <option value="">— All Subsets —</option>
+        </select>
+        <button class="clear-btn" onclick="clearSubset()">Clear</button>
+      </div>
+    </div>
+
+    <div id="walletContent"></div>
+
+  </div>
+</div>
+
+<script src="data/supabase-config.js"></script>
+<script src="data/rarity-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  const params  = new URLSearchParams(location.search);
+  const initW   = params.get('w') || '';
+  const initSub = params.get('subset') || '';
+
+  let currentWallet  = '';
+  let cachedLbData   = null;
+  let cachedHolders  = null;
+  let tplMapCache    = new Map();
+
+  function fmt(n)    { return Number(n).toLocaleString(); }
+  function fmtDec(n) { return Number(n).toFixed(3); }
+  function enc(v)    { return encodeURIComponent(v); }
+
+  function rankClass(rank) {
+    if (rank === 1) return 'ov-rank-1';
+    if (rank === 2) return 'ov-rank-2';
+    if (rank === 3) return 'ov-rank-3';
+    return '';
+  }
+
+  function mintClass(mint, avgMint) {
+    if (mint <= avgMint * 0.5) return 'mint-low';
+    if (mint <= avgMint * 1.5) return 'mint-mid';
+    return 'mint-high';
+  }
+
+  async function sbFetch(table, qs) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+    const r = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'topps',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase error ' + r.status + ' on ' + table);
+    return r.json();
+  }
+
+  // ── Subset dropdown ────────────────────────────────────────────
+
+  function populateSubsetDropdown() {
+    const subsets = [...new Set(cachedLbData.map(r => r.subset))].sort();
+    let html = '<option value="">— All Subsets —</option>';
+    for (const s of subsets) html += `<option value="${s}">${s}</option>`;
+    const sel = document.getElementById('subsetSelect');
+    sel.innerHTML = html;
+    if (initSub && subsets.includes(initSub)) sel.value = initSub;
+  }
+
+  function clearSubset() {
+    document.getElementById('subsetSelect').value = '';
+    onSubsetChange();
+  }
+
+  function onSubsetChange() {
+    if (!currentWallet) return;
+    const subset = document.getElementById('subsetSelect').value;
+    const url = new URL(location.href);
+    url.searchParams.set('w', currentWallet);
+    if (subset) url.searchParams.set('subset', subset);
+    else url.searchParams.delete('subset');
+    history.replaceState(null, '', url.toString());
+    render();
+  }
+
+  function selectSubset(subset) {
+    document.getElementById('subsetSelect').value = subset;
+    onSubsetChange();
+  }
+
+  // ── Wallet loading ─────────────────────────────────────────────
+
+  function lookupWallet() {
+    const w = document.getElementById('walletInput').value.trim();
+    if (!w) return;
+    currentWallet = w;
+    document.getElementById('subsetSelect').innerHTML = '<option value="">— All Subsets —</option>';
+    const url = new URL(location.href);
+    url.searchParams.set('w', w);
+    url.searchParams.delete('subset');
+    history.replaceState(null, '', url.toString());
+    loadWallet(w);
+  }
+
+  async function loadWallet(wallet) {
+    document.getElementById('walletContent').innerHTML = '<div class="state">Loading…</div>';
+    try {
+      [cachedLbData, cachedHolders] = await Promise.all([
+        sbFetch('leaderboard_ratings',
+          'select=subset,set_number,rank,rating,avg_mint,set_size,lowest_mint' +
+          '&wallet=eq.' + enc(wallet) +
+          '&order=subset.asc,set_number.asc' +
+          '&limit=2000'),
+        sbFetch('top_holders',
+          'select=subset,total_assets' +
+          '&wallet=eq.' + enc(wallet) +
+          '&limit=500'),
+      ]);
+
+      populateSubsetDropdown();
+      render();
+    } catch (err) {
+      document.getElementById('walletContent').innerHTML =
+        `<div class="state state-error">Failed to load: ${err.message}</div>`;
+    }
+  }
+
+  // ── Render dispatcher ──────────────────────────────────────────
+
+  function render() {
+    const subset = document.getElementById('subsetSelect').value;
+    if (subset) renderSubsetDetail(subset);
+    else renderOverview();
+  }
+
+  // ── Shared header + overview stats ────────────────────────────
+
+  function buildWalletHeader(backHref) {
+    const backLink = backHref
+      ? `<a class="back-link" href="${backHref}">← Back to subset page</a>`
+      : '';
+    return `<div class="wallet-header">${backLink}<div class="wallet-address">${currentWallet}</div></div>`;
+  }
+
+  function buildOverviewStats() {
+    const totalNFTs     = cachedHolders.reduce((s, r) => s + (r.total_assets || 0), 0);
+    const completeSets  = cachedLbData.length;
+    const uniqueSubsets = new Set(cachedLbData.map(r => r.subset)).size;
+    return `<div class="section">
+      <div class="section-heading">Overview</div>
+      <div class="stats-grid">
+        <div class="stat-card nfts"><div class="stat-value">${fmt(totalNFTs)}</div><div class="stat-label">NFTs Owned</div></div>
+        <div class="stat-card"><div class="stat-value">${fmt(uniqueSubsets)}</div><div class="stat-label">Subsets Complete</div></div>
+        <div class="stat-card complete"><div class="stat-value">${fmt(completeSets)}</div><div class="stat-label">Total Sets</div></div>
+      </div>
+    </div>`;
+  }
+
+  // ── Overview (no subset selected) ─────────────────────────────
+
+  function renderOverview() {
+    const subsetMap = new Map();
+    for (const r of cachedLbData) {
+      if (!subsetMap.has(r.subset)) subsetMap.set(r.subset, []);
+      subsetMap.get(r.subset).push(r);
+    }
+
+    let rows = '';
+    for (const [subset, subRows] of [...subsetMap.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      const best = subRows[0];
+      const rc = rankClass(best.rank);
+      rows += `<tr onclick="selectSubset('${subset.replace(/'/g, "\\'")}')">
+        <td class="ov-subset">${subset}</td>
+        <td class="col-r"><span class="${rc}">#${best.rank}</span></td>
+        <td class="col-r">${subRows.length}</td>
+        <td class="col-r">${fmtDec(best.avg_mint)}</td>
+        <td class="col-r">${fmtDec(best.rating)}</td>
+      </tr>`;
+    }
+
+    const uniqueSubsets = subsetMap.size;
+    const tableHtml = rows
+      ? `<div class="overview-table-wrap"><table class="overview-table">
+          <thead><tr>
+            <th>Subset</th>
+            <th class="col-r">Best Rank</th>
+            <th class="col-r">Sets</th>
+            <th class="col-r">Avg Mint</th>
+            <th class="col-r">Rating</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`
+      : '<div class="no-set">No complete subsets found for this wallet.</div>';
+
+    document.getElementById('walletContent').innerHTML =
+      buildWalletHeader() +
+      buildOverviewStats() +
+      `<div class="section">
+        <div class="section-heading">Subset Rankings <span class="section-count">(${uniqueSubsets} subset${uniqueSubsets !== 1 ? 's' : ''})</span></div>
+        ${tableHtml}
+      </div>`;
+  }
+
+  // ── Subset detail ──────────────────────────────────────────────
+
+  function renderCardsTable(cards, avgMint) {
+    if (!cards || !Object.keys(cards).length) return '<div class="no-set">Card data not available.</div>';
+
+    const entries = Object.entries(cards)
+      .map(([tid, mint]) => ({ tid: parseInt(tid), mint, tpl: tplMapCache.get(parseInt(tid)) || {} }))
+      .sort((a, b) => (a.tpl.cardid ?? '').localeCompare(b.tpl.cardid ?? '', undefined, { numeric: true }));
+
+    const rows = entries.map(({ mint, tpl }) => {
+      const rarityHtml = tpl.rarity
+        ? `<span class="rarity-pill ${RARITY_CLASS[tpl.rarity] || ''}">${tpl.rarity}</span>`
+        : '';
+      return `<tr>
+        <td class="col-r" style="width:70px;font-size:0.78rem;color:var(--text-secondary)">${tpl.cardid ?? '—'}</td>
+        <td><div class="card-name">${tpl.name || '—'}</div></td>
+        <td style="width:120px">${rarityHtml}</td>
+        <td class="col-r" style="width:80px"><span class="mint-num ${mintClass(mint, avgMint)}">#${fmt(mint)}</span></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="cards-table-wrap"><table class="cards-table">
+      <thead><tr>
+        <th class="col-r" style="width:70px">Card ID</th>
+        <th>Card</th>
+        <th style="width:120px">Rarity</th>
+        <th class="col-r" style="width:80px">Mint</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
+  function switchSet(setNum) {
+    document.getElementById('walletContent').querySelectorAll('[id^="subset-set-"]').forEach(el => el.style.display = 'none');
+    const target = document.getElementById('subset-set-' + setNum);
+    if (target) target.style.display = '';
+  }
+
+  async function renderSubsetDetail(subset) {
+    const holderRow = cachedHolders.find(r => r.subset === subset);
+    const totalNFTs = holderRow ? holderRow.total_assets : 0;
+    const subsetRows = cachedLbData.filter(r => r.subset === subset);
+
+    // Render header + overview + subset stats immediately (no loading flash)
+    const subsetPageUrl = `subset.html?c=mlb.topps&s=series1&subset=${enc(subset)}`;
+    const setCount = subsetRows[0]?.set_size ?? 0;
+
+    document.getElementById('walletContent').innerHTML =
+      buildWalletHeader(subsetPageUrl) +
+      buildOverviewStats() +
+      `<div class="section">
+        <div class="section-heading">
+          <a href="${subsetPageUrl}" style="color:inherit;text-decoration:none">MLB Topps — Series 1 — ${subset}</a>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card nfts"><div class="stat-value">${fmt(totalNFTs)}</div><div class="stat-label">NFTs Owned</div></div>
+          <div class="stat-card complete"><div class="stat-value">${fmt(subsetRows.length)}</div><div class="stat-label">Complete Set${subsetRows.length !== 1 ? 's' : ''}</div></div>
+        </div>
+      </div>
+      <div class="section" id="cardsSection">
+        <div class="section-heading">Loading…</div>
+        <div class="state">Loading cards…</div>
+      </div>`;
+
+    try {
+      const fullRows = await sbFetch('leaderboard_ratings',
+        'select=set_number,rank,rating,avg_mint,set_size,lowest_mint,cards' +
+        '&wallet=eq.' + enc(currentWallet) +
+        '&subset=eq.' + enc(subset) +
+        '&order=set_number.asc'
+      );
+
+      const needed = new Set();
+      for (const row of fullRows) {
+        if (row.cards) Object.keys(row.cards).forEach(id => { if (!tplMapCache.has(parseInt(id))) needed.add(id); });
+      }
+      if (needed.size > 0) {
+        const tplData = await sbFetch('templates',
+          'select=template_id,name,rarity,cardid' +
+          '&template_id=in.(' + [...needed].join(',') + ')' +
+          '&limit=1000'
+        );
+        for (const t of tplData) tplMapCache.set(t.template_id, t);
+      }
+
+      const options = fullRows.map(r =>
+        `<option value="${r.set_number}">Set #${r.set_number} · Rank #${r.rank} · Avg ${fmtDec(r.avg_mint)} · Rating ${fmtDec(r.rating)}</option>`
+      ).join('');
+
+      const setBlocks = fullRows.map((r, i) => `
+        <div id="subset-set-${r.set_number}" style="${i > 0 ? 'display:none' : ''}">
+          <div class="set-summary">
+            <span>Set<strong>Set #${r.set_number}</strong></span>
+            <span>Rank<strong>#${r.rank}</strong></span>
+            <span>Lowest Mint<strong>#${fmt(r.lowest_mint)}</strong></span>
+            <span>Avg Mint<strong>${fmtDec(r.avg_mint)}</strong></span>
+            <span>Rating<strong>${fmtDec(r.rating)}</strong></span>
+          </div>
+          <div style="margin-top:0.65rem">${renderCardsTable(r.cards, r.avg_mint)}</div>
+        </div>`).join('');
+
+      const selectorHtml = fullRows.length > 1
+        ? `<div class="set-selector-wrap">
+            <span class="set-selector-label">Viewing:</span>
+            <select class="set-selector" onchange="switchSet(this.value)">${options}</select>
+          </div>`
+        : '';
+
+      const noSetsHtml = fullRows.length === 0
+        ? '<div class="no-set">No complete sets found for this subset.</div>' : '';
+
+      document.getElementById('cardsSection').innerHTML =
+        `<div class="section-heading">Subset <span class="section-count">(${setCount} cards)</span></div>
+        ${selectorHtml}
+        ${noSetsHtml}
+        ${setBlocks}`;
+
+    } catch (err) {
+      document.getElementById('cardsSection').innerHTML =
+        `<div class="state state-error">Failed to load cards: ${err.message}</div>`;
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────
+
+  document.getElementById('walletInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupWallet();
+  });
+
+  if (initW) {
+    document.getElementById('walletInput').value = initW;
+    currentWallet = initW;
+    loadWallet(initW);
+  }
+</script>
+
+</body>
+</html>
