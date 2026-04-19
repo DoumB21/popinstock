@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "popinstock.com" }],
+      "destination": "https://www.popinstock.com/$1",
+      "permanent": true
+    }
+  ]
+}
