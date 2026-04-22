@@ -161,6 +161,12 @@
     return '';
   }
 
+  function rankArrow(rank, snapshot) {
+    if (snapshot === null || snapshot === undefined || snapshot === rank) return '';
+    if (snapshot > rank) return `<span style="font-size:0.68rem;color:#22c55e;font-weight:700;margin-left:3px">↑${snapshot - rank}</span>`;
+    return `<span style="font-size:0.68rem;color:#ef4444;font-weight:700;margin-left:3px">↓${rank - snapshot}</span>`;
+  }
+
   function mintTierIcon(tier) {
     if (tier === 'single') return `<span class="mint-tier single" title="All mints single-digit (1–9)">◆</span>`;
     if (tier === 'double') return `<span class="mint-tier double" title="All mints double-digit or better (1–99)">◆</span>`;
@@ -178,7 +184,7 @@
         : '';
       const tierIcon = mintTierIcon(e.mint_tier);
       return `<tr onclick="window.location='${href}'">
-        <td class="rank-cell ${rankClass(pos)}">#${pos}</td>
+        <td class="rank-cell ${rankClass(pos)}">#${pos}${rankArrow(e.rank, e.rank_snapshot)}</td>
         <td class="wallet-cell" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${e.wallet}${setBadge}</td>
         <td class="col-r">${e.total_sets ?? 1}</td>
         <td class="col-r" style="display:flex;align-items:center;justify-content:space-between">${tierIcon}${fmtDec(e.avg_mint, 3)}</td>
@@ -188,7 +194,7 @@
 
     return `<div class="table-wrap"><table>
       <thead><tr>
-        <th style="width:52px">Rank</th>
+        <th style="width:72px">Rank</th>
         <th>Wallet</th>
         <th class="col-r" style="width:70px">Sets</th>
         <th class="col-r" style="width:100px">Avg Mint</th>
@@ -252,7 +258,7 @@
           '&schema_name=eq.' + enc(s) +
           '&subset=eq.' + enc(subset) + '&limit=1'),
         sbFetchWithCount('leaderboard_ratings',
-          'select=wallet,set_number,total_sets,rank,rating,avg_mint,mint_tier' +
+          'select=wallet,set_number,total_sets,rank,rating,avg_mint,mint_tier,rank_snapshot' +
           '&collection_name=eq.' + enc(c) +
           '&schema_name=eq.' + enc(s) +
           '&subset=eq.' + enc(subset) +
