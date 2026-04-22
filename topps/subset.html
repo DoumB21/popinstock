@@ -69,6 +69,11 @@
     .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
     .rating-cell { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
 
+    /* ── Mint tier icons ── */
+    .mint-tier { font-size: 0.78rem; cursor: default; flex-shrink: 0; line-height: 1; }
+    .mint-tier.single { color: #f0a840; }
+    .mint-tier.double { color: #3b82f6; }
+
     /* ── Show more ── */
     .show-more-wrap { text-align: center; padding-top: 0.5rem; }
 
@@ -156,6 +161,12 @@
     return '';
   }
 
+  function mintTierIcon(tier) {
+    if (tier === 'single') return `<span class="mint-tier single" title="All mints single-digit (1–9)">◆</span>`;
+    if (tier === 'double') return `<span class="mint-tier double" title="All mints double-digit or better (1–99)">◆</span>`;
+    return `<span class="mint-tier" style="visibility:hidden">◆</span>`;
+  }
+
   function renderLeaderboardTable(rows, total) {
     if (!rows.length) return '<div class="no-data">No complete sets found for this subset.</div>';
 
@@ -165,11 +176,12 @@
       const setBadge = e.set_number > 1
         ? `<span style="font-size:0.75rem;font-weight:700;color:var(--accent);background:rgba(192,120,40,0.12);border:1px solid rgba(192,120,40,0.3);border-radius:4px;padding:2px 7px;white-space:nowrap">Set #${e.set_number}</span>`
         : '';
+      const tierIcon = mintTierIcon(e.mint_tier);
       return `<tr onclick="window.location='${href}'">
         <td class="rank-cell ${rankClass(pos)}">#${pos}</td>
         <td class="wallet-cell" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${e.wallet}${setBadge}</td>
         <td class="col-r">${e.total_sets ?? 1}</td>
-        <td class="col-r">${fmtDec(e.avg_mint, 3)}</td>
+        <td class="col-r" style="display:flex;align-items:center;justify-content:space-between">${tierIcon}${fmtDec(e.avg_mint, 3)}</td>
         <td class="rating-cell">${fmtDec(e.rating, 3)}</td>
       </tr>`;
     }).join('');
@@ -240,7 +252,7 @@
           '&schema_name=eq.' + enc(s) +
           '&subset=eq.' + enc(subset) + '&limit=1'),
         sbFetchWithCount('leaderboard_ratings',
-          'select=wallet,set_number,total_sets,rank,rating,avg_mint' +
+          'select=wallet,set_number,total_sets,rank,rating,avg_mint,mint_tier' +
           '&collection_name=eq.' + enc(c) +
           '&schema_name=eq.' + enc(s) +
           '&subset=eq.' + enc(subset) +
