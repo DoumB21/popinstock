@@ -2,481 +2,769 @@
   {
     "collection": "alegnd.funko",
     "schema": "series1.drop",
-    "displayname": "Avatar Legends x Funko"
+    "displayname": "Avatar Legends x Funko",
+    "droppp_id": 57,
+    "droppp_slug": "avatar-legends-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "alegnd.funko",
     "schema": "series2.drop",
-    "displayname": "Avatar Legends x Funko"
+    "displayname": "Avatar Legends x Funko",
+    "droppp_id": 258,
+    "droppp_slug": "avatar-legends-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "alien.funko",
     "schema": "series1.drop",
-    "displayname": "Alien: Funko Digital Pop!"
+    "displayname": "Alien: Funko Digital Pop!",
+    "droppp_id": 225,
+    "droppp_slug": "alien-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "atime.funko",
     "schema": "series1.drop",
-    "displayname": "Adventure Time x Funko"
+    "displayname": "Adventure Time x Funko",
+    "droppp_id": 129,
+    "droppp_slug": "adventure-time-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "atime.funko",
     "schema": "series2.drop",
-    "displayname": "Adventure Time x Funko"
+    "displayname": "Adventure Time x Funko",
+    "droppp_id": 249,
+    "droppp_slug": "adventure-time-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "batman.funko",
     "schema": "series1.drop",
-    "displayname": "Batman 85th x Funko"
+    "displayname": "Batman 85th x Funko",
+    "droppp_id": 201,
+    "droppp_slug": "batman-85th-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "batman.funko",
     "schema": "series2.drop",
-    "displayname": "Batman 85th x Funko"
+    "displayname": "Batman 85th x Funko",
+    "droppp_id": 240,
+    "droppp_slug": "batman-85th-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "beetle.funko",
     "schema": "series1.drop",
-    "displayname": "Beetlejuice x Funko"
+    "displayname": "Beetlejuice x Funko",
+    "droppp_id": 237,
+    "droppp_slug": "beetlejuice-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "bigboy.funko",
     "schema": "series1.drop",
-    "displayname": "Big Boy x Funko"
+    "displayname": "Big Boy x Funko",
+    "droppp_id": 3,
+    "droppp_slug": "big-boy-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "bobrss.funko",
     "schema": "series1.drop",
-    "displayname": "Bob Ross x Funko"
+    "displayname": "Bob Ross x Funko",
+    "droppp_id": 15,
+    "droppp_slug": "bob-ross-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "bonus.funko",
     "schema": "bonus.drop",
-    "displayname": "Bonus Digital Pop!"
+    "displayname": "Bonus Digital Pop!",
+    "droppp_id": 36,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "bttf.funko",
     "schema": "series1.drop",
-    "displayname": "Back to the Future x Funko"
+    "displayname": "Back to the Future x Funko",
+    "droppp_id": 153,
+    "droppp_slug": "back-to-the-future-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "cn.funko",
     "schema": "series1.drop",
-    "displayname": "Cartoon Network x Funko"
+    "displayname": "Cartoon Network x Funko",
+    "droppp_id": 222,
+    "droppp_slug": "cartoon-network-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "daria.funko",
     "schema": "series1.drop",
-    "displayname": "Daria x Funko"
+    "displayname": "Daria x Funko",
+    "droppp_id": 207,
+    "droppp_slug": "daria-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "dc.funko",
     "schema": "comic.drop",
-    "displayname": "DC x Funko"
+    "displayname": "DC x Funko",
+    "droppp_id": 78,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "dc.funko",
     "schema": "series1.drop",
-    "displayname": "DC x Funko"
+    "displayname": "DC x Funko",
+    "droppp_id": 39,
+    "droppp_slug": "dc-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "dc.funko",
     "schema": "series2.drop",
-    "displayname": "DC x Funko"
+    "displayname": "DC x Funko",
+    "droppp_id": 66,
+    "droppp_slug": "dc-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "disvil.funko",
     "schema": "series1.drop",
-    "displayname": "Disney Villains: Funko Digital"
+    "displayname": "Disney Villains: Funko Digital",
+    "droppp_id": 282,
+    "droppp_slug": "disney-villains-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "dnd.funko",
     "schema": "series1.drop",
-    "displayname": "Dungeons & Dragons x Funko"
+    "displayname": "Dungeons & Dragons x Funko",
+    "droppp_id": 114,
+    "droppp_slug": "dungeons-and-dragons-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "dnd.funko",
     "schema": "series2.drop",
-    "displayname": "Dungeons & Dragons x Funko"
+    "displayname": "Dungeons & Dragons x Funko",
+    "droppp_id": 267,
+    "droppp_slug": "dungeons-and-dragons-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "elf.funko",
     "schema": "series1.drop",
-    "displayname": "Elf x Funko"
+    "displayname": "Elf x Funko",
+    "droppp_id": 96,
+    "droppp_slug": "elf-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "fan.funko",
     "schema": "cards.drop",
-    "displayname": "Funko Fan Rewards"
+    "displayname": "Funko Fan Rewards",
+    "droppp_id": 135,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "fest.funko",
     "schema": "series1.drop",
-    "displayname": "Festival of Fun"
+    "displayname": "Festival of Fun",
+    "droppp_id": 246,
+    "droppp_slug": "festival-of-fun-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "flint.funko",
     "schema": "series1.drop",
-    "displayname": "The Flintstones x Funko"
+    "displayname": "The Flintstones x Funko",
+    "droppp_id": 123,
+    "droppp_slug": "the-flintstones-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "fools.funko",
     "schema": "series1.drop",
-    "displayname": "Funko April Fools"
+    "displayname": "Funko April Fools",
+    "droppp_id": 120,
+    "droppp_slug": "funko-april-fools-series-2023",
+    "droppp_exclusive": false
   },
   {
     "collection": "fools.funko",
     "schema": "series2.drop",
-    "displayname": "Funko April Fools"
+    "displayname": "Funko April Fools",
+    "droppp_id": 186,
+    "droppp_slug": "funko-april-fools-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "fools.funko",
     "schema": "series3.drop",
-    "displayname": "Funko April Fools"
+    "displayname": "Funko April Fools",
+    "droppp_id": 264,
+    "droppp_slug": "funko-april-fools-series-3",
+    "droppp_exclusive": false
   },
   {
     "collection": "freddy.funko",
     "schema": "series1.drop",
-    "displayname": "Funko Halloween"
+    "displayname": "Funko Halloween",
+    "droppp_id": 9,
+    "droppp_slug": "funko-halloween-series-2021",
+    "droppp_exclusive": false
   },
   {
     "collection": "freddy.funko",
     "schema": "series2.drop",
-    "displayname": "Funko Halloween"
+    "displayname": "Funko Halloween",
+    "droppp_id": 84,
+    "droppp_slug": "funko-halloween-series-2022",
+    "droppp_exclusive": false
   },
   {
     "collection": "fright.funko",
     "schema": "series1.drop",
-    "displayname": "NYCC Fright Night"
+    "displayname": "NYCC Fright Night",
+    "droppp_id": 81,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "funday.funko",
     "schema": "series1.drop",
-    "displayname": "Funko Fundays 2022"
+    "displayname": "Funko Fundays 2022",
+    "droppp_id": 60,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "funime.funko",
     "schema": "series1.drop",
-    "displayname": "Funko Presents Funime & Cosplay"
+    "displayname": "Funko Presents Funime & Cosplay",
+    "droppp_id": 195,
+    "droppp_slug": "funime-and-cosplay-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "funime.funko",
     "schema": "series2.drop",
-    "displayname": "Funko Presents Funime & Cosplay"
+    "displayname": "Funko Presents Funime & Cosplay",
+    "droppp_id": 270,
+    "droppp_slug": "funime-and-cosplay-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "funko",
     "schema": "promo.drop",
-    "displayname": "Digital Pop! Promo"
+    "displayname": "Digital Pop! Promo",
+    "droppp_id": 1,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "gijoe.funko",
     "schema": "series1.drop",
-    "displayname": "G.I. JOE x Funko Digital Pop!"
+    "displayname": "G.I. JOE x Funko Digital Pop!",
+    "droppp_id": 228,
+    "droppp_slug": "gi-joe-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "got.funko",
     "schema": "series1.drop",
-    "displayname": "Game of Thrones x Funko"
+    "displayname": "Game of Thrones x Funko",
+    "droppp_id": 75,
+    "droppp_slug": "game-of-thrones-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "hb.funko",
     "schema": "series1.drop",
-    "displayname": "Hanna-Barbera x Funko"
+    "displayname": "Hanna-Barbera x Funko",
+    "droppp_id": 51,
+    "droppp_slug": "hanna-barbera-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "hb.funko",
     "schema": "series2.drop",
-    "displayname": "Hanna-Barbera x Funko"
+    "displayname": "Hanna-Barbera x Funko",
+    "droppp_id": 117,
+    "droppp_slug": "hanna-barbera-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "hotd.funko",
     "schema": "series1.drop",
-    "displayname": "House of the Dragon x Funko"
+    "displayname": "House of the Dragon x Funko",
+    "droppp_id": 111,
+    "droppp_slug": "house-of-the-dragon-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "invday.funko",
     "schema": "series1.drop",
-    "displayname": "Funko Press and Investor Day"
+    "displayname": "Funko Press and Investor Day",
+    "droppp_id": 69,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "it.funko",
     "schema": "series1.drop",
-    "displayname": "IT x Funko"
+    "displayname": "IT x Funko",
+    "droppp_id": 132,
+    "droppp_slug": "it-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "jasb.funko",
     "schema": "series1.drop",
-    "displayname": "Jay and Silent Bob x Funko"
+    "displayname": "Jay and Silent Bob x Funko",
+    "droppp_id": 54,
+    "droppp_slug": "jay-and-silent-bob-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "jpark.funko",
     "schema": "series1.drop",
-    "displayname": "Jurassic Park x Funko"
+    "displayname": "Jurassic Park x Funko",
+    "droppp_id": 147,
+    "droppp_slug": "jurassic-park-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "kllggs.funko",
     "schema": "series1.drop",
-    "displayname": "Kellogg's x Funko"
+    "displayname": "Kellogg's x Funko",
+    "droppp_id": 41,
+    "droppp_slug": "kelloggs-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "knight.funko",
     "schema": "series1.drop",
-    "displayname": "DC's The Dark Knight Trilogy x Funko"
+    "displayname": "DC's The Dark Knight Trilogy x Funko",
+    "droppp_id": 126,
+    "droppp_slug": "dc-the-dark-knight-trilogy-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "krofft.funko",
     "schema": "series1.drop",
-    "displayname": "Krofft Pictures x Funko"
+    "displayname": "Krofft Pictures x Funko",
+    "droppp_id": 102,
+    "droppp_slug": "sid-and-marty-krofft-pictures-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "looney.funko",
     "schema": "series1.drop",
-    "displayname": "Looney Tunes x Funko"
+    "displayname": "Looney Tunes x Funko",
+    "droppp_id": 72,
+    "droppp_slug": "looney-tunes-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "love.funko",
     "schema": "series1.drop",
-    "displayname": "Freddy's Dark Valentine"
+    "displayname": "Freddy's Dark Valentine",
+    "droppp_id": 252,
+    "droppp_slug": "freddys-dark-valentine-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "maiden.funko",
     "schema": "series1.drop",
-    "displayname": "Iron Maiden x Funko"
+    "displayname": "Iron Maiden x Funko",
+    "droppp_id": 4,
+    "droppp_slug": "iron-maiden-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "matrix.funko",
     "schema": "series1.drop",
-    "displayname": "The Matrix x Funko"
+    "displayname": "The Matrix x Funko",
+    "droppp_id": 90,
+    "droppp_slug": "the-matrix-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "mickey.funko",
     "schema": "series1.drop",
-    "displayname": "Disney's Mickey & Friends"
+    "displayname": "Disney's Mickey & Friends",
+    "droppp_id": 162,
+    "droppp_slug": "disneys-mickey-and-friends-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "mlpony.funko",
     "schema": "series1.drop",
-    "displayname": "My Little Pony x Funko"
+    "displayname": "My Little Pony x Funko",
+    "droppp_id": 48,
+    "droppp_slug": "my-little-pony-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "mlpony.funko",
     "schema": "series2.drop",
-    "displayname": "My Little Pony x Funko"
+    "displayname": "My Little Pony x Funko",
+    "droppp_id": 189,
+    "droppp_slug": "my-little-pony-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "ntoons.funko",
     "schema": "series1.drop",
-    "displayname": "Nicktoons x Funko"
+    "displayname": "Nicktoons x Funko",
+    "droppp_id": 20,
+    "droppp_slug": "nickelodeon-cartoons-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "ntoons.funko",
     "schema": "series2.drop",
-    "displayname": "Nicktoons x Funko"
+    "displayname": "Nicktoons x Funko",
+    "droppp_id": 108,
+    "droppp_slug": "nicktoons-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "plastk.funko",
     "schema": "series1.drop",
-    "displayname": "Fantastik Plastik"
+    "displayname": "Fantastik Plastik",
+    "droppp_id": 6,
+    "droppp_slug": "fantastik-plastik-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "plastk.funko",
     "schema": "series2.drop",
-    "displayname": "Fantastik Plastik"
+    "displayname": "Fantastik Plastik",
+    "droppp_id": 171,
+    "droppp_slug": "fantastik-plastik-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "potter.funko",
     "schema": "series1.drop",
-    "displayname": "Harry Potter x Funko"
+    "displayname": "Harry Potter x Funko",
+    "droppp_id": 168,
+    "droppp_slug": "harry-potter-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "ppg.funko",
     "schema": "series1.drop",
-    "displayname": "The Powerpuff Girls x Funko"
+    "displayname": "The Powerpuff Girls x Funko",
+    "droppp_id": 159,
+    "droppp_slug": "the-powerpuff-girls-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "pr.funko",
     "schema": "series1.drop",
-    "displayname": "Power Rangers x Funko"
+    "displayname": "Power Rangers x Funko",
+    "droppp_id": 63,
+    "droppp_slug": "power-rangers-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "pr.funko",
     "schema": "series2.drop",
-    "displayname": "Power Rangers x Funko"
+    "displayname": "Power Rangers x Funko",
+    "droppp_id": 141,
+    "droppp_slug": "power-rangers-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "ram.funko",
     "schema": "series1.drop",
-    "displayname": "Rick and Morty x Funko"
+    "displayname": "Rick and Morty x Funko",
+    "droppp_id": 216,
+    "droppp_slug": "rick-and-morty-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "rcade.droppp",
     "schema": "season.drop",
-    "displayname": "Droppp Arcade"
+    "displayname": "Droppp Arcade",
+    "droppp_id": 276,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "rcomic.funko",
     "schema": "series1.drop",
-    "displayname": "Retro Comics x Funko"
+    "displayname": "Retro Comics x Funko",
+    "droppp_id": 18,
+    "droppp_slug": "retro-comics-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "rtoys.funko",
     "schema": "series1.drop",
-    "displayname": "Hasbro Retro Toys x Funko"
+    "displayname": "Hasbro Retro Toys x Funko",
+    "droppp_id": 99,
+    "droppp_slug": "hasbro-retro-toys-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "scooby.funko",
     "schema": "series1.drop",
-    "displayname": "Scooby-Doo x Funko"
+    "displayname": "Scooby-Doo x Funko",
+    "droppp_id": 30,
+    "droppp_slug": "scooby-doo-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "scooby.funko",
     "schema": "series2.drop",
-    "displayname": "Scooby-Doo x Funko"
+    "displayname": "Scooby-Doo x Funko",
+    "droppp_id": 198,
+    "droppp_slug": "scooby-doo-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "sdance.funko",
     "schema": "promo.drop",
-    "displayname": "Space Dancer Freddy Funko"
+    "displayname": "Space Dancer Freddy Funko",
+    "droppp_id": 42,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "sjam.funko",
     "schema": "series1.drop",
-    "displayname": "Space Jam x Funko"
+    "displayname": "Space Jam x Funko",
+    "droppp_id": 174,
+    "droppp_slug": "space-jam-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "social.funko",
     "schema": "social.drop",
-    "displayname": "Social Media Freddy Funko"
+    "displayname": "Social Media Freddy Funko",
+    "droppp_id": 24,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "spooky.funko",
     "schema": "series1.drop",
-    "displayname": "Funkoween"
+    "displayname": "Funkoween",
+    "droppp_id": 156,
+    "droppp_slug": "funkoween-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "spooky.funko",
     "schema": "series2.drop",
-    "displayname": "Funkoween"
+    "displayname": "Funkoween",
+    "droppp_id": 234,
+    "droppp_slug": "funkoween-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "squid.funko",
     "schema": "series1.drop",
-    "displayname": "Squid Game x Funko"
+    "displayname": "Squid Game x Funko",
+    "droppp_id": 165,
+    "droppp_slug": "squid-game-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "stckr.droppp",
     "schema": "arcade.drop",
-    "displayname": "Droppp Stickers"
+    "displayname": "Droppp Stickers",
+    "droppp_id": 211,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "stckr.droppp",
     "schema": "events.drop",
-    "displayname": "Droppp Stickers"
+    "displayname": "Droppp Stickers",
+    "droppp_id": 211,
+    "droppp_slug": null,
+    "droppp_exclusive": false
   },
   {
     "collection": "steven.funko",
     "schema": "series1.drop",
-    "displayname": "Steven Universe x Funko"
+    "displayname": "Steven Universe x Funko",
+    "droppp_id": 144,
+    "droppp_slug": "steven-universe-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "strngr.funko",
     "schema": "series1.drop",
-    "displayname": "Stranger Things x Funko"
+    "displayname": "Stranger Things x Funko",
+    "droppp_id": 138,
+    "droppp_slug": "stranger-things-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "strngr.funko",
     "schema": "series2.drop",
-    "displayname": "Stranger Things x Funko"
+    "displayname": "Stranger Things x Funko",
+    "droppp_id": 231,
+    "droppp_slug": "stranger-things-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "strwrs.funko",
     "schema": "series1.drop",
-    "displayname": "Star Wars: Funko Digital Pop!"
+    "displayname": "Star Wars: Funko Digital Pop!",
+    "droppp_id": 183,
+    "droppp_slug": "star-wars-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "sttrek.funko",
     "schema": "series1.drop",
-    "displayname": "Star Trek x Funko"
+    "displayname": "Star Trek x Funko",
+    "droppp_id": 12,
+    "droppp_slug": "star-trek-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "sunny.funko",
     "schema": "series1.drop",
-    "displayname": "It's Always Sunny: Funko Digital"
+    "displayname": "It's Always Sunny: Funko Digital",
+    "droppp_id": 243,
+    "droppp_slug": "its-always-sunny-in-philadelphia-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "tcats.funko",
     "schema": "series1.drop",
-    "displayname": "Thundercats X Funko"
+    "displayname": "Thundercats X Funko",
+    "droppp_id": 279,
+    "droppp_slug": "thundercats-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "tda.funko",
     "schema": "series1.drop",
-    "displayname": "The Disney Afternoon"
+    "displayname": "The Disney Afternoon",
+    "droppp_id": 204,
+    "droppp_slug": "the-disney-afternoon-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "tformr.funko",
     "schema": "series1.drop",
-    "displayname": "Transformers x Funko"
+    "displayname": "Transformers x Funko",
+    "droppp_id": 27,
+    "droppp_slug": "transformers-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "tformr.funko",
     "schema": "series2.drop",
-    "displayname": "Transformers x Funko"
+    "displayname": "Transformers x Funko",
+    "droppp_id": 177,
+    "droppp_slug": "transformers-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "tmnt.funko",
     "schema": "series1.drop",
-    "displayname": "TMNT x Funko"
+    "displayname": "TMNT x Funko",
+    "droppp_id": 2,
+    "droppp_slug": "teenage-mutant-ninja-turtles-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "tmnt.funko",
     "schema": "series2.drop",
-    "displayname": "TMNT x Funko"
+    "displayname": "TMNT x Funko",
+    "droppp_id": 219,
+    "droppp_slug": "teenage-mutant-ninja-turtles-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "tng.funko",
     "schema": "series1.drop",
-    "displayname": "Star Trek: TNG x Funko"
+    "displayname": "Star Trek: TNG x Funko",
+    "droppp_id": 180,
+    "droppp_slug": "star-trek-the-next-generation-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "tstory.funko",
     "schema": "series1.drop",
-    "displayname": "Toy Story: Funko Digital Pop!"
+    "displayname": "Toy Story: Funko Digital Pop!",
+    "droppp_id": 255,
+    "droppp_slug": "toy-story-series-1",
+    "droppp_exclusive": true
   },
   {
     "collection": "ttgo.funko",
     "schema": "series1.drop",
-    "displayname": "DC Teen Titans Go! x Funko"
+    "displayname": "DC Teen Titans Go! x Funko",
+    "droppp_id": 105,
+    "droppp_slug": "dc-teen-titans-go-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "ttgo.funko",
     "schema": "series2.drop",
-    "displayname": "DC Teen Titans Go! x Funko"
+    "displayname": "DC Teen Titans Go! x Funko",
+    "droppp_id": 261,
+    "droppp_slug": "dc-teen-titans-go-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "umnstr.funko",
     "schema": "series1.drop",
-    "displayname": "Universal Monsters x Funko"
+    "displayname": "Universal Monsters x Funko",
+    "droppp_id": 213,
+    "droppp_slug": "universal-monsters-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "wb1oo.funko",
     "schema": "series1.drop",
-    "displayname": "WB 100th Anniversary x Funko"
+    "displayname": "WB 100th Anniversary x Funko",
+    "droppp_id": 150,
+    "droppp_slug": "wb-100th-anniversary-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "wbh.funko",
     "schema": "series1.drop",
-    "displayname": "WB Horror x Funko"
+    "displayname": "WB Horror x Funko",
+    "droppp_id": 87,
+    "droppp_slug": "wb-horror-series-1",
+    "droppp_exclusive": false
   },
   {
     "collection": "wbh.funko",
     "schema": "series2.drop",
-    "displayname": "WB Horror x Funko"
+    "displayname": "WB Horror x Funko",
+    "droppp_id": 192,
+    "droppp_slug": "wb-horror-series-2",
+    "droppp_exclusive": false
   },
   {
     "collection": "wca.funko",
     "schema": "series1.drop",
-    "displayname": "WC Avengers: Funko Digital Pop!"
+    "displayname": "WC Avengers: Funko Digital Pop!",
+    "droppp_id": 273,
+    "droppp_slug": "west-coast-avengers-series-1",
+    "droppp_exclusive": true
   }
 ]

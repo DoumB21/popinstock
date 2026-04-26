@@ -620,6 +620,7 @@ body::before {
 .r-royalty    { color: #007deb; border-color: rgba(  0, 125, 235, 0.35); background: rgba(  0, 125, 235, 0.08); }
 .r-1of1       { color: #ffd700; border-color: rgba(255, 215,   0, 0.35); background: rgba(255, 215,   0, 0.08); }
 .r-redeemable { color: #888;    border-color: rgba(136, 136, 136, 0.25); background: rgba(136, 136, 136, 0.06); }
+.r-pack       { color: #94a3b8; border-color: rgba(148, 163, 184, 0.35); background: rgba(148, 163, 184, 0.08); }
 
 
 /* ── Table base ── */
