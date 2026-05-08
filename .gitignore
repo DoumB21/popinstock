@@ -2,3 +2,9 @@
 
 # Internal reference files — not part of the published site
 WombatDB/
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local
+.env.production
