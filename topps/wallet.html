@@ -82,6 +82,12 @@
     .mint-num.mint-mid  { color: #f0a840; }
     .mint-num.mint-low  { color: #4caf50; }
 
+    /* ── Marketplace links ── */
+    .market-links { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+    .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
+    .market-link:hover { opacity: 1; }
+    .market-link img { width: 20px; height: 20px; object-fit: contain; }
+
     @media (max-width: 500px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
@@ -314,24 +320,33 @@
       .map(([tid, mint]) => ({ tid: parseInt(tid), mint, tpl: tplMapCache.get(parseInt(tid)) || {} }))
       .sort((a, b) => (a.tpl.cardid ?? '').localeCompare(b.tpl.cardid ?? '', undefined, { numeric: true }));
 
-    const rows = entries.map(({ mint, tpl }) => {
+    const rows = entries.map(({ tid, mint, tpl }) => {
       const rarityHtml = tpl.rarity
         ? `<span class="rarity-pill ${RARITY_CLASS[tpl.rarity] || ''}">${tpl.rarity}</span>`
+        : '';
+      const maxMint = mint - 1;
+      const marketLinks = maxMint >= 1
+        ? `<div class="market-links">
+            <a class="market-link" href="https://wax.atomichub.io/market?blockchain=wax-mainnet&max_template_mint=${maxMint}&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${tid}" target="_blank" rel="noopener noreferrer" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub"></a>
+            <a class="market-link" href="https://nfthive.io/market?term=${tid}&order_by=price_asc&offer_type=listings&max_mint=${maxMint}" target="_blank" rel="noopener noreferrer" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive"></a>
+          </div>`
         : '';
       return `<tr>
         <td class="col-r" style="width:70px;font-size:0.78rem;color:var(--text-secondary)">${tpl.cardid ?? '—'}</td>
         <td><div class="card-name">${tpl.name || '—'}</div></td>
         <td style="width:120px">${rarityHtml}</td>
         <td class="col-r" style="width:80px"><span class="mint-num ${mintClass(mint, avgMint)}">#${fmt(mint)}</span></td>
+        <td style="width:70px">${marketLinks}</td>
       </tr>`;
     }).join('');
 
     return `<div class="cards-table-wrap"><table class="cards-table">
       <thead><tr>
-        <th class="col-r" style="width:70px">Card ID</th>
+        <th class="col-r" style="width:70px">ID</th>
         <th>Card</th>
         <th style="width:120px">Rarity</th>
         <th class="col-r" style="width:80px">Mint</th>
+        <th style="width:70px">Market</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
