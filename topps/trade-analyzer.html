@@ -908,7 +908,7 @@
           return String(a.cardId).localeCompare(String(b.cardId));
         });
         lines.push(`[ ${wallet} ]`);
-        entries.forEach(e => lines.push(`  #${e.mint}  ${e.cardName} (ID: ${e.cardId})  —  ${e.dropLabel}`));
+        entries.forEach(e => lines.push(`  #${e.mint}  ${e.cardName} (ID: ${e.cardId})  [${e.rarity}]  —  ${e.dropLabel}`));
         lines.push('');
       });
       lines.pop();

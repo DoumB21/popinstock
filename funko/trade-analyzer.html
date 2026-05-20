@@ -289,7 +289,6 @@
     }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
-    .market-link img[src*="droppp"] { filter: brightness(0) invert(1); }
     .trade-entry-drop {
       font-size: 0.82rem;
       color: var(--text-secondary);
@@ -746,10 +745,9 @@
         const linksWrap = document.createElement('div');
         linksWrap.className = 'market-links';
         [
-          { href: `https://droppp.io/products/${tmpl.templateId}/`,                                                                                                                                                                                           icon: '../images/droppp.svg',      title: 'View on Droppp' },
-          { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&collection_name=${lastCollection}&template_id=${tmpl.templateId}&order=asc&primary_chain=wax-mainnet&schema_name=${lastSchema}&sort=template_mint&symbol=WAX&max_assets=1`,         icon: '../images/atomic.svg',      title: 'View on AtomicHub' },
-          { href: `https://neftyblocks.com/marketplace/listing?collection_name=${lastCollection}&order=asc&page=1&sort=template_mint&template_id=${tmpl.templateId}`,                                                                                         icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
-          { href: `https://nfthive.io/market?term=${tmpl.templateId}&order_by=mint_asc&offer_type=listings`,                                                                                                                                   icon: '../images/nfthive.svg',     title: 'View on NFTHive' },
+          { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&collection_name=${lastCollection}&template_id=${tmpl.templateId}&order=asc&primary_chain=wax-mainnet&schema_name=${lastSchema}&sort=template_mint&symbol=WAX&max_assets=1`, icon: '../images/atomic.svg',  title: 'View on AtomicHub' },
+          // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${lastCollection}&order=asc&page=1&sort=template_mint&template_id=${tmpl.templateId}`, icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
+          { href: `https://nfthive.io/market?term=${tmpl.templateId}&order_by=mint_asc&offer_type=listings`, icon: '../images/nfthive.svg', title: 'View on NFTHive' },
         ].forEach(({ href, icon, title }) => {
           const a = document.createElement('a');
           a.href = href;
@@ -1044,7 +1042,7 @@
           return String(a.cardId).localeCompare(String(b.cardId));
         });
         lines.push(`[ ${wallet} ]`);
-        entries.forEach(e => lines.push(`  #${e.mint}  ${e.cardName} (ID: ${e.cardId})  —  ${e.dropLabel}`));
+        entries.forEach(e => lines.push(`  #${e.mint}  ${e.cardName} (ID: ${e.cardId})  [${e.rarity}]  —  ${e.dropLabel}`));
         lines.push('');
       });
       lines.pop(); // remove trailing blank line
