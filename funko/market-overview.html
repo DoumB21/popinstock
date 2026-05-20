@@ -4,16 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Market Overview — Funko Digital — PopInStock</title>
-  <meta name="description" content="Browse current WAX marketplace prices for all Funko Digital Pop! cards and sets. Filter by rarity, collection, and name." />
+  <meta name="description" content="Browse current Droppp and WAX marketplace prices for all Funko Digital Pop! cards and sets. Filter by rarity, collection, and marketplace source." />
   <link rel="canonical" href="https://www.popinstock.com/funko/market-overview.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.popinstock.com/funko/market-overview.html" />
   <meta property="og:title" content="Market Overview — Funko Digital — PopInStock" />
-  <meta property="og:description" content="Browse current WAX marketplace prices for all Funko Digital Pop! cards and sets." />
+  <meta property="og:description" content="Browse current Droppp and WAX marketplace prices for all Funko Digital Pop! cards and sets." />
   <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Market Overview — Funko Digital — PopInStock" />
-  <meta name="twitter:description" content="Browse current WAX marketplace prices for all Funko Digital Pop! cards and sets." />
+  <meta name="twitter:description" content="Browse current Droppp and WAX marketplace prices for all Funko Digital Pop! cards and sets." />
   <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
   <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
   <link rel="stylesheet" href="../shared/global.css" />
@@ -92,6 +92,31 @@
     }
     .excl-label input[type="checkbox"] { cursor: pointer; accent-color: var(--accent-light); }
 
+    .source-label {
+      font-size: 0.88rem; color: var(--text-secondary); white-space: nowrap;
+    }
+
+    .source-control {
+      display: flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .source-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 0.82rem; font-weight: 600;
+      color: var(--text-secondary);
+      padding: 0.5rem 0.9rem;
+      transition: color 0.15s, background 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .source-btn + .source-btn { border-left: 1px solid var(--border); }
+    .source-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+    .source-btn.active { color: var(--accent-light); background: rgba(192,120,40,0.12); }
+
     /* ── Results meta ── */
     .results-meta {
       font-size: 0.8rem;
@@ -148,6 +173,7 @@
     .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
+    .market-link img[src*="droppp"] { filter: brightness(0) invert(1); }
 
     /* ── Load more ── */
     .load-more-wrap { text-align: center; padding-top: 0.5rem; }
@@ -167,7 +193,7 @@
 
     <div class="page-header">
       <div class="page-title">Market <span class="accent">Overview</span></div>
-      <div class="page-subtitle">Browse current WAX marketplace prices for Funko Digital Pop! cards and sets.</div>
+      <div class="page-subtitle">Browse current Droppp and WAX marketplace prices for Funko Digital Pop! cards and sets.</div>
     </div>
 
     <div class="rarity-tabs" id="rarityTabs"></div>
@@ -184,6 +210,13 @@
           <input type="checkbox" id="exclToggle" />
           Droppp Exclusive Only
         </label>
+        <span style="width:1px;height:20px;background:var(--border);flex-shrink:0;margin:0 0.5rem"></span>
+        <span class="source-label">Price source</span>
+        <div class="source-control">
+          <button class="source-btn active" data-source="all">All</button>
+          <button class="source-btn" data-source="droppp">Droppp</button>
+          <button class="source-btn" data-source="wax">WAX</button>
+        </div>
       </div>
     </div>
 
@@ -215,7 +248,8 @@ const RARITY_CLASS = {
   'Packs':'r-pack'
 };
 const LIMIT = 100;
-const ATOMIC_MARKET = 'https://wax.atomichub.io/market';
+const ATOMIC_MARKET  = 'https://wax.atomichub.io/market';
+const DROPPP_MARKET  = 'https://droppp.io/market/';
 
 /* ── State ── */
 const state = {
@@ -223,7 +257,7 @@ const state = {
   collection:  '',   // 'collection_name|schema_name'
   name:        '',
   exclusive:   false,
-  source:      'wax',
+  source:      'all',
   sortField:    'price',  // 'price' | 'id'
   sortDir:      'asc',
   setSortField: 'drop',   // 'drop' | 'price'
@@ -408,10 +442,12 @@ function buildCardTable(rows, append) {
     const sch = row.schema_name;
 
     const links = [
+      { href: `https://droppp.io/products/${tid}/`,
+        icon: '../images/droppp.svg', title: 'View on Droppp' },
       { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&collection_name=${enc(col)}&template_id=${enc(tid)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(sch)}&sort=price&symbol=WAX`,
         icon: '../images/atomic.svg', title: 'View on AtomicHub' },
-      // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${enc(col)}&order=asc&page=1&sort=price&template_id=${enc(tid)}`,
-      //   icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
+      { href: `https://neftyblocks.com/marketplace/listing?collection_name=${enc(col)}&order=asc&page=1&sort=price&template_id=${enc(tid)}`,
+        icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
       { href: `https://nfthive.io/market?term=${enc(tid)}&order_by=price_asc&offer_type=listings`,
         icon: '../images/nfthive.svg', title: 'View on NFTHive' },
     ];
@@ -486,6 +522,10 @@ function buildSetTable(rows) {
     const cls = priced === count ? 'priced-all' : (priced > 0 ? 'priced-partial' : 'priced-none');
 
     const excl = row.droppp_exclusive ? '<span class="excl-badge">Excl</span>' : '';
+
+    const dlnk = row.droppp_slug
+      ? `<a class="market-link" href="${DROPPP_MARKET}${enc(row.droppp_slug)}/" target="_blank" rel="noopener noreferrer" title="View on Droppp"><img src="../images/droppp.svg" alt="Droppp"></a>`
+      : '';
 
     h += `<tr>
       <td>
@@ -673,6 +713,18 @@ async function init() {
     state.exclusive = e.target.checked;
     state.offset = 0; tableRows = [];
     loadData();
+  });
+
+  document.querySelectorAll('.source-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.source === state.source) return;
+      state.source = btn.dataset.source;
+      document.querySelectorAll('.source-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.source === state.source)
+      );
+      state.offset = 0; tableRows = [];
+      loadData();
+    });
   });
 
   document.getElementById('loadMoreBtn').addEventListener('click', () => {
