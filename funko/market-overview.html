@@ -142,6 +142,10 @@
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
 
+    /* ── Set row drill-through ── */
+    .set-row-link { font-size: 0.68rem; opacity: 0; margin-left: 5px; transition: opacity 0.15s; color: var(--accent-light); }
+    .market-table tbody tr:hover .set-row-link { opacity: 0.8; }
+
     /* ── Load more ── */
     .load-more-wrap { text-align: center; padding-top: 0.5rem; }
 
@@ -473,9 +477,9 @@ function buildSetTable(rows) {
 
     const excl = row.droppp_exclusive ? '<span class="excl-badge">Excl</span>' : '';
 
-    h += `<tr>
+    h += `<tr data-col="${row.collection_name}" data-sch="${row.schema_name}" style="cursor:pointer">
       <td>
-        <div class="cell-drop-name">${row.drop_displayname||row.collection_name}${excl}</div>
+        <div class="cell-drop-name">${row.drop_displayname||row.collection_name}${excl}<span class="set-row-link">↗</span></div>
         <div class="cell-drop-schema">${schemaLabel(row.schema_name)}</div>
       </td>
       <td class="col-c"><span class="cell-priced ${cls}">${priced} / ${count}</span></td>
@@ -487,6 +491,13 @@ function buildSetTable(rows) {
   wrap.innerHTML = h;
   wrap.querySelector('#setDropHdr').addEventListener('click',  () => toggleSetSort('drop'));
   wrap.querySelector('#setPriceHdr').addEventListener('click', () => toggleSetSort('price'));
+
+  const setParam = isRoyalty ? 'royalty' : 'mastery';
+  wrap.querySelectorAll('tbody tr[data-col]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      window.open(`set-detail.html?collection=${enc(tr.dataset.col)}&schema=${enc(tr.dataset.sch)}&set=${setParam}`, '_blank');
+    });
+  });
 }
 
 /* ── Sort toggles ── */
