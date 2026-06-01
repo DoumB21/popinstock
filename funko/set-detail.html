@@ -21,6 +21,7 @@
     .drop-schema-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
     .drop-name { font-size: clamp(1.2rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
     .drop-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    .drop-release-date { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
 
     /* ── Content ── */
     .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 2rem; }
@@ -122,6 +123,10 @@ let allRows = [];
 function enc(v)    { return encodeURIComponent(v); }
 function fmt(n)    { return Number(n).toLocaleString(); }
 function fmtUsd(v) { return v == null ? null : '$' + Number(v).toFixed(2); }
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
 function fmtAgo(ts) {
   if (!ts) return '';
   const d = Math.floor((Date.now() - new Date(ts)) / 60000);
@@ -281,7 +286,7 @@ async function init() {
         'select=collection_name,display_name,img,logo,banner' +
         '&collection_name=eq.' + enc(COL) + '&limit=1'),
       sbFetch('schema_stats',
-        'select=total_assets,total_burned,unique_owners,total_templates,rarity_breakdown,updated_at' +
+        'select=total_assets,total_burned,unique_owners,total_templates,rarity_breakdown,created_at,updated_at' +
         '&collection_name=eq.' + enc(COL) +
         '&schema_name=eq.' + enc(SCH) + '&limit=1'),
       sbFetch('top_holders',
@@ -370,7 +375,7 @@ async function init() {
       <div class="drop-header${bannerCid ? ' has-banner' : ''}">
         ${logoHtml}
         <div class="drop-header-info">
-          <a class="back-link" href="market-overview.html">← Market Overview</a>
+          ${stats.created_at ? `<div class="drop-release-date">Released ${fmtDate(stats.created_at)}</div>` : ''}
           <div class="drop-schema-label">${label}</div>
           <div class="drop-name">${dropName}</div>
           <div class="drop-meta">${COL}</div>
