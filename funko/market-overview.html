@@ -85,13 +85,6 @@
     .filter-row .filter-select { min-width: 180px; flex: 1; max-width: 320px; }
     .filter-row .name-search   { min-width: 160px; flex: 1; max-width: 260px; }
 
-    .excl-label {
-      display: flex; align-items: center; gap: 0.4rem;
-      font-size: 0.88rem; color: var(--text-secondary);
-      cursor: pointer; white-space: nowrap;
-    }
-    .excl-label input[type="checkbox"] { cursor: pointer; accent-color: var(--accent-light); }
-
     /* ── Results meta ── */
     .results-meta {
       font-size: 0.8rem;
@@ -179,12 +172,6 @@
         </select>
         <input class="name-search search-input" id="nameSearch" type="search" placeholder="Search cards…" autocomplete="off" />
       </div>
-      <div class="filter-row">
-        <label class="excl-label">
-          <input type="checkbox" id="exclToggle" />
-          Droppp Exclusive Only
-        </label>
-      </div>
     </div>
 
     <div class="results-meta" id="resultsMeta"></div>
@@ -222,7 +209,6 @@ const state = {
   rarity:      'All',
   collection:  '',   // 'collection_name|schema_name'
   name:        '',
-  exclusive:   false,
   source:      'wax',
   sortField:    'price',  // 'price' | 'id'
   sortDir:      'asc',
@@ -553,7 +539,6 @@ function buildCardQuery(offset) {
   }
 
   if (state.name.trim()) parts.push('name=ilike.*' + enc(state.name.trim()) + '*');
-  if (state.exclusive)   parts.push('droppp_exclusive=eq.true');
 
   const pc = priceCol();
   if (state.sortField === 'price') {
@@ -590,7 +575,6 @@ async function loadData(append) {
         const [col, schema] = state.collection.split('|');
         rows = rows.filter(r => r.collection_name === col && r.schema_name === schema);
       }
-      if (state.exclusive) rows = rows.filter(r => r.droppp_exclusive);
 
       rows = [...rows].sort((a, b) =>
         (a.drop_displayname || '').localeCompare(b.drop_displayname || '')
@@ -667,12 +651,6 @@ async function init() {
       state.offset = 0; tableRows = [];
       loadData();
     }, 300);
-  });
-
-  document.getElementById('exclToggle').addEventListener('change', e => {
-    state.exclusive = e.target.checked;
-    state.offset = 0; tableRows = [];
-    loadData();
   });
 
   document.getElementById('loadMoreBtn').addEventListener('click', () => {
