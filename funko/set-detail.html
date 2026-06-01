@@ -7,15 +7,31 @@
   <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
   <link rel="stylesheet" href="../shared/global.css" />
   <style>
-    .content { display: flex; flex-direction: column; gap: 1.25rem; }
-    .page-header { margin-bottom: 0; }
+    /* ── Banner ── */
+    .drop-banner-wrap { position: relative; width: 100%; height: 200px; overflow: hidden; }
+    .drop-banner-img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
+    .drop-banner-fade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.5) 50%, var(--bg) 100%); }
+
+    /* ── Drop header ── */
+    .drop-header { display: flex; align-items: flex-start; gap: 1.25rem; padding: 1.5rem 1.5rem 0.5rem; max-width: 1100px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .drop-header.has-banner { padding-top: 0; margin-top: -160px; position: relative; z-index: 1; }
+    .drop-logo { width: 72px; height: 72px; border-radius: 10px; object-fit: contain; background: #0d0d18; border: 1px solid var(--border); flex-shrink: 0; }
+    .drop-logo-placeholder { width: 72px; height: 72px; border-radius: 10px; background: #0d0d18; border: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #333; font-size: 1.5rem; }
+    .drop-header-info { display: flex; flex-direction: column; gap: 0.25rem; padding-top: 4px; }
+    .drop-schema-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+    .drop-name { font-size: clamp(1.2rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+    .drop-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ── Content ── */
+    .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+    /* ── Rarity pills ── */
+    .rarity-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rarity-pill { padding: 5px 13px; gap: 6px; font-size: 0.82rem; }
+    .pill-count { opacity: 0.7; font-weight: 500; }
 
     /* ── Results meta ── */
-    .results-meta {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      min-height: 1.2em;
-    }
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
     .results-meta strong { color: var(--text-primary); }
     .results-meta .updated { opacity: 0.65; }
 
@@ -62,51 +78,39 @@
     .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
+
+    @media (max-width: 600px) {
+      .drop-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+      .drop-header.has-banner { margin-top: -110px; }
+      .drop-banner-wrap { height: 140px; }
+    }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
 <body>
 
-<div class="page">
-  <div class="content">
-
-    <div class="page-header">
-      <div class="page-title" id="pageTitle">Set <span class="accent">Detail</span></div>
-      <div class="page-subtitle" id="pageSubtitle"></div>
-    </div>
-
-    <div class="results-meta" id="resultsMeta"></div>
-
-    <div class="table-wrap" id="tableContainer">
-      <div class="status-wrap"><div class="spinner"></div><div class="status-text">Loading…</div></div>
-    </div>
-
-  </div>
+<div class="page" id="pageRoot">
+  <div class="state">Loading…</div>
 </div>
 
 <script src="../shared/supabase-config.js"></script>
 <script src="nav.js"></script>
 <script>
-/* ── URL params ── */
-const params     = new URLSearchParams(location.search);
-const COL        = params.get('collection') || '';
-const SCH        = params.get('schema')     || '';
-const SET        = params.get('set')        || 'royalty'; // 'royalty' | 'mastery'
-
-const ROYALTY_RARITIES = ['Common','Uncommon','Rare','Epic'];
-const MASTERY_RARITIES = ['Common','Uncommon','Rare','Epic','Ultra','Legendary','Grail','Mythic','Royalty','Series'];
-const SET_RARITIES     = SET === 'mastery' ? MASTERY_RARITIES : ROYALTY_RARITIES;
-const SET_LABEL        = SET === 'mastery' ? 'Mastery Set' : 'Royalty Set';
-
+const RARITY_ORDER = ['Common','Uncommon','Rare','Epic','Series','Ultra','Legendary','Grail','Mythic','Royalty','1 of 1','Redeemable','Packs'];
 const RARITY_CLASS = {
   'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
   'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
   'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1','Redeemable':'r-redeemable',
+  'Packs':'r-pack',
 };
 const ATOMIC_MARKET = 'https://wax.atomichub.io/market';
 
-const state = { sortField: 'price', sortDir: 'asc' };
+const params = new URLSearchParams(location.search);
+const COL    = params.get('collection') || '';
+const SCH    = params.get('schema')     || '';
+
+const state = { sortField: 'id', sortDir: 'asc' };
 let allRows = [];
 
 /* ── Helpers ── */
@@ -125,10 +129,24 @@ function schemaLabel(sn) {
   const m = b.match(/^series(\d+)$/);
   return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
 }
+function cleanName(name) {
+  return (name || '')
+    .replace(/^Funko Presents\s+/i, '')
+    .replace(/:\s*Funko Digital Pop!$/i, '')
+    .replace(/\s+X\s+Funko$/i, '')
+    .replace(/:\s*Funko Digital$/i, '')
+    .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+}
+function ipfsUrl(cid) {
+  if (!cid) return '';
+  if (cid.startsWith('http')) return cid;
+  if (cid.startsWith('ipfs://')) return IPFS_GATEWAY + cid.slice(7);
+  return IPFS_GATEWAY + cid;
+}
 
 /* ── Supabase fetch ── */
-async function sbFetch(qs) {
-  const url = SUPABASE_URL + '/rest/v1/funko_market_prices?' + qs;
+async function sbFetch(table, qs) {
+  const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
   const r = await fetch(url, {
     headers: {
       'apikey':         SUPABASE_ANON_KEY,
@@ -136,7 +154,7 @@ async function sbFetch(qs) {
       'Accept-Profile': 'funko',
     }
   });
-  if (!r.ok) throw new Error('Supabase ' + r.status);
+  if (!r.ok) throw new Error('Supabase ' + r.status + ' on ' + table);
   return r.json();
 }
 
@@ -243,36 +261,97 @@ function buildTable() {
 
 /* ── Init ── */
 async function init() {
+  const root = document.getElementById('pageRoot');
+
   if (!COL || !SCH) {
-    document.getElementById('tableContainer').innerHTML =
-      '<div class="no-results">Missing collection or schema parameter.</div>';
+    root.innerHTML = '<div class="state state-error">Missing collection or schema parameter.</div>';
     return;
   }
 
   try {
-    const rarityFilter = 'rarity=in.(' + SET_RARITIES.map(enc).join(',') + ')';
-    const data = await sbFetch(
-      'select=template_id,collection_name,schema_name,drop_displayname,droppp_exclusive,' +
-      'name,rarity,cardid,wax_price_usd,fetched_at' +
-      '&collection_name=eq.' + enc(COL) +
-      '&schema_name=eq.' + enc(SCH) +
-      '&' + rarityFilter +
-      '&order=cardid.asc' +
-      '&limit=1000'
-    );
-    allRows = data;
+    const [colData, statsData, cardData] = await Promise.all([
+      sbFetch('collections',
+        'select=collection_name,display_name,img,logo,banner' +
+        '&collection_name=eq.' + enc(COL) + '&limit=1'),
+      sbFetch('schema_stats',
+        'select=rarity_breakdown,total_templates' +
+        '&collection_name=eq.' + enc(COL) +
+        '&schema_name=eq.' + enc(SCH) + '&limit=1'),
+      sbFetch('funko_market_prices',
+        'select=template_id,collection_name,schema_name,drop_displayname,droppp_exclusive,' +
+        'name,rarity,cardid,wax_price_usd,fetched_at' +
+        '&collection_name=eq.' + enc(COL) +
+        '&schema_name=eq.' + enc(SCH) +
+        '&order=cardid.asc&limit=1000'),
+    ]);
 
-    const dropName = data.length > 0 ? (data[0].drop_displayname || COL) : COL;
-    document.title = `${dropName} — ${SET_LABEL} — PopInStock`;
-    document.getElementById('pageTitle').innerHTML =
-      `${dropName} — <span class="accent">${SET_LABEL}</span>`;
-    document.getElementById('pageSubtitle').textContent =
-      `${schemaLabel(SCH)} · ${SET_RARITIES.join(', ')}`;
+    allRows = cardData;
+
+    const col        = colData[0]   || {};
+    const stats      = statsData[0] || {};
+    const dropName   = cleanName(col.display_name || (cardData[0]?.drop_displayname) || COL);
+    const label      = schemaLabel(SCH);
+
+    document.title = `${dropName} ${label} — Market — PopInStock`;
+
+    // Banner
+    const bannerCid  = col.banner;
+    const bannerHtml = bannerCid
+      ? `<div class="drop-banner-wrap">
+           <img class="drop-banner-img" src="${ipfsUrl(bannerCid)}" alt="" onerror="this.closest('.drop-banner-wrap').remove()">
+           <div class="drop-banner-fade"></div>
+         </div>`
+      : '';
+
+    // Logo
+    const logoCid  = col.logo || col.img;
+    const logoHtml = logoCid
+      ? `<img class="drop-logo" src="${ipfsUrl(logoCid)}" alt="${dropName}" onerror="this.outerHTML='<div class=\\'drop-logo-placeholder\\'>&#9670;</div>'">`
+      : `<div class="drop-logo-placeholder">&#9670;</div>`;
+
+    // Rarity breakdown
+    const rarityCounts = stats.rarity_breakdown || {};
+    const rarityPills  = RARITY_ORDER
+      .filter(r => rarityCounts[r])
+      .map(r => `<span class="rarity-pill ${RARITY_CLASS[r] || ''}">${r} <span class="pill-count">${rarityCounts[r]}</span></span>`)
+      .join('');
+    const extraPills = Object.entries(rarityCounts)
+      .filter(([r]) => !RARITY_ORDER.includes(r))
+      .map(([r, n]) => `<span class="rarity-pill">${r} <span class="pill-count">${n}</span></span>`)
+      .join('');
+
+    const raritySection = (rarityPills || extraPills)
+      ? `<div class="section">
+           <div class="section-heading">Rarity Breakdown</div>
+           <div class="rarity-pills">${rarityPills}${extraPills}</div>
+         </div>`
+      : '';
+
+    root.innerHTML = `
+      ${bannerHtml}
+      <div class="drop-header${bannerCid ? ' has-banner' : ''}">
+        ${logoHtml}
+        <div class="drop-header-info">
+          <div class="drop-schema-label">${label}</div>
+          <div class="drop-name">${dropName}</div>
+          <div class="drop-meta">${COL}</div>
+        </div>
+      </div>
+
+      <div class="content">
+        ${raritySection}
+
+        <div class="section">
+          <div class="section-heading">Market Prices</div>
+          <div class="results-meta" id="resultsMeta"></div>
+          <div class="table-wrap" id="tableContainer"></div>
+        </div>
+      </div>`;
 
     buildTable();
+
   } catch (err) {
-    document.getElementById('tableContainer').innerHTML =
-      `<div class="state state-error">Failed to load: ${err.message}</div>`;
+    root.innerHTML = `<div class="state state-error">Failed to load: ${err.message}</div>`;
   }
 }
 

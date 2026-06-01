@@ -492,10 +492,9 @@ function buildSetTable(rows) {
   wrap.querySelector('#setDropHdr').addEventListener('click',  () => toggleSetSort('drop'));
   wrap.querySelector('#setPriceHdr').addEventListener('click', () => toggleSetSort('price'));
 
-  const setParam = isRoyalty ? 'royalty' : 'mastery';
   wrap.querySelectorAll('tbody tr[data-col]').forEach(tr => {
     tr.addEventListener('click', () => {
-      window.open(`set-detail.html?collection=${enc(tr.dataset.col)}&schema=${enc(tr.dataset.sch)}&set=${setParam}`, '_blank');
+      window.open(`set-detail.html?collection=${enc(tr.dataset.col)}&schema=${enc(tr.dataset.sch)}`, '_blank');
     });
   });
 }
