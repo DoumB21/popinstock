@@ -9,11 +9,11 @@
   <style>
     /* ── Banner ── */
     .drop-banner-wrap { position: relative; width: 100%; height: 200px; overflow: hidden; }
-    .drop-banner-img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
+    .drop-banner-img  { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
     .drop-banner-fade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.5) 50%, var(--bg) 100%); }
 
     /* ── Drop header ── */
-    .drop-header { display: flex; align-items: flex-start; gap: 1.25rem; padding: 1.5rem 1.5rem 0.5rem; max-width: 1100px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .drop-header { display: flex; align-items: flex-start; gap: 1.25rem; padding: 1.5rem 1.5rem 0.5rem; max-width: 1100px; margin: 0 auto; width: 100%; }
     .drop-header.has-banner { padding-top: 0; margin-top: -160px; position: relative; z-index: 1; }
     .drop-logo { width: 72px; height: 72px; border-radius: 10px; object-fit: contain; background: #0d0d18; border: 1px solid var(--border); flex-shrink: 0; }
     .drop-logo-placeholder { width: 72px; height: 72px; border-radius: 10px; background: #0d0d18; border: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #333; font-size: 1.5rem; }
@@ -23,12 +23,16 @@
     .drop-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
 
     /* ── Content ── */
-    .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 1.5rem; }
+    .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Stat card colors ── */
+    .stat-card.burned .stat-value { color: #e74c3c; }
+    .stat-card.owners .stat-value { color: #3b82f6; }
 
     /* ── Rarity pills ── */
     .rarity-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-    .rarity-pill { padding: 5px 13px; gap: 6px; font-size: 0.82rem; }
-    .pill-count { opacity: 0.7; font-weight: 500; }
+    .rarity-pill  { padding: 5px 13px; gap: 6px; font-size: 0.82rem; }
+    .pill-count   { opacity: 0.7; font-weight: 500; }
 
     /* ── Results meta ── */
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
@@ -43,7 +47,7 @@
       color: var(--text-secondary); background: var(--bg-card);
       border-bottom: 1px solid var(--border); white-space: nowrap;
     }
-    .market-table thead th.col-r { text-align: right; }
+    .market-table thead th.col-r  { text-align: right; }
     .market-table thead th.sortable { cursor: pointer; user-select: none; }
     .market-table thead th.sortable:hover { color: var(--text-primary); }
     .market-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
@@ -59,10 +63,10 @@
     .market-table tbody tr.row-unlisted:hover { background: rgba(220,60,60,0.09); opacity: 0.8; }
 
     /* ── Table cell content ── */
-    .cell-card-name { font-size: 0.85rem; color: var(--text-primary); }
-    .cell-drop-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+    .cell-card-name  { font-size: 0.85rem; color: var(--text-primary); }
+    .cell-drop-name  { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
     .cell-drop-schema { font-size: 0.62rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
-    .cell-price { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .cell-price      { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
     .cell-price.price-null { color: rgba(255,255,255,0.2); font-weight: 400; font-size: 0.82rem; }
 
     .excl-badge {
@@ -75,7 +79,7 @@
 
     /* ── Marketplace link icons ── */
     .market-links { display: flex; align-items: center; gap: 1rem; justify-content: flex-end; }
-    .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
+    .market-link  { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
 
@@ -83,6 +87,7 @@
       .drop-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
       .drop-header.has-banner { margin-top: -110px; }
       .drop-banner-wrap { height: 140px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -115,6 +120,7 @@ let allRows = [];
 
 /* ── Helpers ── */
 function enc(v)    { return encodeURIComponent(v); }
+function fmt(n)    { return Number(n).toLocaleString(); }
 function fmtUsd(v) { return v == null ? null : '$' + Number(v).toFixed(2); }
 function fmtAgo(ts) {
   if (!ts) return '';
@@ -139,7 +145,7 @@ function cleanName(name) {
 }
 function ipfsUrl(cid) {
   if (!cid) return '';
-  if (cid.startsWith('http')) return cid;
+  if (cid.startsWith('http'))   return cid;
   if (cid.startsWith('ipfs://')) return IPFS_GATEWAY + cid.slice(7);
   return IPFS_GATEWAY + cid;
 }
@@ -190,9 +196,10 @@ function toggleSort(field) {
 function buildTable() {
   const wrap = document.getElementById('tableContainer');
   const meta = document.getElementById('resultsMeta');
-  const rows = sortRows(allRows);
+  if (!wrap) return;
 
-  const listed    = rows.filter(r => r.wax_price_usd != null).length;
+  const rows     = sortRows(allRows);
+  const listed   = rows.filter(r => r.wax_price_usd != null).length;
   const fetchedAt = rows.length > 0 ? rows[0].fetched_at : null;
 
   const idSi    = state.sortField === 'id'    ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
@@ -255,7 +262,7 @@ function buildTable() {
   wrap.querySelector('#idHdr').addEventListener('click',    () => toggleSort('id'));
   wrap.querySelector('#priceHdr').addEventListener('click', () => toggleSort('price'));
 
-  meta.innerHTML = `<strong>${listed}</strong> of <strong>${rows.length}</strong> cards listed` +
+  if (meta) meta.innerHTML = `<strong>${listed}</strong> of <strong>${rows.length}</strong> cards listed` +
     (fetchedAt ? ` <span class="updated">· updated ${fmtAgo(fetchedAt)}</span>` : '');
 }
 
@@ -269,14 +276,19 @@ async function init() {
   }
 
   try {
-    const [colData, statsData, cardData] = await Promise.all([
+    const [colData, statsData, officialData, cardData] = await Promise.all([
       sbFetch('collections',
         'select=collection_name,display_name,img,logo,banner' +
         '&collection_name=eq.' + enc(COL) + '&limit=1'),
       sbFetch('schema_stats',
-        'select=rarity_breakdown,total_templates' +
+        'select=total_assets,total_burned,unique_owners,total_templates,rarity_breakdown,updated_at' +
         '&collection_name=eq.' + enc(COL) +
         '&schema_name=eq.' + enc(SCH) + '&limit=1'),
+      sbFetch('top_holders',
+        'select=total_assets' +
+        '&collection_name=eq.' + enc(COL) +
+        '&schema_name=eq.' + enc(SCH) +
+        '&is_official=eq.true'),
       sbFetch('funko_market_prices',
         'select=template_id,collection_name,schema_name,drop_displayname,droppp_exclusive,' +
         'name,rarity,cardid,wax_price_usd,fetched_at' +
@@ -287,10 +299,10 @@ async function init() {
 
     allRows = cardData;
 
-    const col        = colData[0]   || {};
-    const stats      = statsData[0] || {};
-    const dropName   = cleanName(col.display_name || (cardData[0]?.drop_displayname) || COL);
-    const label      = schemaLabel(SCH);
+    const col      = colData[0]   || {};
+    const stats    = statsData[0] || {};
+    const dropName = cleanName(col.display_name || (cardData[0]?.drop_displayname) || COL);
+    const label    = schemaLabel(SCH);
 
     document.title = `${dropName} ${label} — Market — PopInStock`;
 
@@ -309,6 +321,39 @@ async function init() {
       ? `<img class="drop-logo" src="${ipfsUrl(logoCid)}" alt="${dropName}" onerror="this.outerHTML='<div class=\\'drop-logo-placeholder\\'>&#9670;</div>'">`
       : `<div class="drop-logo-placeholder">&#9670;</div>`;
 
+    // Asset stats
+    const active     = stats.total_assets || 0;
+    const burned     = stats.total_burned  || 0;
+    const minted     = active + burned;
+    const inOfficial = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
+    const circulation = active - inOfficial;
+
+    const statsHtml = `
+      <div class="stat-card">
+        <div class="stat-value">${fmt(minted)}</div>
+        <div class="stat-label">Minted</div>
+      </div>
+      <div class="stat-card burned">
+        <div class="stat-value">${fmt(burned)}</div>
+        <div class="stat-label">Burned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${fmt(inOfficial)}</div>
+        <div class="stat-label">In Packs</div>
+      </div>
+      <div class="stat-card owners">
+        <div class="stat-value">${fmt(circulation)}</div>
+        <div class="stat-label">In Circulation</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${fmt(stats.unique_owners || 0)}</div>
+        <div class="stat-label">Unique Owners</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${fmt(stats.total_templates || 0)}</div>
+        <div class="stat-label">Templates</div>
+      </div>`;
+
     // Rarity breakdown
     const rarityCounts = stats.rarity_breakdown || {};
     const rarityPills  = RARITY_ORDER
@@ -319,13 +364,6 @@ async function init() {
       .filter(([r]) => !RARITY_ORDER.includes(r))
       .map(([r, n]) => `<span class="rarity-pill">${r} <span class="pill-count">${n}</span></span>`)
       .join('');
-
-    const raritySection = (rarityPills || extraPills)
-      ? `<div class="section">
-           <div class="section-heading">Rarity Breakdown</div>
-           <div class="rarity-pills">${rarityPills}${extraPills}</div>
-         </div>`
-      : '';
 
     root.innerHTML = `
       ${bannerHtml}
@@ -339,7 +377,16 @@ async function init() {
       </div>
 
       <div class="content">
-        ${raritySection}
+        <div class="section">
+          <div class="section-heading">Asset Stats <span style="font-size:0.72rem;font-weight:400;color:var(--text-secondary);text-transform:none;letter-spacing:0;margin-left:0.5rem">Last updated: ${stats.updated_at ? new Date(stats.updated_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : '—'}</span></div>
+          <div class="stats-grid">${statsHtml}</div>
+        </div>
+
+        ${(rarityPills || extraPills) ? `
+        <div class="section">
+          <div class="section-heading">Rarity Breakdown</div>
+          <div class="rarity-pills">${rarityPills}${extraPills}</div>
+        </div>` : ''}
 
         <div class="section">
           <div class="section-heading">Market Prices</div>
