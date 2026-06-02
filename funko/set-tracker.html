@@ -226,7 +226,7 @@
 
     <div class="controls">
       <div class="controls-row">
-        <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet address…" spellcheck="false" autocomplete="off" />
+        <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet (comma-separated for multiple)…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="controls-row">
         <select class="drop-select" id="dropSelect">
@@ -454,20 +454,22 @@
 
   /* ── Main tracking logic ── */
   function lookupWallet() {
-    const w = document.getElementById('walletInput').value.trim();
-    if (!w) return;
+    const raw = document.getElementById('walletInput').value.trim();
+    if (!raw) return;
     const val = document.getElementById('dropSelect').value;
     if (!val) {
       document.getElementById('trackerContent').innerHTML =
         '<div class="state state-error">Please select a drop first.</div>';
       return;
     }
+    const wallets = [...new Set(raw.split(',').map(w => w.trim()).filter(Boolean))];
+    if (!wallets.length) return;
     const [c, s] = val.split('|');
-    currentWallet = w;
+    currentWallet = wallets.join(', ');
     currentCollection = c;
     currentSchema = s;
     syncUrl();
-    runTracker(w, c, s);
+    runTracker(wallets, c, s);
   }
 
   function setStatus(msg) {
@@ -475,7 +477,7 @@
       `<div class="status-wrap"><div class="spinner"></div><div class="status-text">${msg}</div></div>`;
   }
 
-  async function runTracker(wallet, collection, schema) {
+  async function runTracker(wallets, collection, schema) {
     const btn = document.getElementById('trackBtn');
     btn.disabled = true;
     lastRoyaltyStats = null;
@@ -511,21 +513,24 @@
         cardid:      t.cardid ?? null,
       }));
 
-      // 3. Wallet assets from AtomicAssets
-      setStatus('Fetching wallet inventory…');
-      const assets = await fetchAllPages(
-        `${waxApi}/assets?collection_name=${enc(collection)}&schema_name=${enc(schema)}&owner=${enc(wallet)}&sort=template_mint&order=asc`
-      );
+      // 3. Wallet assets from AtomicAssets (parallel fetch, merged inventory)
+      setStatus(wallets.length > 1 ? `Fetching inventory for ${wallets.length} wallets…` : 'Fetching wallet inventory…');
+      const allAssets = await Promise.all(wallets.map(w =>
+        fetchAllPages(`${waxApi}/assets?collection_name=${enc(collection)}&schema_name=${enc(schema)}&owner=${enc(w)}&sort=template_mint&order=asc`)
+      ));
       const walletMap = new Map();
-      const totalNFTs = assets.length;
-      for (const a of assets) {
-        const tid  = String(a.template?.template_id || '');
-        const mint = parseInt(a.template_mint, 10);
-        if (!tid || isNaN(mint)) continue;
-        if (!walletMap.has(tid)) walletMap.set(tid, { count: 0, mints: [] });
-        const e = walletMap.get(tid);
-        e.count++;
-        e.mints.push(mint);
+      let totalNFTs = 0;
+      for (const assets of allAssets) {
+        totalNFTs += assets.length;
+        for (const a of assets) {
+          const tid  = String(a.template?.template_id || '');
+          const mint = parseInt(a.template_mint, 10);
+          if (!tid || isNaN(mint)) continue;
+          if (!walletMap.has(tid)) walletMap.set(tid, { count: 0, mints: [] });
+          const e = walletMap.get(tid);
+          e.count++;
+          e.mints.push(mint);
+        }
       }
       for (const e of walletMap.values()) e.mints.sort((a, b) => a - b);
 
@@ -750,7 +755,13 @@
   }
 
   /* ── Init ── */
-  document.getElementById('walletInput').addEventListener('input', updateTrackBtn);
+  document.getElementById('walletInput').addEventListener('input', () => {
+    const el = document.getElementById('walletInput');
+    const { selectionStart, selectionEnd } = el;
+    el.value = el.value.toLowerCase();
+    el.setSelectionRange(selectionStart, selectionEnd);
+    updateTrackBtn();
+  });
   document.getElementById('walletInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupWallet();
   });
@@ -768,7 +779,8 @@
     }
     if (initW && initC && initS) {
       document.getElementById('dropSelect').value = initC + '|' + initS;
-      runTracker(initW, initC, initS);
+      const wallets = [...new Set(initW.split(',').map(w => w.trim()).filter(Boolean))];
+      runTracker(wallets, initC, initS);
     }
   }
 
