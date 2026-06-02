@@ -67,8 +67,9 @@
     .cell-card-name  { font-size: 0.85rem; color: var(--text-primary); }
     .cell-drop-name  { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
     .cell-drop-schema { font-size: 0.62rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
-    .cell-price      { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .cell-price      { display: block; font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
     .cell-price.price-null { color: rgba(255,255,255,0.2); font-weight: 400; font-size: 0.82rem; }
+    .cell-price-usd  { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; margin-top: 2px; }
 
     .excl-badge {
       display: inline-flex; align-items: center;
@@ -123,6 +124,20 @@ let allRows = [];
 function enc(v)    { return encodeURIComponent(v); }
 function fmt(n)    { return Number(n).toLocaleString(); }
 function fmtUsd(v) { return v == null ? null : '$' + Number(v).toFixed(2); }
+function fmtWax(wax) {
+  if (wax == null) return null;
+  if (wax < 1) return wax.toFixed(4) + ' WAX';
+  return wax.toFixed(2) + ' WAX';
+}
+function buildPriceCell(row) {
+  const wax = row.wax_price_wax, usd = row.wax_price_usd;
+  if (wax == null && usd == null) return '<span class="cell-price price-null">—</span>';
+  if (wax != null) {
+    const sub = usd != null ? `<div class="cell-price-usd">≈ $${usd.toFixed(2)}</div>` : '';
+    return `<span class="cell-price">${fmtWax(wax)}</span>${sub}`;
+  }
+  return `<span class="cell-price">$${usd.toFixed(2)}</span>`;
+}
 function fmtDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -216,19 +231,16 @@ function buildTable() {
         ID — Card <span class="sort-icon">${idSi}</span>
       </th>
       <th style="min-width:150px">Drop</th>
-      <th class="col-r sortable${state.sortField==='price'?' sorted':''}" style="width:105px" id="priceHdr">
-        WAX <span class="sort-icon">${priceSi}</span>
+      <th class="col-r sortable${state.sortField==='price'?' sorted':''}" style="width:120px" id="priceHdr">
+        Floor Price <span class="sort-icon">${priceSi}</span>
       </th>
       <th class="col-r" style="width:140px">Market</th>
     </tr></thead>
     <tbody>`;
 
   for (const row of rows) {
-    const unlisted = row.wax_price_usd == null;
-    const p  = fmtUsd(row.wax_price_usd);
-    const ph = p
-      ? `<span class="cell-price">${p}</span>`
-      : `<span class="cell-price price-null">—</span>`;
+    const unlisted = row.wax_price_wax == null && row.wax_price_usd == null;
+    const ph = buildPriceCell(row);
 
     const excl = row.droppp_exclusive ? '<span class="excl-badge">Excl</span>' : '';
     const tid  = row.template_id;
@@ -296,7 +308,7 @@ async function init() {
         '&is_official=eq.true'),
       sbFetch('funko_market_prices',
         'select=template_id,collection_name,schema_name,drop_displayname,droppp_exclusive,' +
-        'name,rarity,cardid,wax_price_usd,fetched_at' +
+        'name,rarity,cardid,wax_price_wax,wax_price_usd,fetched_at' +
         '&collection_name=eq.' + enc(COL) +
         '&schema_name=eq.' + enc(SCH) +
         '&order=cardid.asc&limit=1000'),
