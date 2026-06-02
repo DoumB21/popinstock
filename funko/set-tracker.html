@@ -165,6 +165,26 @@
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
 
+    /* ── Rarity breakdown ── */
+    .rarity-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .rb-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.35rem 0.7rem 0.35rem 0.45rem;
+    }
+    .rb-count      { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .rb-count.done { color: #3fb950; }
+
     /* ── No-data / empty states ── */
     .no-cards {
       padding: 1.5rem;
@@ -613,6 +633,29 @@
       return;
     }
 
+    // Rarity breakdown
+    const RARITY_DISPLAY_ORDER = ['Common','Uncommon','Rare','Epic','Ultra','Legendary','Grail','Mythic','Series','Royalty'];
+    const allForSet = [...alreadyHave, ...missing];
+    const rarityMap = {};
+    for (const t of allForSet) {
+      if (!rarityMap[t.rarity]) rarityMap[t.rarity] = { total: 0, missing: 0 };
+      rarityMap[t.rarity].total++;
+    }
+    for (const t of missing) {
+      if (rarityMap[t.rarity]) rarityMap[t.rarity].missing++;
+    }
+    const rarityBreakdownHtml = RARITY_DISPLAY_ORDER
+      .filter(r => rarityMap[r])
+      .map(r => {
+        const { total, missing: m } = rarityMap[r];
+        const owned = total - m;
+        const done  = m === 0;
+        return `<div class="rb-item">
+          <span class="rarity-pill ${RARITY_CLASS[r] || ''}">${r}</span>
+          <span class="rb-count${done ? ' done' : ''}">${owned}/${total}</span>
+        </div>`;
+      }).join('');
+
     const listedMissing  = missing.filter(t => t.floor != null);
     const unlistedCount  = missing.length - listedMissing.length;
     // Normalise to WAX for summing (USD listings converted via rate if available)
@@ -644,7 +687,8 @@
         ${complete > 0 ? `<div class="progress-complete">${complete} complete set${complete !== 1 ? 's' : ''} · working toward set #${nextSet}</div>` : ''}
         ${costHtml}
         ${unavailableHtml}
-      </div>`;
+      </div>
+      <div class="rarity-breakdown">${rarityBreakdownHtml}</div>`;
 
     if (missing.length === 0) {
       el.innerHTML = progressBlock + `
