@@ -228,6 +228,7 @@ let isLoading     = false;
 let canLoadMore   = false;
 let fetchedAt     = null;
 let nameTimer     = null;
+let waxUsdRate    = null;
 
 /* ── Helpers ── */
 function enc(v)    { return encodeURIComponent(v); }
@@ -238,6 +239,15 @@ function fmtWax(wax) {
   if (wax == null) return null;
   if (wax < 1) return wax.toFixed(4) + ' WAX';
   return wax.toFixed(2) + ' WAX';
+}
+
+async function fetchWaxRate() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    if (!r.ok) return;
+    const j = await r.json();
+    waxUsdRate = j?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
 }
 
 function buildPriceCell(row) {
@@ -487,16 +497,22 @@ function buildSetTable(rows) {
       </th>
       <th class="col-c" style="width:120px">Cards Priced</th>
       <th class="col-r sortable${state.setSortField==='price'?' sorted':''}" style="width:140px" id="setPriceHdr">
-        ${pl} <span class="sort-icon">${priceSi}</span>
+        Floor Price <span class="sort-icon">${priceSi}</span>
       </th>
     </tr></thead>
     <tbody>`;
 
   for (const row of sorted) {
-    const p  = fmtUsd(row[pc]);
-    const ph = p
-      ? `<span class="cell-price">${p}</span>`
-      : `<span class="cell-price price-null">—</span>`;
+    const usdVal = row[pc];
+    let ph;
+    if (usdVal == null) {
+      ph = '<span class="cell-price price-null">—</span>';
+    } else if (state.source === 'wax' && waxUsdRate) {
+      const wax = usdVal / waxUsdRate;
+      ph = `<span class="cell-price">${fmtWax(wax)}</span><div class="cell-price-usd">≈ $${usdVal.toFixed(2)}</div>`;
+    } else {
+      ph = `<span class="cell-price">$${usdVal.toFixed(2)}</span>`;
+    }
 
     const { priced, count } = pricedCols(row);
     const cls = priced === count ? 'priced-all' : (priced > 0 ? 'priced-partial' : 'priced-none');
@@ -657,6 +673,7 @@ async function loadData(append) {
 
 /* ── Init ── */
 async function init() {
+  fetchWaxRate();
   try {
     const { data } = await sbFetch('funko_set_prices',
       'select=collection_name,schema_name,drop_displayname,droppp_id,droppp_slug,droppp_exclusive,' +
