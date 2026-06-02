@@ -496,11 +496,24 @@
         rarityRank[r.toLowerCase()] = i;
       });
 
+      function cleanName(name) {
+        return (name || '')
+          .replace(/^Funko Presents\s+/i, '')
+          .replace(/:\s*Funko Digital Pop!$/i, '')
+          .replace(/\s+X\s+Funko$/i, '')
+          .replace(/:\s*Funko Digital$/i, '')
+          .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+      }
+
       const sel = document.getElementById('dropSelect');
-      for (const d of drops) {
+      const sortedDrops = [...drops].sort((a, b) =>
+        cleanName(a.displayname ?? a.collection).localeCompare(cleanName(b.displayname ?? b.collection)) ||
+        a.schema.localeCompare(b.schema)
+      );
+      for (const d of sortedDrops) {
         const opt = document.createElement('option');
         opt.value = `${d.collection}|${d.schema}`;
-        opt.textContent = `${d.displayname ?? d.collection}  —  ${fmtSchema(d.schema)}`;
+        opt.textContent = `${cleanName(d.displayname ?? d.collection)}  —  ${fmtSchema(d.schema)}`;
         sel.appendChild(opt);
       }
 

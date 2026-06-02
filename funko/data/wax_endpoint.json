@@ -1,3 +1,4 @@
 {
-  "atomicassets": "https://wax-atomic-api.eosphere.io/atomicassets/v1"
+  "atomicassets": "https://wax-atomic-api.eosphere.io/atomicassets/v1",
+  "atomicmarket": "https://wax.api.atomicassets.io/atomicmarket/v1"
 }

@@ -493,9 +493,10 @@ body::before {
 }
 
 .search-btn:hover:not(:disabled),
-.lookup-btn:hover { opacity: 0.85; }
+.lookup-btn:hover:not(:disabled) { opacity: 0.85; }
 
-.search-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.search-btn:disabled,
+.lookup-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Secondary — subtle */
 .ctrl-btn,

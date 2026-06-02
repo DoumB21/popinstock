@@ -3,6 +3,7 @@ const NAV_LINKS = [
   { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
   { label: 'Mint Rankings', href: 'mint-rankings.html' },
   { label: 'Wallet Look Up', href: 'wallet.html' },
+  { label: 'Set Tracker', href: 'set-tracker.html' },
   { label: 'Market Overview', href: 'market-overview.html' },
 ];
 

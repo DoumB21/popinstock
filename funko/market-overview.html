@@ -121,8 +121,9 @@
     .cell-card-name { font-size: 0.85rem; color: var(--text-primary); }
     .cell-card-id { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
     .cell-supply { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
-    .cell-price { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .cell-price { display: block; font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
     .cell-price.price-null { color: rgba(255,255,255,0.2); font-weight: 400; font-size: 0.82rem; }
+    .cell-price-usd { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; margin-top: 2px; }
     .cell-priced { font-size: 0.8rem; white-space: nowrap; }
     .cell-priced.priced-all     { color: var(--text-primary); font-weight: 600; }
     .cell-priced.priced-partial { color: var(--accent-light); }
@@ -233,6 +234,23 @@ function enc(v)    { return encodeURIComponent(v); }
 function fmtN(n)   { return Number(n).toLocaleString(); }
 function fmtUsd(v) { return v == null ? null : '$' + Number(v).toFixed(2); }
 
+function fmtWax(wax) {
+  if (wax == null) return null;
+  if (wax < 1) return wax.toFixed(4) + ' WAX';
+  return wax.toFixed(2) + ' WAX';
+}
+
+function buildPriceCell(row) {
+  const wax = row.wax_price_wax;
+  const usd = row.wax_price_usd;
+  if (wax == null && usd == null) return '<span class="cell-price price-null">—</span>';
+  if (wax != null) {
+    const sub = usd != null ? `<div class="cell-price-usd">≈ $${usd.toFixed(2)}</div>` : '';
+    return `<span class="cell-price">${fmtWax(wax)}</span>${sub}`;
+  }
+  return `<span class="cell-price">$${usd.toFixed(2)}</span>`;
+}
+
 function fmtAgo(ts) {
   if (!ts) return '';
   const d = Math.floor((Date.now() - new Date(ts)) / 60000);
@@ -334,13 +352,24 @@ function buildRarityTabs() {
 }
 
 /* ── Collection dropdown ── */
+function cleanName(name) {
+  return (name || '')
+    .replace(/^Funko Presents\s+/i, '')
+    .replace(/:\s*Funko Digital Pop!$/i, '')
+    .replace(/\s+X\s+Funko$/i, '')
+    .replace(/:\s*Funko Digital$/i, '')
+    .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+}
+
 function populateCollections(rows) {
   const sel = document.getElementById('collectionSelect');
-  const sorted = [...rows].sort((a,b) => (a.drop_displayname||'').localeCompare(b.drop_displayname||''));
+  const sorted = [...rows]
+    .map(d => ({ ...d, _name: cleanName(d.drop_displayname || d.collection_name) }))
+    .sort((a, b) => a._name.localeCompare(b._name) || a.schema_name.localeCompare(b.schema_name));
   let h = '<option value="">All Drops</option>';
   for (const d of sorted) {
     const v = d.collection_name + '|' + d.schema_name;
-    h += `<option value="${v}">${d.drop_displayname || d.collection_name}  —  ${schemaLabel(d.schema_name)}</option>`;
+    h += `<option value="${v}">${d._name}  —  ${schemaLabel(d.schema_name)}</option>`;
   }
   sel.innerHTML = h;
   if (state.collection) sel.value = state.collection;
@@ -368,8 +397,8 @@ function buildCardTable(rows, append) {
           ID — Card <span class="sort-icon">${idSi}</span>
         </th>
         <th style="min-width:150px">Drop</th>
-        <th class="col-r sortable${state.sortField==='price'?' sorted':''}" style="width:105px" id="priceHdr">
-          ${pl} <span class="sort-icon">${priceSi}</span>
+        <th class="col-r sortable${state.sortField==='price'?' sorted':''}" style="width:120px" id="priceHdr">
+          Floor Price <span class="sort-icon">${priceSi}</span>
         </th>
         <th class="col-r" style="width:140px">Market</th>
       </tr></thead>
@@ -384,10 +413,7 @@ function buildCardTable(rows, append) {
 
   let h = '';
   for (const row of rows) {
-    const p   = fmtUsd(effectivePrice(row));
-    const ph  = p
-      ? `<span class="cell-price">${p}</span>`
-      : `<span class="cell-price price-null">—</span>`;
+    const ph = buildPriceCell(row);
 
     const excl = row.droppp_exclusive
       ? '<span class="excl-badge">Excl</span>'
@@ -526,7 +552,7 @@ function toggleSort(field) {
 function buildCardQuery(offset) {
   const parts = [
     'select=template_id,collection_name,schema_name,drop_displayname,droppp_slug,droppp_exclusive,' +
-    'name,rarity,cardid,max_supply,issued_supply,droppp_price_usd,wax_price_usd,best_price_usd,fetched_at'
+    'name,rarity,cardid,max_supply,issued_supply,droppp_price_usd,wax_price_wax,wax_price_usd,best_price_usd,fetched_at'
   ];
 
   if (state.rarity !== 'All') parts.push('rarity=eq.' + enc(state.rarity));

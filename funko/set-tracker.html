@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Set Tracker — Funko Digital — PopInStock</title>
+  <meta name="description" content="Track your Funko Digital Pop! collection progress on WAX. Discover which cards you're missing to complete your Royalty and Mastery sets." />
+  <link rel="canonical" href="https://www.popinstock.com/funko/set-tracker.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.popinstock.com/funko/set-tracker.html" />
+  <meta property="og:title" content="Set Tracker — Funko Digital — PopInStock" />
+  <meta property="og:description" content="Track your Funko Digital Pop! collection progress on WAX. Discover which cards you're missing to complete your Royalty and Mastery sets." />
+  <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Set Tracker — Funko Digital — PopInStock" />
+  <meta name="twitter:description" content="Track your Funko Digital Pop! collection progress on WAX. Discover which cards you're missing to complete your Royalty and Mastery sets." />
+  <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Controls ── */
+    .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 600px; }
+    .controls-row { display: flex; gap: 0.5rem; }
+    .wallet-input { flex: 1; }
+    .drop-select  { flex: 1; cursor: pointer; }
+
+    /* ── Royalty / Mastery toggle ── */
+    .set-toggle {
+      display: inline-flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .set-toggle-btn {
+      padding: 0.45rem 1.5rem;
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .set-toggle-btn + .set-toggle-btn { border-left: 1px solid var(--border); }
+    .set-toggle-btn.active-royalty { background: rgba(0,125,235,0.15); color: #007deb; }
+    .set-toggle-btn.active-mastery { background: rgba(233,52,148,0.15); color: #e93494; }
+
+    /* ── Summary cards accent colours ── */
+    .stat-card.royalty .stat-value { color: #007deb; }
+    .stat-card.mastery .stat-value { color: #e93494; }
+    .stat-card.total   .stat-value { color: var(--accent-light); }
+
+    /* ── Progress block ── */
+    .progress-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+    }
+    .progress-meta {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.65rem;
+    }
+    .progress-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .progress-count {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+    .progress-bar-track {
+      height: 8px;
+      background: var(--bg-card-hover);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+    .progress-bar-fill.royalty { background: #007deb; }
+    .progress-bar-fill.mastery { background: #e93494; }
+    .progress-complete {
+      margin-top: 0.6rem;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+    .progress-cost {
+      margin-top: 0.65rem;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .cost-label   { color: var(--text-secondary); }
+    .cost-wax     { font-weight: 700; color: var(--text-primary); }
+    .cost-usd     { font-size: 0.75rem; color: var(--text-secondary); }
+    .progress-unavailable {
+      margin-top: 0.5rem;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* ── Missing cards table ── */
+    .missing-heading {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 1.5rem 0 0.75rem;
+    }
+    .missing-heading span { color: var(--text-primary); }
+
+    .cards-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .cards-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .cards-table thead th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .cards-table thead th.col-r { text-align: right; }
+    .cards-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .cards-table tbody tr:last-child { border-bottom: none; }
+    .cards-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .cards-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .cards-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cell-card-name { font-size: 0.85rem; color: var(--text-primary); font-weight: 500; }
+    .cell-card-id   { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .cell-price     { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .cell-price.price-null { color: rgba(255,255,255,0.2); font-weight: 400; font-size: 0.8rem; }
+    .cell-price-usd { font-size: 0.83rem; color: var(--text-secondary); white-space: nowrap; margin-top: 2px; }
+    .cell-owned     { font-size: 0.8rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+    /* ── Marketplace links ── */
+    .market-links { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+    .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
+    .market-link:hover { opacity: 1; }
+    .market-link img { width: 20px; height: 20px; object-fit: contain; }
+
+    /* ── No-data / empty states ── */
+    .no-cards {
+      padding: 1.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    .complete-banner {
+      padding: 1.25rem 1.5rem;
+      background: rgba(63, 185, 80, 0.08);
+      border: 1px solid rgba(63, 185, 80, 0.25);
+      border-radius: 12px;
+      color: #3fb950;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    @media (max-width: 500px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .progress-block { padding: 1rem; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Set <span class="accent">Tracker</span></div>
+      <div class="page-subtitle">Track your collection progress and discover which cards you're missing.</div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet address…" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="controls-row">
+        <select class="drop-select" id="dropSelect">
+          <option value="">Loading drops…</option>
+        </select>
+        <button class="lookup-btn" id="trackBtn" onclick="lookupWallet()" disabled>Track</button>
+      </div>
+      <div class="controls-row">
+        <div class="set-toggle" id="setToggle">
+          <button class="set-toggle-btn active-royalty" data-type="royalty" onclick="setActiveType('royalty')">Royalty</button>
+          <button class="set-toggle-btn" data-type="mastery" onclick="setActiveType('mastery')">Mastery</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="trackerContent"></div>
+
+  </div>
+</div>
+
+<script src="../shared/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  'use strict';
+
+  /* ── Constants ── */
+  const ROYALTY_RARITIES = new Set(['Common','Uncommon','Rare','Epic']);
+  const MASTERY_RARITIES = new Set(['Common','Uncommon','Rare','Epic','Ultra','Legendary','Grail','Mythic','Series','Royalty']);
+  const RARITY_CLASS = {
+    'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
+    'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
+    'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1','Redeemable':'r-redeemable',
+  };
+  const ATOMIC_MARKET = 'https://wax.atomichub.io/market';
+
+  /* ── URL params ── */
+  const params = new URLSearchParams(location.search);
+  const initW  = params.get('w') || '';
+  const initC  = params.get('c') || '';
+  const initS  = params.get('s') || '';
+
+  /* ── State ── */
+  let currentWallet     = '';
+  let currentCollection = '';
+  let currentSchema     = '';
+  let collNameMap       = new Map();
+  let allDrops          = [];
+  let activeType        = 'royalty';   // 'royalty' | 'mastery'
+  let lastRoyaltyStats  = null;
+  let lastMasteryStats  = null;
+  let waxApi            = '';
+  let waxMarketApi      = '';
+  let waxUsdRate        = null;
+
+  /* ── Helpers ── */
+  function enc(v) { return encodeURIComponent(v); }
+
+  function fmtWax(wax) {
+    if (wax == null) return null;
+    if (wax < 1) return wax.toFixed(4) + ' WAX';
+    return wax.toFixed(2) + ' WAX';
+  }
+
+  function priceCell(floor) {
+    if (!floor) return '<span class="cell-price price-null">—</span>';
+    if (floor.sym === 'USD') {
+      const usdStr = '$' + floor.usd.toFixed(2);
+      const sub = floor.wax != null ? '<div class="cell-price-usd">≈ ' + fmtWax(floor.wax) + '</div>' : '';
+      return '<span class="cell-price">' + usdStr + '</span>' + sub;
+    }
+    const sub = floor.usd != null ? '<div class="cell-price-usd">≈ $' + floor.usd.toFixed(2) + '</div>' : '';
+    return '<span class="cell-price">' + fmtWax(floor.wax) + '</span>' + sub;
+  }
+
+  async function fetchWaxPrice() {
+    try {
+      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+      if (!r.ok) return;
+      const json = await r.json();
+      waxUsdRate = json?.wax?.usd ?? null;
+    } catch { /* non-fatal — USD column just won't show */ }
+  }
+
+  function cleanName(name) {
+    return name
+      .replace(/^Funko Presents\s+/i, '')
+      .replace(/:\s*Funko Digital Pop!$/i, '')
+      .replace(/\s+X\s+Funko$/i, '')
+      .replace(/:\s*Funko Digital$/i, '')
+      .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+  }
+
+  function schemaLabel(sn) {
+    const base = sn.replace('.drop', '');
+    const m = base.match(/^series(\d+)$/);
+    if (m) return 'Series ' + m[1];
+    return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+
+  /* ── Supabase fetch ── */
+  async function sbFetch(table, qs) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+    const r = await fetch(url, {
+      headers: {
+        'apikey':         SUPABASE_ANON_KEY,
+        'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase error ' + r.status + ' on ' + table);
+    return r.json();
+  }
+
+  /* ── AtomicAssets fetch ── */
+  async function apiFetch(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('API ' + r.status);
+    const json = await r.json();
+    if (!json.success) throw new Error('API returned error');
+    return json.data;
+  }
+
+  async function fetchAllPages(baseUrl) {
+    const out = [];
+    let page = 1;
+    while (true) {
+      const data = await apiFetch(baseUrl + '&page=' + page + '&limit=1000');
+      out.push(...data);
+      if (data.length < 1000) break;
+      page++;
+    }
+    return out;
+  }
+
+  async function fetchMarketPages(baseUrl) {
+    const out = [];
+    let page = 1;
+    while (true) {
+      const data = await apiFetch(baseUrl + '&page=' + page + '&limit=100');
+      out.push(...data);
+      if (data.length < 100) break;
+      page++;
+    }
+    return out;
+  }
+
+  /* ── Drop selector ── */
+  async function initDropSelector() {
+    const [schemas, collections] = await Promise.all([
+      sbFetch('schema_stats', 'select=collection_name,schema_name,created_at&order=created_at.asc'),
+      sbFetch('collections',  'select=collection_name,display_name'),
+    ]);
+
+    collNameMap = new Map(collections.map(c => [c.collection_name, cleanName(c.display_name || c.collection_name)]));
+
+    allDrops = schemas.map(s => ({
+      collection_name: s.collection_name,
+      schema_name:     s.schema_name,
+      display_name:    collNameMap.get(s.collection_name) || s.collection_name,
+    })).sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+    let html = '<option value="">— Select a Drop —</option>';
+    for (const d of allDrops)
+      html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
+
+    const select = document.getElementById('dropSelect');
+    select.innerHTML = html;
+    if (initC && initS) select.value = initC + '|' + initS;
+    updateTrackBtn();
+  }
+
+  /* ── Toggle ── */
+  function setActiveType(type) {
+    activeType = type;
+    document.querySelectorAll('.set-toggle-btn').forEach(btn => {
+      btn.classList.remove('active-royalty', 'active-mastery');
+      if (btn.dataset.type === type) btn.classList.add('active-' + type);
+    });
+    if (lastRoyaltyStats && lastMasteryStats) renderProgress();
+  }
+
+  /* ── Clear ── */
+  function clearAll() {
+    document.getElementById('dropSelect').value = '';
+    document.getElementById('walletInput').value = '';
+    document.getElementById('trackerContent').innerHTML = '';
+    currentWallet = ''; currentCollection = ''; currentSchema = '';
+    lastRoyaltyStats = null; lastMasteryStats = null;
+    syncUrl();
+  }
+
+  function syncUrl() {
+    const url = new URL(location.href);
+    if (currentWallet) url.searchParams.set('w', currentWallet);
+    else url.searchParams.delete('w');
+    const val = document.getElementById('dropSelect').value;
+    if (val) {
+      const [c, s] = val.split('|');
+      url.searchParams.set('c', c);
+      url.searchParams.set('s', s);
+    } else {
+      url.searchParams.delete('c');
+      url.searchParams.delete('s');
+    }
+    history.replaceState(null, '', url.toString());
+  }
+
+  /* ── Set computation ── */
+  function computeSetStats(templates, walletMap) {
+    if (!templates.length) return { complete: 0, nextSet: 1, missing: [], alreadyHave: [], total: 0 };
+    const withOwned = templates.map(t => ({
+      ...t,
+      owned: walletMap.get(String(t.template_id))?.count || 0,
+      mints: walletMap.get(String(t.template_id))?.mints || [],
+    }));
+    const complete = Math.min(...withOwned.map(t => t.owned));
+    return {
+      complete,
+      nextSet: complete + 1,
+      missing:    withOwned.filter(t => t.owned <= complete),
+      alreadyHave: withOwned.filter(t => t.owned > complete),
+      total: templates.length,
+    };
+  }
+
+  /* ── Main tracking logic ── */
+  function lookupWallet() {
+    const w = document.getElementById('walletInput').value.trim();
+    if (!w) return;
+    const val = document.getElementById('dropSelect').value;
+    if (!val) {
+      document.getElementById('trackerContent').innerHTML =
+        '<div class="state state-error">Please select a drop first.</div>';
+      return;
+    }
+    const [c, s] = val.split('|');
+    currentWallet = w;
+    currentCollection = c;
+    currentSchema = s;
+    syncUrl();
+    runTracker(w, c, s);
+  }
+
+  function setStatus(msg) {
+    document.getElementById('trackerContent').innerHTML =
+      `<div class="status-wrap"><div class="spinner"></div><div class="status-text">${msg}</div></div>`;
+  }
+
+  async function runTracker(wallet, collection, schema) {
+    const btn = document.getElementById('trackBtn');
+    btn.disabled = true;
+    lastRoyaltyStats = null;
+    lastMasteryStats = null;
+
+    try {
+      // 1. WAX endpoints + USD rate (parallel)
+      setStatus('Initialising…');
+      const initTasks = [];
+      if (!waxApi) {
+        initTasks.push(
+          fetch('data/wax_endpoint.json').then(r => r.json()).then(ep => {
+            waxApi       = ep.atomicassets;
+            waxMarketApi = ep.atomicmarket;
+          })
+        );
+      }
+      initTasks.push(fetchWaxPrice());
+      await Promise.all(initTasks);
+
+      // 2. Templates from Supabase (funko_market_prices already has all card metadata)
+      setStatus('Fetching card templates…');
+      const rawTemplates = await sbFetch('funko_market_prices',
+        'select=template_id,name,rarity,cardid' +
+        '&collection_name=eq.' + enc(collection) +
+        '&schema_name=eq.' + enc(schema) +
+        '&limit=1000'
+      );
+      const templates = rawTemplates.map(t => ({
+        template_id: String(t.template_id),
+        name:        t.name   || `#${t.template_id}`,
+        rarity:      t.rarity || 'Unknown',
+        cardid:      t.cardid ?? null,
+      }));
+
+      // 3. Wallet assets from AtomicAssets
+      setStatus('Fetching wallet inventory…');
+      const assets = await fetchAllPages(
+        `${waxApi}/assets?collection_name=${enc(collection)}&schema_name=${enc(schema)}&owner=${enc(wallet)}&sort=template_mint&order=asc`
+      );
+      const walletMap = new Map();
+      const totalNFTs = assets.length;
+      for (const a of assets) {
+        const tid  = String(a.template?.template_id || '');
+        const mint = parseInt(a.template_mint, 10);
+        if (!tid || isNaN(mint)) continue;
+        if (!walletMap.has(tid)) walletMap.set(tid, { count: 0, mints: [] });
+        const e = walletMap.get(tid);
+        e.count++;
+        e.mints.push(mint);
+      }
+      for (const e of walletMap.values()) e.mints.sort((a, b) => a - b);
+
+      // 4. Floor prices:
+      //    - WAX: /sales/templates?symbol=WAX  → one row per template, very fast
+      //    - USD: /sales?symbol=USD            → all USD listings (rare, still fast)
+      //    Both fetched in parallel then merged.
+      setStatus('Fetching market prices…');
+      const collFilter = `collection_name=${enc(collection)}&schema_name=${enc(schema)}&state=1&sort=price&order=asc`;
+      const [rawWax, rawUsd] = await Promise.all([
+        fetchMarketPages(`${waxMarketApi}/sales/templates?symbol=WAX&${collFilter}`).catch(() => []),
+        fetchMarketPages(`${waxMarketApi}/sales?symbol=USD&${collFilter}`).catch(() => []),
+      ]);
+
+      const priceMap = new Map();
+
+      for (const item of rawWax) {
+        const tid = String(item.assets?.[0]?.template?.template_id || '');
+        const amt = item.listing_price;
+        if (!tid || amt == null) continue;
+        const wax = parseInt(amt) / 1e8;
+        priceMap.set(tid, { wax, usd: waxUsdRate ? wax * waxUsdRate : null, sym: 'WAX' });
+      }
+
+      for (const item of rawUsd) {
+        const tid = String(item.assets?.[0]?.template?.template_id || '');
+        const amt = item.listing_price;
+        if (!tid || amt == null) continue;
+        const usd = parseInt(amt) / 100;
+        const wax = waxUsdRate ? usd / waxUsdRate : null;
+        // Only use this USD entry if no WAX listing exists or it's cheaper in WAX terms
+        const existing = priceMap.get(tid);
+        if (!existing || (wax != null && existing.wax != null && wax < existing.wax)) {
+          priceMap.set(tid, { wax, usd, sym: 'USD' });
+        }
+      }
+
+      // Enrich templates with prices
+      const enriched = templates.map(t => ({
+        ...t,
+        floor: priceMap.get(t.template_id) ?? null,
+      }));
+
+      // 5. Classify and compute
+      const royaltyTpls = enriched.filter(t => ROYALTY_RARITIES.has(t.rarity));
+      const masteryTpls = enriched.filter(t => MASTERY_RARITIES.has(t.rarity));
+
+      lastRoyaltyStats = { ...computeSetStats(royaltyTpls, walletMap), totalNFTs };
+      lastMasteryStats = { ...computeSetStats(masteryTpls, walletMap), totalNFTs };
+
+      renderResults(collection, schema);
+
+    } catch (err) {
+      document.getElementById('trackerContent').innerHTML =
+        `<div class="state state-error">Failed to load data: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* ── Render ── */
+  function renderResults(collection, schema) {
+    const drop = allDrops.find(d => d.collection_name === collection && d.schema_name === schema);
+    const dropLabel = drop ? `${drop.display_name} — ${schemaLabel(drop.schema_name)}` : collection;
+
+    const rs = lastRoyaltyStats;
+    const ms = lastMasteryStats;
+
+    document.getElementById('trackerContent').innerHTML = `
+      <div class="section">
+        <div class="section-heading">${dropLabel}</div>
+        <div class="stats-grid">
+          <div class="stat-card royalty">
+            <div class="stat-value">${rs.complete}</div>
+            <div class="stat-label">Royalty Sets</div>
+          </div>
+          <div class="stat-card mastery">
+            <div class="stat-value">${ms.complete}</div>
+            <div class="stat-label">Mastery Sets</div>
+          </div>
+          <div class="stat-card total">
+            <div class="stat-value">${(rs.totalNFTs || 0).toLocaleString()}</div>
+            <div class="stat-label">NFTs Owned</div>
+          </div>
+        </div>
+      </div>
+      <div id="progressSection" style="margin-top:1rem"></div>
+    `;
+    renderProgress();
+  }
+
+  function renderProgress() {
+    const stats  = activeType === 'royalty' ? lastRoyaltyStats : lastMasteryStats;
+    const color  = activeType === 'royalty' ? '#007deb' : '#e93494';
+    const label  = activeType === 'royalty' ? 'Royalty' : 'Mastery';
+    const el     = document.getElementById('progressSection');
+    if (!el) return;
+
+    const { complete, nextSet, missing, alreadyHave, total } = stats;
+    const ownedCount   = alreadyHave.length;
+    const progressPct  = total > 0 ? Math.round((ownedCount / total) * 100) : 0;
+
+    if (total === 0) {
+      el.innerHTML = `<div class="no-cards">No ${label} cards found in this drop.</div>`;
+      return;
+    }
+
+    const listedMissing  = missing.filter(t => t.floor != null);
+    const unlistedCount  = missing.length - listedMissing.length;
+    // Normalise to WAX for summing (USD listings converted via rate if available)
+    const totalWax = listedMissing.reduce((sum, t) => sum + (t.floor.wax ?? 0), 0);
+    const totalUsd = listedMissing.reduce((sum, t) => sum + (t.floor.usd ?? 0), 0);
+    const hasWaxTotal = listedMissing.some(t => t.floor.wax != null);
+    const hasUsdTotal = listedMissing.some(t => t.floor.usd != null);
+
+    let costHtml = '';
+    if (missing.length > 0 && listedMissing.length > 0) {
+      const waxStr = hasWaxTotal ? `<span class="cost-wax">${fmtWax(totalWax)}</span>` : '';
+      const usdStr = hasUsdTotal ? `<span class="cost-usd">≈ $${totalUsd.toFixed(2)}</span>` : '';
+      costHtml = `<div class="progress-cost"><span class="cost-label">Cost to complete:</span> ${waxStr} ${usdStr}</div>`;
+    }
+
+    const unavailableHtml = unlistedCount > 0
+      ? `<div class="progress-unavailable">${unlistedCount} card${unlistedCount !== 1 ? 's' : ''} currently not available on the market</div>`
+      : '';
+
+    const progressBlock = `
+      <div class="progress-block">
+        <div class="progress-meta">
+          <span class="progress-label">${label} Set #${nextSet} Progress</span>
+          <span class="progress-count">${ownedCount} / ${total} cards</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill ${activeType}" style="width:${progressPct}%"></div>
+        </div>
+        ${complete > 0 ? `<div class="progress-complete">${complete} complete set${complete !== 1 ? 's' : ''} · working toward set #${nextSet}</div>` : ''}
+        ${costHtml}
+        ${unavailableHtml}
+      </div>`;
+
+    if (missing.length === 0) {
+      el.innerHTML = progressBlock + `
+        <div class="complete-banner" style="margin-top:1.25rem">
+          ✓ You have all ${total} ${label} cards for Set #${nextSet}! Congrats!
+        </div>`;
+      return;
+    }
+
+    const rows = [...missing]
+      .sort((a, b) => {
+        const ca = parseInt(a.cardid, 10), cb = parseInt(b.cardid, 10);
+        if (!isNaN(ca) && !isNaN(cb)) return ca - cb;
+        return String(a.cardid ?? '').localeCompare(String(b.cardid ?? ''));
+      })
+      .map(t => {
+        const col = currentCollection;
+        const sch = currentSchema;
+        const tid = t.template_id;
+        const ph = priceCell(t.floor);
+        const rPill = t.rarity && RARITY_CLASS[t.rarity]
+          ? `<span class="rarity-pill ${RARITY_CLASS[t.rarity]}">${t.rarity}</span>`
+          : `<span class="rarity-pill">${t.rarity || '—'}</span>`;
+        const links = `<div class="market-links">
+          <a class="market-link" href="${ATOMIC_MARKET}?blockchain=wax-mainnet&collection_name=${enc(col)}&template_id=${enc(tid)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(sch)}&sort=price&symbol=WAX" target="_blank" rel="noopener noreferrer" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub"></a>
+          <a class="market-link" href="https://nfthive.io/market?term=${enc(tid)}&order_by=price_asc&offer_type=listings" target="_blank" rel="noopener noreferrer" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive"></a>
+        </div>`;
+        return `<tr>
+          <td>
+            <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>
+          </td>
+          <td style="width:110px">${rPill}</td>
+          <td class="col-r" style="width:90px">${ph}</td>
+          <td style="width:70px">${links}</td>
+        </tr>`;
+      }).join('');
+
+    el.innerHTML = progressBlock + `
+      <div class="missing-heading">
+        Missing cards — <span>${missing.length} needed</span>
+      </div>
+      <div class="cards-table-wrap">
+        <table class="cards-table">
+          <thead><tr>
+            <th>ID — Card</th>
+            <th style="width:110px">Rarity</th>
+            <th class="col-r" style="width:90px">Floor Price</th>
+            <th style="width:70px">Market</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function updateTrackBtn() {
+    const hasWallet = document.getElementById('walletInput').value.trim() !== '';
+    const hasDrop   = document.getElementById('dropSelect').value !== '';
+    document.getElementById('trackBtn').disabled = !(hasWallet && hasDrop);
+  }
+
+  /* ── Init ── */
+  document.getElementById('walletInput').addEventListener('input', updateTrackBtn);
+  document.getElementById('walletInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupWallet();
+  });
+
+  document.getElementById('dropSelect').addEventListener('change', () => {
+    syncUrl();
+    updateTrackBtn();
+  });
+
+  async function init() {
+    await initDropSelector();
+    if (initW) {
+      document.getElementById('walletInput').value = initW;
+      currentWallet = initW;
+    }
+    if (initW && initC && initS) {
+      document.getElementById('dropSelect').value = initC + '|' + initS;
+      runTracker(initW, initC, initS);
+    }
+  }
+
+  init();
+</script>
+
+</body>
+</html>

@@ -121,7 +121,7 @@
     <div class="controls">
       <div class="controls-row">
         <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet address..." spellcheck="false" autocomplete="off" />
-        <button class="lookup-btn" onclick="lookupWallet()">Look Up</button>
+        <button class="lookup-btn" id="lookupBtn" onclick="lookupWallet()" disabled>Look Up</button>
       </div>
       <div class="controls-row">
         <select class="drop-select" id="dropSelect" onchange="onDropChange()">
@@ -213,44 +213,15 @@
       collection_name: s.collection_name,
       schema_name:     s.schema_name,
       display_name:    collNameMap.get(s.collection_name) || s.collection_name,
-      year:            s.created_at ? new Date(s.created_at).getFullYear() : 0,
-    }));
-
-    const isRegular = d => /^series\d+\.drop$/.test(d.schema_name);
-    const regular   = allDrops.filter(isRegular);
-    const other     = allDrops.filter(d => !isRegular(d));
-
-    const byYear = new Map();
-    for (const d of regular) {
-      const arr = byYear.get(d.year) ?? [];
-      arr.push(d);
-      byYear.set(d.year, arr);
-    }
-    for (const arr of byYear.values()) {
-      arr.sort((a, b) => a.display_name.localeCompare(b.display_name));
-    }
-    const years = Array.from(byYear.keys()).sort((a, b) => b - a);
+    })).sort((a, b) => a.display_name.localeCompare(b.display_name));
 
     let html = '<option value="">— All Drops —</option>';
-    for (const year of years) {
-      html += `<optgroup label="${year}">`;
-      for (const d of byYear.get(year)) {
-        html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
-      }
-      html += '</optgroup>';
-    }
-    if (other.length) {
-      html += '<optgroup label="Other">';
-      for (const d of other) {
-        html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
-      }
-      html += '</optgroup>';
-    }
+    for (const d of allDrops)
+      html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
 
     const select = document.getElementById('dropSelect');
     select.innerHTML = html;
 
-    // Pre-select from URL params
     if (initC && initS) select.value = initC + '|' + initS;
   }
 
@@ -591,6 +562,10 @@
 
   // ── Init ───────────────────────────────────────────────────────
 
+  document.getElementById('walletInput').addEventListener('input', () => {
+    document.getElementById('lookupBtn').disabled =
+      document.getElementById('walletInput').value.trim() === '';
+  });
   document.getElementById('walletInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupWallet();
   });
@@ -599,6 +574,7 @@
     await initDropSelector();
     if (initW) {
       document.getElementById('walletInput').value = initW;
+      document.getElementById('lookupBtn').disabled = false;
       currentWallet = initW;
       loadWallet(initW);
     }
