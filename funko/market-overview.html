@@ -84,6 +84,10 @@
     .filter-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .filter-row .filter-select { min-width: 180px; flex: 1; max-width: 320px; }
     .filter-row .name-search   { min-width: 160px; flex: 1; max-width: 260px; }
+    .supply-filter { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+    .supply-label  { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+    .supply-input  { width: 82px; }
+    .supply-sep    { color: var(--text-secondary); font-size: 0.85rem; }
 
     /* ── Results meta ── */
     .results-meta {
@@ -185,6 +189,12 @@
           <option value="">All Drops</option>
         </select>
         <input class="name-search search-input" id="nameSearch" type="search" placeholder="Search cards…" autocomplete="off" />
+        <div class="supply-filter">
+          <span class="supply-label">Supply</span>
+          <input class="supply-input search-input" id="supplyMin" type="number" placeholder="Min" min="0" />
+          <span class="supply-sep">–</span>
+          <input class="supply-input search-input" id="supplyMax" type="number" placeholder="Max" min="0" />
+        </div>
       </div>
     </div>
 
@@ -229,6 +239,8 @@ const state = {
   setSortField: 'drop',   // 'drop' | 'price'
   setSortDir:   'asc',
   offset:      0,
+  supplyMin:   '',
+  supplyMax:   '',
 };
 
 let allSetPrices  = [];
@@ -237,6 +249,7 @@ let isLoading     = false;
 let canLoadMore   = false;
 let fetchedAt     = null;
 let nameTimer     = null;
+let supplyTimer   = null;
 let waxUsdRate    = null;
 
 /* ── Helpers ── */
@@ -362,8 +375,13 @@ function buildRarityTabs() {
       state.offset = 0;
       tableRows = [];
       const ns = document.getElementById('nameSearch');
-      ns.disabled     = isSetMode();
+      ns.disabled      = isSetMode();
       ns.style.opacity = isSetMode() ? '0.4' : '';
+      ['supplyMin', 'supplyMax'].forEach(id => {
+        const el = document.getElementById(id);
+        el.disabled      = isSetMode();
+        el.style.opacity = isSetMode() ? '0.4' : '';
+      });
       buildRarityTabs();
       loadData();
     });
@@ -619,6 +637,9 @@ function buildCardQuery(offset) {
 
   if (state.name.trim()) parts.push('name=ilike.*' + enc(state.name.trim()) + '*');
 
+  if (state.supplyMin !== '') parts.push('in_circulation=gte.' + enc(state.supplyMin));
+  if (state.supplyMax !== '') parts.push('in_circulation=lte.' + enc(state.supplyMax));
+
   const pc = priceCol();
   parts.push(pc + '=not.is.null');
   if (state.sortField === 'price') {
@@ -735,6 +756,24 @@ async function init() {
       state.offset = 0; tableRows = [];
       loadData();
     }, 300);
+  });
+
+  document.getElementById('supplyMin').addEventListener('input', e => {
+    clearTimeout(supplyTimer);
+    supplyTimer = setTimeout(() => {
+      state.supplyMin = e.target.value;
+      state.offset = 0; tableRows = [];
+      loadData();
+    }, 400);
+  });
+
+  document.getElementById('supplyMax').addEventListener('input', e => {
+    clearTimeout(supplyTimer);
+    supplyTimer = setTimeout(() => {
+      state.supplyMax = e.target.value;
+      state.offset = 0; tableRows = [];
+      loadData();
+    }, 400);
   });
 
   document.getElementById('loadMoreBtn').addEventListener('click', () => {
