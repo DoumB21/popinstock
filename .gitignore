@@ -8,3 +8,7 @@ WombatDB/
 .env.local
 .env.*.local
 .env.production
+
+# Node / Vite
+node_modules/
+.vite/

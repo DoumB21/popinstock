@@ -101,6 +101,9 @@
     .trade-action-btn { flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-primary); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
     .trade-action-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
     .trade-action-btn--danger:hover { background: rgba(224,82,82,0.1); border-color: #e05252; color: #e05252; }
+    .trade-action-btn--offer { flex-basis: 100%; border-color: rgba(240,168,64,0.3); color: var(--accent-light); }
+    .trade-action-btn--offer:not(:disabled):hover { background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.6); }
+    .trade-action-btn--offer:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* ── Double-row card layout ── */
     .card-sub-row td { border-top: none !important; padding-top: 0; padding-bottom: 0.45rem; }
@@ -141,6 +144,7 @@
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="../shared/wax-auth.js"></script>
 </head>
 <body>
   <div id="nav"></div>
@@ -235,7 +239,8 @@
     <div id="tradeEntries" class="trade-entries">
       <p class="trade-empty">No assets selected yet.<br>Click a mint # in the table to add it.</p>
     </div>
-    <div class="trade-sidebar-footer">
+    <div class="trade-sidebar-footer" style="flex-wrap:wrap">
+      <button id="tradeOfferBtn" class="trade-action-btn trade-action-btn--offer" disabled title="Connect your WAX wallet first" onclick="sendTradeOffer()">Send Trade Offer</button>
       <button id="tradeCopyBtn" class="trade-action-btn" onclick="copyTrade()">Copy to Clipboard</button>
       <button class="trade-action-btn trade-action-btn--danger" onclick="clearTrade()">Clear All</button>
     </div>
@@ -518,17 +523,22 @@
           const mint = parseInt(a.template_mint, 10);
           if (!tid || isNaN(mint)) continue;
           if (!map.has(tid)) {
-            map.set(tid, { mints: [mint], count: 1 });
+            map.set(tid, { mints: [mint], mintToAssetId: { [mint]: a.asset_id }, count: 1 });
           } else {
             const e = map.get(tid);
             e.count++;
             e.mints.push(mint);
+            e.mintToAssetId[mint] = a.asset_id;
           }
         }
         // Sort and trim to 4 lowest per template
         for (const e of map.values()) {
           e.mints.sort((a, b) => a - b);
-          e.mints = e.mints.slice(0, 4);
+          const kept = e.mints.slice(0, 4);
+          const trimmed = {};
+          for (const m of kept) trimmed[m] = e.mintToAssetId[m];
+          e.mints = kept;
+          e.mintToAssetId = trimmed;
         }
       } catch (e) {
         console.warn(`Could not fetch assets for ${wallet}:`, e.message);
@@ -781,10 +791,15 @@
     function addToTrade(tmpl, wallet, mint) {
       const key = tradeKey(tmpl.templateId, wallet, mint);
       if (isInTrade(tmpl.templateId, wallet, mint)) return;
+      const walletIdx = lastWallets.indexOf(wallet);
+      const assetId   = walletIdx >= 0
+        ? (lastWalletMaps[walletIdx]?.get(tmpl.templateId)?.mintToAssetId?.[mint] ?? null)
+        : null;
       tradeSummary.push({
         id        : ++tradeIdCounter,
         key,
         templateId: tmpl.templateId,
+        assetId,
         mint,
         cardId    : tmpl.cardId,
         cardName  : tmpl.name,
@@ -881,6 +896,7 @@
         });
         container.appendChild(group);
       });
+      updateOfferBtn();
     }
 
     function updateTradeTab() {
@@ -974,8 +990,73 @@
     }
     function hideError() { document.getElementById('inputError').style.display = 'none'; }
 
+    // ── WAX Trade Offer ───────────────────────────────────────────────────────
+
+    function updateOfferBtn() {
+      const btn = document.getElementById('tradeOfferBtn');
+      if (!btn) return;
+      const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+      const wallets   = [...new Set(tradeSummary.map(e => e.wallet))];
+      const partner   = wallets.find(w => w !== myAccount);
+      const ok = myAccount
+        && wallets.length === 2
+        && wallets.includes(myAccount)
+        && tradeSummary.some(e => e.wallet === myAccount && e.assetId)
+        && tradeSummary.some(e => e.wallet === partner   && e.assetId);
+      btn.disabled = !ok;
+      btn.title = ok ? 'Send trade offer on-chain via WAX wallet'
+        : !myAccount                   ? 'Connect your WAX wallet first'
+        : !wallets.includes(myAccount) ? 'Add assets from your own wallet to the trade'
+        : wallets.length !== 2         ? 'Add assets from exactly 1 trade partner'
+        : 'Run a search first so asset IDs are available';
+    }
+
+    async function sendTradeOffer() {
+      const btn       = document.getElementById('tradeOfferBtn');
+      const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+      if (!myAccount) return;
+      const wallets = [...new Set(tradeSummary.map(e => e.wallet))];
+      const partner = wallets.find(w => w !== myAccount);
+      const myAssets    = tradeSummary.filter(e => e.wallet === myAccount && e.assetId).map(e => e.assetId);
+      const theirAssets = tradeSummary.filter(e => e.wallet === partner   && e.assetId).map(e => e.assetId);
+
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      try {
+        await WaxAuth.transact([{
+          account: 'atomicassets',
+          name: 'createoffer',
+          authorization: [{ actor: myAccount, permission: 'active' }],
+          data: {
+            sender             : myAccount,
+            recipient          : partner,
+            sender_asset_ids   : myAssets,
+            recipient_asset_ids: theirAssets,
+            memo               : 'Trade via PopInStock',
+          },
+        }]);
+        btn.textContent = 'Offer Sent!';
+        setTimeout(() => { btn.textContent = 'Send Trade Offer'; updateOfferBtn(); }, 3000);
+      } catch (e) {
+        console.error('Trade offer failed:', e);
+        btn.textContent = 'Failed — try again';
+        setTimeout(() => { btn.textContent = 'Send Trade Offer'; updateOfferBtn(); }, 2500);
+      }
+    }
+
     // ── Boot ──────────────────────────────────────────────────────────────────
-    init().catch(err => showError(`Init failed: ${err.message}`));
+    window.addEventListener('wax-auth-change', updateOfferBtn);
+    init().then(() => {
+      const walletsInput = document.getElementById('walletsInput');
+      function prefillWallet() {
+        const acc = window.getWaxAccount ? window.getWaxAccount() : null;
+        if (!acc || walletsInput.value.trim()) return;
+        walletsInput.value = acc;
+        updateBtn();
+      }
+      prefillWallet();
+      window.addEventListener('wax-auth-change', prefillWallet);
+    }).catch(err => showError(`Init failed: ${err.message}`));
   </script>
 
 </body>

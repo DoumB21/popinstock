@@ -1,0 +1,26 @@
+diff --git a/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.js b/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.js
+index bf44c58..23a3041 100644
+--- a/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.js
++++ b/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.js
+@@ -211,8 +211,6 @@ class WalletPluginAnchor extends session.AbstractWalletPlugin {
+                     data: request.encode(true, false, 'esr:'),
+                 });
+             }
+-            // Automatically try to open the link
+-            window.location.href = sameDeviceRequest.encode(true, false, 'esr:');
+             // Tell Wharf we need to prompt the user with a QR code and a button
+             const promptResponse = (_a = context.ui) === null || _a === void 0 ? void 0 : _a.prompt({
+                 title: t('login.title', { default: 'Connect with Anchor' }),
+diff --git a/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.m.js b/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.m.js
+index 5564e3c..74dd780 100644
+--- a/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.m.js
++++ b/node_modules/@wharfkit/wallet-plugin-anchor/lib/wallet-plugin-anchor.m.js
+@@ -180,8 +180,6 @@ class WalletPluginAnchor extends AbstractWalletPlugin {
+                 data: request.encode(true, false, 'esr:'),
+             });
+         }
+-        // Automatically try to open the link
+-        window.location.href = sameDeviceRequest.encode(true, false, 'esr:');
+         // Tell Wharf we need to prompt the user with a QR code and a button
+         const promptResponse = context.ui?.prompt({
+             title: t('login.title', { default: 'Connect with Anchor' }),

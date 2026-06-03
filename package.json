@@ -1,0 +1,21 @@
+{
+  "name": "popinstock",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:auth": "vite build",
+    "postinstall": "patch-package"
+  },
+  "dependencies": {
+    "@wharfkit/session": "^1",
+    "@wharfkit/wallet-plugin-anchor": "^1",
+    "@wharfkit/wallet-plugin-cloudwallet": "^1",
+    "@wharfkit/wallet-plugin-wombat": "^1.5.1",
+    "@wharfkit/web-renderer": "^1"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1",
+    "svelte": "^5.56.1",
+    "vite": "^5"
+  }
+}
