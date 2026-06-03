@@ -71,10 +71,34 @@
     .mint-clickable:hover { background: rgba(74,222,128,0.15); color: #4ade80; }
     .mint-selected { background: rgba(74,222,128,0.18) !important; color: #4ade80 !important; box-shadow: 0 0 0 2px #4ade80; font-weight: 700; }
 
-    /* ── Trade tab ── */
-    .trade-tab { position: fixed; right: 0; top: 50%; transform: translateY(-50%); background: linear-gradient(180deg, var(--accent-light), var(--accent)); color: #fff; border: none; border-radius: 10px 0 0 10px; padding: 1.1rem 0.55rem; cursor: pointer; z-index: 200; font-weight: 700; font-size: 0.78rem; writing-mode: vertical-lr; letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; box-shadow: -3px 0 12px rgba(0,0,0,0.35); transition: opacity 0.2s; }
-    .trade-tab:hover { opacity: 0.88; }
+    /* ── Side tab group ── */
+    .side-tabs-group { position: fixed; right: 0; top: 50%; transform: translateY(-50%); z-index: 200; display: flex; flex-direction: column; gap: 3px; }
+    .trade-tab, .traders-tab { border: none; border-radius: 10px 0 0 10px; padding: 1.1rem 0.55rem; cursor: pointer; font-weight: 700; font-size: 0.78rem; writing-mode: vertical-lr; letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; box-shadow: -3px 0 12px rgba(0,0,0,0.35); transition: opacity 0.2s; }
+    .trade-tab   { background: linear-gradient(180deg, var(--accent-light), var(--accent)); color: #fff; }
+    .traders-tab { background: linear-gradient(180deg, #60a5fa, #3b82f6); color: #fff; }
+    .trade-tab:hover, .traders-tab:hover { opacity: 0.88; }
     .trade-count-badge { background: #fff; color: var(--accent); border-radius: 999px; font-size: 0.72rem; font-weight: 800; min-width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; padding: 0 3px; }
+    /* ── Traders sidebar ── */
+    .traders-sidebar { position: fixed; right: -380px; top: 0; bottom: 0; width: 360px; background: var(--bg-card); border-left: 1px solid var(--border); z-index: 300; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -6px 0 24px rgba(0,0,0,0.4); }
+    .traders-sidebar.open { right: 0; }
+    .trader-entry { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.85rem; }
+    .trader-wallet { font-size: 0.88rem; font-weight: 700; color: #60a5fa; cursor: pointer; display: inline-block; }
+    .trader-wallet:hover { text-decoration: underline; }
+    .trader-desc   { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+    .trader-joined { font-size: 0.72rem; color: var(--text-secondary); opacity: 0.55; margin-top: 0.1rem; }
+    .traders-me-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #4ade80; border: 1px solid rgba(74,222,128,0.3); background: rgba(74,222,128,0.08); border-radius: 4px; padding: 1px 4px; margin-left: 5px; vertical-align: middle; }
+    .traders-section-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); padding: 0.2rem 0.1rem; }
+    .trader-entry--featured { border-color: rgba(240,168,64,0.4); background: rgba(240,168,64,0.04); }
+    .trader-featured-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-light); border: 1px solid rgba(240,168,64,0.3); background: rgba(240,168,64,0.08); border-radius: 4px; padding: 1px 4px; margin-left: 5px; vertical-align: middle; }
+    .traders-footer { padding: 0.85rem 1rem; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .traders-auth-hint { font-size: 0.82rem; color: var(--text-secondary); text-align: center; padding: 0.25rem 0; }
+    .trader-desc-input { width: 100%; box-sizing: border-box; }
+    .traders-action-btn { width: 100%; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-primary); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+    .traders-action-btn:not(:disabled):hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+    .traders-action-btn--join { border-color: rgba(96,165,250,0.3); color: #60a5fa; }
+    .traders-action-btn--join:not(:disabled):hover { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.6); }
+    .traders-action-btn--leave:not(:disabled):hover { background: rgba(224,82,82,0.1); border-color: #e05252; color: #e05252; }
+    .traders-action-btn:disabled { opacity: 0.55; cursor: default; }
 
     /* ── Trade sidebar ── */
     .trade-sidebar { position: fixed; right: -380px; top: 0; bottom: 0; width: 360px; background: var(--bg-card); border-left: 1px solid var(--border); z-index: 300; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -6px 0 24px rgba(0,0,0,0.4); }
@@ -144,6 +168,7 @@
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="../shared/supabase-config.js"></script>
   <script src="../shared/wax-auth.js"></script>
 </head>
 <body>
@@ -225,10 +250,27 @@
     </div>
   </main>
 
-  <!-- Trade Tab -->
-  <button id="tradeTab" class="trade-tab" onclick="toggleSidebar()">
-    Trade<span id="tradeCountBadge" class="trade-count-badge">0</span>
-  </button>
+  <!-- Side Tabs -->
+  <div class="side-tabs-group">
+    <button id="tradeTab" class="trade-tab" onclick="toggleSidebar()">
+      Trade<span id="tradeCountBadge" class="trade-count-badge">0</span>
+    </button>
+    <button class="traders-tab" onclick="toggleTradersSidebar()">
+      Traders<span id="tradersCountBadge" class="trade-count-badge">0</span>
+    </button>
+  </div>
+
+  <!-- Traders Sidebar -->
+  <div id="tradersSidebar" class="traders-sidebar">
+    <div class="trade-sidebar-header">
+      <span class="trade-sidebar-title">Traders List</span>
+      <button class="trade-close-btn" onclick="toggleTradersSidebar()">✕</button>
+    </div>
+    <div id="tradersListEntries" class="trade-entries">
+      <div class="status-wrap"><div class="spinner"></div><div class="status-text">Loading…</div></div>
+    </div>
+    <div id="tradersFooter" class="traders-footer"></div>
+  </div>
 
   <!-- Trade Sidebar -->
   <div id="tradeSidebar" class="trade-sidebar">
@@ -1044,8 +1086,181 @@
       }
     }
 
+    // ── Traders List ─────────────────────────────────────────────────────────
+
+    const TRADERS_URL = SUPABASE_URL + '/rest/v1/traders_list';
+    const TRADERS_HDR = {
+      'apikey':          SUPABASE_ANON_KEY,
+      'Authorization':   'Bearer ' + SUPABASE_ANON_KEY,
+      'Accept-Profile':  'topps',
+      'Content-Profile': 'topps',
+    };
+
+    let tradersList   = [];
+    let tradersLoaded = false;
+
+    function fmtJoined(ts) {
+      if (!ts) return '';
+      const d = Math.floor((Date.now() - new Date(ts)) / 86400000);
+      if (d < 1)   return 'Joined today';
+      if (d === 1) return 'Joined yesterday';
+      return `Joined ${d} days ago`;
+    }
+
+    function escHtml(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function loadTradersList() {
+      try {
+        const r = await fetch(TRADERS_URL + '?select=*&order=featured.desc,joined_at.asc', { headers: TRADERS_HDR });
+        if (!r.ok) throw new Error('Load failed');
+        tradersList   = await r.json();
+        tradersLoaded = true;
+      } catch {
+        document.getElementById('tradersListEntries').innerHTML =
+          '<p class="trade-empty">Failed to load traders list.</p>';
+        return;
+      }
+      renderTradersContent();
+    }
+
+    function renderTradersContent() {
+      renderTradersList();
+      renderTradersFooter();
+      document.getElementById('tradersCountBadge').textContent = tradersList.length;
+    }
+
+    function renderTraderEntry(t, myAccount) {
+      const isMe      = t.wallet === myAccount;
+      const meBadge   = isMe ? '<span class="traders-me-badge">You</span>' : '';
+      const featBadge = t.featured ? '<span class="trader-featured-badge">Featured</span>' : '';
+      const cls       = t.featured ? 'trader-entry trader-entry--featured' : 'trader-entry';
+      return `<div class="${cls}">
+        <div class="trader-wallet" onclick="addWalletToInput('${escHtml(t.wallet)}')" title="Add to wallet filter">${escHtml(t.wallet)}${meBadge}${featBadge}</div>
+        ${t.description ? `<div class="trader-desc">${escHtml(t.description)}</div>` : ''}
+        <div class="trader-joined">${fmtJoined(t.joined_at)}</div>
+      </div>`;
+    }
+
+    function renderTradersList() {
+      const container = document.getElementById('tradersListEntries');
+      const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+      if (!tradersList.length) {
+        container.innerHTML = '<p class="trade-empty">No traders yet.<br>Be the first to join!</p>';
+        return;
+      }
+      const featured = tradersList.filter(t => t.featured);
+      const regular  = tradersList.filter(t => !t.featured);
+      let h = '';
+      if (featured.length) {
+        h += `<div class="traders-section-label">⭐ Featured</div>`;
+        for (const t of featured) h += renderTraderEntry(t, myAccount);
+      }
+      if (regular.length) {
+        if (featured.length) h += `<div class="traders-section-label" style="margin-top:0.5rem">Traders</div>`;
+        for (const t of regular) h += renderTraderEntry(t, myAccount);
+      }
+      container.innerHTML = h;
+    }
+
+    function renderTradersFooter() {
+      const footer    = document.getElementById('tradersFooter');
+      const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+      if (!myAccount) {
+        footer.innerHTML = `<p class="traders-auth-hint">Connect your WAX wallet to join the list.</p>`;
+        return;
+      }
+      const myEntry = tradersList.find(t => t.wallet === myAccount);
+      if (myEntry) {
+        footer.innerHTML = `
+          <p class="traders-auth-hint" style="text-align:left">You're on the list. To change your description, leave and rejoin.</p>
+          <button class="traders-action-btn traders-action-btn--leave" onclick="leaveTradersList()">Leave the List</button>`;
+      } else {
+        footer.innerHTML = `
+          <input id="traderDescInput" class="control-input trader-desc-input" type="text" maxlength="80"
+            placeholder="Discord, X handle, or a name (optional)" />
+          <button class="traders-action-btn traders-action-btn--join" onclick="joinTradersList()">Join the List</button>`;
+      }
+    }
+
+    function addWalletToInput(wallet) {
+      const input   = document.getElementById('walletsInput');
+      const current = input.value.split(',').map(w => w.trim()).filter(Boolean);
+      if (current.includes(wallet) || current.length >= MAX_WAL) return;
+      input.value = [...current, wallet].join(', ');
+      updateBtn();
+      input.style.boxShadow = '0 0 0 2px rgba(96,165,250,0.5)';
+      setTimeout(() => { input.style.boxShadow = ''; }, 600);
+    }
+
+    function toggleTradersSidebar() {
+      const sidebar   = document.getElementById('tradersSidebar');
+      const isOpening = !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open');
+      if (isOpening) {
+        document.getElementById('tradeSidebar').classList.remove('open');
+      }
+    }
+
+    const _origToggleSidebar = toggleSidebar;
+    function toggleSidebar() {
+      _origToggleSidebar();
+      if (document.getElementById('tradeSidebar').classList.contains('open')) {
+        document.getElementById('tradersSidebar').classList.remove('open');
+      }
+    }
+
+    async function joinTradersList() {
+      const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+      if (!myAccount) return;
+      const desc = (document.getElementById('traderDescInput')?.value || '').trim();
+      const btn  = document.querySelector('.traders-action-btn--join');
+      if (btn) { btn.disabled = true; btn.textContent = 'Joining…'; }
+      try {
+        const r = await fetch(TRADERS_URL, {
+          method: 'POST',
+          headers: { ...TRADERS_HDR, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ wallet: myAccount, description: desc || null }),
+        });
+        if (r.status === 409) {
+          alert('This wallet is already on the list.');
+          if (btn) { btn.disabled = false; btn.textContent = 'Join the List'; }
+          await loadTradersList();
+          return;
+        }
+        if (!r.ok) throw new Error('Request failed');
+        await loadTradersList();
+      } catch (e) {
+        console.error('Join failed:', e);
+        if (btn) { btn.disabled = false; btn.textContent = 'Join the List'; }
+      }
+    }
+
+    async function leaveTradersList() {
+      const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+      if (!myAccount) return;
+      const btn = document.querySelector('.traders-action-btn--leave');
+      if (btn) { btn.disabled = true; btn.textContent = 'Leaving…'; }
+      try {
+        const r = await fetch(TRADERS_URL + '?wallet=eq.' + encodeURIComponent(myAccount), {
+          method: 'DELETE',
+          headers: TRADERS_HDR,
+        });
+        if (!r.ok) throw new Error('Request failed');
+        await loadTradersList();
+      } catch (e) {
+        console.error('Leave failed:', e);
+        if (btn) { btn.disabled = false; btn.textContent = 'Leave the List'; }
+      }
+    }
+
     // ── Boot ──────────────────────────────────────────────────────────────────
-    window.addEventListener('wax-auth-change', updateOfferBtn);
+    window.addEventListener('wax-auth-change', () => {
+      updateOfferBtn();
+      if (tradersLoaded) renderTradersContent();
+    });
+    loadTradersList();
     init().then(() => {
       const walletsInput = document.getElementById('walletsInput');
       function prefillWallet() {
