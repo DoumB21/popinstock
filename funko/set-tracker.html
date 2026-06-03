@@ -23,6 +23,9 @@
     /* ── Controls ── */
     .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 600px; }
     .controls-row { display: flex; gap: 0.5rem; }
+    .wallet-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+    .wallet-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+    .wallet-hint  { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; }
     .wallet-input { flex: 1; }
     .drop-select  { flex: 1; cursor: pointer; }
 
@@ -213,6 +216,7 @@
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="../shared/wax-auth.js"></script>
 </head>
 <body>
 
@@ -226,7 +230,12 @@
 
     <div class="controls">
       <div class="controls-row">
-        <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet (comma-separated for multiple)…" spellcheck="false" autocomplete="off" />
+        <div class="wallet-group">
+          <label for="walletInput" class="wallet-label">
+            Wallets <span class="wallet-hint">(comma-separated for multiple)</span>
+          </label>
+          <input class="wallet-input" id="walletInput" type="text" placeholder="wallet1.wam, wallet2.gm, …" spellcheck="false" autocomplete="off" />
+        </div>
       </div>
       <div class="controls-row">
         <select class="drop-select" id="dropSelect">
@@ -782,6 +791,16 @@
       const wallets = [...new Set(initW.split(',').map(w => w.trim()).filter(Boolean))];
       runTracker(wallets, initC, initS);
     }
+
+    function prefillWallet() {
+      const acc = window.getWaxAccount ? window.getWaxAccount() : null;
+      const el  = document.getElementById('walletInput');
+      if (!acc || el.value.trim()) return;
+      el.value = acc;
+      updateTrackBtn();
+    }
+    prefillWallet();
+    window.addEventListener('wax-auth-change', prefillWallet);
   }
 
   init();
