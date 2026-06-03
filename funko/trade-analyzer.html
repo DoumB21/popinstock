@@ -1144,6 +1144,7 @@
 
     function toggleSidebar() {
       document.getElementById('tradeSidebar').classList.toggle('open');
+      document.getElementById('tradersSidebar').classList.remove('open');
     }
 
     function copyTrade() {
@@ -1407,14 +1408,6 @@
       }
     }
 
-    // Override toggleSidebar to also close traders sidebar
-    const _origToggleSidebar = toggleSidebar;
-    function toggleSidebar() {
-      _origToggleSidebar();
-      if (document.getElementById('tradeSidebar').classList.contains('open')) {
-        document.getElementById('tradersSidebar').classList.remove('open');
-      }
-    }
 
     async function joinTradersList() {
       const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
