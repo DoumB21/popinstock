@@ -129,6 +129,15 @@
     .cell-priced.priced-partial { color: var(--accent-light); }
     .cell-priced.priced-none    { color: rgba(255,255,255,0.2); }
 
+    .template-link {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.03em;
+      color: var(--text-secondary); text-decoration: none;
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: 2px 8px; white-space: nowrap;
+      opacity: 0.55; transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .template-link:hover { opacity: 1; color: var(--accent-light); border-color: rgba(240,168,64,0.4); }
+
     .excl-badge {
       display: inline-flex; align-items: center;
       font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
@@ -397,8 +406,9 @@ function buildCardTable(rows, append) {
 
   const pc    = priceCol();
   const pl    = priceLabel();
-  const idSi    = state.sortField === 'id'    ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
-  const priceSi = state.sortField === 'price' ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+  const idSi     = state.sortField === 'id'     ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+  const supplySi = state.sortField === 'supply' ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+  const priceSi  = state.sortField === 'price'  ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
 
   if (!append) {
     wrap.innerHTML = `<table class="market-table">
@@ -407,6 +417,9 @@ function buildCardTable(rows, append) {
           ID — Card <span class="sort-icon">${idSi}</span>
         </th>
         <th style="min-width:150px">Drop</th>
+        <th class="col-r sortable${state.sortField==='supply'?' sorted':''}" style="width:100px" id="supplyHdr">
+          Supply <span class="sort-icon">${supplySi}</span>
+        </th>
         <th class="col-r sortable${state.sortField==='price'?' sorted':''}" style="width:120px" id="priceHdr">
           Floor Price <span class="sort-icon">${priceSi}</span>
         </th>
@@ -414,8 +427,9 @@ function buildCardTable(rows, append) {
       </tr></thead>
       <tbody id="cardTbody"></tbody>
     </table>`;
-    wrap.querySelector('#idHdr').addEventListener('click',    () => toggleSort('id'));
-    wrap.querySelector('#priceHdr').addEventListener('click', () => toggleSort('price'));
+    wrap.querySelector('#idHdr').addEventListener('click',     () => toggleSort('id'));
+    wrap.querySelector('#supplyHdr').addEventListener('click', () => toggleSort('supply'));
+    wrap.querySelector('#priceHdr').addEventListener('click',  () => toggleSort('price'));
   }
 
   const tbody = document.getElementById('cardTbody');
@@ -446,15 +460,28 @@ function buildCardTable(rows, append) {
       `<a class="market-link" href="${l.href}" target="_blank" rel="noopener noreferrer" title="${l.title}"><img src="${l.icon}" alt="${l.title}"></a>`
     ).join('');
 
+    const circ = row.in_circulation;
+    const issued = row.issued_supply;
+    const displayNum = circ ?? issued;
+    const showOf = issued != null && (issued === 1 || (circ != null && circ < issued));
+    const supplyHtml = displayNum != null
+      ? `<div class="cell-supply" style="color:var(--text-primary);font-weight:600;font-size:0.85rem">${fmtN(displayNum)}</div>` +
+        (showOf ? `<div class="cell-supply">of ${fmtN(issued)}</div>` : '')
+      : '<span style="color:rgba(255,255,255,0.2);font-size:0.82rem">—</span>';
+
     h += `<tr>
       <td>
         <div class="cell-card-name">${row.cardid != null ? row.cardid + ' — ' : ''}${row.name||'—'}</div>
-        <div style="margin-top:3px"><span class="rarity-pill ${RARITY_CLASS[row.rarity]||''}">${row.rarity||'—'}</span></div>
+        <div style="margin-top:3px;display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+          <span class="rarity-pill ${RARITY_CLASS[row.rarity]||''}">${row.rarity||'—'}</span>
+          <a class="template-link" href="https://wax.atomichub.io/explorer/template/wax-mainnet/${enc(row.template_id)}" target="_blank" rel="noopener noreferrer">View template #${row.template_id}</a>
+        </div>
       </td>
       <td>
         <div class="cell-drop-name">${row.drop_displayname||row.collection_name}${excl}</div>
         <div class="cell-drop-schema">${schemaLabel(row.schema_name)}</div>
       </td>
+      <td class="col-r">${supplyHtml}</td>
       <td class="col-r">${ph}</td>
       <td class="col-r"><div class="market-links">${linksHtml}</div></td>
     </tr>`;
@@ -568,7 +595,7 @@ function toggleSort(field) {
 function buildCardQuery(offset) {
   const parts = [
     'select=template_id,collection_name,schema_name,drop_displayname,droppp_slug,droppp_exclusive,' +
-    'name,rarity,cardid,max_supply,issued_supply,droppp_price_usd,wax_price_wax,wax_price_usd,best_price_usd,fetched_at'
+    'name,rarity,cardid,max_supply,issued_supply,in_circulation,droppp_price_usd,wax_price_wax,wax_price_usd,best_price_usd,fetched_at'
   ];
 
   if (state.rarity !== 'All') parts.push('rarity=eq.' + enc(state.rarity));
@@ -595,6 +622,8 @@ function buildCardQuery(offset) {
   const pc = priceCol();
   if (state.sortField === 'price') {
     parts.push('order=' + pc + '.' + state.sortDir + '.nullslast,drop_displayname.asc,cardid.asc');
+  } else if (state.sortField === 'supply') {
+    parts.push('order=in_circulation.' + state.sortDir + '.nullslast,' + pc + '.asc.nullslast,drop_displayname.asc');
   } else {
     parts.push('order=cardid.' + state.sortDir + ',drop_displayname.asc');
   }
@@ -659,6 +688,7 @@ async function loadData(append) {
         ? `Showing <strong>${fmtN(shown)}</strong> of <strong>${fmtN(total)}</strong> cards`
         : `Showing <strong>${fmtN(shown)}</strong> cards`;
       if (fetchedAt) m += ` <span class="updated">· updated ${fmtAgo(fetchedAt)}</span>`;
+      m += `<div style="margin-top:0.3rem;font-size:0.75rem;opacity:0.55">Supply figures exclude assets held in Droppp (.dp) wallets.</div>`;
       meta.innerHTML = m;
 
       morewrap.style.display = canLoadMore ? 'block' : 'none';
