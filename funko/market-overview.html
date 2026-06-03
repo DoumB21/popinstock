@@ -620,6 +620,7 @@ function buildCardQuery(offset) {
   if (state.name.trim()) parts.push('name=ilike.*' + enc(state.name.trim()) + '*');
 
   const pc = priceCol();
+  parts.push(pc + '=not.is.null');
   if (state.sortField === 'price') {
     parts.push('order=' + pc + '.' + state.sortDir + '.nullslast,drop_displayname.asc,cardid.asc');
   } else if (state.sortField === 'supply') {
