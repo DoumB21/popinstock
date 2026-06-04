@@ -167,6 +167,9 @@
     .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
+    .market-link--primary { opacity: 1; transition: filter 0.2s; }
+    .market-link--primary img { width: 24px; height: 24px; }
+    .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); }
 
     /* ── Rarity breakdown ── */
     .rarity-breakdown {
@@ -737,6 +740,7 @@
           ? `<span class="rarity-pill ${RARITY_CLASS[t.rarity]}">${t.rarity}</span>`
           : `<span class="rarity-pill">${t.rarity || '—'}</span>`;
         const links = `<div class="market-links">
+          <a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}&collection_name=${enc(col)}&schema_name=${enc(sch)}" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock"><img src="../images/FoxLogo.png" alt="PopInStock"></a>
           <a class="market-link" href="${ATOMIC_MARKET}?blockchain=wax-mainnet&collection_name=${enc(col)}&template_id=${enc(tid)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(sch)}&sort=price&symbol=WAX" target="_blank" rel="noopener noreferrer" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub"></a>
           <a class="market-link" href="https://nfthive.io/market?term=${enc(tid)}&order_by=price_asc&offer_type=listings" target="_blank" rel="noopener noreferrer" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive"></a>
         </div>`;
@@ -801,6 +805,8 @@
     }
     if (initW && initC && initS) {
       document.getElementById('dropSelect').value = initC + '|' + initS;
+      currentCollection = initC;
+      currentSchema     = initS;
       const wallets = [...new Set(initW.split(',').map(w => w.trim()).filter(Boolean))];
       runTracker(wallets, initC, initS);
     }

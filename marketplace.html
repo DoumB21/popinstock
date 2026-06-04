@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketplace — PopInStock</title>
+  <link rel="icon" type="image/png" href="images/FoxLogo.png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Hero ── */
+    .mp-hero {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.75rem;
+    }
+
+    .mp-hero-image {
+      flex-shrink: 0;
+      width: 220px;
+    }
+    .mp-hero-image img,
+    .mp-hero-image video {
+      width: 220px;
+      height: 220px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: block;
+    }
+    .mp-hero-image-placeholder {
+      width: 220px;
+      height: 220px;
+      border-radius: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    .mp-hero-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-width: 0;
+    }
+
+    .mp-hero-name {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.3px;
+    }
+
+    .mp-hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+    .mp-hero-collection {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .mp-hero-stats {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .mp-hero-stat {}
+    .mp-hero-stat-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-light);
+      font-variant-numeric: tabular-nums;
+    }
+    .mp-hero-stat-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .mp-hero-divider {
+      width: 1px;
+      background: var(--border);
+      align-self: stretch;
+    }
+
+    .mp-supply-breakdown {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+    .mp-supply-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mp-supply-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+    .mp-supply-val {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Listings grid ── */
+    .mp-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .mp-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: background 0.15s, border-color 0.2s;
+      position: relative;
+    }
+    .mp-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+    }
+
+    .mp-card--best {
+      border-color: rgba(240,168,64,0.45);
+      background: rgba(240,168,64,0.04);
+    }
+    .mp-card--best:hover {
+      border-color: rgba(240,168,64,0.7);
+      background: rgba(240,168,64,0.07);
+    }
+
+    .mp-best-badge {
+      position: absolute;
+      top: -1px;
+      right: 12px;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 0 0 6px 6px;
+    }
+
+    .mp-card-mint {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+
+    .mp-card-price {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mp-card-wax {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .mp-card--best .mp-card-wax { color: var(--accent-light); }
+    .mp-card-usd {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+    }
+
+    .mp-card-seller {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mp-buy-btn {
+      margin-top: auto;
+      width: 100%;
+      padding: 0.55rem 1rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      transition: opacity 0.2s, transform 0.15s;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      color: #fff;
+    }
+    .mp-buy-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .mp-buy-btn:active:not(:disabled) { transform: translateY(0); }
+    .mp-buy-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .mp-buy-btn--connect {
+      background: none;
+      border: 1px solid rgba(240,168,64,0.4);
+      color: var(--accent-light);
+    }
+    .mp-buy-btn--connect:hover:not(:disabled) { background: rgba(240,168,64,0.08); opacity: 1; }
+
+    .mp-buy-btn--bought {
+      background: rgba(63,185,80,0.12);
+      border: 1px solid rgba(63,185,80,0.3);
+      color: #3fb950;
+      cursor: default;
+    }
+    .mp-buy-btn--bought:hover { opacity: 1; transform: none; }
+
+    .mp-buy-btn--error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
+
+    /* Show more */
+    .mp-show-more-wrap {
+      text-align: center;
+      padding-top: 0.5rem;
+    }
+
+    .commission-note {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      text-align: center;
+    }
+
+    /* ── Nav wallet styles ── */
+    .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 0.5rem 0 0.25rem; flex-shrink: 0; }
+    .nav-wax-btn {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 5px 12px; border-radius: 999px; flex-shrink: 0;
+      border: 1px solid rgba(240,168,64,0.35); background: rgba(240,168,64,0.07);
+      color: var(--accent-light); cursor: pointer; white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s; font-family: inherit;
+    }
+    .nav-wax-btn:hover:not(:disabled) { background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.55); }
+    .nav-wax-btn:disabled { opacity: 0.55; cursor: default; }
+    .nav-wax-connected-widget {
+      display: none; align-items: center; gap: 6px;
+      padding: 4px 6px 4px 11px; border-radius: 999px; flex-shrink: 0;
+      border: 1px solid rgba(74,222,128,0.35); background: rgba(74,222,128,0.07);
+    }
+    .nav-wax-name { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4ade80; white-space: nowrap; user-select: none; }
+    .nav-wax-logout-btn {
+      width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
+      border: 1px solid rgba(74,222,128,0.3); background: none;
+      color: rgba(74,222,128,0.65); cursor: pointer;
+      font-size: 0.62rem; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .nav-wax-logout-btn:hover { background: rgba(224,82,82,0.15); border-color: rgba(224,82,82,0.5); color: #e05252; }
+
+    /* ── Responsive ── */
+    @media (max-width: 860px) {
+      .mp-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .mp-hero { flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
+      .mp-hero-meta { justify-content: center; }
+      .mp-hero-stats { justify-content: center; }
+      .mp-hero-image, .mp-hero-image img, .mp-hero-image video, .mp-hero-image-placeholder { width: 160px; height: 160px; }
+      .mp-hero-name { font-size: 1.3rem; }
+    }
+
+    @media (max-width: 480px) {
+      .mp-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/wax-auth.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/FoxLogo.png" alt="PopInStock" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+    <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">Connect Wallet</button>
+    <div id="navWaxConnected" class="nav-wax-connected-widget">
+      <span id="navWaxName" class="nav-wax-name"></span>
+      <button id="navWaxLogout" class="nav-wax-logout-btn" title="Logout">✕</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Market<span class="accent">place</span></div>
+      <div class="page-subtitle">Shop through the Pop In Stock Marketplace and help support future tools, features, and site improvements.</div>
+    </div>
+
+    <div id="heroSection">
+      <div class="status-wrap"><div class="spinner"></div></div>
+    </div>
+
+    <div id="listingsSection"></div>
+
+  </div>
+</div>
+
+<footer>
+  &copy; 2026 PopInStock &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script src="shared/supabase-config.js"></script>
+<script>
+'use strict';
+
+const TAKER_MARKETPLACE = 'popinstockgo';
+const IPFS_GW           = 'https://ipfs.io/ipfs/';
+const ATOMIC_MARKET_URL = 'https://wax.atomichub.io/market';
+const WAX_API           = 'https://wax.api.atomicassets.io/atomicassets/v1';
+const WAX_MARKET_API    = 'https://wax.api.atomicassets.io/atomicmarket/v1';
+const PAGE_SIZE         = 25;
+
+const params         = new URLSearchParams(location.search);
+const templateId     = params.get('template_id')     || '';
+const collectionName = params.get('collection_name') || '';
+const schemaName     = params.get('schema_name')     || '';
+
+let waxUsdRate   = null;
+let allListings  = [];
+let visibleCount = PAGE_SIZE;
+
+const RARITY_CLASS = {
+  'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
+  'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
+  'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1',
+};
+
+/* ── Helpers ── */
+function enc(v) { return encodeURIComponent(v); }
+
+function fmtWax(amount) {
+  const w = parseInt(amount) / 1e8;
+  return (w < 1 ? w.toFixed(4) : w.toFixed(2)) + ' WAX';
+}
+
+function toWaxQty(amount) {
+  return (parseInt(amount) / 1e8).toFixed(8) + ' WAX';
+}
+
+function shortAddr(addr) {
+  return addr.length > 14 ? addr.slice(0, 7) + '…' + addr.slice(-4) : addr;
+}
+
+/* ── WAX price ── */
+async function fetchWaxPrice() {
+  try {
+    const r    = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    const json = await r.json();
+    waxUsdRate = json?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+/* ── API ── */
+async function fetchTemplate() {
+  const r    = await fetch(`${WAX_API}/templates/${enc(collectionName)}/${enc(templateId)}`);
+  const json = await r.json();
+  if (!json.success) throw new Error('Template not found');
+  return json.data;
+}
+
+async function fetchSupplyDetails() {
+  try {
+    const url = SUPABASE_URL + '/rest/v1/funko_market_prices?' +
+      `template_id=eq.${enc(templateId)}&select=dp_locked_count&limit=1`;
+    const r = await fetch(url, {
+      headers: {
+        'apikey':         SUPABASE_ANON_KEY,
+        'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data[0] || null;
+  } catch { return null; }
+}
+
+async function fetchBurnedCount() {
+  try {
+    const r    = await fetch(`${WAX_API}/templates/${enc(collectionName)}/${enc(templateId)}/stats`);
+    const json = await r.json();
+    if (!json.success) return null;
+    return json.data?.burned != null ? parseInt(json.data.burned) : null;
+  } catch { return null; }
+}
+
+async function fetchListings() {
+  const r    = await fetch(`${WAX_MARKET_API}/sales?state=1&template_id=${enc(templateId)}&sort=price&order=asc&limit=100`);
+  const json = await r.json();
+  if (!json.success) throw new Error('Failed to load listings');
+  return json.data;
+}
+
+/* ── Nav wallet ── */
+window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
+
+function _waxShort(acc) {
+  return acc.length > 13 ? acc.slice(0, 6) + '…' + acc.slice(-4) : acc;
+}
+
+function _updateNavWaxBtn() {
+  const connectBtn  = document.getElementById('navWaxBtn');
+  const connectedEl = document.getElementById('navWaxConnected');
+  const nameEl      = document.getElementById('navWaxName');
+  const acc = window.getWaxAccount();
+  if (acc) {
+    if (connectBtn)  { connectBtn.style.display = 'none'; connectBtn.disabled = false; }
+    if (connectedEl) connectedEl.style.display = 'flex';
+    if (nameEl)      { nameEl.textContent = _waxShort(acc); nameEl.title = acc; }
+  } else {
+    if (connectBtn)  { connectBtn.style.display = ''; connectBtn.textContent = 'Connect Wallet'; connectBtn.disabled = false; }
+    if (connectedEl) connectedEl.style.display = 'none';
+  }
+}
+
+function _loadWaxAuth() {
+  if (window.WaxAuth) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'shared/wax-auth.js'; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+let _connectTimeout = null;
+
+async function _handleWaxClick() {
+  const btn = document.getElementById('navWaxBtn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  clearTimeout(_connectTimeout);
+  _connectTimeout = setTimeout(() => _updateNavWaxBtn(), 300000);
+  try {
+    await _loadWaxAuth(); await WaxAuth.login();
+  } catch { /* cancelled */ } finally {
+    clearTimeout(_connectTimeout); _updateNavWaxBtn();
+  }
+}
+
+async function _handleWaxLogout() {
+  const btn = document.getElementById('navWaxLogout');
+  if (btn) btn.disabled = true;
+  try { await _loadWaxAuth(); await WaxAuth.logout(); } catch { /* ignore */ } finally { _updateNavWaxBtn(); }
+}
+
+async function _initNavWax() {
+  document.getElementById('navWaxBtn').addEventListener('click', _handleWaxClick);
+  document.getElementById('navWaxLogout').addEventListener('click', _handleWaxLogout);
+  window.addEventListener('wax-auth-change', () => { _updateNavWaxBtn(); refreshBuyButtons(); });
+  try { await _loadWaxAuth(); await WaxAuth.restore(); } catch { /* no saved session */ }
+  _updateNavWaxBtn();
+}
+
+/* ── Connect ── */
+async function connectWallet() {
+  try { await _loadWaxAuth(); await WaxAuth.login(); } catch { /* user cancelled */ }
+}
+
+/* ── Buy ── */
+async function buyListing(btn, saleId, listingPrice) {
+  const buyer = window.getWaxAccount();
+  if (!buyer) { connectWallet(); return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Buying…';
+  btn.className   = 'mp-buy-btn';
+
+  try {
+    await WaxAuth.transact([
+      {
+        account: 'eosio.token',
+        name:    'transfer',
+        authorization: [{ actor: buyer, permission: 'active' }],
+        data: { from: buyer, to: 'atomicmarket', quantity: toWaxQty(listingPrice), memo: 'deposit' },
+      },
+      {
+        account: 'atomicmarket',
+        name:    'purchasesale',
+        authorization: [{ actor: buyer, permission: 'active' }],
+        data: { buyer, sale_id: saleId, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE },
+      },
+    ]);
+
+    btn.textContent = '✓ Purchased!';
+    btn.className   = 'mp-buy-btn mp-buy-btn--bought';
+    const card = btn.closest('.mp-card');
+    if (card) setTimeout(() => { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }, 1500);
+
+  } catch (e) {
+    const msg       = String(e?.message || e).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    btn.disabled    = false;
+    if (cancelled) {
+      btn.textContent = window.getWaxAccount() ? 'Buy Now' : 'Connect to Buy';
+      btn.className   = window.getWaxAccount() ? 'mp-buy-btn' : 'mp-buy-btn mp-buy-btn--connect';
+    } else {
+      btn.textContent = 'Failed — retry';
+      btn.className   = 'mp-buy-btn mp-buy-btn--error';
+      setTimeout(() => {
+        btn.textContent = 'Buy Now';
+        btn.className   = 'mp-buy-btn';
+      }, 3000);
+    }
+  }
+}
+
+/* ── Render hero ── */
+function renderHero(tpl, listingCount, supply, burnedCount) {
+  const name   = tpl.immutable_data?.name || `Template #${templateId}`;
+  const rarity = tpl.immutable_data?.rarity || '';
+  const img    = tpl.immutable_data?.img;
+  const video  = tpl.immutable_data?.video;
+
+  document.title = `${name} — Marketplace — PopInStock`;
+
+  const rarityHtml = rarity
+    ? `<span class="rarity-pill ${RARITY_CLASS[rarity] || ''}">${rarity}</span>`
+    : '';
+
+  const floor    = allListings[0];
+  const floorWax = floor ? fmtWax(floor.listing_price) : '—';
+  const floorSym = floor?.listing_symbol;
+  const floorUsd = floor && floorSym === 'WAX' && waxUsdRate
+    ? `≈ $${(parseInt(floor.listing_price) / 1e8 * waxUsdRate).toFixed(2)}`
+    : '';
+
+  let imageHtml;
+  if (video) {
+    imageHtml = `<video autoplay loop muted playsinline><source src="${IPFS_GW}${video}" type="video/mp4"></video>`;
+  } else if (img) {
+    imageHtml = `<img src="${IPFS_GW}${img}" alt="${name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=mp-hero-image-placeholder>No image</div>'">`;
+  } else {
+    imageHtml = `<div class="mp-hero-image-placeholder">No image</div>`;
+  }
+
+  const fmt = n => (n != null && n !== '' ? parseInt(n).toLocaleString() : '—');
+
+  const issuedRaw   = tpl.issued_supply != null ? parseInt(tpl.issued_supply) : null;
+  const burnedRaw   = burnedCount;
+  const dpLockedRaw = supply?.dp_locked_count != null ? parseInt(supply.dp_locked_count) : null;
+
+  const circRaw = (issuedRaw != null && burnedRaw != null && dpLockedRaw != null)
+    ? Math.max(0, issuedRaw - burnedRaw - dpLockedRaw)
+    : null;
+
+  const issued        = fmt(issuedRaw);
+  const burnedFmt     = fmt(burnedRaw);
+  const dpLocked      = fmt(dpLockedRaw);
+  const inCirculation = fmt(circRaw);
+
+  const supplyBreakdown = `
+    <div class="mp-supply-breakdown">
+      <div class="mp-supply-item"><span class="mp-supply-label">Issued</span><span class="mp-supply-val">${issued}</span></div>
+      <div class="mp-supply-item"><span class="mp-supply-label">Burned</span><span class="mp-supply-val">${burnedFmt}</span></div>
+      <div class="mp-supply-item"><span class="mp-supply-label">DP Locked</span><span class="mp-supply-val">${dpLocked}</span></div>
+      <div class="mp-supply-item"><span class="mp-supply-label">In Circulation</span><span class="mp-supply-val">${inCirculation}</span></div>
+    </div>`;
+
+  document.getElementById('heroSection').innerHTML = `
+    <div class="mp-hero">
+      <div class="mp-hero-image">${imageHtml}</div>
+      <div class="mp-hero-info">
+        <div class="mp-hero-name">${name}</div>
+        <div class="mp-hero-meta">
+          ${rarityHtml}
+          <span class="mp-hero-collection">${collectionName} · ${schemaName}</span>
+        </div>
+        <div class="mp-hero-stats">
+          <div class="mp-hero-stat">
+            <div class="mp-hero-stat-value">${floorWax}${floorUsd ? `<span style="font-size:0.75rem;font-weight:400;color:var(--text-secondary);margin-left:0.4rem">${floorUsd}</span>` : ''}</div>
+            <div class="mp-hero-stat-label">Floor Price</div>
+          </div>
+          <div class="mp-hero-divider"></div>
+          <div class="mp-hero-stat">
+            <div class="mp-hero-stat-value">${listingCount}</div>
+            <div class="mp-hero-stat-label">For Sale</div>
+          </div>
+        </div>
+        ${supplyBreakdown}
+      </div>
+    </div>`;
+}
+
+/* ── Render listing card ── */
+function renderCard(sale, index) {
+  const acc    = window.getWaxAccount();
+  const sym    = sale.listing_symbol;
+  const amount = sale.listing_price;
+  const saleId = sale.sale_id;
+  const mint   = sale.assets?.[0]?.template_mint || '?';
+  const seller = sale.seller || '—';
+  const isBest = index === 0;
+
+  let priceHtml;
+  if (sym === 'WAX') {
+    const wax    = parseInt(amount) / 1e8;
+    const usdStr = waxUsdRate ? `<div class="mp-card-usd">≈ $${(wax * waxUsdRate).toFixed(2)}</div>` : '';
+    priceHtml = `<div class="mp-card-wax">${fmtWax(amount)}</div>${usdStr}`;
+  } else {
+    const usd = parseInt(amount) / 100;
+    priceHtml = `<div class="mp-card-wax">$${usd.toFixed(2)}</div><div class="mp-card-usd">USD listing</div>`;
+  }
+
+  const canBuy     = sym === 'WAX';
+  const isConnected = !!acc;
+  let btnText, btnClass, btnOnclick;
+
+  if (!canBuy) {
+    const atomicUrl = `${ATOMIC_MARKET_URL}?blockchain=wax-mainnet&collection_name=${enc(collectionName)}&template_id=${enc(templateId)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(schemaName)}&sort=price&symbol=USD`;
+    return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
+      ${isBest ? '<div class="mp-best-badge">Best Deal</div>' : ''}
+      <div class="mp-card-mint">Mint #${mint}</div>
+      <div class="mp-card-price">${priceHtml}</div>
+      <div class="mp-card-seller">${shortAddr(seller)}</div>
+      <a class="mp-buy-btn mp-buy-btn--connect" href="${atomicUrl}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">View on AtomicHub ↗</a>
+    </div>`;
+  }
+
+  if (!isConnected) {
+    btnText    = 'Connect to Buy';
+    btnClass   = 'mp-buy-btn mp-buy-btn--connect';
+    btnOnclick = `connectWallet()`;
+  } else {
+    btnText    = 'Buy Now';
+    btnClass   = 'mp-buy-btn';
+    btnOnclick = `buyListing(this,'${saleId}','${amount}')`;
+  }
+
+  return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
+    ${isBest ? '<div class="mp-best-badge">Best Deal</div>' : ''}
+    <div class="mp-card-mint">Mint #${mint}</div>
+    <div class="mp-card-price">${priceHtml}</div>
+    <div class="mp-card-seller">${shortAddr(seller)}</div>
+    <button class="${btnClass}" data-sale-id="${saleId}" onclick="${btnOnclick}">${btnText}</button>
+  </div>`;
+}
+
+/* ── Render listings ── */
+function renderListings() {
+  const section = document.getElementById('listingsSection');
+
+  if (!allListings.length) {
+    section.innerHTML = `<div class="no-results">No listings available for this card right now.</div>`;
+    return;
+  }
+
+  const visible = allListings.slice(0, visibleCount);
+  const cardsHtml = visible.map((sale, i) => renderCard(sale, i)).join('');
+  const remaining = allListings.length - visibleCount;
+  const showMoreHtml = remaining > 0
+    ? `<div class="mp-show-more-wrap">
+        <button class="ctrl-btn" onclick="showMore()">Show ${Math.min(remaining, PAGE_SIZE)} more listings</button>
+       </div>`
+    : '';
+
+  section.innerHTML = `
+    <div class="section">
+      <div class="section-heading">Listings <span class="section-count">${allListings.length} available</span></div>
+      <div class="mp-grid" id="mpGrid">${cardsHtml}</div>
+      ${showMoreHtml}
+      <div class="commission-note" style="margin-top:1rem">Purchases made here support PopInStock.</div>
+    </div>`;
+}
+
+function showMore() {
+  visibleCount += PAGE_SIZE;
+  renderListings();
+}
+
+/* ── Refresh buy buttons after wallet connect ── */
+function refreshBuyButtons() {
+  document.querySelectorAll('.mp-buy-btn[data-sale-id]').forEach(btn => {
+    const acc = window.getWaxAccount();
+    const saleId = btn.dataset.saleId;
+    const sale   = allListings.find(s => s.sale_id === saleId);
+    if (!sale) return;
+    if (acc) {
+      btn.textContent = 'Buy Now';
+      btn.className   = 'mp-buy-btn';
+      btn.onclick     = () => buyListing(btn, saleId, sale.listing_price);
+    } else {
+      btn.textContent = 'Connect to Buy';
+      btn.className   = 'mp-buy-btn mp-buy-btn--connect';
+      btn.onclick     = () => connectWallet();
+    }
+  });
+}
+
+/* ── Init ── */
+async function init() {
+  _initNavWax();
+
+  if (!templateId || !collectionName) {
+    document.getElementById('heroSection').innerHTML =
+      `<div class="state state-error">Missing template ID. Please navigate here from the Set Tracker.</div>`;
+    return;
+  }
+
+  try {
+    await fetchWaxPrice();
+    const [tpl, listings, supply, burnedCount] = await Promise.all([
+      fetchTemplate(), fetchListings(), fetchSupplyDetails(), fetchBurnedCount()
+    ]);
+    allListings = listings;
+
+    renderHero(tpl, listings.length, supply, burnedCount);
+    renderListings();
+
+  } catch (err) {
+    document.getElementById('heroSection').innerHTML =
+      `<div class="state state-error">Failed to load: ${err.message}</div>`;
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>
