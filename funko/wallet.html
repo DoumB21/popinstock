@@ -76,7 +76,7 @@
     .no-set { padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 0.88rem; color: var(--text-secondary); }
 
     /* Side-by-side sets layout */
-    .sets-row { display: flex; gap: 2rem; align-items: flex-start; }
+    .sets-row { display: flex; flex-direction: column; gap: 2rem; }
     .sets-row .section { flex: 1; min-width: 0; }
     @media (max-width: 700px) { .sets-row { flex-direction: column; } }
 
@@ -100,6 +100,9 @@
     .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
+    .market-link--primary { opacity: 1; transition: filter 0.2s; }
+    .market-link--primary img { width: 24px; height: 24px; }
+    .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); }
 
     @media (max-width: 500px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -398,7 +401,7 @@
 
   // ── Drop detail ────────────────────────────────────────────────
 
-  function renderCardsTable(cards, tplMap, avgMint) {
+  function renderCardsTable(cards, tplMap, avgMint, collection, schema) {
     if (!cards) return '<div class="no-set">Card data not available.</div>';
     const entries = Object.entries(cards)
       .map(([tid, mint]) => ({ tid: parseInt(tid), mint, tpl: tplMap.get(parseInt(tid)) || {} }))
@@ -411,6 +414,7 @@
       const maxMint = mint - 1;
       const marketLinks = maxMint >= 1
         ? `<div class="market-links">
+            <a class="market-link market-link--primary" href="../marketplace.html?template_id=${tid}&collection_name=${encodeURIComponent(collection||'')}&schema_name=${encodeURIComponent(schema||'')}&project=funko&max_mint=${maxMint}&sort=mint-asc" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock"><img src="../images/FoxLogo.png" alt="PopInStock"></a>
             <a class="market-link" href="https://wax.atomichub.io/market?blockchain=wax-mainnet&max_template_mint=${maxMint}&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${tid}" target="_blank" rel="noopener noreferrer" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub"></a>
             <a class="market-link" href="https://nfthive.io/market?term=${tid}&order_by=price_asc&offer_type=listings&max_mint=${maxMint}" target="_blank" rel="noopener noreferrer" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive"></a>
           </div>`
@@ -420,7 +424,7 @@
         <td><div class="card-name">${tpl.name || '—'}</div></td>
         <td style="width:100px">${rarityPill}</td>
         <td class="col-r" style="width:80px"><span class="mint-num ${mintClass(mint, avgMint)}">#${fmt(mint)}</span></td>
-        <td style="width:70px">${marketLinks}</td>
+        <td style="width:100px">${marketLinks}</td>
       </tr>`;
     }).join('');
 
@@ -430,13 +434,13 @@
         <th>Card</th>
         <th style="width:100px">Rarity</th>
         <th class="col-r" style="width:80px">Mint</th>
-        <th style="width:70px">Market</th>
+        <th style="width:100px">Market</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
   }
 
-  function renderSetSection(sectionId, title, rows, tplMap) {
+  function renderSetSection(sectionId, title, rows, tplMap, collection, schema) {
     const cardCount = rows.length > 0 ? rows[0].set_size : null;
     const heading = `${title}${cardCount ? ` <span class="section-count">(${cardCount} cards)</span>` : ''}`;
 
@@ -460,7 +464,7 @@
       </div>`;
       return `<div id="${sectionId}-set-${r.set_number}" style="${i > 0 ? 'display:none' : ''}">
         ${summary}
-        <div style="margin-top:1rem">${renderCardsTable(r.cards, tplMap, r.avg_mint)}</div>
+        <div style="margin-top:1rem">${renderCardsTable(r.cards, tplMap, r.avg_mint, collection, schema)}</div>
       </div>`;
     }).join('');
 
@@ -551,8 +555,8 @@
         ${buildOverviewStatsHtml(buildOverviewStats())}
         ${dropOverviewHtml}
         <div class="sets-row">
-          ${renderSetSection('royalty', 'Royalty Set', royaltyRows, tplMap)}
-          ${renderSetSection('mastery', 'Mastery Set', masteryRows, tplMap)}
+          ${renderSetSection('royalty', 'Royalty Set', royaltyRows, tplMap, c, s)}
+          ${renderSetSection('mastery', 'Mastery Set', masteryRows, tplMap, c, s)}
         </div>`;
     } catch (err) {
       document.getElementById('walletContent').innerHTML =

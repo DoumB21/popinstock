@@ -127,41 +127,127 @@
     }
 
     /* ── Listings grid ── */
+    /* ── Controls bar ── */
+    .mp-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .mp-filter-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .mp-filter-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .mp-filter-input {
+      width: 75px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      padding: 0.35rem 0.6rem;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .mp-filter-input:focus { border-color: rgba(192,120,40,0.5); }
+    .mp-filter-sep { color: var(--text-secondary); font-size: 0.8rem; }
+    .mp-sort-select {
+      margin-left: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      padding: 0.35rem 0.7rem;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .mp-sort-select:focus { border-color: rgba(192,120,40,0.5); }
+    .mp-sort-select option { background: #1a1a2a; }
+
     .mp-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
     }
 
     .mp-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 1.25rem;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 1rem;
+      transition: background 0.15s, border-color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.5s;
+      position: relative;
+      overflow: hidden;
+    }
+    .mp-card-left {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      transition: background 0.15s, border-color 0.2s;
-      position: relative;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+    .mp-card-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: space-between;
+      align-self: stretch;
+      flex-shrink: 0;
+    }
+    .mp-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 14px 14px 0 0;
     }
     .mp-card:hover {
       background: var(--bg-card-hover);
       border-color: var(--border-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.35);
     }
 
     .mp-card--best {
       border-color: rgba(240,168,64,0.45);
       background: rgba(240,168,64,0.04);
     }
+    .mp-card--best::before {
+      background: linear-gradient(90deg, var(--accent-light), var(--accent));
+    }
     .mp-card--best:hover {
       border-color: rgba(240,168,64,0.7);
       background: rgba(240,168,64,0.07);
+      box-shadow: 0 8px 28px rgba(192,120,40,0.2);
     }
 
     .mp-best-badge {
       position: absolute;
       top: -1px;
-      right: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       background: linear-gradient(135deg, var(--accent-light), var(--accent));
       color: #fff;
       font-size: 0.62rem;
@@ -170,45 +256,55 @@
       text-transform: uppercase;
       padding: 3px 8px;
       border-radius: 0 0 6px 6px;
+      white-space: nowrap;
     }
 
     .mp-card-mint {
-      font-size: 0.72rem;
-      font-weight: 600;
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
       color: var(--text-secondary);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 6px;
+      padding: 2px 8px;
       letter-spacing: 0.04em;
+      align-self: flex-start;
     }
 
     .mp-card-price {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
     }
     .mp-card-wax {
-      font-size: 1.15rem;
-      font-weight: 700;
+      font-size: 1.35rem;
+      font-weight: 800;
       color: var(--text-primary);
       font-variant-numeric: tabular-nums;
+      letter-spacing: -0.3px;
     }
     .mp-card--best .mp-card-wax { color: var(--accent-light); }
     .mp-card-usd {
-      font-size: 0.76rem;
+      font-size: 0.88rem;
       color: var(--text-secondary);
     }
 
+    .mp-card-footer { display: contents; }
+
     .mp-card-seller {
-      font-size: 0.75rem;
+      font-size: 0.88rem;
       color: var(--text-secondary);
       font-family: monospace;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      text-align: right;
     }
 
     .mp-buy-btn {
-      margin-top: auto;
-      width: 100%;
-      padding: 0.55rem 1rem;
+      width: auto;
+      padding: 0.5rem 1.25rem;
       border: none;
       border-radius: 10px;
       cursor: pointer;
@@ -246,9 +342,8 @@
     }
 
     .commission-note {
-      font-size: 0.72rem;
+      font-size: 0.95rem;
       color: var(--text-secondary);
-      opacity: 0.5;
       text-align: center;
     }
 
@@ -279,8 +374,8 @@
     .nav-wax-logout-btn:hover { background: rgba(224,82,82,0.15); border-color: rgba(224,82,82,0.5); color: #e05252; }
 
     /* ── Responsive ── */
-    @media (max-width: 860px) {
-      .mp-grid { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 640px) {
+      .mp-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 600px) {
@@ -321,7 +416,7 @@
 
     <div class="page-header">
       <div class="page-title">Market<span class="accent">place</span></div>
-      <div class="page-subtitle">Shop through the Pop In Stock Marketplace and help support future tools, features, and site improvements.</div>
+      <div class="page-subtitle">Shop through the Pop In Stock Marketplace to help support the site and its future development.</div>
     </div>
 
     <div id="heroSection">
@@ -353,10 +448,24 @@ const params         = new URLSearchParams(location.search);
 const templateId     = params.get('template_id')     || '';
 const collectionName = params.get('collection_name') || '';
 const schemaName     = params.get('schema_name')     || '';
+const project        = params.get('project')         || '';
 
 let waxUsdRate   = null;
 let allListings  = [];
 let visibleCount = PAGE_SIZE;
+const VALID_SORTS = new Set(['price-asc','price-desc','mint-asc','mint-desc','date-desc','date-asc']);
+let currentSort  = VALID_SORTS.has(params.get('sort')) ? params.get('sort') : 'price-asc';
+let mintMin      = '';
+let mintMax      = params.get('max_mint') || params.get('maxmint') || '';
+
+const SORT_CONFIG = {
+  'price-asc':  { sort: 'price',         order: 'asc'  },
+  'price-desc': { sort: 'price',         order: 'desc' },
+  'mint-asc':   { sort: 'template_mint', order: 'asc'  },
+  'mint-desc':  { sort: 'template_mint', order: 'desc' },
+  'date-desc':  { sort: 'created',       order: 'desc' },
+  'date-asc':   { sort: 'created',       order: 'asc'  },
+};
 
 const RARITY_CLASS = {
   'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
@@ -369,7 +478,8 @@ function enc(v) { return encodeURIComponent(v); }
 
 function fmtWax(amount) {
   const w = parseInt(amount) / 1e8;
-  return (w < 1 ? w.toFixed(4) : w.toFixed(2)) + ' WAX';
+  const s = w.toFixed(3);
+  return (s.endsWith('0') ? w.toFixed(2) : s) + ' WAX';
 }
 
 function toWaxQty(amount) {
@@ -423,11 +533,39 @@ async function fetchBurnedCount() {
   } catch { return null; }
 }
 
-async function fetchListings() {
-  const r    = await fetch(`${WAX_MARKET_API}/sales?state=1&template_id=${enc(templateId)}&sort=price&order=asc&limit=100`);
+async function fetchListings(sort = 'price', order = 'asc') {
+  const r    = await fetch(`${WAX_MARKET_API}/sales?state=1&template_id=${enc(templateId)}&sort=${sort}&order=${order}&limit=100`);
   const json = await r.json();
   if (!json.success) throw new Error('Failed to load listings');
-  return json.data;
+  return json.data.filter(s => s.assets?.length === 1);
+}
+
+function getFilteredListings() {
+  const min = parseInt(mintMin);
+  const max = parseInt(mintMax);
+  return allListings.filter(s => {
+    const mint = parseInt(s.assets?.[0]?.template_mint || 0);
+    if (!isNaN(min) && min > 0 && mint < min) return false;
+    if (!isNaN(max) && max > 0 && mint > max) return false;
+    return true;
+  });
+}
+
+async function onSortChange(val) {
+  currentSort  = val;
+  visibleCount = PAGE_SIZE;
+  document.getElementById('mpGrid').innerHTML    = '<div class="state" style="grid-column:1/-1"><div class="spinner" style="margin:0 auto"></div></div>';
+  document.getElementById('mpShowMore').innerHTML = '';
+  const cfg    = SORT_CONFIG[val];
+  allListings  = await fetchListings(cfg.sort, cfg.order).catch(() => []);
+  renderGrid();
+}
+
+function onMintFilterChange() {
+  mintMin      = document.getElementById('mpMintMin').value.trim();
+  mintMax      = document.getElementById('mpMintMax').value.trim();
+  visibleCount = PAGE_SIZE;
+  renderGrid();
 }
 
 /* ── Nav wallet ── */
@@ -523,7 +661,13 @@ async function buyListing(btn, saleId, listingPrice) {
     btn.textContent = '✓ Purchased!';
     btn.className   = 'mp-buy-btn mp-buy-btn--bought';
     const card = btn.closest('.mp-card');
-    if (card) setTimeout(() => { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }, 1500);
+    if (card) {
+      card.style.pointerEvents = 'none';
+      const left   = card.querySelector('.mp-card-left');
+      const seller = card.querySelector('.mp-card-seller');
+      if (left)   left.style.opacity   = '0.45';
+      if (seller) seller.style.opacity = '0.45';
+    }
 
   } catch (e) {
     const msg       = String(e?.message || e).toLowerCase();
@@ -557,11 +701,17 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
     : '';
 
   const floor    = allListings[0];
-  const floorWax = floor ? fmtWax(floor.listing_price) : '—';
   const floorSym = floor?.listing_symbol;
-  const floorUsd = floor && floorSym === 'WAX' && waxUsdRate
-    ? `≈ $${(parseInt(floor.listing_price) / 1e8 * waxUsdRate).toFixed(2)}`
-    : '';
+  let floorWax, floorUsd;
+  if (!floor) {
+    floorWax = '—'; floorUsd = '';
+  } else if (floorSym === 'WAX') {
+    floorWax = fmtWax(floor.listing_price);
+    floorUsd = waxUsdRate ? `≈ $${(parseInt(floor.listing_price) / 1e8 * waxUsdRate).toFixed(2)}` : '';
+  } else {
+    floorWax = `$${(parseInt(floor.listing_price) / 100).toFixed(2)} USD`;
+    floorUsd = '';
+  }
 
   let imageHtml;
   if (video) {
@@ -578,8 +728,8 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
   const burnedRaw   = burnedCount;
   const dpLockedRaw = supply?.dp_locked_count != null ? parseInt(supply.dp_locked_count) : null;
 
-  const circRaw = (issuedRaw != null && burnedRaw != null && dpLockedRaw != null)
-    ? Math.max(0, issuedRaw - burnedRaw - dpLockedRaw)
+  const circRaw = (issuedRaw != null && burnedRaw != null)
+    ? Math.max(0, issuedRaw - burnedRaw - (dpLockedRaw ?? 0))
     : null;
 
   const issued        = fmt(issuedRaw);
@@ -591,13 +741,16 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
     <div class="mp-supply-breakdown">
       <div class="mp-supply-item"><span class="mp-supply-label">Issued</span><span class="mp-supply-val">${issued}</span></div>
       <div class="mp-supply-item"><span class="mp-supply-label">Burned</span><span class="mp-supply-val">${burnedFmt}</span></div>
-      <div class="mp-supply-item"><span class="mp-supply-label">DP Locked</span><span class="mp-supply-val">${dpLocked}</span></div>
+      ${project === 'funko' ? `<div class="mp-supply-item"><span class="mp-supply-label">Locked in Droppp</span><span class="mp-supply-val">${dpLocked}</span></div>` : ''}
       <div class="mp-supply-item"><span class="mp-supply-label">In Circulation</span><span class="mp-supply-val">${inCirculation}</span></div>
     </div>`;
 
   document.getElementById('heroSection').innerHTML = `
     <div class="mp-hero">
-      <div class="mp-hero-image">${imageHtml}</div>
+      <div class="mp-hero-image">
+        ${imageHtml}
+        <a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${templateId}" target="_blank" rel="noopener" style="display:block;margin-top:0.5rem;font-size:0.72rem;color:var(--text-secondary);text-align:center;text-decoration:none;opacity:0.65;transition:opacity 0.15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.65">Template #${templateId} ↗</a>
+      </div>
       <div class="mp-hero-info">
         <div class="mp-hero-name">${name}</div>
         <div class="mp-hero-meta">
@@ -606,7 +759,8 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
         </div>
         <div class="mp-hero-stats">
           <div class="mp-hero-stat">
-            <div class="mp-hero-stat-value">${floorWax}${floorUsd ? `<span style="font-size:0.75rem;font-weight:400;color:var(--text-secondary);margin-left:0.4rem">${floorUsd}</span>` : ''}</div>
+            <div class="mp-hero-stat-value">${floorWax}</div>
+            ${floorUsd ? `<div style="font-size:0.95rem;font-weight:500;color:var(--text-secondary);margin-top:2px">${floorUsd}</div>` : ''}
             <div class="mp-hero-stat-label">Floor Price</div>
           </div>
           <div class="mp-hero-divider"></div>
@@ -645,13 +799,17 @@ function renderCard(sale, index) {
   let btnText, btnClass, btnOnclick;
 
   if (!canBuy) {
-    const atomicUrl = `${ATOMIC_MARKET_URL}?blockchain=wax-mainnet&collection_name=${enc(collectionName)}&template_id=${enc(templateId)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(schemaName)}&sort=price&symbol=USD`;
+    const atomicUrl = `${ATOMIC_MARKET_URL}?blockchain=wax-mainnet&collection_name=${enc(collectionName)}&template_id=${enc(templateId)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(schemaName)}&sort=price`;
     return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
-      ${isBest ? '<div class="mp-best-badge">Best Deal</div>' : ''}
-      <div class="mp-card-mint">Mint #${mint}</div>
-      <div class="mp-card-price">${priceHtml}</div>
-      <div class="mp-card-seller">${shortAddr(seller)}</div>
-      <a class="mp-buy-btn mp-buy-btn--connect" href="${atomicUrl}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">View on AtomicHub ↗</a>
+      ${isBest ? '<div class="mp-best-badge">Lowest Price</div>' : ''}
+      <div class="mp-card-left">
+        <div class="mp-card-mint">Mint #${mint}</div>
+        <div class="mp-card-price">${priceHtml}</div>
+      </div>
+      <div class="mp-card-right">
+        <div class="mp-card-seller"><span style="font-family:-apple-system,sans-serif;font-size:0.78rem;opacity:0.55">Seller: </span>${shortAddr(seller)}</div>
+        <a class="mp-buy-btn mp-buy-btn--connect" href="${atomicUrl}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:inline-block">Buy USD listing on AtomicHub ↗</a>
+      </div>
     </div>`;
   }
 
@@ -666,15 +824,19 @@ function renderCard(sale, index) {
   }
 
   return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
-    ${isBest ? '<div class="mp-best-badge">Best Deal</div>' : ''}
-    <div class="mp-card-mint">Mint #${mint}</div>
-    <div class="mp-card-price">${priceHtml}</div>
-    <div class="mp-card-seller">${shortAddr(seller)}</div>
-    <button class="${btnClass}" data-sale-id="${saleId}" onclick="${btnOnclick}">${btnText}</button>
+    ${isBest ? '<div class="mp-best-badge">Lowest Price</div>' : ''}
+    <div class="mp-card-left">
+      <div class="mp-card-mint">Mint #${mint}</div>
+      <div class="mp-card-price">${priceHtml}</div>
+    </div>
+    <div class="mp-card-right">
+      <div class="mp-card-seller"><span style="font-family:-apple-system,sans-serif;font-size:0.78rem;opacity:0.55">Seller: </span>${shortAddr(seller)}</div>
+      <button class="${btnClass}" data-sale-id="${saleId}" onclick="${btnOnclick}">${btnText}</button>
+    </div>
   </div>`;
 }
 
-/* ── Render listings ── */
+/* ── Render listings (called once — builds controls + grid shell) ── */
 function renderListings() {
   const section = document.getElementById('listingsSection');
 
@@ -683,27 +845,54 @@ function renderListings() {
     return;
   }
 
-  const visible = allListings.slice(0, visibleCount);
-  const cardsHtml = visible.map((sale, i) => renderCard(sale, i)).join('');
-  const remaining = allListings.length - visibleCount;
-  const showMoreHtml = remaining > 0
-    ? `<div class="mp-show-more-wrap">
-        <button class="ctrl-btn" onclick="showMore()">Show ${Math.min(remaining, PAGE_SIZE)} more listings</button>
-       </div>`
-    : '';
-
   section.innerHTML = `
     <div class="section">
-      <div class="section-heading">Listings <span class="section-count">${allListings.length} available</span></div>
-      <div class="mp-grid" id="mpGrid">${cardsHtml}</div>
-      ${showMoreHtml}
+      <div class="section-heading">Listings <span class="section-count" id="listingsCount">${allListings.length} available</span></div>
+      <div class="mp-controls">
+        <div class="mp-filter-group">
+          <span class="mp-filter-label">Mint</span>
+          <input class="mp-filter-input" id="mpMintMin" type="number" placeholder="Min" min="1" value="${mintMin}" oninput="onMintFilterChange()" />
+          <span class="mp-filter-sep">—</span>
+          <input class="mp-filter-input" id="mpMintMax" type="number" placeholder="Max" min="1" value="${mintMax}" oninput="onMintFilterChange()" />
+        </div>
+        <select class="mp-sort-select" id="mpSort" onchange="onSortChange(this.value)">
+          <option value="price-asc"  ${currentSort==='price-asc'  ?'selected':''}>Price (Lowest)</option>
+          <option value="price-desc" ${currentSort==='price-desc' ?'selected':''}>Price (Highest)</option>
+          <option value="mint-asc"   ${currentSort==='mint-asc'   ?'selected':''}>Mint (Lowest)</option>
+          <option value="mint-desc"  ${currentSort==='mint-desc'  ?'selected':''}>Mint (Highest)</option>
+          <option value="date-desc"  ${currentSort==='date-desc'  ?'selected':''}>Listings (Newest)</option>
+          <option value="date-asc"   ${currentSort==='date-asc'   ?'selected':''}>Listings (Oldest)</option>
+        </select>
+      </div>
+      <div class="mp-grid" id="mpGrid"></div>
+      <div id="mpShowMore"></div>
       <div class="commission-note" style="margin-top:1rem">Purchases made here support PopInStock.</div>
     </div>`;
+
+  renderGrid();
+}
+
+/* ── Render grid only (on filter/sort changes) ── */
+function renderGrid() {
+  const filtered  = getFilteredListings();
+  const visible   = filtered.slice(0, visibleCount);
+  const remaining = filtered.length - visibleCount;
+
+  const countEl = document.getElementById('listingsCount');
+  if (countEl) countEl.textContent = `${filtered.length} available`;
+
+  document.getElementById('mpGrid').innerHTML = visible.length
+    ? visible.map((sale, i) => renderCard(sale, i)).join('')
+    : `<div class="no-results" style="grid-column:1/-1">No listings match your filter.</div>`;
+
+  document.getElementById('mpShowMore').innerHTML = remaining > 0
+    ? `<div class="mp-show-more-wrap"><button class="ctrl-btn" onclick="showMore()">Show ${Math.min(remaining, PAGE_SIZE)} more listings</button></div>`
+    : '';
 }
 
 function showMore() {
   visibleCount += PAGE_SIZE;
-  renderListings();
+  renderGrid();
 }
 
 /* ── Refresh buy buttons after wallet connect ── */
@@ -711,7 +900,7 @@ function refreshBuyButtons() {
   document.querySelectorAll('.mp-buy-btn[data-sale-id]').forEach(btn => {
     const acc = window.getWaxAccount();
     const saleId = btn.dataset.saleId;
-    const sale   = allListings.find(s => s.sale_id === saleId);
+    const sale   = allListings.find(s => String(s.sale_id) === String(saleId));
     if (!sale) return;
     if (acc) {
       btn.textContent = 'Buy Now';
@@ -731,14 +920,14 @@ async function init() {
 
   if (!templateId || !collectionName) {
     document.getElementById('heroSection').innerHTML =
-      `<div class="state state-error">Missing template ID. Please navigate here from the Set Tracker.</div>`;
+      `<div class="state state-error">No card selected. Please navigate here from one of the PopInStock tools.</div>`;
     return;
   }
 
   try {
     await fetchWaxPrice();
     const [tpl, listings, supply, burnedCount] = await Promise.all([
-      fetchTemplate(), fetchListings(), fetchSupplyDetails(), fetchBurnedCount()
+      fetchTemplate(), fetchListings(SORT_CONFIG[currentSort].sort, SORT_CONFIG[currentSort].order), fetchSupplyDetails(), fetchBurnedCount()
     ]);
     allListings = listings;
 

@@ -286,6 +286,9 @@
     .card-meta-line { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 
     .market-links { display: flex; align-items: center; gap: 1rem; }
+    .market-link--primary { opacity: 1 !important; transition: filter 0.2s; }
+    .market-link--primary img { width: 24px !important; height: 24px !important; }
+    .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); opacity: 1 !important; }
     .market-link {
       display: flex;
       align-items: center;
@@ -863,15 +866,16 @@
         const linksWrap = document.createElement('div');
         linksWrap.className = 'market-links';
         [
+          { href: `../marketplace.html?template_id=${tmpl.templateId}&collection_name=${lastCollection}&schema_name=${lastSchema}&project=funko&sort=mint-asc`, icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', primary: true },
           { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&collection_name=${lastCollection}&template_id=${tmpl.templateId}&order=asc&primary_chain=wax-mainnet&schema_name=${lastSchema}&sort=template_mint&symbol=WAX&max_assets=1`, icon: '../images/atomic.svg',  title: 'View on AtomicHub' },
           // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${lastCollection}&order=asc&page=1&sort=template_mint&template_id=${tmpl.templateId}`, icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
           { href: `https://nfthive.io/market?term=${tmpl.templateId}&order_by=mint_asc&offer_type=listings`, icon: '../images/nfthive.svg', title: 'View on NFTHive' },
-        ].forEach(({ href, icon, title }) => {
+        ].forEach(({ href, icon, title, primary }) => {
           const a = document.createElement('a');
           a.href = href;
           a.target = '_blank';
           a.rel = 'noopener noreferrer';
-          a.className = 'market-link';
+          a.className = primary ? 'market-link market-link--primary' : 'market-link';
           a.title = title;
           const img = document.createElement('img');
           img.src = icon;
