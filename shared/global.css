@@ -182,7 +182,7 @@ body::before {
   display: flex;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .nav-links  { display: none; }
   .nav-burger { display: flex; }
   .nav-mobile { display: none; }
