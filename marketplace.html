@@ -533,6 +533,7 @@ async function fetchBurnedCount() {
   } catch { return null; }
 }
 
+
 async function fetchListings(sort = 'price', order = 'asc') {
   const r    = await fetch(`${WAX_MARKET_API}/sales?state=1&template_id=${enc(templateId)}&sort=${sort}&order=${order}&limit=100`);
   const json = await r.json();
@@ -634,7 +635,7 @@ async function connectWallet() {
 }
 
 /* ── Buy ── */
-async function buyListing(btn, saleId, listingPrice) {
+async function buyListing(btn, saleId, listingPrice, listingSym = 'WAX') {
   const buyer = window.getWaxAccount();
   if (!buyer) { connectWallet(); return; }
 
@@ -643,18 +644,32 @@ async function buyListing(btn, saleId, listingPrice) {
   btn.className   = 'mp-buy-btn';
 
   try {
+    let quantity, delphiMedian;
+    if (listingSym === 'WAX') {
+      quantity     = toWaxQty(listingPrice);
+      delphiMedian = 0;
+    } else {
+      await fetchWaxPrice();
+      if (!waxUsdRate) throw new Error('WAX price unavailable — try again');
+      const median = Math.round(waxUsdRate * 10000);
+      const waxAmt = (parseInt(listingPrice) / 100) / waxUsdRate * 1.005;
+      if (!isFinite(waxAmt) || waxAmt < 0.00000001) throw new Error('Invalid price calculation');
+      quantity     = waxAmt.toFixed(8) + ' WAX';
+      delphiMedian = median;
+    }
+
     await WaxAuth.transact([
       {
         account: 'eosio.token',
         name:    'transfer',
         authorization: [{ actor: buyer, permission: 'active' }],
-        data: { from: buyer, to: 'atomicmarket', quantity: toWaxQty(listingPrice), memo: 'deposit' },
+        data: { from: buyer, to: 'atomicmarket', quantity, memo: 'deposit' },
       },
       {
         account: 'atomicmarket',
         name:    'purchasesale',
         authorization: [{ actor: buyer, permission: 'active' }],
-        data: { buyer, sale_id: saleId, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE },
+        data: { buyer, sale_id: saleId, intended_delphi_median: delphiMedian, taker_marketplace: TAKER_MARKETPLACE },
       },
     ]);
 
@@ -709,8 +724,12 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
     floorWax = fmtWax(floor.listing_price);
     floorUsd = waxUsdRate ? `≈ $${(parseInt(floor.listing_price) / 1e8 * waxUsdRate).toFixed(2)}` : '';
   } else {
-    floorWax = `$${(parseInt(floor.listing_price) / 100).toFixed(2)} USD`;
-    floorUsd = '';
+    const usd    = parseInt(floor.listing_price) / 100;
+    floorWax     = `$${usd.toFixed(2)} USD`;
+    const waxStr = floor.price?.token_symbol === 'WAX' && floor.price?.amount
+      ? fmtWax(floor.price.amount)
+      : waxUsdRate ? `${(usd / waxUsdRate).toFixed(2)} WAX` : null;
+    floorUsd = waxStr ? `≈ ${waxStr}` : '';
   }
 
   let imageHtml;
@@ -790,28 +809,16 @@ function renderCard(sale, index) {
     const usdStr = waxUsdRate ? `<div class="mp-card-usd">≈ $${(wax * waxUsdRate).toFixed(2)}</div>` : '';
     priceHtml = `<div class="mp-card-wax">${fmtWax(amount)}</div>${usdStr}`;
   } else {
-    const usd = parseInt(amount) / 100;
-    priceHtml = `<div class="mp-card-wax">$${usd.toFixed(2)}</div><div class="mp-card-usd">USD listing</div>`;
+    const usd       = parseInt(amount) / 100;
+    const waxStr    = sale.price?.token_symbol === 'WAX' && sale.price?.amount
+      ? fmtWax(sale.price.amount)
+      : waxUsdRate ? `${(usd / waxUsdRate).toFixed(2)} WAX` : null;
+    const waxApprox = waxStr ? `<div class="mp-card-usd">≈ ${waxStr}</div>` : '';
+    priceHtml = `<div class="mp-card-wax">$${usd.toFixed(2)}</div><div class="mp-card-usd">USD listing</div>${waxApprox}`;
   }
 
-  const canBuy     = sym === 'WAX';
   const isConnected = !!acc;
   let btnText, btnClass, btnOnclick;
-
-  if (!canBuy) {
-    const atomicUrl = `${ATOMIC_MARKET_URL}?blockchain=wax-mainnet&collection_name=${enc(collectionName)}&template_id=${enc(templateId)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(schemaName)}&sort=price`;
-    return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
-      ${isBest ? '<div class="mp-best-badge">Lowest Price</div>' : ''}
-      <div class="mp-card-left">
-        <div class="mp-card-mint">Mint #${mint}</div>
-        <div class="mp-card-price">${priceHtml}</div>
-      </div>
-      <div class="mp-card-right">
-        <div class="mp-card-seller"><span style="font-family:-apple-system,sans-serif;font-size:0.78rem;opacity:0.55">Seller: </span>${shortAddr(seller)}</div>
-        <a class="mp-buy-btn mp-buy-btn--connect" href="${atomicUrl}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:inline-block">Buy USD listing on AtomicHub ↗</a>
-      </div>
-    </div>`;
-  }
 
   if (!isConnected) {
     btnText    = 'Connect to Buy';
@@ -820,7 +827,7 @@ function renderCard(sale, index) {
   } else {
     btnText    = 'Buy Now';
     btnClass   = 'mp-buy-btn';
-    btnOnclick = `buyListing(this,'${saleId}','${amount}')`;
+    btnOnclick = `buyListing(this,'${saleId}','${amount}','${sym}')`;
   }
 
   return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
@@ -905,7 +912,7 @@ function refreshBuyButtons() {
     if (acc) {
       btn.textContent = 'Buy Now';
       btn.className   = 'mp-buy-btn';
-      btn.onclick     = () => buyListing(btn, saleId, sale.listing_price);
+      btn.onclick     = () => buyListing(btn, saleId, sale.listing_price, sale.listing_symbol);
     } else {
       btn.textContent = 'Connect to Buy';
       btn.className   = 'mp-buy-btn mp-buy-btn--connect';
