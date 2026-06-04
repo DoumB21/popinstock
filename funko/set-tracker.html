@@ -299,6 +299,14 @@
     return wax.toFixed(2) + ' WAX';
   }
 
+  function supplyCell(inCirc, issued) {
+    const primary = inCirc ?? issued;
+    if (primary == null) return '<span class="cell-price price-null">—</span>';
+    const showSub = inCirc != null && (inCirc < issued || issued === 1);
+    const sub = showSub ? `<div class="cell-price-usd">of ${issued.toLocaleString()}</div>` : '';
+    return `<span class="cell-price">${primary.toLocaleString()}</span>${sub}`;
+  }
+
   function priceCell(floor) {
     if (!floor) return '<span class="cell-price price-null">—</span>';
     if (floor.sym === 'USD') {
@@ -510,7 +518,7 @@
       // 2. Templates from Supabase (funko_market_prices already has all card metadata)
       setStatus('Fetching card templates…');
       const rawTemplates = await sbFetch('funko_market_prices',
-        'select=template_id,name,rarity,cardid' +
+        'select=template_id,name,rarity,cardid,in_circulation,issued_supply' +
         '&collection_name=eq.' + enc(collection) +
         '&schema_name=eq.' + enc(schema) +
         '&limit=1000'
@@ -518,8 +526,10 @@
       const templates = rawTemplates.map(t => ({
         template_id: String(t.template_id),
         name:        t.name   || `#${t.template_id}`,
-        rarity:      t.rarity || 'Unknown',
-        cardid:      t.cardid ?? null,
+        rarity:        t.rarity || 'Unknown',
+        cardid:        t.cardid ?? null,
+        in_circulation: t.in_circulation ?? null,
+        issued_supply:  t.issued_supply  ?? null,
       }));
 
       // 3. Wallet assets from AtomicAssets (parallel fetch, merged inventory)
@@ -735,6 +745,7 @@
             <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>
           </td>
           <td style="width:110px">${rPill}</td>
+          <td class="col-r" style="width:80px">${supplyCell(t.in_circulation, t.issued_supply)}</td>
           <td class="col-r" style="width:90px">${ph}</td>
           <td style="width:70px">${links}</td>
         </tr>`;
@@ -749,6 +760,7 @@
           <thead><tr>
             <th>ID — Card</th>
             <th style="width:110px">Rarity</th>
+            <th class="col-r" style="width:80px">Supply</th>
             <th class="col-r" style="width:90px">Floor Price</th>
             <th style="width:70px">Market</th>
           </tr></thead>
