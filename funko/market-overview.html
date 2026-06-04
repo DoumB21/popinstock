@@ -710,7 +710,7 @@ async function loadData(append) {
         ? `Showing <strong>${fmtN(shown)}</strong> of <strong>${fmtN(total)}</strong> cards`
         : `Showing <strong>${fmtN(shown)}</strong> cards`;
       if (fetchedAt) m += ` <span class="updated">· updated ${fmtAgo(fetchedAt)}</span>`;
-      m += `<div style="margin-top:0.3rem;font-size:0.75rem;opacity:0.55">Supply figures exclude assets held in Droppp (.dp) wallets.</div>`;
+      m += `<div style="margin-top:0.3rem;font-size:0.75rem;opacity:0.55">Supply figures exclude assets held in Droppp wallets.</div>`;
       meta.innerHTML = m;
 
       morewrap.style.display = canLoadMore ? 'block' : 'none';
