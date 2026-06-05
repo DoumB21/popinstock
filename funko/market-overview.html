@@ -667,7 +667,7 @@ function buildCardQuery(offset) {
 
   const pc = priceCol();
   if (state.listingFilter === 'listed')         parts.push(pc + '=not.is.null');
-  else if (state.listingFilter === 'not_listed') parts.push(pc + '.is.null');
+  else if (state.listingFilter === 'not_listed') parts.push(pc + '=is.null');
   if (state.sortField === 'price') {
     parts.push('order=' + pc + '.' + state.sortDir + '.nullslast,drop_displayname.asc,cardid.asc');
   } else if (state.sortField === 'supply') {
