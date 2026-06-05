@@ -27,8 +27,9 @@
     .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 2rem; }
 
     /* ── Stat card colors ── */
-    .stat-card.burned .stat-value { color: #e74c3c; }
-    .stat-card.owners .stat-value { color: #3b82f6; }
+    .stat-card.burned  .stat-value { color: #e74c3c; }
+    .stat-card.locked  .stat-value { color: #a78bfa; }
+    .stat-card.owners  .stat-value { color: #3b82f6; }
 
     /* ── Rarity pills ── */
     .rarity-pills { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -313,7 +314,7 @@ async function init() {
         '&is_official=eq.true'),
       sbFetch('funko_market_prices',
         'select=template_id,collection_name,schema_name,drop_displayname,droppp_exclusive,' +
-        'name,rarity,cardid,wax_price_wax,wax_price_usd,fetched_at' +
+        'name,rarity,cardid,wax_price_wax,wax_price_usd,fetched_at,dp_locked_count' +
         '&collection_name=eq.' + enc(COL) +
         '&schema_name=eq.' + enc(SCH) +
         '&order=cardid.asc&limit=1000'),
@@ -347,8 +348,10 @@ async function init() {
     const active     = stats.total_assets || 0;
     const burned     = stats.total_burned  || 0;
     const minted     = active + burned;
-    const inOfficial = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
-    const circulation = active - inOfficial;
+    const inOfficial      = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
+    const dpLocked        = cardData.reduce((sum, r) => sum + (r.dp_locked_count || 0), 0);
+    const dpLockedDisplay = dpLocked - inOfficial;
+    const circulation     = active - dpLocked;
 
     const statsHtml = `
       <div class="stat-card">
@@ -362,6 +365,10 @@ async function init() {
       <div class="stat-card">
         <div class="stat-value">${fmt(inOfficial)}</div>
         <div class="stat-label">In Packs</div>
+      </div>
+      <div class="stat-card locked">
+        <div class="stat-value">${fmt(dpLockedDisplay)}</div>
+        <div class="stat-label">Locked on Droppp</div>
       </div>
       <div class="stat-card owners">
         <div class="stat-value">${fmt(circulation)}</div>

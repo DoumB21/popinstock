@@ -26,8 +26,9 @@
     .content { padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 2rem; }
 
     /* ── Page-specific stat card colors ── */
-    .stat-card.burned .stat-value { color: #e74c3c; }
-    .stat-card.owners .stat-value { color: #3b82f6; }
+    .stat-card.burned  .stat-value { color: #e74c3c; }
+    .stat-card.locked  .stat-value { color: #a78bfa; }
+    .stat-card.owners  .stat-value { color: #3b82f6; }
 
     /* ── Rarity pills (with pill-count support) ── */
     .rarity-pills { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -283,7 +284,7 @@
     }
 
     try {
-      const [colData, statsData, royaltyResult, masteryResult, holdersData, packData, officialData] = await Promise.all([
+      const [colData, statsData, royaltyResult, masteryResult, holdersData, packData, officialData, marketData] = await Promise.all([
         sbFetch('collections', 'select=collection_name,display_name,img,logo,banner&collection_name=eq.' + enc(c) + '&limit=1'),
         sbFetch('schema_stats', 'select=*&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&limit=1'),
         sbFetchWithCount('leaderboard_ratings', 'select=wallet,set_type,set_number,total_sets,rank,rating,avg_mint,mint_tier,rank_snapshot&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&set_type=eq.royalty&order=avg_mint.asc,rating.desc,wallet.asc&limit=20'),
@@ -291,6 +292,7 @@
         sbFetch('top_holders', 'select=wallet,total_assets,rank,is_official&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&order=rank.asc&limit=15'),
         sbFetch('pack_stats', 'select=template_id,name,issued_supply,packs_burned,packs_available&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&order=template_id.asc'),
         sbFetch('top_holders', 'select=total_assets&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&is_official=eq.true'),
+        sbFetch('funko_market_prices', 'select=dp_locked_count&collection_name=eq.' + enc(c) + '&schema_name=eq.' + enc(s) + '&limit=1000'),
       ]);
 
       const royaltyEntries = royaltyResult.data;
@@ -325,8 +327,10 @@
       const active      = stats.total_assets || 0;
       const burned      = stats.total_burned  || 0;
       const minted      = active + burned;
-      const inOfficial  = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
-      const circulation = active - inOfficial;
+      const inOfficial      = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
+      const dpLocked        = marketData.reduce((sum, r) => sum + (r.dp_locked_count || 0), 0);
+      const dpLockedDisplay = dpLocked - inOfficial;
+      const circulation     = active - dpLocked;
 
       const statsHtml = `
         <div class="stat-card">
@@ -340,6 +344,10 @@
         <div class="stat-card">
           <div class="stat-value">${fmt(inOfficial)}</div>
           <div class="stat-label">In Packs</div>
+        </div>
+        <div class="stat-card locked">
+          <div class="stat-value">${fmt(dpLockedDisplay)}</div>
+          <div class="stat-label">Locked on Droppp</div>
         </div>
         <div class="stat-card owners">
           <div class="stat-value">${fmt(circulation)}</div>
