@@ -111,7 +111,7 @@
     <div class="controls">
       <div class="controls-row">
         <input class="wallet-input" id="walletInput" type="text" placeholder="WAX wallet address…" spellcheck="false" autocomplete="off" />
-        <button class="lookup-btn" onclick="lookupWallet()">Look Up</button>
+        <button class="lookup-btn" id="lookupBtn" onclick="lookupWallet()" disabled>Look Up</button>
       </div>
       <div class="controls-row">
         <select class="drop-select" id="subsetSelect" onchange="onSubsetChange()">
@@ -451,15 +451,36 @@
 
   // ── Init ───────────────────────────────────────────────────────
 
+  document.getElementById('walletInput').addEventListener('input', () => {
+    document.getElementById('lookupBtn').disabled =
+      document.getElementById('walletInput').value.trim() === '';
+  });
   document.getElementById('walletInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupWallet();
   });
 
   if (initW) {
     document.getElementById('walletInput').value = initW;
+    document.getElementById('lookupBtn').disabled = false;
     currentWallet = initW;
     loadWallet(initW);
+  } else {
+    const acc = window.getWaxAccount?.();
+    if (acc) {
+      document.getElementById('walletInput').value = acc;
+      document.getElementById('lookupBtn').disabled = false;
+    }
   }
+
+  window.addEventListener('wax-auth-change', () => {
+    if (!document.getElementById('walletInput').value.trim()) {
+      const acc = window.getWaxAccount?.();
+      if (acc) {
+        document.getElementById('walletInput').value = acc;
+        document.getElementById('lookupBtn').disabled = false;
+      }
+    }
+  });
 </script>
 
 </body>
