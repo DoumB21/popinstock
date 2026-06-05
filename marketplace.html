@@ -793,15 +793,19 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
     </div>`;
 }
 
+function saleWaxUnits(sale) {
+  if (sale.listing_symbol === 'WAX') return parseInt(sale.listing_price) || 0;
+  return parseInt(sale.price?.amount) || 0;
+}
+
 /* ── Render listing card ── */
-function renderCard(sale, index) {
+function renderCard(sale, isBest) {
   const acc    = window.getWaxAccount();
   const sym    = sale.listing_symbol;
   const amount = sale.listing_price;
   const saleId = sale.sale_id;
   const mint   = sale.assets?.[0]?.template_mint || '?';
   const seller = sale.seller || '—';
-  const isBest = index === 0;
 
   let priceHtml;
   if (sym === 'WAX') {
@@ -888,8 +892,12 @@ function renderGrid() {
   const countEl = document.getElementById('listingsCount');
   if (countEl) countEl.textContent = `${filtered.length} available`;
 
+  const lowestId = filtered.length
+    ? filtered.reduce((a, b) => saleWaxUnits(a) <= saleWaxUnits(b) ? a : b).sale_id
+    : null;
+
   document.getElementById('mpGrid').innerHTML = visible.length
-    ? visible.map((sale, i) => renderCard(sale, i)).join('')
+    ? visible.map(sale => renderCard(sale, sale.sale_id === lowestId)).join('')
     : `<div class="no-results" style="grid-column:1/-1">No listings match your filter.</div>`;
 
   document.getElementById('mpShowMore').innerHTML = remaining > 0
