@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Full Inventory Scan — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Controls ── */
+    .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 600px; }
+    .controls-row { display: flex; gap: 0.5rem; }
+    .wallet-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+    .wallet-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+    .wallet-hint  { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; }
+    .wallet-input { flex: 1; }
+
+    /* ── Scan progress ── */
+    .scan-progress {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem 1.5rem; text-align: center;
+    }
+    .scan-progress-text { font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.85rem; }
+    .scan-progress-bar  { height: 6px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; margin-top: 1rem; }
+    .scan-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-light)); transition: width 0.25s ease; }
+
+    /* ── Rarity filter pills ── */
+    .rarity-filter { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .rf-pill {
+      display: flex; align-items: center; gap: 0.45rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.35rem 0.7rem 0.35rem 0.45rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .rf-pill:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+    .rf-pill.active { border-color: rgba(240,168,64,0.5); background: rgba(240,168,64,0.07); }
+    .rf-count { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .rf-count.complete { color: #3fb950; }
+    .rf-all-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); padding: 0 0.1rem; }
+
+    /* ── Stat card colors ── */
+    .stat-card.owned   .stat-value { color: #3fb950; }
+    .stat-card.missing .stat-value { color: #e74c3c; }
+
+    /* ── Cards table ── */
+    .cards-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .cards-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .cards-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .cards-table thead th.col-r { text-align: right; }
+    .cards-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .cards-table tbody tr:last-child { border-bottom: none; }
+    .cards-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .cards-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .cards-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cell-card-name { font-size: 0.85rem; color: var(--text-primary); font-weight: 500; }
+    .cell-drop-info  { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+    .cell-price      { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .cell-price.price-null { color: rgba(255,255,255,0.2); font-weight: 400; font-size: 0.8rem; }
+    .cell-price-usd  { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; margin-top: 2px; }
+
+    /* ── PopInStock link ── */
+    .market-link--primary { display: inline-flex; align-items: center; opacity: 1; transition: filter 0.2s; text-decoration: none; }
+    .market-link--primary img { width: 24px; height: 24px; }
+    .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); }
+
+    /* ── Missing heading ── */
+    .missing-heading { font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; margin: 1.5rem 0 0.75rem; }
+    .missing-heading span { color: var(--text-primary); }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="../shared/wax-auth.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <a class="back-link" href="set-tracker.html">← Set Tracker</a>
+      <div class="page-title">Full Inventory <span class="accent">Scan</span></div>
+      <div class="page-subtitle">Scan your wallet against the entire Funko Digital catalog and see every card you're missing.</div>
+    </div>
+
+    <div class="controls">
+      <div class="wallet-group">
+        <label for="walletInput" class="wallet-label">
+          Wallet <span class="wallet-hint">(comma-separated for multiple)</span>
+        </label>
+        <div class="controls-row">
+          <input class="wallet-input" id="walletInput" type="text" placeholder="wallet.wam" spellcheck="false" autocomplete="off" />
+          <button class="lookup-btn" id="scanBtn" onclick="startScan()" disabled>Scan</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="scanContent"></div>
+
+  </div>
+</div>
+
+<script src="../shared/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+'use strict';
+
+const CHUNK_SIZE   = 100;
+const RARITY_ORDER = ['Common','Uncommon','Rare','Epic','Series','Ultra','Legendary','Grail','Mythic','Royalty','1 of 1','Redeemable'];
+const RARITY_CLASS = {
+  'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
+  'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
+  'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1','Redeemable':'r-redeemable',
+};
+
+const initW = new URLSearchParams(location.search).get('w') || '';
+
+let waxApi       = '';
+let allTemplates = [];
+let missingCards = [];
+let activeRarity = null;
+
+function enc(v) { return encodeURIComponent(v); }
+
+function fmtWax(wax) {
+  if (wax == null) return null;
+  return (wax < 1 ? wax.toFixed(4) : wax.toFixed(2)) + ' WAX';
+}
+
+function priceCell(wax, usd) {
+  if (wax == null && usd == null) return '<span class="cell-price price-null">—</span>';
+  if (wax != null) {
+    const sub = usd != null ? `<div class="cell-price-usd">≈ $${Number(usd).toFixed(2)}</div>` : '';
+    return `<span class="cell-price">${fmtWax(wax)}</span>${sub}`;
+  }
+  return `<span class="cell-price">$${Number(usd).toFixed(2)}</span>`;
+}
+
+/* ── Supabase ── */
+async function sbFetch(table, qs) {
+  const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+  const r = await fetch(url, {
+    headers: {
+      'apikey':         SUPABASE_ANON_KEY,
+      'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+      'Accept-Profile': 'funko',
+    }
+  });
+  if (!r.ok) throw new Error('Supabase error ' + r.status);
+  return r.json();
+}
+
+async function sbFetchAll(table, qs) {
+  const out = [];
+  let offset = 0;
+  while (true) {
+    const page = await sbFetch(table, qs + '&limit=1000&offset=' + offset);
+    out.push(...page);
+    if (page.length < 1000) break;
+    offset += 1000;
+  }
+  return out;
+}
+
+/* ── AtomicAssets ── */
+async function apiFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('API ' + r.status);
+  const json = await r.json();
+  if (!json.success) throw new Error('API error');
+  return json.data;
+}
+
+async function fetchAllPages(baseUrl) {
+  const out = [];
+  let page = 1;
+  while (true) {
+    const data = await apiFetch(baseUrl + '&page=' + page + '&limit=1000');
+    out.push(...data);
+    if (data.length < 1000) break;
+    page++;
+  }
+  return out;
+}
+
+/* ── UI helpers ── */
+function updateScanBtn() {
+  document.getElementById('scanBtn').disabled = !document.getElementById('walletInput').value.trim();
+}
+
+function setProgress(text, pct) {
+  document.getElementById('scanContent').innerHTML = `
+    <div class="scan-progress">
+      <div class="spinner" style="margin:0 auto"></div>
+      <div class="scan-progress-text">${text}</div>
+      <div class="scan-progress-bar">
+        <div class="scan-progress-fill" style="width:${pct ?? 0}%"></div>
+      </div>
+    </div>`;
+}
+
+/* ── Scan ── */
+async function startScan() {
+  const input = document.getElementById('walletInput').value.trim();
+  if (!input) return;
+  const wallets = [...new Set(input.split(',').map(w => w.trim()).filter(Boolean))];
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+
+  try {
+    setProgress('Loading WAX endpoint…', 0);
+    if (!waxApi) {
+      const ep = await fetch('data/wax_endpoint.json').then(r => r.json());
+      waxApi = ep.atomicassets;
+    }
+
+    setProgress('Loading catalog…', 5);
+    const rows = await sbFetchAll('funko_market_prices',
+      'select=template_id,collection_name,schema_name,name,rarity,cardid,drop_displayname,wax_price_wax,wax_price_usd' +
+      '&order=drop_displayname.asc,cardid.asc'
+    );
+    allTemplates = rows.map(t => ({
+      template_id:      String(t.template_id),
+      collection_name:  t.collection_name,
+      schema_name:      t.schema_name,
+      name:             t.name || `#${t.template_id}`,
+      rarity:           t.rarity || 'Unknown',
+      cardid:           t.cardid ?? null,
+      drop_displayname: t.drop_displayname || t.collection_name,
+      wax:              t.wax_price_wax,
+      usd:              t.wax_price_usd,
+    }));
+
+    const ids    = allTemplates.map(t => t.template_id);
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) chunks.push(ids.slice(i, i + CHUNK_SIZE));
+
+    const totalCalls = chunks.length * wallets.length;
+    let completed    = 0;
+    const ownedSet   = new Set();
+
+    setProgress(`Scanning inventory… 0 / ${totalCalls}`, 10);
+
+    await Promise.all(chunks.flatMap(chunk =>
+      wallets.map(wallet => {
+        const base = `${waxApi}/assets?owner=${enc(wallet)}&template_whitelist=${enc(chunk.join(','))}&sort=template_id&order=asc`;
+        return fetchAllPages(base).then(assets => {
+          for (const a of assets) {
+            const tid = String(a.template?.template_id || '');
+            if (tid) ownedSet.add(tid);
+          }
+          completed++;
+          const pct = 10 + Math.round(completed / totalCalls * 90);
+          setProgress(`Scanning inventory… ${completed} / ${totalCalls}`, pct);
+        });
+      })
+    ));
+
+    missingCards = allTemplates.filter(t => !ownedSet.has(t.template_id));
+    activeRarity = null;
+    renderResults(allTemplates.length - missingCards.length);
+
+  } catch (err) {
+    document.getElementById('scanContent').innerHTML =
+      `<div class="state state-error">Scan failed: ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ── Render ── */
+function renderResults(ownedCount) {
+  const total   = allTemplates.length;
+  const missing = missingCards.length;
+
+  document.getElementById('scanContent').innerHTML = `
+    <div class="section">
+      <div class="stats-grid">
+        <div class="stat-card owned">
+          <div class="stat-value">${ownedCount.toLocaleString()}</div>
+          <div class="stat-label">Cards Owned</div>
+        </div>
+        <div class="stat-card missing">
+          <div class="stat-value">${missing.toLocaleString()}</div>
+          <div class="stat-label">Cards Missing</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${total.toLocaleString()}</div>
+          <div class="stat-label">Total in Catalog</div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-heading">Filter by Rarity</div>
+      <div class="rarity-filter" id="rarityFilter"></div>
+    </div>
+    <div id="missingSection"></div>`;
+
+  renderRarityFilter();
+  renderTable();
+}
+
+function renderRarityFilter() {
+  const totals  = {};
+  const missing = {};
+  for (const t of allTemplates) totals[t.rarity]  = (totals[t.rarity]  || 0) + 1;
+  for (const t of missingCards) missing[t.rarity] = (missing[t.rarity] || 0) + 1;
+
+  const rarities = [
+    ...RARITY_ORDER.filter(r => totals[r]),
+    ...Object.keys(totals).filter(r => !RARITY_ORDER.includes(r) && totals[r]),
+  ];
+
+  const allPill = `<div class="rf-pill active" data-rarity="__all__" onclick="filterByRarity(null)">
+    <span class="rf-all-label">All</span>
+    <span class="rf-count">${missingCards.length.toLocaleString()} missing</span>
+  </div>`;
+
+  const pills = rarities.map(r => {
+    const tot = totals[r]  || 0;
+    const mis = missing[r] || 0;
+    const own = tot - mis;
+    return `<div class="rf-pill" data-rarity="${r}" onclick="filterByRarity('${r}')">
+      <span class="rarity-pill ${RARITY_CLASS[r] || ''}">${r}</span>
+      <span class="rf-count${mis === 0 ? ' complete' : ''}">${own}/${tot}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('rarityFilter').innerHTML = allPill + pills;
+}
+
+function filterByRarity(rarity) {
+  activeRarity = rarity;
+  document.querySelectorAll('.rf-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.rarity === (rarity ?? '__all__'))
+  );
+  renderTable();
+}
+
+function renderTable() {
+  const section  = document.getElementById('missingSection');
+  const filtered = activeRarity ? missingCards.filter(t => t.rarity === activeRarity) : missingCards;
+
+  if (!filtered.length) {
+    section.innerHTML = `<div class="no-cards" style="padding:1.5rem;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-secondary);font-size:0.88rem">
+      ${activeRarity ? `You own all ${activeRarity} cards in the catalog!` : 'You own every card in the catalog!'}
+    </div>`;
+    return;
+  }
+
+  const rows = filtered.map(t => {
+    const link = `../marketplace.html?template_id=${enc(t.template_id)}&collection_name=${enc(t.collection_name)}&schema_name=${enc(t.schema_name)}&project=funko`;
+    return `<tr>
+      <td>
+        <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>
+        <div class="cell-drop-info">${t.drop_displayname}</div>
+      </td>
+      <td style="width:110px"><span class="rarity-pill ${RARITY_CLASS[t.rarity] || ''}">${t.rarity}</span></td>
+      <td class="col-r" style="width:110px">${priceCell(t.wax, t.usd)}</td>
+      <td style="width:44px;text-align:right">
+        <a class="market-link--primary" href="${link}" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock">
+          <img src="../images/FoxLogo.png" alt="PopInStock">
+        </a>
+      </td>
+    </tr>`;
+  }).join('');
+
+  section.innerHTML = `
+    <div class="missing-heading">Missing cards — <span>${filtered.length.toLocaleString()} cards</span></div>
+    <div class="cards-table-wrap">
+      <table class="cards-table">
+        <thead><tr>
+          <th>ID — Card</th>
+          <th style="width:110px">Rarity</th>
+          <th class="col-r" style="width:110px">Floor Price</th>
+          <th class="col-r" style="width:44px">Market</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ── Init ── */
+document.getElementById('walletInput').addEventListener('input', () => {
+  const el = document.getElementById('walletInput');
+  const { selectionStart, selectionEnd } = el;
+  el.value = el.value.toLowerCase();
+  el.setSelectionRange(selectionStart, selectionEnd);
+  updateScanBtn();
+});
+document.getElementById('walletInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+
+(function init() {
+  if (initW) {
+    document.getElementById('walletInput').value = initW;
+    updateScanBtn();
+  }
+  function prefillWallet() {
+    const acc = window.getWaxAccount ? window.getWaxAccount() : null;
+    const el  = document.getElementById('walletInput');
+    if (!acc || el.value.trim()) return;
+    el.value = acc;
+    updateScanBtn();
+  }
+  window.addEventListener('wax-auth-change', prefillWallet);
+  prefillWallet();
+})();
+</script>
+
+</body>
+</html>
