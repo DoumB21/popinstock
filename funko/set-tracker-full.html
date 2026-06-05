@@ -56,6 +56,8 @@
       border-bottom: 1px solid var(--border); white-space: nowrap;
     }
     .cards-table thead th.col-r { text-align: right; }
+    .cards-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .cards-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
     .cards-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
     .cards-table tbody tr:last-child { border-bottom: none; }
     .cards-table tbody tr:hover { background: rgba(255,255,255,0.04); }
@@ -128,6 +130,7 @@ let waxApi       = '';
 let allTemplates = [];
 let missingCards = [];
 let activeRarity = null;
+let sortDir      = null; // null = default, 'asc', 'desc'
 
 function enc(v) { return encodeURIComponent(v); }
 
@@ -346,9 +349,25 @@ function filterByRarity(rarity) {
   renderTable();
 }
 
+function togglePriceSort() {
+  sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  renderTable();
+}
+
 function renderTable() {
   const section  = document.getElementById('missingSection');
-  const filtered = activeRarity ? missingCards.filter(t => t.rarity === activeRarity) : missingCards;
+  let filtered = activeRarity ? missingCards.filter(t => t.rarity === activeRarity) : missingCards;
+
+  if (sortDir) {
+    filtered = [...filtered].sort((a, b) => {
+      const av = a.wax ?? (a.usd ?? null);
+      const bv = b.wax ?? (b.usd ?? null);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return sortDir === 'asc' ? av - bv : bv - av;
+    });
+  }
 
   if (!filtered.length) {
     section.innerHTML = `<div class="no-cards" style="padding:1.5rem;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-secondary);font-size:0.88rem">
@@ -382,7 +401,7 @@ function renderTable() {
         <thead><tr>
           <th>ID — Card</th>
           <th style="width:110px">Rarity</th>
-          <th class="col-r" style="width:110px">Floor Price</th>
+          <th class="col-r${sortDir ? ' sorted' : ''}" style="width:110px;cursor:pointer;user-select:none" onclick="togglePriceSort()">Floor Price <span class="sort-icon">${sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}</span></th>
           <th class="col-r" style="width:44px">Market</th>
         </tr></thead>
         <tbody>${rows}</tbody>
