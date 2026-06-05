@@ -44,6 +44,7 @@
     /* ── Stat card colors ── */
     .stat-card.owned   .stat-value { color: #3fb950; }
     .stat-card.missing .stat-value { color: #e74c3c; }
+    .stat-label { white-space: nowrap; }
 
     /* ── Cards table ── */
     .cards-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
@@ -298,7 +299,7 @@ function renderResults(ownedCount) {
         </div>
       </div>
     </div>
-    <div class="section">
+    <div class="section" style="margin-top:1rem">
       <div class="section-heading">Filter by Rarity</div>
       <div class="rarity-filter" id="rarityFilter"></div>
     </div>
@@ -375,6 +376,7 @@ function renderTable() {
 
   section.innerHTML = `
     <div class="missing-heading">Missing cards — <span>${filtered.length.toLocaleString()} cards</span></div>
+    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.6">💎 <strong style="color:var(--text-primary)">Premium Feature:</strong> This feature links exclusively to the Pop In Stock Marketplace. Purchases made through these links help support the site and future development.</div>
     <div class="cards-table-wrap">
       <table class="cards-table">
         <thead><tr>
