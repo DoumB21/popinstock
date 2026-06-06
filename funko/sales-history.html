@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales History — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Controls bar ── */
+    .controls-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; flex-wrap: wrap;
+    }
+    .collection-select {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-primary); font-size: 0.85rem; padding: 0.4rem 0.75rem;
+      outline: none; cursor: pointer; font-family: inherit;
+      transition: border-color 0.2s; min-width: 220px;
+    }
+    .collection-select:focus { border-color: rgba(192,120,40,0.5); }
+    .collection-select option { background: #1a1a2a; }
+
+    /* ── Granularity toggle ── */
+    .gran-toggle {
+      display: inline-flex; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .gran-btn {
+      padding: 0.45rem 1rem; border: none; background: none;
+      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, color 0.15s; white-space: nowrap;
+    }
+    .gran-btn + .gran-btn { border-left: 1px solid var(--border); }
+    .gran-btn.active { background: rgba(240,168,64,0.12); color: var(--accent-light); }
+
+    /* ── Period navigation ── */
+    .period-nav-wrap { display: flex; flex-direction: column; gap: 0.5rem; }
+    .period-crumb {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.85rem; color: var(--text-secondary); flex-wrap: wrap;
+    }
+    .crumb-link { color: var(--accent-light); cursor: pointer; }
+    .crumb-link:hover { text-decoration: underline; }
+    .crumb-current { color: var(--text-primary); font-weight: 600; }
+    .crumb-sep { opacity: 0.4; }
+    .period-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .period-pill {
+      padding: 0.3rem 0.85rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary);
+      font-size: 0.8rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .period-pill:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .period-pill.active { background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
+
+    /* ── Stat card colors ── */
+    .stat-label { white-space: nowrap; }
+    .stat-value { white-space: nowrap; }
+    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); }
+    .stat-card.volume  .stat-value { color: var(--accent-light); }
+    .stat-card.wax     .stat-value { color: #3b82f6; }
+    .stat-card.usd     .stat-value { color: #22c55e; }
+    .stat-card.buyers  .stat-value { color: #a78bfa; }
+    .stat-card.sellers .stat-value { color: #f97316; }
+
+    /* ── Chart section header ── */
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .chart-header .section-heading { margin: 0; }
+
+    /* ── Metric toggle ── */
+    .metric-toggle { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .metric-btn {
+      padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary);
+      font-size: 0.8rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .metric-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+    .metric-btn.active-volume  { background: rgba(240,168,64,0.12);  border-color: rgba(240,168,64,0.5);  color: var(--accent-light); }
+    .metric-btn.active-wax     { background: rgba(59,130,246,0.12);  border-color: rgba(59,130,246,0.5);  color: #3b82f6; }
+    .metric-btn.active-usd     { background: rgba(34,197,94,0.12);   border-color: rgba(34,197,94,0.5);   color: #22c55e; }
+    .metric-btn.active-buyers  { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.5); color: #a78bfa; }
+    .metric-btn.active-sellers { background: rgba(249,115,22,0.12);  border-color: rgba(249,115,22,0.5);  color: #f97316; }
+
+    /* ── Chart ── */
+    .chart-wrap {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.25rem 1.5rem;
+    }
+    .chart-canvas-wrap { position: relative; height: 320px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Sales <span class="accent">History</span></div>
+      <div class="page-subtitle">Daily trading activity across the Funko Digital catalog.</div>
+    </div>
+
+    <div class="controls-bar">
+      <select class="collection-select" id="collectionSelect">
+        <option value="">All Collections</option>
+      </select>
+      <div class="gran-toggle">
+        <button class="gran-btn active" data-gran="month" onclick="setGranularity('month')">Monthly</button>
+        <button class="gran-btn"        data-gran="week"  onclick="setGranularity('week')">Weekly</button>
+        <button class="gran-btn"        data-gran="day"   onclick="setGranularity('day')">Daily</button>
+      </div>
+    </div>
+
+    <div class="period-nav-wrap">
+      <div class="period-crumb" id="periodCrumb"></div>
+      <div class="period-pills" id="periodPills"></div>
+    </div>
+
+    <div id="statsSection"></div>
+
+    <div class="section" id="chartSection" style="display:none">
+      <div class="chart-header">
+        <div class="section-heading" id="chartHeading">Daily Volume</div>
+        <div class="metric-toggle">
+          <button class="metric-btn active-volume" data-metric="volume"  onclick="setMetric('volume')">Volume</button>
+          <button class="metric-btn"               data-metric="wax"     onclick="setMetric('wax')">WAX</button>
+          <button class="metric-btn"               data-metric="usd"     onclick="setMetric('usd')">USD</button>
+          <button class="metric-btn"               data-metric="buyers"  onclick="setMetric('buyers')">Buyers</button>
+          <button class="metric-btn"               data-metric="sellers" onclick="setMetric('sellers')">Sellers</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-canvas-wrap">
+          <canvas id="salesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../shared/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+'use strict';
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const METRICS = {
+  volume:  { label: 'Daily Volume',        color: '#f0a840', alpha: 'rgba(240,168,64,0.12)'  },
+  wax:     { label: 'Daily WAX Volume',    color: '#3b82f6', alpha: 'rgba(59,130,246,0.12)'  },
+  usd:     { label: 'Daily USD Volume',    color: '#22c55e', alpha: 'rgba(34,197,94,0.12)'   },
+  buyers:  { label: 'Unique Buyers / Day', color: '#a78bfa', alpha: 'rgba(167,139,250,0.12)' },
+  sellers: { label: 'Unique Sellers / Day',color: '#f97316', alpha: 'rgba(249,115,22,0.12)'  },
+};
+
+let allRows            = [];
+let chart              = null;
+let activeMetric       = 'volume';
+let selectedCollection = '';
+let selectedYear       = null;
+let selectedMonth      = null;
+let granularity        = 'month';
+
+/* ── Helpers ── */
+function fmt(n)    { return Number(n).toLocaleString(); }
+function fmtWax(n) { return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' WAX'; }
+function fmtUsd(n) { return '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/* ── Supabase ── */
+async function sbFetch(table, qs) {
+  const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
+  const r = await fetch(url, {
+    headers: {
+      'apikey':         SUPABASE_ANON_KEY,
+      'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+      'Accept-Profile': 'funko',
+    }
+  });
+  if (!r.ok) throw new Error('Supabase error ' + r.status);
+  return r.json();
+}
+
+async function sbFetchAll(table, qs) {
+  const out = [];
+  let offset = 0;
+  while (true) {
+    const page = await sbFetch(table, qs + '&limit=1000&offset=' + offset);
+    out.push(...page);
+    if (page.length < 1000) break;
+    offset += 1000;
+  }
+  return out;
+}
+
+/* ── Filtering ── */
+function getFilteredRows() {
+  let rows = allRows;
+  if (selectedCollection) rows = rows.filter(r => r.collection_name === selectedCollection);
+  if (selectedYear)       rows = rows.filter(r => r.sale_date.startsWith(selectedYear));
+  if (selectedMonth)      rows = rows.filter(r => r.sale_date.startsWith(selectedYear + '-' + selectedMonth));
+  return rows;
+}
+
+/* ── Aggregation ── */
+function aggregateRows(rows) {
+  const byPeriod = {};
+  for (const r of rows) {
+    let key;
+    if (granularity === 'month') {
+      key = r.sale_date.slice(0, 7);
+    } else if (granularity === 'week') {
+      const d = new Date(r.sale_date + 'T00:00:00Z');
+      const day = d.getUTCDay();
+      d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
+      key = d.toISOString().slice(0, 10);
+    } else {
+      key = r.sale_date;
+    }
+    if (!byPeriod[key]) byPeriod[key] = { volume: 0, wax: 0, usd: 0, buyers: new Set(), sellers: new Set() };
+    byPeriod[key].volume++;
+    byPeriod[key].wax  += parseFloat(r.wax_amount) || 0;
+    byPeriod[key].usd  += parseFloat(r.usd_amount) || 0;
+    byPeriod[key].buyers.add(r.buyer);
+    byPeriod[key].sellers.add(r.seller);
+  }
+  const periods = Object.keys(byPeriod).sort();
+  return { byPeriod, periods };
+}
+
+function fmtLabel(key) {
+  if (granularity === 'month') {
+    const [y, m] = key.split('-');
+    return MONTHS[parseInt(m) - 1] + ' ' + y;
+  }
+  const d = new Date(key + 'T00:00:00');
+  if (granularity === 'week') return 'Wk ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+  return MONTHS[d.getMonth()] + ' ' + d.getDate();
+}
+
+function getMetricValues(byPeriod, periods) {
+  return periods.map(p => {
+    const e = byPeriod[p];
+    if (activeMetric === 'buyers')  return e.buyers.size;
+    if (activeMetric === 'sellers') return e.sellers.size;
+    return e[activeMetric];
+  });
+}
+
+/* ── View controls ── */
+function setView(year, month) {
+  selectedYear  = year  || null;
+  selectedMonth = month || null;
+  if (month)     granularity = 'day';
+  else if (year) granularity = 'week';
+  else           granularity = 'month';
+  refresh();
+}
+
+function setCollection(col) {
+  selectedCollection = col;
+  refresh();
+}
+
+function setGranularity(g) {
+  granularity = g;
+  renderGranToggle();
+  const rows = getFilteredRows();
+  if (rows.length) {
+    const { byPeriod, periods } = aggregateRows(rows);
+    updateChart(byPeriod, periods);
+  }
+}
+
+function setMetric(metric) {
+  activeMetric = metric;
+  document.querySelectorAll('.metric-btn').forEach(btn => {
+    btn.className = 'metric-btn' + (btn.dataset.metric === metric ? ' active-' + metric : '');
+  });
+  document.getElementById('chartHeading').textContent = METRICS[metric].label;
+  const rows = getFilteredRows();
+  if (rows.length) {
+    const { byPeriod, periods } = aggregateRows(rows);
+    updateChart(byPeriod, periods);
+  }
+}
+
+/* ── Render helpers ── */
+function renderGranToggle() {
+  document.querySelectorAll('.gran-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.gran === granularity)
+  );
+}
+
+function renderPeriodNav() {
+  const crumbEl = document.getElementById('periodCrumb');
+  const pillsEl = document.getElementById('periodPills');
+
+  let crumb = `<span class="crumb-link" onclick="setView(null,null)">All</span>`;
+  if (selectedYear) {
+    crumb += `<span class="crumb-sep">›</span>`;
+    if (selectedMonth) {
+      crumb += `<span class="crumb-link" onclick="setView('${selectedYear}',null)">${selectedYear}</span>`;
+      crumb += `<span class="crumb-sep">›</span><span class="crumb-current">${MONTHS[parseInt(selectedMonth) - 1]}</span>`;
+    } else {
+      crumb += `<span class="crumb-current">${selectedYear}</span>`;
+    }
+  } else {
+    crumb += `<span class="crumb-sep">›</span><span class="crumb-current">All time</span>`;
+  }
+  crumbEl.innerHTML = crumb;
+
+  if (!selectedYear) {
+    const years = [...new Set(allRows.map(r => r.sale_date.slice(0, 4)))].sort();
+    pillsEl.innerHTML = years.map(y =>
+      `<button class="period-pill" onclick="setView('${y}',null)">${y}</button>`
+    ).join('');
+  } else {
+    const months = [...new Set(
+      allRows.filter(r => r.sale_date.startsWith(selectedYear)).map(r => r.sale_date.slice(5, 7))
+    )].sort();
+    pillsEl.innerHTML = months.map(m =>
+      `<button class="period-pill${m === selectedMonth ? ' active' : ''}" onclick="setView('${selectedYear}','${m}')">${MONTHS[parseInt(m) - 1]}</button>`
+    ).join('');
+  }
+}
+
+function renderStats(rows) {
+  const totalWax      = rows.reduce((s, r) => s + (parseFloat(r.wax_amount) || 0), 0);
+  const totalUsd      = rows.reduce((s, r) => s + (parseFloat(r.usd_amount) || 0), 0);
+  const uniqueBuyers  = new Set(rows.map(r => r.buyer)).size;
+  const uniqueSellers = new Set(rows.map(r => r.seller)).size;
+  const dates         = [...new Set(rows.map(r => r.sale_date))].sort();
+  const range = dates.length
+    ? fmtDate(dates[0]) + (dates.length > 1 ? ' — ' + fmtDate(dates[dates.length - 1]) : '')
+    : '—';
+
+  document.getElementById('statsSection').innerHTML = `
+    <div class="section">
+      <div class="section-heading">Overview <span style="font-size:0.72rem;font-weight:400;color:var(--text-secondary);text-transform:none;letter-spacing:0;margin-left:0.5rem">${range}</span></div>
+      <div class="stats-grid">
+        <div class="stat-card volume">
+          <div class="stat-value">${fmt(rows.length)}</div>
+          <div class="stat-label">Total Sales</div>
+        </div>
+        <div class="stat-card wax">
+          <div class="stat-value">${fmtWax(totalWax)}</div>
+          <div class="stat-label">Total WAX</div>
+        </div>
+        <div class="stat-card usd">
+          <div class="stat-value">${fmtUsd(totalUsd)}</div>
+          <div class="stat-label">Total USD</div>
+        </div>
+        <div class="stat-card buyers">
+          <div class="stat-value">${fmt(uniqueBuyers)}</div>
+          <div class="stat-label">Unique Buyers</div>
+        </div>
+        <div class="stat-card sellers">
+          <div class="stat-value">${fmt(uniqueSellers)}</div>
+          <div class="stat-label">Unique Sellers</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ── Chart ── */
+function yTickFmt() {
+  return v => {
+    if (activeMetric === 'wax') return v.toLocaleString() + ' WAX';
+    if (activeMetric === 'usd') return '$' + v.toLocaleString();
+    return v.toLocaleString();
+  };
+}
+
+function tooltipLabelFmt() {
+  return ctx => {
+    const v = ctx.parsed.y;
+    if (activeMetric === 'wax') return fmtWax(v);
+    if (activeMetric === 'usd') return fmtUsd(v);
+    return fmt(v);
+  };
+}
+
+function updateChart(byPeriod, periods) {
+  const m    = METRICS[activeMetric];
+  const data = getMetricValues(byPeriod, periods);
+  const ptR  = periods.length > 60 ? 3 : 5;
+
+  if (!chart) {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: periods.map(fmtLabel),
+        datasets: [{
+          data, borderColor: m.color, backgroundColor: m.alpha,
+          borderWidth: 2, fill: true, tension: 0.3,
+          pointRadius: ptR, pointHoverRadius: 7,
+          pointBackgroundColor: m.color,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a2a', borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1, titleColor: '#fff', bodyColor: m.color, padding: 10,
+            callbacks: { label: tooltipLabelFmt() }
+          }
+        },
+        scales: {
+          x: {
+            grid:  { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 }, maxTicksLimit: 12 },
+          },
+          y: {
+            grid:  { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 }, callback: yTickFmt() },
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+  } else {
+    const ds = chart.data.datasets[0];
+    chart.data.labels         = periods.map(fmtLabel);
+    ds.data                   = data;
+    ds.borderColor            = m.color;
+    ds.backgroundColor        = m.alpha;
+    ds.pointBackgroundColor   = m.color;
+    ds.pointRadius            = ptR;
+    chart.options.plugins.tooltip.bodyColor          = m.color;
+    chart.options.plugins.tooltip.callbacks.label    = tooltipLabelFmt();
+    chart.options.scales.y.ticks.callback            = yTickFmt();
+    chart.update();
+  }
+}
+
+/* ── Main refresh ── */
+function refresh() {
+  renderGranToggle();
+  renderPeriodNav();
+  const rows = getFilteredRows();
+
+  if (!rows.length) {
+    document.getElementById('statsSection').innerHTML =
+      '<div class="no-results">No sales data for this selection.</div>';
+    document.getElementById('chartSection').style.display = 'none';
+    return;
+  }
+
+  renderStats(rows);
+  document.getElementById('chartSection').style.display = '';
+  document.getElementById('chartHeading').textContent = METRICS[activeMetric].label;
+  const { byPeriod, periods } = aggregateRows(rows);
+  updateChart(byPeriod, periods);
+}
+
+/* ── Init ── */
+async function init() {
+  document.getElementById('statsSection').innerHTML =
+    '<div class="status-wrap"><div class="spinner"></div></div>';
+  try {
+    allRows = await sbFetchAll('funko_sales_history',
+      'select=sale_date,wax_amount,usd_amount,seller,buyer,collection_name&order=sale_date.asc'
+    );
+
+    const collections = [...new Set(allRows.map(r => r.collection_name))].sort();
+    const select = document.getElementById('collectionSelect');
+    for (const c of collections) {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      select.appendChild(opt);
+    }
+    select.addEventListener('change', e => setCollection(e.target.value));
+
+    refresh();
+  } catch (err) {
+    document.getElementById('statsSection').innerHTML =
+      `<div class="state state-error">Failed to load: ${err.message}</div>`;
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>
