@@ -156,17 +156,23 @@
     return 'mint-high';
   }
 
-  async function sbFetch(table, qs) {
+  async function sbFetch(table, qs, retries = 2) {
     const url = SUPABASE_URL + '/rest/v1/' + table + (qs ? '?' + qs : '');
-    const r = await fetch(url, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Accept-Profile': 'topps',
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const r = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Accept-Profile': 'topps',
+        }
+      });
+      if (r.ok) return r.json();
+      if (r.status >= 500 && attempt < retries) {
+        await new Promise(res => setTimeout(res, 400 * (attempt + 1)));
+        continue;
       }
-    });
-    if (!r.ok) throw new Error('Supabase error ' + r.status + ' on ' + table);
-    return r.json();
+      throw new Error('Supabase error ' + r.status + ' on ' + table);
+    }
   }
 
   // ── Subset dropdown ────────────────────────────────────────────
