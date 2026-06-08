@@ -95,6 +95,47 @@
       border-radius: 14px; padding: 1.25rem 1.5rem;
     }
     .chart-canvas-wrap { position: relative; height: 320px; }
+
+    /* ── Top 10 ── */
+    .top10-item {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+    }
+    .top10-item:last-child { border-bottom: none; }
+    .top10-rank {
+      min-width: 22px; text-align: center; font-size: 0.85rem;
+      font-weight: 700; color: var(--text-secondary); flex-shrink: 0;
+    }
+    .top10-media {
+      flex-shrink: 0; width: 78px; height: 108px;
+      border-radius: 8px; overflow: hidden; background: var(--bg-card-hover);
+    }
+    .top10-media video, .top10-media img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .top10-media-ph {
+      flex-shrink: 0; width: 78px; height: 108px; border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      animation: top10-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes top10-pulse { 0%,100%{opacity:0.35} 50%{opacity:0.7} }
+    .top10-ph {
+      background: rgba(255,255,255,0.06); border-radius: 4px; height: 11px;
+      animation: top10-pulse 1.4s ease-in-out infinite;
+    }
+    .top10-info { flex: 1; min-width: 0; }
+    .top10-name {
+      font-weight: 700; font-size: 0.88rem; color: var(--text-primary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .top10-meta { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.3rem; flex-wrap: wrap; }
+    .top10-series { font-size: 0.76rem; color: var(--text-secondary); }
+    .top10-tx { font-size: 0.74rem; color: var(--text-secondary); margin-top: 0.25rem; word-break: break-all; }
+    .top10-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); opacity: 0.55; margin-right: 0.3rem; }
+    .top10-prices { flex-shrink: 0; text-align: right; }
+    .top10-usd { color: #22c55e; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+    .top10-wax { color: #3b82f6; font-size: 0.76rem; margin-top: 0.18rem; white-space: nowrap; }
+    .top10-date { color: var(--text-secondary); font-size: 0.72rem; margin-top: 0.18rem; white-space: nowrap; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -146,6 +187,11 @@
       </div>
     </div>
 
+    <div class="section" id="top10Section" style="display:none">
+      <div class="section-heading">Top 10 Sales — USD</div>
+      <div id="top10List"></div>
+    </div>
+
   </div>
 </div>
 
@@ -171,8 +217,41 @@ let selectedCollection = '';
 let selectedYear       = null;
 let selectedMonth      = null;
 let granularity        = 'month';
+let WAX_BASE           = '';
+let top10Gen           = 0;
+let collectionMap      = new Map();
+
+const RARITY_CLASS = {
+  'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
+  'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
+  'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1','Redeemable':'r-redeemable'
+};
 
 /* ── Helpers ── */
+function ipfsUrl(cid) {
+  if (!cid) return '';
+  if (cid.startsWith('ipfs://')) return IPFS_GATEWAY + cid.slice(7);
+  return IPFS_GATEWAY + cid;
+}
+function videoUrl(cid) {
+  if (!cid) return '';
+  return 'https://ipfs.io/ipfs/' + cid;
+}
+function cleanName(name) {
+  return name
+    .replace(/^Funko Presents\s+/i, '')
+    .replace(/:\s*Funko Digital Pop!$/i, '')
+    .replace(/\s+X\s+Funko$/i, '')
+    .replace(/:\s*Funko Digital$/i, '')
+    .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+}
+function schemaLabel(sn) {
+  if (!sn) return '';
+  const base = sn.replace('.drop', '');
+  const m = base.match(/^series(\d+)$/);
+  if (m) return 'Series ' + m[1];
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
 function fmt(n)    { return Number(n).toLocaleString(); }
 function fmtWax(n) { return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' WAX'; }
 function fmtUsd(n) { return '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -247,7 +326,7 @@ function fmtLabel(key) {
     return MONTHS[parseInt(m) - 1] + ' ' + y;
   }
   const d = new Date(key + 'T00:00:00');
-  if (granularity === 'week') return 'Wk ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+  if (granularity === 'week') return MONTHS[d.getMonth()] + ' ' + d.getDate();
   return MONTHS[d.getMonth()] + ' ' + d.getDate();
 }
 
@@ -376,6 +455,91 @@ function renderStats(rows) {
     </div>`;
 }
 
+/* ── Top 10 ── */
+async function renderTop10(rows) {
+  const gen = ++top10Gen;
+  const section = document.getElementById('top10Section');
+  const list    = document.getElementById('top10List');
+
+  if (!rows.length) { section.style.display = 'none'; return; }
+
+  const top10 = [...rows]
+    .sort((a, b) => (parseFloat(b.usd_amount) || 0) - (parseFloat(a.usd_amount) || 0))
+    .slice(0, 10);
+
+  // Show skeletons immediately so the section appears while data loads
+  section.style.display = '';
+  list.innerHTML = top10.map((_, i) => `
+    <div class="top10-item">
+      <div class="top10-rank">${i + 1}</div>
+      <div class="top10-media-ph"></div>
+      <div class="top10-info" style="flex:1">
+        <div class="top10-ph" style="width:55%;margin-bottom:0.45rem"></div>
+        <div class="top10-ph" style="width:38%;margin-bottom:0.45rem"></div>
+        <div class="top10-ph" style="width:62%"></div>
+      </div>
+      <div class="top10-prices">
+        <div class="top10-ph" style="width:62px;margin-bottom:0.35rem"></div>
+        <div class="top10-ph" style="width:48px"></div>
+      </div>
+    </div>`).join('');
+
+  try {
+    const idStr = [...new Set(top10.map(r => r.template_id))].join(',');
+    const sbData = await sbFetch('templates', `select=template_id,name,rarity,cardid,schema_name,video,img&template_id=in.(${idStr})`);
+
+    if (gen !== top10Gen) return;
+
+    const meta = {};
+    for (const r of sbData || []) meta[r.template_id] = r;
+
+    list.innerHTML = top10.map((r, i) => {
+      const m = meta[r.template_id] || {};
+
+      const name   = m.name   || `Template #${r.template_id}`;
+      const rarity = m.rarity || '';
+      const series = schemaLabel(m.schema_name || r.schema_name);
+      const cardid = m.cardid ? ` · Mint #${m.cardid}` : '';
+
+      const rarityPill = rarity
+        ? `<span class="rarity-pill ${RARITY_CLASS[rarity] || ''}" style="font-size:0.72rem;padding:0.15rem 0.55rem">${rarity}</span>`
+        : '';
+
+      let mediaEl;
+      if (m.video) {
+        mediaEl = `<video autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;display:block"><source src="${videoUrl(m.video)}" type="video/mp4"></video>`;
+      } else if (m.img) {
+        mediaEl = `<img src="${ipfsUrl(m.img)}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`;
+      } else {
+        mediaEl = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.15);font-size:1.8rem">◆</div>`;
+      }
+
+      return `
+        <div class="top10-item">
+          <div class="top10-rank">${i + 1}</div>
+          <div class="top10-media">${mediaEl}</div>
+          <div class="top10-info">
+            <div class="top10-name">${name}</div>
+            <div class="top10-meta">
+              ${rarityPill}
+              <span class="top10-series">${collectionMap.get(r.collection_name) || r.collection_name} · ${series}${cardid}</span>
+            </div>
+            <div class="top10-tx"><span class="top10-label">Seller</span>${r.seller}</div>
+            <div class="top10-tx"><span class="top10-label">Buyer</span>${r.buyer}</div>
+          </div>
+          <div class="top10-prices">
+            <div class="top10-usd">${fmtUsd(parseFloat(r.usd_amount) || 0)}</div>
+            <div class="top10-wax">${fmtWax(parseFloat(r.wax_amount) || 0)}</div>
+            <div class="top10-date">${fmtDate(r.sale_date)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch {
+    if (gen !== top10Gen) return;
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:1rem 0">Could not load top 10 details.</div>';
+  }
+}
+
 /* ── Chart ── */
 function yTickFmt() {
   return v => {
@@ -461,10 +625,12 @@ function refresh() {
     document.getElementById('statsSection').innerHTML =
       '<div class="no-results">No sales data for this selection.</div>';
     document.getElementById('chartSection').style.display = 'none';
+    document.getElementById('top10Section').style.display = 'none';
     return;
   }
 
   renderStats(rows);
+  renderTop10(rows);
   document.getElementById('chartSection').style.display = '';
   document.getElementById('chartHeading').textContent = METRICS[activeMetric].label;
   const { byPeriod, periods } = aggregateRows(rows);
@@ -476,15 +642,22 @@ async function init() {
   document.getElementById('statsSection').innerHTML =
     '<div class="status-wrap"><div class="spinner"></div></div>';
   try {
-    allRows = await sbFetchAll('funko_sales_history',
-      'select=sale_date,wax_amount,usd_amount,seller,buyer,collection_name&order=sale_date.asc'
-    );
+    const [rows, waxEp, collData] = await Promise.all([
+      sbFetchAll('funko_sales_history',
+        'select=sale_date,template_id,collection_name,schema_name,wax_amount,usd_amount,seller,buyer&order=sale_date.asc'
+      ),
+      fetch('data/wax_endpoint.json').then(r => r.json()).catch(() => ({})),
+      sbFetch('collections', 'select=collection_name,display_name')
+    ]);
+    allRows  = rows;
+    WAX_BASE = waxEp.endpoint || '';
+    collectionMap = new Map((collData || []).map(c => [c.collection_name, cleanName(c.display_name || c.collection_name)]));
 
     const collections = [...new Set(allRows.map(r => r.collection_name))].sort();
     const select = document.getElementById('collectionSelect');
     for (const c of collections) {
       const opt = document.createElement('option');
-      opt.value = c; opt.textContent = c;
+      opt.value = c; opt.textContent = collectionMap.get(c) || c;
       select.appendChild(opt);
     }
     select.addEventListener('change', e => setCollection(e.target.value));
