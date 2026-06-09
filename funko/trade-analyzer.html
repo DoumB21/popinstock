@@ -1290,7 +1290,7 @@
           },
         }]);
         btn.textContent = 'Offer Sent!';
-        setTimeout(() => { btn.textContent = 'Send Trade Offer'; updateOfferBtn(); }, 3000);
+        setTimeout(() => { clearTrade(); btn.textContent = 'Send Trade Offer'; }, 3000);
       } catch (e) {
         console.error('Trade offer failed:', e);
         btn.textContent = 'Failed — try again';
