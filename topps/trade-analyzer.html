@@ -128,6 +128,7 @@
     .trade-action-btn--offer { flex-basis: 100%; border-color: rgba(240,168,64,0.3); color: var(--accent-light); }
     .trade-action-btn--offer:not(:disabled):hover { background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.6); }
     .trade-action-btn--offer:disabled { opacity: 0.35; cursor: not-allowed; }
+    .trade-action-btn--sent { opacity: 1 !important; cursor: default !important; color: #4caf50 !important; border-color: rgba(76,175,80,0.5) !important; background: rgba(76,175,80,0.08) !important; }
 
     /* ── Double-row card layout ── */
     .card-sub-row td { border-top: none !important; padding-top: 0; padding-bottom: 0.45rem; }
@@ -1085,7 +1086,8 @@
           },
         }]);
         btn.textContent = 'Offer Sent!';
-        setTimeout(() => { clearTrade(); btn.textContent = 'Send Trade Offer'; }, 3000);
+        btn.classList.add('trade-action-btn--sent');
+        setTimeout(() => { btn.classList.remove('trade-action-btn--sent'); clearTrade(); btn.textContent = 'Send Trade Offer'; }, 3000);
       } catch (e) {
         console.error('Trade offer failed:', e);
         btn.textContent = 'Failed — try again';
