@@ -35,8 +35,12 @@
   --rarity-mythic:     #01ffff;
   --rarity-royalty:    #007deb;
   --rarity-1of1:       #ffd700;
-  --rarity-redeemable: #888;
-  --rarity-pack:       #94a3b8;
+  --rarity-redeemable:         #888;
+  --rarity-pack:               #94a3b8;
+  --rarity-superrare:          #a78bfa;
+  --rarity-epicexclusive:      #fb7185;
+  --rarity-eventexclusive:     #22d3ee;
+  --rarity-legendaryexclusive: #fbbf24;
 }
 
 /* ── Base ── */
@@ -593,8 +597,12 @@ body::before {
 .rarity-uncommon  { color: var(--rarity-uncommon);  border-color: var(--rarity-uncommon);  background: rgba( 76, 175,  80, 0.10); }
 .rarity-common    { color: var(--rarity-common);    border-color: var(--rarity-common);    background: rgba(153, 153, 153, 0.08); }
 .rarity-1of1      { color: var(--rarity-1of1);      border-color: var(--rarity-1of1);      background: rgba(255, 215,   0, 0.10); }
-.rarity-redeemable{ color: var(--rarity-redeemable);border-color: var(--rarity-redeemable);background: rgba(136, 136, 136, 0.08); }
-.rarity-pack      { color: var(--rarity-pack);      border-color: var(--rarity-pack);      background: rgba(148, 163, 184, 0.10); }
+.rarity-redeemable         { color: var(--rarity-redeemable);         border-color: var(--rarity-redeemable);         background: rgba(136, 136, 136, 0.08); }
+.rarity-pack               { color: var(--rarity-pack);               border-color: var(--rarity-pack);               background: rgba(148, 163, 184, 0.10); }
+.rarity-superrare          { color: var(--rarity-superrare);          border-color: var(--rarity-superrare);          background: rgba(167, 139, 250, 0.12); }
+.rarity-epicexclusive      { color: var(--rarity-epicexclusive);      border-color: var(--rarity-epicexclusive);      background: rgba(251, 113, 133, 0.12); }
+.rarity-eventexclusive     { color: var(--rarity-eventexclusive);     border-color: var(--rarity-eventexclusive);     background: rgba( 34, 211, 238, 0.12); }
+.rarity-legendaryexclusive { color: var(--rarity-legendaryexclusive); border-color: var(--rarity-legendaryexclusive); background: rgba(251, 191,  36, 0.12); }
 
 
 /* ── Rarity pills ── */

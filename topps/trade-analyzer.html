@@ -158,6 +158,62 @@
     .rarity-legendary       { background: rgba(251,146,60,0.12);  border-color: rgba(251,146,60,0.38);  color: #fb923c; }
     .rarity-legendaryexclusive { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
 
+    /* ── Quick Start Guide ── */
+    .qs-guide {
+      background: rgba(15,20,40,0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-left: 3px solid #3b82f6;
+      border-radius: 10px;
+      margin-top: 1rem;
+      overflow: hidden;
+    }
+    .qs-header {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.7rem 1rem 0.7rem 1.25rem;
+      cursor: pointer; user-select: none;
+    }
+    .qs-chevron {
+      width: 14px; height: 14px; flex-shrink: 0;
+      color: #3b82f6; transition: transform 0.2s;
+    }
+    .qs-guide.qs-open .qs-chevron { transform: rotate(90deg); }
+    .qs-title {
+      flex: 1;
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #3b82f6; margin: 0;
+    }
+    .qs-body {
+      display: none;
+      padding: 0 1.25rem 0.9rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .qs-guide.qs-open .qs-body { display: block; }
+    .qs-steps {
+      margin: 0.65rem 0 0; padding-left: 1.4rem;
+      display: flex; flex-direction: column; gap: 0.55rem;
+    }
+    .qs-steps li { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6; }
+    .qs-steps li strong { color: var(--text-primary); }
+    .qs-steps li em { color: var(--accent-light); font-style: normal; font-weight: 600; }
+
+    /* ── Pending offers bar ── */
+    .pending-offers-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: rgba(250,165,0,0.08); border: 1px solid rgba(250,165,0,0.3);
+      border-radius: 12px; padding: 0.75rem 1.1rem;
+      margin-bottom: 1.25rem;
+    }
+    .pending-offers-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .pending-offers-text { flex: 1; font-size: 0.875rem; }
+    .pending-offers-text strong { color: var(--accent-light); }
+    .pending-offers-link {
+      font-size: 0.82rem; font-weight: 700;
+      color: var(--accent-light); text-decoration: none;
+      white-space: nowrap; border-bottom: 1px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .pending-offers-link:hover { border-color: var(--accent-light); }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       .page-main { padding: 1.25rem 0.75rem; }
@@ -182,7 +238,28 @@
     <div class="page-header">
       <h1 class="page-title">Trade <span class="accent">Analyzer</span></h1>
       <p class="page-desc">Compare the inventory of up to 5 wallets for any drop</p>
-      <p class="page-hint">Tip: click any mint # in the results table to add it to your Trade Summary.</p>
+      <div id="quickStartGuide" class="qs-guide">
+        <div class="qs-header" onclick="this.closest('.qs-guide').classList.toggle('qs-open')">
+          <svg class="qs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <p class="qs-title">&#9889; Quick Start Guide</p>
+        </div>
+        <div class="qs-body">
+          <ol class="qs-steps">
+            <li><strong>Connect</strong> &mdash; Link your wallet via the button at the top of the site.</li>
+            <li><strong>Add Partners</strong> &mdash; Type target wallet addresses below, or open the blue <em>TRADERS</em> tab on the right to select partners.</li>
+            <li><strong>Build Offer</strong> &mdash; Search a drop, then click any Mint Number in the results table to add&nbsp;/&nbsp;remove it. Selected items turn green!</li>
+            <li><strong>Finalize</strong> &mdash; Close the Traders tab and click the orange <em>TRADE</em> tab on the right to review your active trade summary and send the offer.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div id="pendingOffersBar" class="pending-offers-bar" style="display:none;">
+      <span class="pending-offers-icon">&#9203;</span>
+      <span class="pending-offers-text">
+        You have <strong id="pendingOffersCount">0</strong> pending trade offer(s) waiting for your response.
+      </span>
+      <a href="../trade-offers.html" class="pending-offers-link" target="_blank" rel="noopener">Review offers &#8594;</a>
     </div>
 
     <div class="controls-card">
@@ -1258,9 +1335,30 @@
     }
 
     // ── Boot ──────────────────────────────────────────────────────────────────
+    async function checkPendingOffers() {
+      const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+      const bar = document.getElementById('pendingOffersBar');
+      if (!wallet || !bar) return;
+      try {
+        const endpoint = await fetch('data/wax_endpoint.json').then(r => r.json());
+        const url = `${endpoint.atomicassets}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const json = await res.json();
+        const count = (json.data || []).length;
+        if (count > 0) {
+          document.getElementById('pendingOffersCount').textContent = count;
+          bar.style.display = 'flex';
+        } else {
+          bar.style.display = 'none';
+        }
+      } catch {}
+    }
+
     window.addEventListener('wax-auth-change', () => {
       updateOfferBtn();
       if (tradersLoaded) renderTradersContent();
+      checkPendingOffers();
     });
     loadTradersList();
     init().then(() => {
@@ -1273,7 +1371,7 @@
       }
       prefillWallet();
       window.addEventListener('wax-auth-change', prefillWallet);
-    }).catch(err => showError(`Init failed: ${err.message}`));
+    }).then(() => checkPendingOffers()).catch(err => showError(`Init failed: ${err.message}`));
   </script>
 
 </body>

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade Offers — PopInStock</title>
+  <meta name="description" content="Review and respond to incoming WAX trade offers for your NFT cards." />
+  <link rel="canonical" href="https://www.popinstock.com/trade-offers.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.popinstock.com/trade-offers.html" />
+  <meta property="og:title" content="Trade Offers — PopInStock" />
+  <meta property="og:description" content="Review and respond to incoming WAX trade offers for your NFT cards." />
+  <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Trade Offers — PopInStock" />
+  <meta name="twitter:description" content="Review and respond to incoming WAX trade offers for your NFT cards." />
+  <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <link rel="icon" type="image/png" href="images/FoxLogo.png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    /* ── Nav ── */
+    .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 0.5rem 0 0.25rem; flex-shrink: 0; }
+    .nav-wax-btn {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 5px 12px; border-radius: 999px; flex-shrink: 0;
+      border: 1px solid rgba(240,168,64,0.35); background: rgba(240,168,64,0.07);
+      color: var(--accent-light); cursor: pointer; white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .nav-wax-btn:hover:not(:disabled) { background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.55); }
+    .nav-wax-btn:disabled { opacity: 0.55; cursor: default; }
+    .nav-wax-connected-widget {
+      display: none; align-items: center; gap: 6px;
+      padding: 4px 6px 4px 11px; border-radius: 999px; flex-shrink: 0;
+      border: 1px solid rgba(74,222,128,0.35); background: rgba(74,222,128,0.07);
+    }
+    .nav-wax-name { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4ade80; white-space: nowrap; user-select: none; }
+    .nav-wax-logout-btn {
+      width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
+      border: 1px solid rgba(74,222,128,0.3); background: none;
+      color: rgba(74,222,128,0.65); cursor: pointer;
+      font-size: 0.62rem; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .nav-wax-logout-btn:hover { background: rgba(224,82,82,0.15); border-color: rgba(224,82,82,0.5); color: #e05252; }
+
+    /* ── Page ── */
+    .page-main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem;
+      text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; }
+
+    .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
+
+    .offers-list { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    /* ── Accordion item ── */
+    .offer-item {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; transition: border-color 0.2s;
+    }
+    .offer-item:hover { border-color: var(--border-hover); }
+    .offer-header {
+      display: flex; align-items: center;
+      padding: 1rem 1.25rem; cursor: pointer; user-select: none; gap: 1rem;
+    }
+    .offer-chevron { width: 18px; height: 18px; flex-shrink: 0; color: var(--text-secondary); transition: transform 0.2s; }
+    .offer-item.open .offer-chevron { transform: rotate(90deg); }
+    .offer-from { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .offer-from-wallet { color: var(--accent-light); }
+    .offer-ratio {
+      flex-shrink: 0; display: grid;
+      grid-template-columns: max-content 1.25rem max-content;
+      align-items: center; font-size: 1rem; font-weight: 600; white-space: nowrap;
+    }
+    .ratio-receive { color: #4ade80; }
+    .ratio-sep     { color: var(--text-secondary); font-weight: 400; text-align: center; }
+    .ratio-give    { color: #fb923c; }
+    .ratio-num     { display: inline-block; min-width: 2ch; font-variant-numeric: tabular-nums; text-align: right; }
+    .offer-age     { flex-shrink: 0; width: 5rem; font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; text-align: right; }
+    .offer-body    { display: none; border-top: 1px solid var(--border); }
+    .offer-item.open .offer-body { display: block; }
+
+    /* ── Notice (unknown/mixed) ── */
+    .offer-notice {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 1.25rem 1.25rem 1.1rem;
+      color: var(--text-secondary); font-size: 0.85rem; line-height: 1.55;
+    }
+    .offer-notice svg { flex-shrink: 0; margin-top: 1px; color: var(--text-secondary); opacity: 0.6; }
+    .offer-notice a { color: var(--accent-light); text-decoration: underline; }
+    .offer-notice a:hover { opacity: 0.8; }
+
+    /* ── Two-column sides ── */
+    .offer-sides { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.5rem; border-bottom: 1px solid var(--border); }
+    .offer-side-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #4ade80;
+      padding: 0.55rem 1rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .offer-side-label.label-give { color: #fb923c; }
+
+    /* ── Asset cards ── */
+    .asset-cards { display: flex; flex-direction: column; background: var(--bg); }
+    .asset-card {
+      display: grid; grid-template-columns: 3fr 1.5fr 5.5rem 4rem;
+      grid-template-rows: auto auto; column-gap: 1.25rem; row-gap: 0.2rem;
+      padding: 0.6rem 1rem; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .asset-card:last-child { border-bottom: none; }
+    .asset-card:nth-child(even) { background: rgba(255,255,255,0.04); }
+    .ac-name       { grid-column: 1; grid-row: 1; font-size: 0.88rem; font-weight: 600; }
+    .ac-rarity-id  { grid-column: 1; grid-row: 2; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+    .ac-collection { grid-column: 2; grid-row: 1; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+    .ac-series     { grid-column: 2; grid-row: 2; font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+    .ac-supply     { grid-column: 3; grid-row: 1 / 3; align-self: center; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ac-supply-main { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+    .ac-supply-of   { font-size: 0.8rem; color: var(--text-secondary); }
+    .ac-supply-null { color: var(--text-secondary); }
+    .ac-mint       { grid-column: 4; grid-row: 1 / 3; align-self: center; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .ac-mint-trade { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
+    .ac-mint-trade.ac-mint-warn { color: #ef4444; }
+    .ac-mint-low   { font-size: 0.8rem; color: var(--text-secondary); margin-top: 1px; }
+    .asset-header {
+      display: grid; grid-template-columns: 3fr 1.5fr 5.5rem 4rem;
+      column-gap: 1.25rem; padding: 0.4rem 1rem;
+      border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.025);
+    }
+    .asset-header span { font-size: 0.67rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+    .asset-header span:nth-child(3),
+    .asset-header span:nth-child(4) { text-align: right; }
+    .asset-header span:nth-child(4) { font-weight: 700; color: var(--text-primary); }
+    .asset-empty { padding: 0.75rem 1rem; font-size: 0.82rem; color: var(--text-secondary); }
+
+    /* ── Offer actions ── */
+    .offer-actions {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 0.65rem; padding: 1.25rem 1.25rem 0.85rem;
+      border-top: 1px solid var(--border); margin-top: 0.25rem;
+    }
+    .offer-memo {
+      flex: 1; align-self: center; display: flex; align-items: center;
+      font-size: 0.78rem; color: var(--text-secondary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding-right: 0.5rem; line-height: 1.2;
+    }
+    .offer-memo span { color: var(--text-primary); }
+    .offer-btn {
+      font-size: 0.82rem; font-weight: 700; padding: 0.5rem 1.25rem;
+      border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s; white-space: nowrap;
+    }
+    .offer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .offer-btn--accept  { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.4); color: #4ade80; }
+    .offer-btn--accept:not(:disabled):hover { background: rgba(74,222,128,0.2); border-color: #4ade80; }
+    .offer-btn--decline { background: rgba(224,82,82,0.08); border-color: rgba(224,82,82,0.3); color: #e05252; }
+    .offer-btn--decline:not(:disabled):hover { background: rgba(224,82,82,0.18); border-color: #e05252; }
+    .offer-btn--done { background: rgba(100,100,100,0.1); border-color: rgba(255,255,255,0.12); color: var(--text-secondary); cursor: default !important; }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .page-main { padding: 1.25rem 0.75rem 3rem; }
+      .offer-sides { grid-template-columns: 1fr; }
+      .offer-side + .offer-side { border-top: 1px solid var(--border); }
+      .offer-header { flex-wrap: wrap; gap: 0.5rem 1rem; }
+      .offer-from  { flex-basis: 0; }
+      .offer-ratio { width: auto; }
+      .offer-age   { width: auto; margin-left: auto; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/wax-auth.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/FoxLogo.png" alt="PopInStock" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+    <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">Connect Wallet</button>
+    <div id="navWaxConnected" class="nav-wax-connected-widget">
+      <span id="navWaxName" class="nav-wax-name"></span>
+      <button id="navWaxLogout" class="nav-wax-logout-btn" title="Logout">✕</button>
+    </div>
+  </div>
+</nav>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title">Incoming Trade <span class="accent">Offers</span></h1>
+    <p class="page-desc">Review and respond to pending offers sent to your WAX wallet.</p>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your pending trade offers.</p>
+  </div>
+
+  <div id="loadWrap" class="status-wrap" style="display:none;">
+    <div class="spinner"></div>
+    <div>Loading trade offers…</div>
+  </div>
+
+  <div id="emptyWrap" class="empty-state" style="display:none;">
+    <strong>No pending offers</strong>
+    You have no incoming trade offers at this time.
+  </div>
+
+  <div id="offersList" class="offers-list" style="display:none;"></div>
+</main>
+
+<script>
+'use strict';
+
+/* ── Nav auth ──────────────────────────────────────────────────────────────── */
+window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
+
+function _waxShort(acc) { return acc.length > 13 ? acc.slice(0,6) + '…' + acc.slice(-4) : acc; }
+
+function _updateNavWaxBtn() {
+  const connectBtn  = document.getElementById('navWaxBtn');
+  const connectedEl = document.getElementById('navWaxConnected');
+  const nameEl      = document.getElementById('navWaxName');
+  const acc = window.getWaxAccount();
+  if (acc) {
+    if (connectBtn)  { connectBtn.style.display = 'none'; connectBtn.disabled = false; }
+    if (connectedEl) connectedEl.style.display = 'flex';
+    if (nameEl)      { nameEl.textContent = _waxShort(acc); nameEl.title = acc; }
+  } else {
+    if (connectBtn)  { connectBtn.style.display = ''; connectBtn.textContent = 'Connect Wallet'; connectBtn.disabled = false; }
+    if (connectedEl) connectedEl.style.display = 'none';
+  }
+}
+
+let _connectTimeout = null;
+
+async function _handleWaxClick() {
+  const btn = document.getElementById('navWaxBtn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  clearTimeout(_connectTimeout);
+  _connectTimeout = setTimeout(() => _updateNavWaxBtn(), 300000);
+  try { await WaxAuth.login(); } catch { /* cancelled */ } finally {
+    clearTimeout(_connectTimeout); _updateNavWaxBtn();
+  }
+}
+
+async function _handleWaxLogout() {
+  const btn = document.getElementById('navWaxLogout');
+  if (btn) btn.disabled = true;
+  try { await WaxAuth.logout(); } catch { /* ignore */ } finally { _updateNavWaxBtn(); }
+}
+
+function _initNavWax() {
+  const connectBtn = document.getElementById('navWaxBtn');
+  const logoutBtn  = document.getElementById('navWaxLogout');
+  if (connectBtn) connectBtn.addEventListener('click', _handleWaxClick);
+  if (logoutBtn)  logoutBtn.addEventListener('click', _handleWaxLogout);
+  window.addEventListener('wax-auth-change', () => { _updateNavWaxBtn(); onWalletChange(); });
+  if (window.WaxAuth) WaxAuth.restore().catch(() => {}).finally(_updateNavWaxBtn);
+  else _updateNavWaxBtn();
+}
+
+/* ── Data ──────────────────────────────────────────────────────────────────── */
+let FUNKO_RARITY_ORDER = [];
+let FUNKO_DROP_ORDER   = new Map();
+let FUNKO_DROP_DISPLAY = new Map();
+let FUNKO_COLLECTIONS  = new Set();
+
+let TOPPS_RARITY_ORDER = {};
+let TOPPS_DROP_ORDER   = new Map();
+let TOPPS_DROP_DISPLAY = new Map();
+let TOPPS_COLLECTIONS  = new Set();
+
+let API_BASE = '';
+
+async function loadAllData() {
+  const [funkoDCRes, toppsDCRes, funkoSORes, toppsSORes, epRes] = await Promise.allSettled([
+    fetch('funko/data/drops_catalog.json').then(r => r.ok ? r.json() : []),
+    fetch('topps/data/drops_catalog.json').then(r => r.ok ? r.json() : []),
+    fetch('funko/data/sort_order.json').then(r => r.ok ? r.json() : {}),
+    fetch('topps/data/sort_order.json').then(r => r.ok ? r.json() : {}),
+    fetch('funko/data/wax_endpoint.json').then(r => r.ok ? r.json() : null),
+  ]);
+
+  if (funkoDCRes.status === 'fulfilled') {
+    (funkoDCRes.value || []).forEach((d, i) => {
+      const key = `${d.collection}|${d.schema}`;
+      FUNKO_DROP_ORDER.set(key, i);
+      FUNKO_DROP_DISPLAY.set(key, d.displayname || d.collection);
+      FUNKO_COLLECTIONS.add(d.collection);
+    });
+  }
+  if (toppsDCRes.status === 'fulfilled') {
+    (toppsDCRes.value || []).forEach((d, i) => {
+      const key = `${d.collection}|${d.schema}`;
+      TOPPS_DROP_ORDER.set(key, i);
+      TOPPS_DROP_DISPLAY.set(key, d.displayname || d.collection);
+      TOPPS_COLLECTIONS.add(d.collection);
+    });
+  }
+  if (funkoSORes.status === 'fulfilled') {
+    FUNKO_RARITY_ORDER = ((funkoSORes.value || {}).rarity || []).map(r => r.toLowerCase());
+  }
+  if (toppsSORes.status === 'fulfilled') {
+    for (const [schema, data] of Object.entries(toppsSORes.value || {})) {
+      TOPPS_RARITY_ORDER[schema] = (data.rarity || []).map(r => r.toLowerCase());
+    }
+  }
+  if (epRes.status === 'fulfilled' && epRes.value) {
+    API_BASE = epRes.value.atomicassets;
+  }
+}
+
+/* ── Classification ────────────────────────────────────────────────────────── */
+function assetProject(asset) {
+  const col = asset.collection?.collection_name || '';
+  if (FUNKO_COLLECTIONS.has(col)) return 'funko';
+  if (TOPPS_COLLECTIONS.has(col)) return 'topps';
+  return 'unknown';
+}
+
+function classifyOffer(offer) {
+  const allAssets = [...(offer.sender_assets || []), ...(offer.recipient_assets || [])];
+  const projects = new Set(allAssets.map(assetProject));
+  if (projects.has('unknown')) return 'unknown';
+  if (projects.has('funko') && projects.has('topps')) return 'mixed';
+  if (projects.has('funko')) return 'funko';
+  if (projects.has('topps')) return 'topps';
+  return 'unknown';
+}
+
+/* ── Supabase ──────────────────────────────────────────────────────────────── */
+function sbHeaders(profile) {
+  return { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Accept-Profile': profile };
+}
+
+async function fetchTemplateRows(profile, tids) {
+  if (!tids.length) return [];
+  try {
+    const url = SUPABASE_URL + '/rest/v1/templates?select=template_id,cardid,in_circulation,issued_supply&template_id=in.(' + tids.join(',') + ')';
+    const res = await fetch(url, { headers: sbHeaders(profile) });
+    return res.ok ? res.json() : [];
+  } catch { return []; }
+}
+
+async function fetchFunkoDropNames(allAssets) {
+  const drops = new Map();
+  for (const a of allAssets) {
+    if (assetProject(a) !== 'funko') continue;
+    const col = a.collection?.collection_name || '', sch = a.schema?.schema_name || '';
+    if (col && sch) drops.set(`${col}|${sch}`, { col, sch });
+  }
+  if (!drops.size) return new Map();
+  const pages = await Promise.all([...drops.values()].map(async ({ col, sch }) => {
+    try {
+      const url = SUPABASE_URL + '/rest/v1/funko_market_prices?select=template_id,drop_displayname'
+        + '&collection_name=eq.' + encodeURIComponent(col)
+        + '&schema_name=eq.' + encodeURIComponent(sch) + '&limit=1000';
+      const res = await fetch(url, { headers: sbHeaders('funko') });
+      return res.ok ? res.json() : [];
+    } catch { return []; }
+  }));
+  const map = new Map();
+  for (const rows of pages) for (const r of rows) map.set(String(r.template_id), r.drop_displayname);
+  return map;
+}
+
+async function fetchTemplateData(offers) {
+  const allAssets = offers.flatMap(o => [...(o.sender_assets || []), ...(o.recipient_assets || [])]);
+
+  const funkoTids = [...new Set(
+    allAssets.filter(a => assetProject(a) === 'funko')
+      .map(a => String(a.template?.template_id || '')).filter(Boolean)
+  )];
+  const toppsTids = [...new Set(
+    allAssets.filter(a => assetProject(a) === 'topps')
+      .map(a => String(a.template?.template_id || '')).filter(Boolean)
+  )];
+
+  const [funkoRows, toppsRows, funkoDropNames] = await Promise.all([
+    fetchTemplateRows('funko', funkoTids),
+    fetchTemplateRows('topps', toppsTids),
+    fetchFunkoDropNames(allAssets),
+  ]);
+
+  const tplMap = new Map();
+  for (const r of funkoRows) {
+    const tid = String(r.template_id);
+    tplMap.set(tid, { circ: r.in_circulation ?? null, issued: r.issued_supply ?? null, cardId: r.cardid ?? null, dropDisplay: funkoDropNames.get(tid) ?? null });
+  }
+  for (const r of toppsRows) {
+    tplMap.set(String(r.template_id), { circ: r.in_circulation ?? null, issued: r.issued_supply ?? null, cardId: r.cardid ?? null, dropDisplay: null });
+  }
+  return tplMap;
+}
+
+/* ── Sorting ───────────────────────────────────────────────────────────────── */
+function rarityRank(r, project, schemaKey) {
+  if (project === 'funko') {
+    const idx = FUNKO_RARITY_ORDER.indexOf((r || '').toLowerCase());
+    return idx === -1 ? 999 : idx;
+  }
+  const order = TOPPS_RARITY_ORDER[schemaKey] || Object.values(TOPPS_RARITY_ORDER)[0] || [];
+  const idx = order.indexOf((r || '').toLowerCase());
+  return idx === -1 ? 999 : idx;
+}
+
+function sortAssets(assets, project) {
+  const dropOrderMap = project === 'funko' ? FUNKO_DROP_ORDER : TOPPS_DROP_ORDER;
+  return [...assets].sort((a, b) => {
+    const schA = (a.schema?.schema_name || '').replace('.drop', '');
+    const schB = (b.schema?.schema_name || '').replace('.drop', '');
+    const ra = rarityRank(a.template?.immutable_data?.rarity, project, schA);
+    const rb = rarityRank(b.template?.immutable_data?.rarity, project, schB);
+    if (ra !== rb) return ra - rb;
+    const ka = `${a.collection?.collection_name || ''}|${a.schema?.schema_name || ''}`;
+    const kb = `${b.collection?.collection_name || ''}|${b.schema?.schema_name || ''}`;
+    return (dropOrderMap.get(ka) ?? 9999) - (dropOrderMap.get(kb) ?? 9999);
+  });
+}
+
+/* ── Helpers ───────────────────────────────────────────────────────────────── */
+function rarityClass(r) { return 'rarity-' + (r || 'common').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+function schemaLabel(sn) {
+  const b = (sn || '').replace('.drop', '');
+  const m = b.match(/^series(\d+)$/);
+  return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
+}
+
+function cleanFunkoName(s) {
+  return (s || '')
+    .replace(/^Funko Presents\s+/i, '')
+    .replace(/:\s*Funko Digital Pop!$/i, '')
+    .replace(/\s+[Xx]\s+Funko$/i, '')
+    .replace(/:\s*Funko Digital$/i, '')
+    .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+}
+
+function relativeTime(ms) {
+  const diff = Date.now() - Number(ms), s = Math.floor(diff / 1000);
+  if (s < 60)  return 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── Lowest mints ──────────────────────────────────────────────────────────── */
+async function fetchLowestMints(wallet, templateIds) {
+  if (!templateIds.length || !wallet) return new Map();
+  const entries = await Promise.all([...new Set(templateIds)].map(async tid => {
+    try {
+      const url = `${API_BASE}/assets?owner=${encodeURIComponent(wallet)}&template_id=${encodeURIComponent(tid)}&sort=template_mint&order=asc&limit=1`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const json = await res.json();
+      const mint = json.data?.[0]?.template_mint;
+      return mint != null ? [tid, Number(mint)] : null;
+    } catch { return null; }
+  }));
+  return new Map(entries.filter(Boolean));
+}
+
+/* ── Asset card rendering ──────────────────────────────────────────────────── */
+function buildAssetCards(assets, tplMap, lowestMints, side, project) {
+  if (!assets || assets.length === 0) return '<div class="asset-empty">No assets</div>';
+  return sortAssets(assets, project).map(asset => {
+    const data    = asset.template?.immutable_data ?? {};
+    const rarity  = data.rarity || '';
+    const name    = escHtml(asset.name || data.name || '—');
+    const tid     = String(asset.template?.template_id || '');
+    const tpl     = tplMap?.get(tid) ?? {};
+    const col     = asset.collection?.collection_name || '';
+    const sch     = asset.schema?.schema_name || '';
+
+    const tradeMint  = asset.template_mint ? Number(asset.template_mint) : null;
+    const lowestMint = lowestMints?.get(tid) ?? null;
+    const warn = tradeMint != null && lowestMint != null && (
+      side === 'sender'    ? tradeMint >= lowestMint :
+      side === 'recipient' ? tradeMint === lowestMint : false
+    );
+    const mintHtml = tradeMint != null
+      ? `<div class="ac-mint-trade${warn?' ac-mint-warn':''}">#${tradeMint.toLocaleString()}</div>`
+        + `<div class="ac-mint-low">${lowestMint != null ? '#'+lowestMint.toLocaleString() : '—'}</div>`
+      : '—';
+
+    const cardId  = tpl.cardId != null ? tpl.cardId : null;
+    const nameStr = cardId != null ? `${cardId} — ${name}` : name;
+
+    let dropDisplay;
+    if (project === 'funko') {
+      dropDisplay = escHtml(cleanFunkoName(tpl.dropDisplay || asset.collection?.name || ''));
+    } else {
+      dropDisplay = escHtml(tpl.dropDisplay || TOPPS_DROP_DISPLAY.get(`${col}|${sch}`) || asset.collection?.name || '');
+    }
+    const schema = escHtml(schemaLabel(sch));
+
+    const circNum    = tpl.circ   ?? null;
+    const issuedNum  = tpl.issued ?? (asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null);
+    const displayNum = circNum ?? issuedNum;
+    const showOf     = circNum != null && issuedNum != null && circNum < issuedNum;
+    const supplyHtml = displayNum != null
+      ? `<div class="ac-supply-main">${Number(displayNum).toLocaleString()}</div>`
+        + (showOf ? `<div class="ac-supply-of">of ${Number(issuedNum).toLocaleString()}</div>` : '')
+      : '<span class="ac-supply-null">—</span>';
+
+    return `<div class="asset-card">
+      <div class="ac-name">${nameStr}</div>
+      <div class="ac-rarity-id"><span class="rarity-pill ${rarityClass(rarity)}">${escHtml(rarity)||'—'}</span></div>
+      <div class="ac-collection">${dropDisplay||'—'}</div>
+      <div class="ac-series">${schema||'—'}</div>
+      <div class="ac-supply">${supplyHtml}</div>
+      <div class="ac-mint">${mintHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Offer item ────────────────────────────────────────────────────────────── */
+const NOTICE_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+function buildOfferItem(offer, tplMap, lowestMints, type) {
+  const offerId    = offer.offer_id;
+  const sender     = escHtml(offer.sender_name);
+  const memo       = offer.memo || '';
+  const age        = relativeTime(offer.created_at_time);
+  const senderN    = offer.sender_assets?.length ?? 0;
+  const recipientN = offer.recipient_assets?.length ?? 0;
+
+  let bodyHtml;
+  if (type === 'unknown') {
+    bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets not tracked by Pop In Stock. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
+  } else if (type === 'mixed') {
+    bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets from multiple projects. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
+  } else {
+    const assetHeaderHtml = `<div class="asset-header"><span>Name</span><span>Drop</span><span>Supply</span><span>Mint #<br><span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);letter-spacing:0.04em;">Own #</span></span></div>`;
+    bodyHtml = `
+      <div class="offer-sides">
+        <div class="offer-side">
+          <div class="offer-side-label">You receive (${senderN})</div>
+          ${assetHeaderHtml}
+          <div class="asset-cards">${buildAssetCards(offer.sender_assets, tplMap, lowestMints, 'sender', type)}</div>
+        </div>
+        <div class="offer-side">
+          <div class="offer-side-label label-give">You give (${recipientN})</div>
+          ${assetHeaderHtml}
+          <div class="asset-cards">${buildAssetCards(offer.recipient_assets, tplMap, lowestMints, 'recipient', type)}</div>
+        </div>
+      </div>
+      <div class="offer-actions">
+        ${memo ? `<div class="offer-memo">Memo: <span>${escHtml(memo)}</span></div>` : '<div class="offer-memo"></div>'}
+        <button class="offer-btn offer-btn--decline" data-action="decline" data-offer="${offerId}">Decline</button>
+        <button class="offer-btn offer-btn--accept"  data-action="accept"  data-offer="${offerId}">Accept Trade</button>
+      </div>`;
+  }
+
+  const item = document.createElement('div');
+  item.className = 'offer-item';
+  item.dataset.offerId = offerId;
+  item.innerHTML = `
+    <div class="offer-header">
+      <svg class="offer-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="offer-from">Offer from <span class="offer-from-wallet">${sender}</span>${type === 'funko' ? ' — Funko' : type === 'topps' ? ' — Topps' : ''}</span>
+      <div class="offer-ratio">
+        <span class="ratio-receive">Receiving <span class="ratio-num">${senderN}</span></span>
+        <span class="ratio-sep">&middot;</span>
+        <span class="ratio-give">Giving <span class="ratio-num">${recipientN}</span></span>
+      </div>
+      <span class="offer-age">${age}</span>
+    </div>
+    <div class="offer-body">${bodyHtml}</div>
+  `;
+
+  item.querySelector('.offer-header').addEventListener('click', () => {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.offer-item.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+
+  if (type !== 'unknown' && type !== 'mixed') {
+    item.querySelector('[data-action="accept"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'accept', item); });
+    item.querySelector('[data-action="decline"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'decline', item); });
+  }
+
+  return item;
+}
+
+/* ── Actions ───────────────────────────────────────────────────────────────── */
+async function handleOfferAction(offerId, action, itemEl) {
+  const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!myAccount) return;
+  const acceptBtn  = itemEl.querySelector('[data-action="accept"]');
+  const declineBtn = itemEl.querySelector('[data-action="decline"]');
+  acceptBtn.disabled = true; declineBtn.disabled = true;
+  const activeBtn = action === 'accept' ? acceptBtn : declineBtn;
+  activeBtn.textContent = action === 'accept' ? 'Accepting…' : 'Declining…';
+  try {
+    await WaxAuth.transact([{
+      account: 'atomicassets',
+      name: action === 'accept' ? 'acceptoffer' : 'declineoffer',
+      authorization: [{ actor: myAccount, permission: 'active' }],
+      data: { offer_id: offerId },
+    }]);
+    activeBtn.textContent = action === 'accept' ? 'Accepted!' : 'Declined';
+    activeBtn.classList.add('offer-btn--done');
+    setTimeout(() => {
+      itemEl.style.transition = 'opacity 0.3s'; itemEl.style.opacity = '0';
+      setTimeout(() => { itemEl.remove(); checkEmpty(); }, 350);
+    }, 1200);
+  } catch (err) {
+    console.error(`${action} offer failed:`, err);
+    acceptBtn.disabled = false; declineBtn.disabled = false;
+    activeBtn.textContent = 'Failed — try again';
+    setTimeout(() => { activeBtn.textContent = action === 'accept' ? 'Accept Trade' : 'Decline'; }, 2500);
+  }
+}
+
+function checkEmpty() {
+  const list = document.getElementById('offersList');
+  if (list && list.children.length === 0) {
+    list.style.display = 'none';
+    document.getElementById('emptyWrap').style.display = 'block';
+  }
+}
+
+function showState(state) {
+  document.getElementById('authGate').style.display   = state === 'auth'    ? '' : 'none';
+  document.getElementById('loadWrap').style.display   = state === 'loading' ? '' : 'none';
+  document.getElementById('emptyWrap').style.display  = state === 'empty'   ? '' : 'none';
+  document.getElementById('offersList').style.display = state === 'list'    ? '' : 'none';
+}
+
+/* ── Load offers ───────────────────────────────────────────────────────────── */
+async function loadOffers() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet || !API_BASE) { showState('auth'); return; }
+
+  showState('loading');
+  try {
+    const url = `${API_BASE}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100&page=1`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const json = await res.json();
+    const offers = json.data || [];
+
+    const list = document.getElementById('offersList');
+    list.innerHTML = '';
+
+    if (offers.length === 0) { showState('empty'); return; }
+
+    const allTemplateIds = offers.flatMap(o => [
+      ...(o.sender_assets    || []),
+      ...(o.recipient_assets || []),
+    ]).map(a => String(a.template?.template_id || '')).filter(Boolean);
+
+    const [tplMap, lowestMints] = await Promise.all([
+      fetchTemplateData(offers),
+      fetchLowestMints(wallet, allTemplateIds),
+    ]);
+
+    offers.forEach(offer => {
+      const type = classifyOffer(offer);
+      list.appendChild(buildOfferItem(offer, tplMap, lowestMints, type));
+    });
+    showState('list');
+  } catch (err) {
+    console.error('Failed to load offers:', err);
+    showState('empty');
+    document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load offers</strong>Could not reach the WAX API. Please try again later.';
+  }
+}
+
+function onWalletChange() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet && API_BASE) loadOffers();
+  else showState('auth');
+}
+
+/* ── Init ──────────────────────────────────────────────────────────────────── */
+async function init() {
+  await loadAllData();
+  _initNavWax();
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) loadOffers();
+  else showState('auth');
+}
+
+init().catch(err => console.error('Init failed:', err));
+</script>
+</body>
+</html>
