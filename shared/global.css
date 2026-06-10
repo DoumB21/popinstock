@@ -72,6 +72,49 @@ body::before {
 }
 
 
+/* ── Site Banner (injected by nav.js) ── */
+.site-banner {
+  width: 100%;
+  padding: 0.6rem 3rem 0.6rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  position: relative;
+  box-sizing: border-box;
+}
+.site-banner--warning {
+  background: rgba(240, 168, 64, 0.12);
+  border-bottom: 1px solid rgba(240, 168, 64, 0.35);
+  color: #f0a840;
+}
+.site-banner--info {
+  background: rgba(59, 130, 246, 0.12);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+.site-banner--error {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+.site-banner-close {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.25rem;
+}
+.site-banner-close:hover { opacity: 1; }
+
+
 /* ── Navigation (injected by nav.js) ── */
 .site-nav {
   position: sticky;
