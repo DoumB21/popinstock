@@ -299,7 +299,7 @@ async function init() {
   }
 
   try {
-    const [colData, statsData, officialData, cardData] = await Promise.all([
+    const [colData, statsData, officialData, templateRows, priceRows] = await Promise.all([
       sbFetch('collections',
         'select=collection_name,display_name,img,logo,banner' +
         '&collection_name=eq.' + enc(COL) + '&limit=1'),
@@ -312,19 +312,42 @@ async function init() {
         '&collection_name=eq.' + enc(COL) +
         '&schema_name=eq.' + enc(SCH) +
         '&is_official=eq.true'),
-      sbFetch('funko_market_prices',
-        'select=template_id,collection_name,schema_name,drop_displayname,droppp_exclusive,' +
-        'name,rarity,cardid,wax_price_wax,wax_price_usd,fetched_at,dp_locked_count' +
+      sbFetch('templates',
+        'select=template_id,name,rarity,cardid,dp_locked_count' +
         '&collection_name=eq.' + enc(COL) +
         '&schema_name=eq.' + enc(SCH) +
         '&order=cardid.asc&limit=1000'),
+      sbFetch('funko_market_prices',
+        'select=template_id,droppp_exclusive,wax_price_wax,wax_price_usd,fetched_at' +
+        '&collection_name=eq.' + enc(COL) +
+        '&schema_name=eq.' + enc(SCH) +
+        '&limit=1000'),
     ]);
 
-    allRows = cardData;
+    const priceMap = new Map(priceRows.map(p => [String(p.template_id), p]));
+    const displayName = (colData[0] || {}).display_name || COL;
+
+    allRows = templateRows.map(t => {
+      const p = priceMap.get(String(t.template_id)) || {};
+      return {
+        template_id:      String(t.template_id),
+        collection_name:  COL,
+        schema_name:      SCH,
+        name:             t.name || `#${t.template_id}`,
+        rarity:           t.rarity || 'Unknown',
+        cardid:           t.cardid ?? null,
+        dp_locked_count:  t.dp_locked_count ?? 0,
+        drop_displayname: displayName,
+        droppp_exclusive: p.droppp_exclusive ?? false,
+        wax_price_wax:    p.wax_price_wax ?? null,
+        wax_price_usd:    p.wax_price_usd ?? null,
+        fetched_at:       p.fetched_at ?? null,
+      };
+    });
 
     const col      = colData[0]   || {};
     const stats    = statsData[0] || {};
-    const dropName = cleanName(col.display_name || (cardData[0]?.drop_displayname) || COL);
+    const dropName = cleanName(col.display_name || COL);
     const label    = schemaLabel(SCH);
 
     document.title = `${dropName} ${label} — Market — PopInStock`;
@@ -349,7 +372,7 @@ async function init() {
     const burned     = stats.total_burned  || 0;
     const minted     = active + burned;
     const inOfficial      = officialData.reduce((sum, r) => sum + (r.total_assets || 0), 0);
-    const dpLocked        = cardData.reduce((sum, r) => sum + (r.dp_locked_count || 0), 0);
+    const dpLocked        = allRows.reduce((sum, r) => sum + (r.dp_locked_count || 0), 0);
     const dpLockedDisplay = dpLocked - inOfficial;
     const circulation     = active - dpLocked;
 

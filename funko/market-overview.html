@@ -267,6 +267,7 @@ const state = {
 };
 
 let allSetPrices  = [];
+let allCards      = [];
 let tableRows     = [];
 let isLoading     = false;
 let canLoadMore   = false;
@@ -326,40 +327,26 @@ function isSetMode() {
 }
 
 function priceCol() {
-  if (!isSetMode()) {
-    if (state.source === 'droppp') return 'droppp_price_usd';
-    if (state.source === 'wax')    return 'wax_price_usd';
-    return 'best_price_usd';
-  }
+  if (!isSetMode()) return 'wax_price_usd';
   const p = state.rarity === 'Royalty Set' ? 'royalty' : 'mastery';
-  if (state.source === 'droppp') return p + '_droppp_usd';
-  if (state.source === 'wax')    return p + '_wax_usd';
-  return p + '_best_usd';
+  return p + '_wax_usd';
 }
 
 function pricedCols(row) {
-  const p   = state.rarity === 'Royalty Set' ? 'royalty' : 'mastery';
-  const src = state.source === 'all' ? 'best' : state.source;
+  const p = state.rarity === 'Royalty Set' ? 'royalty' : 'mastery';
   return {
-    priced: row[p + '_' + src + '_priced'] ?? 0,
-    count:  row[p + '_card_count']         ?? 0,
+    priced: row[p + '_wax_priced'] ?? 0,
+    count:  row[p + '_card_count'] ?? 0,
   };
 }
 
 function effectivePrice(row) {
   const v = row[priceCol()];
-  if (v != null && v > 0) return v;
-  if (state.source === 'all') {
-    const candidates = [row.droppp_price_usd, row.wax_price_usd].filter(x => x != null);
-    if (candidates.length) return Math.min(...candidates);
-  }
-  return null;
+  return (v != null && v > 0) ? v : null;
 }
 
 function priceLabel() {
-  if (state.source === 'droppp') return 'Droppp';
-  if (state.source === 'wax')    return 'WAX';
-  return 'Best Price';
+  return 'WAX';
 }
 
 /* ── Supabase fetch ── */
@@ -377,6 +364,27 @@ async function sbFetch(table, qs) {
   const range = r.headers.get('Content-Range');
   const total = range ? (range.match(/\/(\d+)/) || [])[1] : null;
   return { data: await r.json(), total: total ? parseInt(total) : null };
+}
+
+async function sbFetchAll(table, qs) {
+  const out = [];
+  let offset = 0;
+  while (true) {
+    const url = SUPABASE_URL + '/rest/v1/' + table + '?' + qs + '&limit=1000&offset=' + offset;
+    const r = await fetch(url, {
+      headers: {
+        'apikey':         SUPABASE_ANON_KEY,
+        'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!r.ok) throw new Error('Supabase ' + r.status + ' on ' + table);
+    const page = await r.json();
+    out.push(...page);
+    if (page.length < 1000) break;
+    offset += 1000;
+  }
+  return out;
 }
 
 /* ── Rarity tabs ── */
@@ -634,50 +642,84 @@ function toggleSort(field) {
   loadData();
 }
 
-/* ── Query builder ── */
-function buildCardQuery(offset) {
-  const parts = [
-    'select=template_id,collection_name,schema_name,drop_displayname,droppp_slug,droppp_exclusive,' +
-    'name,rarity,cardid,max_supply,issued_supply,in_circulation,droppp_price_usd,wax_price_wax,wax_price_usd,best_price_usd,fetched_at'
-  ];
+/* ── Client-side filter + sort ── */
+function applyCardFilters(cards) {
+  let out = cards;
 
-  if (state.rarity !== 'All') parts.push('rarity=eq.' + enc(state.rarity));
+  if (state.rarity !== 'All') {
+    out = out.filter(r => r.rarity === state.rarity);
+  }
 
   if (state.collection) {
     const [col, schema] = state.collection.split('|');
-    const dropInfo  = allSetPrices.find(d => d.collection_name === col && d.schema_name === schema);
-    const dropppId  = dropInfo?.droppp_id;
-    parts.push('collection_name=eq.' + enc(col));
-
-    if (state.rarity === 'Packs') {
-      // Packs live in packs.drop — link via droppp_id instead of schema
-      if (dropppId) parts.push('droppp_id=eq.' + dropppId);
-    } else if (state.rarity === 'All' && dropppId) {
-      // Include both the series schema and packs.drop matched by droppp_id
-      parts.push('or=(schema_name.eq.' + enc(schema) + ',and(schema_name.eq.packs.drop,droppp_id.eq.' + dropppId + '))');
-    } else {
-      parts.push('schema_name=eq.' + enc(schema));
-    }
+    const dropInfo = allSetPrices.find(d => d.collection_name === col && d.schema_name === schema);
+    const dropppId = dropInfo?.droppp_id;
+    out = out.filter(r => {
+      if (r.collection_name !== col) return false;
+      if (state.rarity === 'Packs') {
+        return dropppId ? r.droppp_id === dropppId : r.schema_name === 'packs.drop';
+      }
+      if (state.rarity === 'All' && dropppId) {
+        return r.schema_name === schema || (r.schema_name === 'packs.drop' && r.droppp_id === dropppId);
+      }
+      return r.schema_name === schema;
+    });
   }
 
-  if (state.name.trim()) parts.push('name=ilike.*' + enc(state.name.trim()) + '*');
+  if (state.name.trim()) {
+    const q = state.name.trim().toLowerCase();
+    out = out.filter(r => (r.name || '').toLowerCase().includes(q));
+  }
 
-  if (state.supplyMin !== '') parts.push('in_circulation=gte.' + enc(state.supplyMin));
-  if (state.supplyMax !== '') parts.push('in_circulation=lte.' + enc(state.supplyMax));
+  if (state.supplyMin !== '') {
+    const min = Number(state.supplyMin);
+    out = out.filter(r => r.in_circulation != null && r.in_circulation >= min);
+  }
+  if (state.supplyMax !== '') {
+    const max = Number(state.supplyMax);
+    out = out.filter(r => r.in_circulation != null && r.in_circulation <= max);
+  }
 
   const pc = priceCol();
-  if (state.listingFilter === 'listed')         parts.push(pc + '=not.is.null');
-  else if (state.listingFilter === 'not_listed') parts.push(pc + '=is.null');
-  if (state.sortField === 'price') {
-    parts.push('order=' + pc + '.' + state.sortDir + '.nullslast,drop_displayname.asc,cardid.asc');
-  } else if (state.sortField === 'supply') {
-    parts.push('order=in_circulation.' + state.sortDir + '.nullslast,' + pc + '.asc.nullslast,drop_displayname.asc');
-  } else {
-    parts.push('order=cardid.' + state.sortDir + ',drop_displayname.asc');
-  }
+  if (state.listingFilter === 'listed')          out = out.filter(r => r[pc] != null);
+  else if (state.listingFilter === 'not_listed') out = out.filter(r => r[pc] == null);
 
-  parts.push('limit=' + LIMIT + '&offset=' + offset);
-  return parts.join('&');
+  return out;
+}
+
+function sortCards(cards) {
+  const pc = priceCol();
+  return [...cards].sort((a, b) => {
+    if (state.sortField === 'price') {
+      const av = a[pc], bv = b[pc];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      const d = state.sortDir === 'asc' ? av - bv : bv - av;
+      if (d !== 0) return d;
+      const dd = (a.drop_displayname || '').localeCompare(b.drop_displayname || '');
+      if (dd !== 0) return dd;
+      return (a.cardid ?? 0) - (b.cardid ?? 0);
+    }
+    if (state.sortField === 'supply') {
+      const av = a.in_circulation, bv = b.in_circulation;
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      const d = state.sortDir === 'asc' ? av - bv : bv - av;
+      if (d !== 0) return d;
+      const pav = a[pc], pbv = b[pc];
+      if (pav == null && pbv != null) return 1;
+      if (pav != null && pbv == null) return -1;
+      if (pav != null && pbv != null) { const pd = pav - pbv; if (pd !== 0) return pd; }
+      return (a.drop_displayname || '').localeCompare(b.drop_displayname || '');
+    }
+    // 'id' sort
+    const av = a.cardid ?? Infinity, bv = b.cardid ?? Infinity;
+    const d = state.sortDir === 'asc' ? av - bv : bv - av;
+    if (d !== 0) return d;
+    return (a.drop_displayname || '').localeCompare(b.drop_displayname || '');
+  });
 }
 
 /* ── Load data ── */
@@ -717,24 +759,23 @@ async function loadData(append) {
       morewrap.style.display = 'none';
 
     } else {
+      const filtered = applyCardFilters(allCards);
+      const sorted   = sortCards(filtered);
+
       const offset = append ? state.offset : 0;
-      const { data, total } = await sbFetch('funko_market_prices', buildCardQuery(offset));
+      const page   = sorted.slice(offset, offset + LIMIT);
 
-      if (!append) tableRows = data;
-      else         tableRows = tableRows.concat(data);
+      if (!append) tableRows = page;
+      else         tableRows = tableRows.concat(page);
 
-      state.offset = (append ? offset : 0) + data.length;
+      state.offset = offset + page.length;
+      canLoadMore  = state.offset < sorted.length;
 
-      if (data.length > 0 && data[0].fetched_at) fetchedAt = data[0].fetched_at;
-
-      canLoadMore = data.length === LIMIT;
-
-      buildCardTable(data, !!append);
+      buildCardTable(page, !!append);
 
       const shown = tableRows.length;
-      let m = total != null
-        ? `Showing <strong>${fmtN(shown)}</strong> of <strong>${fmtN(total)}</strong> cards`
-        : `Showing <strong>${fmtN(shown)}</strong> cards`;
+      const total = sorted.length;
+      let m = `Showing <strong>${fmtN(shown)}</strong> of <strong>${fmtN(total)}</strong> cards`;
       if (fetchedAt) m += ` <span class="updated">· updated ${fmtAgo(fetchedAt)}</span>`;
       m += `<div style="margin-top:0.3rem;font-size:0.75rem;opacity:0.55">Supply figures exclude assets held in Droppp wallets.</div>`;
       meta.innerHTML = m;
@@ -752,19 +793,95 @@ async function loadData(append) {
 /* ── Init ── */
 async function init() {
   fetchWaxRate();
+
+  document.getElementById('tableContainer').innerHTML =
+    '<div class="status-wrap"><div class="spinner"></div><div class="status-text">Loading catalog…</div></div>';
+
   try {
-    const { data } = await sbFetch('funko_set_prices',
-      'select=collection_name,schema_name,drop_displayname,droppp_id,droppp_slug,droppp_exclusive,' +
-      'royalty_card_count,royalty_droppp_usd,royalty_droppp_priced,' +
-      'royalty_wax_usd,royalty_wax_priced,royalty_best_usd,royalty_best_priced,' +
-      'mastery_card_count,mastery_droppp_usd,mastery_droppp_priced,' +
-      'mastery_wax_usd,mastery_wax_priced,mastery_best_usd,mastery_best_priced,' +
-      'fetched_at&order=drop_displayname.asc'
+    const [setPricesResult, templateRows, priceRows] = await Promise.all([
+      sbFetch('funko_set_prices',
+        'select=collection_name,schema_name,drop_displayname,droppp_id,droppp_exclusive,' +
+        'royalty_card_count,royalty_wax_usd,royalty_wax_priced,royalty_best_usd,royalty_best_priced,' +
+        'mastery_card_count,mastery_wax_usd,mastery_wax_priced,mastery_best_usd,mastery_best_priced,' +
+        'fetched_at&order=drop_displayname.asc'
+      ).then(r => r.data),
+      sbFetchAll('templates',
+        'select=template_id,collection_name,schema_name,name,rarity,cardid,max_supply,issued_supply,in_circulation'
+      ),
+      sbFetchAll('funko_market_prices',
+        'select=template_id,droppp_id,droppp_exclusive,wax_price_wax,wax_price_usd,best_price_usd,fetched_at'
+      ),
+    ]);
+
+    allSetPrices = setPricesResult;
+
+    const dropInfoMap = new Map(allSetPrices.map(s => [
+      s.collection_name + '|' + s.schema_name,
+      { drop_displayname: s.drop_displayname, droppp_id: s.droppp_id, droppp_exclusive: s.droppp_exclusive }
+    ]));
+    const collDropppId = new Map(
+      allSetPrices.filter(s => s.schema_name !== 'packs.drop' && s.droppp_id)
+                  .map(s => [s.collection_name, s.droppp_id])
     );
-    allSetPrices = data;
-    populateCollections(data);
+
+    const priceMap = new Map(priceRows.map(p => [String(p.template_id), p]));
+    if (priceRows.length > 0 && priceRows[0].fetched_at) fetchedAt = priceRows[0].fetched_at;
+
+    allCards = templateRows.map(t => {
+      const p   = priceMap.get(String(t.template_id)) || {};
+      const key = t.collection_name + '|' + t.schema_name;
+      const di  = dropInfoMap.get(key) || {};
+      const dropppId = p.droppp_id
+        ?? (t.schema_name === 'packs.drop' ? (collDropppId.get(t.collection_name) ?? null) : (di.droppp_id ?? null));
+      return {
+        template_id:      String(t.template_id),
+        collection_name:  t.collection_name,
+        schema_name:      t.schema_name,
+        name:             t.name || '',
+        rarity:           t.rarity || 'Unknown',
+        cardid:           t.cardid ?? null,
+        max_supply:       t.max_supply ?? null,
+        issued_supply:    t.issued_supply ?? null,
+        in_circulation:   t.in_circulation ?? null,
+        droppp_id:        dropppId,
+        droppp_exclusive: p.droppp_exclusive ?? di.droppp_exclusive ?? false,
+        wax_price_wax:    p.wax_price_wax ?? null,
+        wax_price_usd:    p.wax_price_usd ?? null,
+        best_price_usd:   p.best_price_usd ?? null,
+        fetched_at:       p.fetched_at ?? null,
+        drop_displayname: di.drop_displayname ?? t.collection_name,
+      };
+    });
+
+    // Recompute _priced fields from allCards using the correct rarity definitions.
+    // Pipeline priced counts are wrong since funko_market_prices now only stores listed
+    // cards (all with non-null prices), making priced = total.
+    const ROYALTY_RARITIES = new Set(['Common','Uncommon','Rare','Epic']);
+    const MASTERY_RARITIES = new Set(['Common','Uncommon','Rare','Epic','Ultra','Legendary','Grail','Mythic','Series','Royalty']);
+    const setCardMap = new Map();
+    for (const c of allCards) {
+      const key = c.collection_name + '|' + c.schema_name;
+      if (!setCardMap.has(key)) setCardMap.set(key, []);
+      setCardMap.get(key).push(c);
+    }
+    for (const row of allSetPrices) {
+      const cards = setCardMap.get(row.collection_name + '|' + row.schema_name) || [];
+      const royaltyCards = cards.filter(c => ROYALTY_RARITIES.has(c.rarity));
+      const masteryCards = cards.filter(c => MASTERY_RARITIES.has(c.rarity));
+      row.royalty_card_count  = royaltyCards.length;
+      row.mastery_card_count  = masteryCards.length;
+      row.royalty_wax_priced  = royaltyCards.filter(c => c.wax_price_usd  != null).length;
+      row.royalty_best_priced = royaltyCards.filter(c => c.best_price_usd != null).length;
+      row.mastery_wax_priced  = masteryCards.filter(c => c.wax_price_usd  != null).length;
+      row.mastery_best_priced = masteryCards.filter(c => c.best_price_usd != null).length;
+    }
+
+    populateCollections(allSetPrices);
   } catch (e) {
-    console.error('Set prices load failed:', e);
+    console.error('Catalog load failed:', e);
+    document.getElementById('tableContainer').innerHTML =
+      '<div class="state state-error">Failed to load catalog.</div>';
+    return;
   }
 
   buildRarityTabs();

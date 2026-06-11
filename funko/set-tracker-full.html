@@ -134,6 +134,21 @@ let sortDir      = null; // null = default, 'asc', 'desc'
 
 function enc(v) { return encodeURIComponent(v); }
 
+function schemaLabel(sn) {
+  const b = (sn || '').replace('.drop', '');
+  const m = b.match(/^series(\d+)$/);
+  return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
+}
+
+function cleanName(name) {
+  return (name || '')
+    .replace(/^Funko Presents\s+/i, '')
+    .replace(/:\s*Funko Digital Pop!$/i, '')
+    .replace(/\s+X\s+Funko$/i, '')
+    .replace(/:\s*Funko Digital$/i, '')
+    .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+}
+
 function fmtWax(wax) {
   if (wax == null) return null;
   return (wax < 1 ? wax.toFixed(4) : wax.toFixed(2)) + ' WAX';
@@ -227,21 +242,32 @@ async function startScan() {
     }
 
     setProgress('Loading catalog…', 5);
-    const rows = await sbFetchAll('funko_market_prices',
-      'select=template_id,collection_name,schema_name,name,rarity,cardid,drop_displayname,wax_price_wax,wax_price_usd' +
-      '&order=drop_displayname.asc,cardid.asc'
-    );
-    allTemplates = rows.map(t => ({
-      template_id:      String(t.template_id),
-      collection_name:  t.collection_name,
-      schema_name:      t.schema_name,
-      name:             t.name || `#${t.template_id}`,
-      rarity:           t.rarity || 'Unknown',
-      cardid:           t.cardid ?? null,
-      drop_displayname: t.drop_displayname || t.collection_name,
-      wax:              t.wax_price_wax,
-      usd:              t.wax_price_usd,
-    }));
+    const [templateRows, priceRows, setRows] = await Promise.all([
+      sbFetchAll('templates',
+        'select=template_id,collection_name,schema_name,name,rarity,cardid' +
+        '&order=collection_name.asc,cardid.asc'
+      ),
+      sbFetchAll('funko_market_prices', 'select=template_id,wax_price_wax,wax_price_usd'),
+      sbFetch('funko_set_prices', 'select=collection_name,schema_name,drop_displayname&limit=500'),
+    ]);
+
+    const priceMap = new Map(priceRows.map(p => [String(p.template_id), p]));
+    const dropMap  = new Map(setRows.map(s => [s.collection_name + '|' + s.schema_name, s.drop_displayname]));
+
+    allTemplates = templateRows.map(t => {
+      const p = priceMap.get(String(t.template_id)) || {};
+      return {
+        template_id:      String(t.template_id),
+        collection_name:  t.collection_name,
+        schema_name:      t.schema_name,
+        name:             t.name || `#${t.template_id}`,
+        rarity:           t.rarity || 'Unknown',
+        cardid:           t.cardid ?? null,
+        drop_displayname: dropMap.get(t.collection_name + '|' + t.schema_name) || t.collection_name,
+        wax:              p.wax_price_wax ?? null,
+        usd:              p.wax_price_usd ?? null,
+      };
+    });
 
     const ids    = allTemplates.map(t => t.template_id);
     const chunks = [];
@@ -354,10 +380,12 @@ function togglePriceSort() {
   renderTable();
 }
 
-function renderTable() {
-  const section  = document.getElementById('missingSection');
-  let filtered = activeRarity ? missingCards.filter(t => t.rarity === activeRarity) : missingCards;
+const PAGE_SIZE = 100;
+let tableOffset = 0;
+let filteredCache = [];
 
+function getFiltered() {
+  let filtered = activeRarity ? missingCards.filter(t => t.rarity === activeRarity) : missingCards;
   if (sortDir) {
     filtered = [...filtered].sort((a, b) => {
       const av = a.wax ?? (a.usd ?? null);
@@ -368,20 +396,16 @@ function renderTable() {
       return sortDir === 'asc' ? av - bv : bv - av;
     });
   }
+  return filtered;
+}
 
-  if (!filtered.length) {
-    section.innerHTML = `<div class="no-cards" style="padding:1.5rem;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-secondary);font-size:0.88rem">
-      ${activeRarity ? `You own all ${activeRarity} cards in the catalog!` : 'You own every card in the catalog!'}
-    </div>`;
-    return;
-  }
-
-  const rows = filtered.map(t => {
+function buildRows(cards) {
+  return cards.map(t => {
     const link = `../marketplace.html?template_id=${enc(t.template_id)}&collection_name=${enc(t.collection_name)}&schema_name=${enc(t.schema_name)}&project=funko`;
     return `<tr>
       <td>
         <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>
-        <div class="cell-drop-info">${t.drop_displayname}</div>
+        <div class="cell-drop-info">${cleanName(t.drop_displayname)} · ${schemaLabel(t.schema_name)}</div>
       </td>
       <td style="width:110px"><span class="rarity-pill ${RARITY_CLASS[t.rarity] || ''}">${t.rarity}</span></td>
       <td class="col-r" style="width:110px">${priceCell(t.wax, t.usd)}</td>
@@ -392,9 +416,45 @@ function renderTable() {
       </td>
     </tr>`;
   }).join('');
+}
+
+function updateShowMore() {
+  const btn = document.getElementById('showMoreBtn');
+  const lbl = document.getElementById('showingLabel');
+  if (!btn || !lbl) return;
+  const shown = Math.min(tableOffset + PAGE_SIZE, filteredCache.length);
+  lbl.textContent = `Showing ${shown.toLocaleString()} of ${filteredCache.length.toLocaleString()}`;
+  if (shown >= filteredCache.length) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+  }
+}
+
+function showMore() {
+  tableOffset += PAGE_SIZE;
+  const next = filteredCache.slice(tableOffset, tableOffset + PAGE_SIZE);
+  document.querySelector('#missingSection tbody').insertAdjacentHTML('beforeend', buildRows(next));
+  updateShowMore();
+}
+
+function renderTable() {
+  const section = document.getElementById('missingSection');
+  filteredCache = getFiltered();
+  tableOffset = 0;
+
+  if (!filteredCache.length) {
+    section.innerHTML = `<div class="no-cards" style="padding:1.5rem;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-secondary);font-size:0.88rem">
+      ${activeRarity ? `You own all ${activeRarity} cards in the catalog!` : 'You own every card in the catalog!'}
+    </div>`;
+    return;
+  }
+
+  const initialRows = buildRows(filteredCache.slice(0, PAGE_SIZE));
+  const shown = Math.min(PAGE_SIZE, filteredCache.length);
 
   section.innerHTML = `
-    <div class="missing-heading">Missing cards — <span>${filtered.length.toLocaleString()} cards</span></div>
+    <div class="missing-heading">Missing cards — <span>${filteredCache.length.toLocaleString()} cards</span></div>
     <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.6">💎 <strong style="color:var(--text-primary)">Premium Feature:</strong> This feature links exclusively to the Pop In Stock Marketplace. Purchases made through these links help support the site and future development.</div>
     <div class="cards-table-wrap">
       <table class="cards-table">
@@ -404,8 +464,12 @@ function renderTable() {
           <th class="col-r${sortDir ? ' sorted' : ''}" style="width:110px;cursor:pointer;user-select:none" onclick="togglePriceSort()">Floor Price <span class="sort-icon">${sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}</span></th>
           <th class="col-r" style="width:44px">Market</th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${initialRows}</tbody>
       </table>
+    </div>
+    <div style="text-align:center;margin-top:1rem;display:flex;flex-direction:column;align-items:center;gap:0.5rem">
+      <span id="showingLabel" style="font-size:0.8rem;color:var(--text-secondary)">Showing ${shown.toLocaleString()} of ${filteredCache.length.toLocaleString()}</span>
+      <button id="showMoreBtn" onclick="showMore()" style="display:${shown >= filteredCache.length ? 'none' : ''};padding:0.5rem 1.5rem;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:600">Show More</button>
     </div>`;
 }
 

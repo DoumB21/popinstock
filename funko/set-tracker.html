@@ -582,19 +582,19 @@
       initTasks.push(fetchWaxPrice());
       await Promise.all(initTasks);
 
-      // 2. Templates from Supabase (funko_market_prices already has all card metadata)
+      // 2. Templates from Supabase (funko.templates is the full catalog master)
       setStatus('Fetching card templates…');
-      const rawTemplates = await sbFetch('funko_market_prices',
+      const rawTemplates = await sbFetch('templates',
         'select=template_id,name,rarity,cardid,in_circulation,issued_supply' +
         '&collection_name=eq.' + enc(collection) +
         '&schema_name=eq.' + enc(schema) +
-        '&limit=1000'
+        '&order=cardid.asc&limit=1000'
       );
       const templates = rawTemplates.map(t => ({
-        template_id: String(t.template_id),
-        name:        t.name   || `#${t.template_id}`,
-        rarity:        t.rarity || 'Unknown',
-        cardid:        t.cardid ?? null,
+        template_id:    String(t.template_id),
+        name:           t.name  || `#${t.template_id}`,
+        rarity:         t.rarity || 'Unknown',
+        cardid:         t.cardid ?? null,
         in_circulation: t.in_circulation ?? null,
         issued_supply:  t.issued_supply  ?? null,
       }));
