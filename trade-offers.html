@@ -373,15 +373,22 @@ async function fetchFunkoDropNames(allAssets) {
   if (!drops.size) return new Map();
   const pages = await Promise.all([...drops.values()].map(async ({ col, sch }) => {
     try {
-      const url = SUPABASE_URL + '/rest/v1/funko_market_prices?select=template_id,drop_displayname'
+      const url = SUPABASE_URL + '/rest/v1/funko_set_prices?select=collection_name,schema_name,drop_displayname'
         + '&collection_name=eq.' + encodeURIComponent(col)
-        + '&schema_name=eq.' + encodeURIComponent(sch) + '&limit=1000';
+        + '&schema_name=eq.' + encodeURIComponent(sch) + '&limit=1';
       const res = await fetch(url, { headers: sbHeaders('funko') });
       return res.ok ? res.json() : [];
     } catch { return []; }
   }));
+  const setMap = new Map();
+  for (const rows of pages) for (const r of rows) setMap.set(r.collection_name + '|' + r.schema_name, r.drop_displayname);
   const map = new Map();
-  for (const rows of pages) for (const r of rows) map.set(String(r.template_id), r.drop_displayname);
+  for (const a of allAssets) {
+    if (assetProject(a) !== 'funko') continue;
+    const col = a.collection?.collection_name || '', sch = a.schema?.schema_name || '';
+    const tid = String(a.template?.template_id || '');
+    if (tid) map.set(tid, setMap.get(`${col}|${sch}`) || null);
+  }
   return map;
 }
 
