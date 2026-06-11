@@ -1,7 +1,7 @@
 // Set to { message: 'Your text here.', type: 'warning' } to show the banner.
 // type can be: 'warning' (amber) | 'info' (blue) | 'error' (red)
 // Set to null to hide.
-const SITE_BANNER = { message: '⚠️ Funko data is currently being refreshed. Some information on the site may be temporarily inaccurate during this process.', type: 'warning' };
+const SITE_BANNER = null;
 
 const NAV_LINKS = [
   { label: 'Redemptions', href: 'redemptions.html' },
