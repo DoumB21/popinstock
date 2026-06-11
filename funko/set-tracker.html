@@ -212,23 +212,61 @@
       text-align: center;
     }
 
-    /* ── Full scan button ── */
-    .full-scan-btn {
-      margin-top: 0.75rem;
-      padding: 0.45rem 1rem;
-      background: none;
+    /* ── Full scan banner ── */
+    .full-scan-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.25rem;
+      margin-top: 1.25rem;
+      padding: 1.1rem 1.4rem;
+      background: linear-gradient(135deg, rgba(240,168,64,0.10) 0%, rgba(240,168,64,0.04) 100%);
       border: 1px solid rgba(240,168,64,0.35);
+      border-radius: 12px;
+      flex-wrap: wrap;
+    }
+    .full-scan-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+    .full-scan-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .full-scan-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-light);
+      margin-bottom: 0.2rem;
+    }
+    .full-scan-desc {
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      font-weight: 500;
+      line-height: 1.35;
+    }
+    .full-scan-btn {
+      flex-shrink: 0;
+      padding: 0.55rem 1.25rem;
+      background: rgba(240,168,64,0.12);
+      border: 1px solid rgba(240,168,64,0.45);
       border-radius: 8px;
       color: var(--accent-light);
-      font-size: 0.82rem;
-      font-weight: 600;
+      font-size: 0.84rem;
+      font-weight: 700;
       font-family: inherit;
       cursor: pointer;
+      white-space: nowrap;
       transition: background 0.15s, border-color 0.15s;
     }
-    .full-scan-btn:hover { background: rgba(240,168,64,0.08); border-color: rgba(240,168,64,0.55); }
+    .full-scan-btn:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
 
     @media (max-width: 500px) {
+      .full-scan-banner { flex-direction: column; align-items: flex-start; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .progress-block { padding: 1rem; }
     }
@@ -245,7 +283,16 @@
     <div class="page-header">
       <div class="page-title">Set <span class="accent">Tracker</span></div>
       <div class="page-subtitle">Track your collection progress and discover which cards you're missing.</div>
-      <button class="full-scan-btn" onclick="openFullScan()">Run full inventory scan →</button>
+      <div class="full-scan-banner">
+        <div class="full-scan-banner-left">
+          <div class="full-scan-icon">💎</div>
+          <div>
+            <div class="full-scan-label">Premium Feature</div>
+            <div class="full-scan-desc">Scan your wallet against the entire Funko Digital catalog and see every card you're missing.</div>
+          </div>
+        </div>
+        <button class="full-scan-btn" onclick="openFullScan()">Run Full Scan →</button>
+      </div>
     </div>
 
     <div class="controls">
