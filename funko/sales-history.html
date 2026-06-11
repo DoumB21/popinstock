@@ -96,16 +96,25 @@
     }
     .chart-canvas-wrap { position: relative; height: 320px; }
 
+    /* ── Sales lists (top10 + last10 side by side) ── */
+    .sales-lists {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    .sales-lists > .section { min-width: 0; }
+    @media (max-width: 900px) {
+      .sales-lists { grid-template-columns: 1fr; }
+    }
+
     /* ── Top 10 ── */
     .top10-item {
       display: flex; align-items: center; gap: 1rem;
       padding: 0.85rem 0; border-bottom: 1px solid var(--border);
     }
     .top10-item:last-child { border-bottom: none; }
-    .top10-rank {
-      min-width: 22px; text-align: center; font-size: 0.85rem;
-      font-weight: 700; color: var(--text-secondary); flex-shrink: 0;
-    }
+
     .top10-media {
       flex-shrink: 0; width: 78px; height: 108px;
       border-radius: 8px; overflow: hidden; background: var(--bg-card-hover);
@@ -187,9 +196,18 @@
       </div>
     </div>
 
-    <div class="section" id="top10Section" style="display:none">
-      <div class="section-heading">Top 10 Sales — USD</div>
-      <div id="top10List"></div>
+    <div id="salesListsNote" style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:-0.5rem"></div>
+
+    <div class="sales-lists">
+      <div class="section" id="top10Section" style="display:none">
+        <div class="section-heading">Top 10 Sales — USD</div>
+        <div id="top10List"></div>
+      </div>
+
+      <div class="section" id="last10Section" style="display:none">
+        <div class="section-heading">Last 10 Sales</div>
+        <div id="last10List"></div>
+      </div>
     </div>
 
   </div>
@@ -200,7 +218,8 @@
 <script>
 'use strict';
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const METRICS = {
   volume:  { label: 'Daily Volume',        color: '#f0a840', alpha: 'rgba(240,168,64,0.12)'  },
@@ -219,6 +238,7 @@ let selectedMonth      = null;
 let granularity        = 'month';
 let WAX_BASE           = '';
 let top10Gen           = 0;
+let last10Gen          = 0;
 let collectionMap      = new Map();
 
 const RARITY_CLASS = {
@@ -471,7 +491,7 @@ async function renderTop10(rows) {
   section.style.display = '';
   list.innerHTML = top10.map((_, i) => `
     <div class="top10-item">
-      <div class="top10-rank">${i + 1}</div>
+
       <div class="top10-media-ph"></div>
       <div class="top10-info" style="flex:1">
         <div class="top10-ph" style="width:55%;margin-bottom:0.45rem"></div>
@@ -516,7 +536,7 @@ async function renderTop10(rows) {
 
       return `
         <div class="top10-item">
-          <div class="top10-rank">${i + 1}</div>
+    
           <div class="top10-media">${mediaEl}</div>
           <div class="top10-info">
             <div class="top10-name">${name}</div>
@@ -537,6 +557,91 @@ async function renderTop10(rows) {
   } catch {
     if (gen !== top10Gen) return;
     list.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:1rem 0">Could not load top 10 details.</div>';
+  }
+}
+
+/* ── Last 10 ── */
+async function renderLast10(rows) {
+  const gen     = ++last10Gen;
+  const section = document.getElementById('last10Section');
+  const list    = document.getElementById('last10List');
+
+  if (!rows.length) { section.style.display = 'none'; return; }
+
+  const last10 = [...rows]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 10);
+
+  section.style.display = '';
+  list.innerHTML = last10.map((_, i) => `
+    <div class="top10-item">
+
+      <div class="top10-media-ph"></div>
+      <div class="top10-info" style="flex:1">
+        <div class="top10-ph" style="width:55%;margin-bottom:0.45rem"></div>
+        <div class="top10-ph" style="width:38%;margin-bottom:0.45rem"></div>
+        <div class="top10-ph" style="width:62%"></div>
+      </div>
+      <div class="top10-prices">
+        <div class="top10-ph" style="width:62px;margin-bottom:0.35rem"></div>
+        <div class="top10-ph" style="width:48px"></div>
+      </div>
+    </div>`).join('');
+
+  try {
+    const idStr = [...new Set(last10.map(r => r.template_id))].join(',');
+    const sbData = await sbFetch('templates', `select=template_id,name,rarity,cardid,schema_name,video,img&template_id=in.(${idStr})`);
+
+    if (gen !== last10Gen) return;
+
+    const meta = {};
+    for (const r of sbData || []) meta[r.template_id] = r;
+
+    list.innerHTML = last10.map((r, i) => {
+      const m = meta[r.template_id] || {};
+
+      const name   = m.name   || `Template #${r.template_id}`;
+      const rarity = m.rarity || '';
+      const series = schemaLabel(m.schema_name || r.schema_name);
+      const cardid = m.cardid ? ` · Mint #${m.cardid}` : '';
+
+      const rarityPill = rarity
+        ? `<span class="rarity-pill ${RARITY_CLASS[rarity] || ''}" style="font-size:0.72rem;padding:0.15rem 0.55rem">${rarity}</span>`
+        : '';
+
+      let mediaEl;
+      if (m.video) {
+        mediaEl = `<video autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;display:block"><source src="${videoUrl(m.video)}" type="video/mp4"></video>`;
+      } else if (m.img) {
+        mediaEl = `<img src="${ipfsUrl(m.img)}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`;
+      } else {
+        mediaEl = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.15);font-size:1.8rem">◆</div>`;
+      }
+
+      return `
+        <div class="top10-item">
+    
+          <div class="top10-media">${mediaEl}</div>
+          <div class="top10-info">
+            <div class="top10-name">${name}</div>
+            <div class="top10-meta">
+              ${rarityPill}
+              <span class="top10-series">${collectionMap.get(r.collection_name) || r.collection_name} · ${series}${cardid}</span>
+            </div>
+            <div class="top10-tx"><span class="top10-label">Seller</span>${r.seller}</div>
+            <div class="top10-tx"><span class="top10-label">Buyer</span>${r.buyer}</div>
+          </div>
+          <div class="top10-prices">
+            <div class="top10-usd">${fmtUsd(parseFloat(r.usd_amount) || 0)}</div>
+            <div class="top10-wax">${fmtWax(parseFloat(r.wax_amount) || 0)}</div>
+            <div class="top10-date">${fmtDate(r.sale_date)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch {
+    if (gen !== top10Gen) return;
+    if (gen !== last10Gen) return;
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:1rem 0">Could not load last 10 details.</div>';
   }
 }
 
@@ -626,11 +731,22 @@ function refresh() {
       '<div class="no-results">No sales data for this selection.</div>';
     document.getElementById('chartSection').style.display = 'none';
     document.getElementById('top10Section').style.display = 'none';
+    document.getElementById('last10Section').style.display = 'none';
     return;
   }
 
   renderStats(rows);
+
+  let periodLabel;
+  if (selectedMonth)    periodLabel = MONTHS_FULL[parseInt(selectedMonth) - 1] + ' ' + selectedYear;
+  else if (selectedYear) periodLabel = selectedYear;
+  else                   periodLabel = 'all time';
+  document.getElementById('salesListsNote').textContent = selectedYear
+    ? 'Results below reflect the selected period: ' + periodLabel + '.'
+    : 'Results below reflect all time. Sales history is archived from January 1st, 2026.';
+
   renderTop10(rows);
+  renderLast10(rows);
   document.getElementById('chartSection').style.display = '';
   document.getElementById('chartHeading').textContent = METRICS[activeMetric].label;
   const { byPeriod, periods } = aggregateRows(rows);
@@ -644,7 +760,7 @@ async function init() {
   try {
     const [rows, waxEp, collData] = await Promise.all([
       sbFetchAll('funko_sales_history',
-        'select=sale_date,template_id,collection_name,schema_name,wax_amount,usd_amount,seller,buyer&order=sale_date.asc'
+        'select=sale_id,sale_date,created_at,template_id,collection_name,schema_name,wax_amount,usd_amount,seller,buyer&order=sale_date.asc,sale_id.asc'
       ),
       fetch('data/wax_endpoint.json').then(r => r.json()).catch(() => ({})),
       sbFetch('collections', 'select=collection_name,display_name')
@@ -662,7 +778,12 @@ async function init() {
     }
     select.addEventListener('change', e => setCollection(e.target.value));
 
-    refresh();
+    const now          = new Date();
+    const curYear      = String(now.getFullYear());
+    const curMonth     = String(now.getMonth() + 1).padStart(2, '0');
+    const hasThisMonth = allRows.some(r => r.sale_date.startsWith(curYear + '-' + curMonth));
+    if (hasThisMonth) setView(curYear, curMonth);
+    else refresh();
   } catch (err) {
     document.getElementById('statsSection').innerHTML =
       `<div class="state state-error">Failed to load: ${err.message}</div>`;
