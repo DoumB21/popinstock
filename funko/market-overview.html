@@ -218,6 +218,13 @@
           <button class="listing-filter-btn" data-lf="not_listed">Not Listed</button>
         </div>
       </div>
+      <div class="filter-row" id="packFilterRow" style="display:none">
+        <span class="supply-label">Openable</span>
+        <div class="listing-filter" id="packFilter">
+          <button class="listing-filter-btn active" data-pf="all">All</button>
+          <button class="listing-filter-btn" data-pf="openable">Openable Only</button>
+        </div>
+      </div>
     </div>
 
     <div class="results-meta" id="resultsMeta"></div>
@@ -248,6 +255,11 @@ const RARITY_CLASS = {
   'Packs':'r-pack'
 };
 const LIMIT = 100;
+
+/* Packs that can still be opened on WAX — hardcoded template IDs */
+const OPENABLE_PACK_TEMPLATE_IDS = new Set([
+  '237610','262834','237606','238045','261936','261937','295134','295135'
+]);
 const ATOMIC_MARKET = 'https://wax.atomichub.io/market';
 
 /* ── State ── */
@@ -264,6 +276,7 @@ const state = {
   supplyMin:      '',
   supplyMax:      '',
   listingFilter:  'listed',
+  packFilter:     'all',
 };
 
 let allSetPrices  = [];
@@ -405,6 +418,14 @@ function buildRarityTabs() {
       state.rarity = tab.dataset.rarity;
       state.offset = 0;
       tableRows = [];
+      const packRow = document.getElementById('packFilterRow');
+      if (state.rarity === 'Packs') {
+        packRow.style.display = '';
+      } else {
+        packRow.style.display = 'none';
+        state.packFilter = 'all';
+        document.querySelectorAll('#packFilter .listing-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.pf === 'all'));
+      }
       const ns = document.getElementById('nameSearch');
       ns.disabled      = isSetMode();
       ns.style.opacity = isSetMode() ? '0.4' : '';
@@ -499,7 +520,7 @@ function buildCardTable(rows, append) {
     const links = [
       { href: `../marketplace.html?template_id=${enc(tid)}&collection_name=${enc(col)}&schema_name=${enc(sch)}&project=funko`,
         icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', primary: true },
-      { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&collection_name=${enc(col)}&template_id=${enc(tid)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(sch)}&sort=price&symbol=WAX`,
+      { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${enc(tid)}`,
         icon: '../images/atomic.svg', title: 'View on AtomicHub' },
       // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${enc(col)}&order=asc&page=1&sort=price&template_id=${enc(tid)}`,
       //   icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
@@ -683,6 +704,10 @@ function applyCardFilters(cards) {
   const pc = priceCol();
   if (state.listingFilter === 'listed')          out = out.filter(r => r[pc] != null);
   else if (state.listingFilter === 'not_listed') out = out.filter(r => r[pc] == null);
+
+  if (state.rarity === 'Packs' && state.packFilter === 'openable') {
+    out = out.filter(r => OPENABLE_PACK_TEMPLATE_IDS.has(String(r.template_id)));
+  }
 
   return out;
 }
@@ -954,6 +979,15 @@ async function init() {
     state.listingFilter = btn.dataset.lf;
     state.offset = 0; tableRows = [];
     document.querySelectorAll('.listing-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    loadData();
+  });
+
+  document.getElementById('packFilter').addEventListener('click', e => {
+    const btn = e.target.closest('.listing-filter-btn');
+    if (!btn || btn.dataset.pf === state.packFilter) return;
+    state.packFilter = btn.dataset.pf;
+    state.offset = 0; tableRows = [];
+    document.querySelectorAll('#packFilter .listing-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
     loadData();
   });
 

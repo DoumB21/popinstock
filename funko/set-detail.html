@@ -254,7 +254,7 @@ function buildTable() {
     const links = [
       { href: `../marketplace.html?template_id=${enc(tid)}&collection_name=${enc(col)}&schema_name=${enc(sch)}&project=funko`,
         icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', cls: 'market-link market-link--primary' },
-      { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&collection_name=${enc(col)}&template_id=${enc(tid)}&order=asc&primary_chain=wax-mainnet&schema_name=${enc(sch)}&sort=price&symbol=WAX`,
+      { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${enc(tid)}`,
         icon: '../images/atomic.svg', title: 'View on AtomicHub' },
       // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${enc(col)}&order=asc&page=1&sort=price&template_id=${enc(tid)}`,
       //   icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
