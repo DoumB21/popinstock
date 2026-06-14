@@ -798,7 +798,7 @@ async function init() {
     '<div class="status-wrap"><div class="spinner"></div><div class="status-text">Loading catalog…</div></div>';
 
   try {
-    const [setPricesResult, templateRows, priceRows] = await Promise.all([
+    const [setPricesResult, templateRows, priceRows, packRows] = await Promise.all([
       sbFetch('funko_set_prices',
         'select=collection_name,schema_name,drop_displayname,droppp_id,droppp_exclusive,' +
         'royalty_card_count,royalty_wax_usd,royalty_wax_priced,royalty_best_usd,royalty_best_priced,' +
@@ -810,6 +810,9 @@ async function init() {
       ),
       sbFetchAll('funko_market_prices',
         'select=template_id,droppp_id,droppp_exclusive,wax_price_wax,wax_price_usd,best_price_usd,fetched_at'
+      ),
+      sbFetchAll('pack_stats',
+        'select=template_id,collection_name,schema_name,name,max_supply,issued_supply,in_circulation'
       ),
     ]);
 
@@ -852,6 +855,32 @@ async function init() {
         drop_displayname: di.drop_displayname ?? t.collection_name,
       };
     });
+
+    const packCards = packRows.map(t => {
+      const p   = priceMap.get(String(t.template_id)) || {};
+      const key = t.collection_name + '|' + t.schema_name;
+      const di  = dropInfoMap.get(key) || {};
+      const dropppId = p.droppp_id ?? (collDropppId.get(t.collection_name) ?? null);
+      return {
+        template_id:      String(t.template_id),
+        collection_name:  t.collection_name,
+        schema_name:      t.schema_name,
+        name:             t.name || '',
+        rarity:           'Packs',
+        cardid:           null,
+        max_supply:       t.max_supply ?? null,
+        issued_supply:    t.issued_supply ?? null,
+        in_circulation:   t.in_circulation ?? null,
+        droppp_id:        dropppId,
+        droppp_exclusive: p.droppp_exclusive ?? di.droppp_exclusive ?? false,
+        wax_price_wax:    p.wax_price_wax ?? null,
+        wax_price_usd:    p.wax_price_usd ?? null,
+        best_price_usd:   p.best_price_usd ?? null,
+        fetched_at:       p.fetched_at ?? null,
+        drop_displayname: di.drop_displayname ?? t.collection_name,
+      };
+    });
+    allCards = allCards.concat(packCards);
 
     // Recompute _priced fields from allCards using the correct rarity definitions.
     // Pipeline priced counts are wrong since funko_market_prices now only stores listed
