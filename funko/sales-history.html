@@ -236,6 +236,8 @@ let selectedCollection = '';
 let selectedYear       = null;
 let selectedMonth      = null;
 let granularity        = 'month';
+let selectedPeriod     = null;
+let chartPeriods       = [];
 let WAX_BASE           = '';
 let top10Gen           = 0;
 let last10Gen          = 0;
@@ -322,10 +324,7 @@ function aggregateRows(rows) {
     if (granularity === 'month') {
       key = r.sale_date.slice(0, 7);
     } else if (granularity === 'week') {
-      const d = new Date(r.sale_date + 'T00:00:00Z');
-      const day = d.getUTCDay();
-      d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
-      key = d.toISOString().slice(0, 10);
+      key = getWeekKey(r.sale_date);
     } else {
       key = r.sale_date;
     }
@@ -361,12 +360,60 @@ function getMetricValues(byPeriod, periods) {
 
 /* ── View controls ── */
 function setView(year, month) {
-  selectedYear  = year  || null;
-  selectedMonth = month || null;
+  selectedYear   = year  || null;
+  selectedMonth  = month || null;
+  selectedPeriod = null;
   if (month)     granularity = 'day';
   else if (year) granularity = 'week';
   else           granularity = 'month';
   refresh();
+}
+
+/* ── Period helpers ── */
+function getWeekKey(dateStr) {
+  const d   = new Date(dateStr + 'T00:00:00Z');
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().slice(0, 10);
+}
+
+function filterBySelectedPeriod(rows) {
+  if (!selectedPeriod) return rows;
+  if (granularity === 'day')   return rows.filter(r => r.sale_date === selectedPeriod);
+  if (granularity === 'month') return rows.filter(r => r.sale_date.startsWith(selectedPeriod));
+  if (granularity === 'week')  return rows.filter(r => getWeekKey(r.sale_date) === selectedPeriod);
+  return rows;
+}
+
+function fmtPeriodLabel(key) {
+  if (granularity === 'month') {
+    const [y, m] = key.split('-');
+    return MONTHS[parseInt(m) - 1] + ' ' + y;
+  }
+  if (granularity === 'week') {
+    const d = new Date(key + 'T00:00:00');
+    return 'Week of ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+  }
+  return fmtDate(key);
+}
+
+function setSelectedPeriod(period) {
+  selectedPeriod = (selectedPeriod === period) ? null : period;
+  renderPeriodNav();
+  const rows        = getFilteredRows();
+  const displayRows = filterBySelectedPeriod(rows);
+  let periodLabel;
+  if (selectedPeriod)     periodLabel = fmtPeriodLabel(selectedPeriod);
+  else if (selectedMonth) periodLabel = MONTHS_FULL[parseInt(selectedMonth) - 1] + ' ' + selectedYear;
+  else if (selectedYear)  periodLabel = selectedYear;
+  else                    periodLabel = 'all time';
+  document.getElementById('salesListsNote').textContent = (selectedYear || selectedPeriod)
+    ? 'Results below reflect the selected period: ' + periodLabel + '.'
+    : 'Results below reflect all time. Sales history is archived from January 1st, 2026.';
+  renderTop10(displayRows);
+  renderLast10(displayRows);
+  const { byPeriod, periods } = aggregateRows(rows);
+  updateChart(byPeriod, periods);
 }
 
 function setCollection(col) {
@@ -413,12 +460,28 @@ function renderPeriodNav() {
     crumb += `<span class="crumb-sep">›</span>`;
     if (selectedMonth) {
       crumb += `<span class="crumb-link" onclick="setView('${selectedYear}',null)">${selectedYear}</span>`;
-      crumb += `<span class="crumb-sep">›</span><span class="crumb-current">${MONTHS[parseInt(selectedMonth) - 1]}</span>`;
+      crumb += `<span class="crumb-sep">›</span>`;
+      if (selectedPeriod) {
+        crumb += `<span class="crumb-link" onclick="setSelectedPeriod(null)">${MONTHS[parseInt(selectedMonth) - 1]}</span>`;
+        crumb += `<span class="crumb-sep">›</span><span class="crumb-current">${fmtPeriodLabel(selectedPeriod)}</span>`;
+      } else {
+        crumb += `<span class="crumb-current">${MONTHS[parseInt(selectedMonth) - 1]}</span>`;
+      }
     } else {
-      crumb += `<span class="crumb-current">${selectedYear}</span>`;
+      if (selectedPeriod) {
+        crumb += `<span class="crumb-link" onclick="setSelectedPeriod(null)">${selectedYear}</span>`;
+        crumb += `<span class="crumb-sep">›</span><span class="crumb-current">${fmtPeriodLabel(selectedPeriod)}</span>`;
+      } else {
+        crumb += `<span class="crumb-current">${selectedYear}</span>`;
+      }
     }
   } else {
-    crumb += `<span class="crumb-sep">›</span><span class="crumb-current">All time</span>`;
+    if (selectedPeriod) {
+      crumb += `<span class="crumb-sep">›</span><span class="crumb-link" onclick="setSelectedPeriod(null)">All time</span>`;
+      crumb += `<span class="crumb-sep">›</span><span class="crumb-current">${fmtPeriodLabel(selectedPeriod)}</span>`;
+    } else {
+      crumb += `<span class="crumb-sep">›</span><span class="crumb-current">All time</span>`;
+    }
   }
   crumbEl.innerHTML = crumb;
 
@@ -664,9 +727,17 @@ function tooltipLabelFmt() {
 }
 
 function updateChart(byPeriod, periods) {
+  chartPeriods = periods;
   const m    = METRICS[activeMetric];
   const data = getMetricValues(byPeriod, periods);
   const ptR  = periods.length > 60 ? 3 : 5;
+
+  const ptColors = selectedPeriod
+    ? periods.map(p => p === selectedPeriod ? '#fff' : m.color)
+    : m.color;
+  const ptRadii = selectedPeriod
+    ? periods.map(p => p === selectedPeriod ? 8 : ptR)
+    : ptR;
 
   if (!chart) {
     const ctx = document.getElementById('salesChart').getContext('2d');
@@ -677,13 +748,17 @@ function updateChart(byPeriod, periods) {
         datasets: [{
           data, borderColor: m.color, backgroundColor: m.alpha,
           borderWidth: 2, fill: true, tension: 0.3,
-          pointRadius: ptR, pointHoverRadius: 7,
-          pointBackgroundColor: m.color,
+          pointRadius: ptRadii, pointHoverRadius: 7,
+          pointBackgroundColor: ptColors,
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
+        onClick: (evt, elements) => {
+          if (!elements.length) return;
+          setSelectedPeriod(chartPeriods[elements[0].index]);
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -711,8 +786,8 @@ function updateChart(byPeriod, periods) {
     ds.data                   = data;
     ds.borderColor            = m.color;
     ds.backgroundColor        = m.alpha;
-    ds.pointBackgroundColor   = m.color;
-    ds.pointRadius            = ptR;
+    ds.pointBackgroundColor   = ptColors;
+    ds.pointRadius            = ptRadii;
     chart.options.plugins.tooltip.bodyColor          = m.color;
     chart.options.plugins.tooltip.callbacks.label    = tooltipLabelFmt();
     chart.options.scales.y.ticks.callback            = yTickFmt();
