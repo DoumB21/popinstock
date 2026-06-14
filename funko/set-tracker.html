@@ -804,7 +804,7 @@
           ? `<span class="rarity-pill ${RARITY_CLASS[t.rarity]}">${t.rarity}</span>`
           : `<span class="rarity-pill">${t.rarity || '—'}</span>`;
         const links = `<div class="market-links">
-          <a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}&collection_name=${enc(col)}&schema_name=${enc(sch)}&project=funko" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock"><img src="../images/FoxLogo.png" alt="PopInStock"></a>
+          <a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}&project=funko" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock"><img src="../images/FoxLogo.png" alt="PopInStock"></a>
           <a class="market-link" href="${ATOMIC_MARKET}?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub"></a>
           <a class="market-link" href="https://nfthive.io/market?term=${enc(tid)}&order_by=price_asc&offer_type=listings" target="_blank" rel="noopener noreferrer" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive"></a>
         </div>`;

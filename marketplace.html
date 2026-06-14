@@ -444,11 +444,12 @@ const WAX_API           = 'https://wax.api.atomicassets.io/atomicassets/v1';
 const WAX_MARKET_API    = 'https://wax.api.atomicassets.io/atomicmarket/v1';
 const PAGE_SIZE         = 25;
 
-const params         = new URLSearchParams(location.search);
-const templateId     = params.get('template_id')     || '';
-const collectionName = params.get('collection_name') || '';
-const schemaName     = params.get('schema_name')     || '';
-const project        = params.get('project')         || '';
+const params     = new URLSearchParams(location.search);
+const templateId = params.get('template_id') || '';
+const project    = params.get('project')     || '';
+
+let collectionName = '';
+let schemaName     = '';
 
 let waxUsdRate   = null;
 let allListings  = [];
@@ -501,10 +502,13 @@ async function fetchWaxPrice() {
 
 /* ── API ── */
 async function fetchTemplate() {
-  const r    = await fetch(`${WAX_API}/templates/${enc(collectionName)}/${enc(templateId)}`);
+  const r    = await fetch(`${WAX_API}/templates?ids=${enc(templateId)}&limit=1`);
   const json = await r.json();
-  if (!json.success) throw new Error('Template not found');
-  return json.data;
+  if (!json.success || !json.data.length) throw new Error('Template not found');
+  const tpl  = json.data[0];
+  collectionName = tpl.collection.collection_name;
+  schemaName     = tpl.schema.schema_name;
+  return tpl;
 }
 
 async function fetchSupplyDetails() {
@@ -933,7 +937,7 @@ function refreshBuyButtons() {
 async function init() {
   _initNavWax();
 
-  if (!templateId || !collectionName) {
+  if (!templateId) {
     document.getElementById('heroSection').innerHTML =
       `<div class="state state-error">No card selected. Please navigate here from one of the PopInStock tools.</div>`;
     return;
@@ -941,8 +945,11 @@ async function init() {
 
   try {
     await fetchWaxPrice();
-    const [tpl, listings, supply, burnedCount] = await Promise.all([
-      fetchTemplate(), fetchListings(SORT_CONFIG[currentSort].sort, SORT_CONFIG[currentSort].order), fetchSupplyDetails(), fetchBurnedCount()
+    const tpl = await fetchTemplate();
+    const [listings, supply, burnedCount] = await Promise.all([
+      fetchListings(SORT_CONFIG[currentSort].sort, SORT_CONFIG[currentSort].order),
+      fetchSupplyDetails(),
+      fetchBurnedCount(),
     ]);
     allListings = listings;
 
