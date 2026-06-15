@@ -69,6 +69,7 @@
     .cell-price      { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
     .cell-price.price-null { color: rgba(255,255,255,0.2); font-weight: 400; font-size: 0.8rem; }
     .cell-price-usd  { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; margin-top: 2px; }
+    .cell-supply     { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
 
     /* ── PopInStock link ── */
     .market-link--primary { display: inline-flex; align-items: center; opacity: 1; transition: filter 0.2s; text-decoration: none; }
@@ -152,6 +153,16 @@ function cleanName(name) {
 function fmtWax(wax) {
   if (wax == null) return null;
   return (wax < 1 ? wax.toFixed(4) : wax.toFixed(2)) + ' WAX';
+}
+
+function supplyCell(t) {
+  const circ   = t.in_circulation;
+  const issued = t.issued_supply;
+  const num    = circ ?? issued;
+  if (num == null) return '<span style="color:rgba(255,255,255,0.2);font-size:0.82rem">—</span>';
+  const showOf = issued != null && (issued === 1 || (circ != null && circ < issued));
+  return `<div class="cell-supply" style="color:var(--text-primary);font-weight:600;font-size:0.85rem">${num.toLocaleString()}</div>` +
+         (showOf ? `<div class="cell-supply">of ${issued.toLocaleString()}</div>` : '');
 }
 
 function priceCell(wax, usd) {
@@ -244,7 +255,7 @@ async function startScan() {
     setProgress('Loading catalog…', 5);
     const [templateRows, priceRows, setRows] = await Promise.all([
       sbFetchAll('templates',
-        'select=template_id,collection_name,schema_name,name,rarity,cardid' +
+        'select=template_id,collection_name,schema_name,name,rarity,cardid,max_supply,issued_supply,in_circulation' +
         '&order=collection_name.asc,cardid.asc'
       ),
       sbFetchAll('funko_market_prices', 'select=template_id,wax_price_wax,wax_price_usd'),
@@ -266,6 +277,9 @@ async function startScan() {
         drop_displayname: dropMap.get(t.collection_name + '|' + t.schema_name) || t.collection_name,
         wax:              p.wax_price_wax ?? null,
         usd:              p.wax_price_usd ?? null,
+        max_supply:       t.max_supply ?? null,
+        issued_supply:    t.issued_supply ?? null,
+        in_circulation:   t.in_circulation ?? null,
       };
     });
 
@@ -408,6 +422,7 @@ function buildRows(cards) {
         <div class="cell-drop-info">${cleanName(t.drop_displayname)} · ${schemaLabel(t.schema_name)}</div>
       </td>
       <td style="width:110px"><span class="rarity-pill ${RARITY_CLASS[t.rarity] || ''}">${t.rarity}</span></td>
+      <td class="col-r" style="width:90px">${supplyCell(t)}</td>
       <td class="col-r" style="width:110px">${priceCell(t.wax, t.usd)}</td>
       <td style="width:44px;text-align:right">
         <a class="market-link--primary" href="${link}" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock">
@@ -461,6 +476,7 @@ function renderTable() {
         <thead><tr>
           <th>ID — Card</th>
           <th style="width:110px">Rarity</th>
+          <th class="col-r" style="width:90px">Supply</th>
           <th class="col-r${sortDir ? ' sorted' : ''}" style="width:110px;cursor:pointer;user-select:none" onclick="togglePriceSort()">Floor Price <span class="sort-icon">${sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}</span></th>
           <th class="col-r" style="width:44px">Market</th>
         </tr></thead>
