@@ -347,6 +347,55 @@
       text-align: center;
     }
 
+    /* ── Tabs ── */
+    .mp-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .mp-tab {
+      padding: 0.65rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+      letter-spacing: 0.01em;
+    }
+    .mp-tab:hover { color: var(--text-primary); }
+    .mp-tab.active { color: var(--accent-light); border-bottom-color: var(--accent-light); }
+
+    /* ── Sales history table ── */
+    .mp-history-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .mp-history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .mp-history-table th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .mp-history-table th.col-r { text-align: right; }
+    .mp-history-table td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; font-variant-numeric: tabular-nums; }
+    .mp-history-table tr:last-child td { border-bottom: none; }
+    .mp-history-table tr:hover td { background: rgba(255,255,255,0.03); }
+    .mp-history-table .col-r { text-align: right; }
+    .mp-history-age { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; }
+    .mp-history-price { font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+    .mp-history-price-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; white-space: nowrap; }
+    .mp-history-arrow { color: var(--text-secondary); margin: 0 0.2rem; }
+
+    /* ── You own ── */
+    .mp-owned { padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .mp-owned-label {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 0.4rem;
+    }
+    .mp-owned-label strong { color: var(--text-primary); font-size: 0.9rem; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+
     /* ── Nav wallet styles ── */
     .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 0.5rem 0 0.25rem; flex-shrink: 0; }
     .nav-wax-btn {
@@ -423,7 +472,12 @@
       <div class="status-wrap"><div class="spinner"></div></div>
     </div>
 
+    <div class="mp-tabs" id="mpTabs" style="display:none">
+      <button class="mp-tab active" data-tab="listings" onclick="switchTab('listings')">Listings</button>
+      <button class="mp-tab" data-tab="history" onclick="switchTab('history')">Sales History</button>
+    </div>
     <div id="listingsSection"></div>
+    <div id="historySection" style="display:none"></div>
 
   </div>
 </div>
@@ -451,9 +505,10 @@ const project    = params.get('project')     || '';
 let collectionName = '';
 let schemaName     = '';
 
-let waxUsdRate   = null;
-let allListings  = [];
-let visibleCount = PAGE_SIZE;
+let waxUsdRate    = null;
+let allListings   = [];
+let visibleCount  = PAGE_SIZE;
+let historyLoaded = false;
 const VALID_SORTS = new Set(['price-asc','price-desc','mint-asc','mint-desc','date-desc','date-asc']);
 let currentSort  = VALID_SORTS.has(params.get('sort')) ? params.get('sort') : 'price-asc';
 let mintMin      = '';
@@ -628,7 +683,7 @@ async function _handleWaxLogout() {
 async function _initNavWax() {
   document.getElementById('navWaxBtn').addEventListener('click', _handleWaxClick);
   document.getElementById('navWaxLogout').addEventListener('click', _handleWaxLogout);
-  window.addEventListener('wax-auth-change', () => { _updateNavWaxBtn(); refreshBuyButtons(); });
+  window.addEventListener('wax-auth-change', () => { _updateNavWaxBtn(); refreshBuyButtons(); fetchAndRenderOwned(); });
   try { await _loadWaxAuth(); await WaxAuth.restore(); } catch { /* no saved session */ }
   _updateNavWaxBtn();
 }
@@ -793,6 +848,7 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
           </div>
         </div>
         ${supplyBreakdown}
+        <div id="mpOwned"></div>
       </div>
     </div>`;
 }
@@ -933,6 +989,113 @@ function refreshBuyButtons() {
   });
 }
 
+/* ── You own ── */
+async function fetchAndRenderOwned() {
+  const slot   = document.getElementById('mpOwned');
+  if (!slot) return;
+  const wallet = window.getWaxAccount();
+  if (!wallet) { slot.innerHTML = ''; return; }
+
+  slot.innerHTML = `<div class="mp-owned"><div class="mp-owned-label" style="opacity:0.5">Loading your copies…</div></div>`;
+
+  try {
+    const r    = await fetch(`${WAX_API}/assets?owner=${enc(wallet)}&template_id=${enc(templateId)}&sort=template_mint&order=asc&limit=1000`);
+    const json = await r.json();
+    if (!json.success || !json.data.length) { slot.innerHTML = ''; return; }
+
+    const assets  = json.data;
+    const total   = assets.length;
+    const mintStr = assets.slice(0, 5).map(a => a.template_mint).join(' - ');
+
+    slot.innerHTML = `
+      <div class="mp-owned">
+        <div class="mp-owned-label">You own <strong>${total}</strong></div>
+        <div class="mp-owned-label">Lowest mint # <strong>${mintStr}</strong></div>
+      </div>`;
+  } catch { slot.innerHTML = ''; }
+}
+
+/* ── Tabs ── */
+function switchTab(tab) {
+  document.querySelectorAll('.mp-tab').forEach(el =>
+    el.classList.toggle('active', el.dataset.tab === tab)
+  );
+  document.getElementById('listingsSection').style.display = tab === 'listings' ? '' : 'none';
+  document.getElementById('historySection').style.display  = tab === 'history'  ? '' : 'none';
+  if (tab === 'history' && !historyLoaded) {
+    historyLoaded = true;
+    renderSalesHistory();
+  }
+}
+
+/* ── Sales history ── */
+function fmtAge(ts) {
+  const sec = Math.floor((Date.now() - Number(ts)) / 1000);
+  if (sec < 60)      return `${sec}s ago`;
+  if (sec < 3600)    return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400)   return `${Math.floor(sec / 3600)}h ago`;
+  if (sec < 2592000) return `${Math.floor(sec / 86400)}d ago`;
+  return new Date(Number(ts)).toLocaleDateString();
+}
+
+async function fetchSalesHistory() {
+  const r    = await fetch(`${WAX_MARKET_API}/sales?state=3&template_id=${enc(templateId)}&sort=updated&order=desc&limit=25`);
+  const json = await r.json();
+  if (!json.success) throw new Error('Failed to load sales history');
+  return json.data.filter(s => s.assets?.length === 1);
+}
+
+function renderSalesHistory() {
+  const section = document.getElementById('historySection');
+  section.innerHTML = '<div class="state"><div class="spinner" style="margin:0 auto"></div></div>';
+
+  fetchSalesHistory().then(sales => {
+    if (!sales.length) {
+      section.innerHTML = '<div class="no-results">No recent sales found for this card.</div>';
+      return;
+    }
+    const rows = sales.map(s => {
+      const mint     = s.assets?.[0]?.template_mint || '?';
+      const waxAmt   = s.price?.amount ? parseInt(s.price.amount) : null;
+      const priceStr = waxAmt != null ? fmtWax(waxAmt) : '—';
+      const priceUsd = waxAmt != null && waxUsdRate
+        ? `≈ $${(waxAmt / 1e8 * waxUsdRate).toFixed(2)}`
+        : '';
+      const seller = shortAddr(s.seller || '—');
+      const buyer  = shortAddr(s.buyer  || '—');
+      return `<tr>
+        <td><span class="mp-history-age">${fmtAge(s.updated_at_time)}</span></td>
+        <td>Mint #${mint}</td>
+        <td class="col-r">
+          <div class="mp-history-price">${priceStr}</div>
+          ${priceUsd ? `<div class="mp-history-price-sub">${priceUsd}</div>` : ''}
+        </td>
+        <td class="col-r" style="font-size:0.8rem;font-family:monospace;white-space:nowrap">
+          ${seller}<span class="mp-history-arrow">→</span>${buyer}
+        </td>
+      </tr>`;
+    }).join('');
+
+    section.innerHTML = `
+      <div class="section">
+        <div class="section-heading">Sales History <span class="section-count">last ${sales.length}</span></div>
+        <div class="mp-history-wrap">
+          <table class="mp-history-table">
+            <thead><tr>
+              <th>Date</th>
+              <th>Mint</th>
+              <th class="col-r">Sale Price</th>
+              <th class="col-r">Seller → Buyer</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).catch(err => {
+    section.innerHTML = `<div class="state state-error">Failed to load sales history: ${err.message}</div>`;
+  });
+}
+
 /* ── Init ── */
 async function init() {
   _initNavWax();
@@ -954,6 +1117,8 @@ async function init() {
     allListings = listings;
 
     renderHero(tpl, listings.length, supply, burnedCount);
+    fetchAndRenderOwned();
+    document.getElementById('mpTabs').style.display = '';
     renderListings();
 
   } catch (err) {

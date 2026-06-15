@@ -52,7 +52,9 @@ function buildNav() {
     .nav-wax-name {
       font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
       color: #4ade80; white-space: nowrap; user-select: none;
+      text-decoration: none; transition: opacity 0.15s;
     }
+    .nav-wax-name:hover { opacity: 0.75; }
     .nav-wax-logout-btn {
       width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
       border: 1px solid rgba(74,222,128,0.3); background: none;
@@ -76,7 +78,7 @@ function buildNav() {
       <div class="nav-links">${links}</div>
       <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">Connect Wallet</button>
       <div id="navWaxConnected" class="nav-wax-connected-widget">
-        <span id="navWaxName" class="nav-wax-name"></span>
+        <a id="navWaxName" class="nav-wax-name" href="profile.html" title="View your profile"></a>
         <button id="navWaxLogout" class="nav-wax-logout-btn" title="Logout">✕</button>
       </div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
@@ -182,7 +184,7 @@ function _updateNavWaxBtn() {
   if (acc) {
     if (connectBtn)  { connectBtn.style.display = 'none'; connectBtn.disabled = false; }
     if (connectedEl) connectedEl.style.display = 'flex';
-    if (nameEl)      { nameEl.textContent = _waxShort(acc); nameEl.title = acc; }
+    if (nameEl)      { nameEl.textContent = _waxShort(acc); nameEl.title = 'View profile'; }
   } else {
     if (connectBtn)  { connectBtn.style.display = ''; connectBtn.textContent = 'Connect Wallet'; connectBtn.disabled = false; }
     if (connectedEl) connectedEl.style.display = 'none';
