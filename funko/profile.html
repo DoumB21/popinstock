@@ -734,7 +734,7 @@
             <div class="achievement-icon">&#128230;</div>
             <div class="achievement-body">
               <div class="achievement-title">Duplicate Monarch</div>
-              <div class="achievement-desc">Own at least 250 copies of any single card.</div>
+              <div class="achievement-desc">Own at least 250 copies of a single non-Series Coin card.</div>
               <div class="achievement-bar-row">
                 <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
                 <span class="achievement-mini-label">0 / 250</span>
@@ -809,7 +809,7 @@
       return { val: cards, target: 8, pass: cards >= 8 && packs >= 2, label: `${cards}/8 cards · ${packs}/2 packs` };
     }},
     { id: 'ach-4-6', tier: 4, check: p => {
-      const max = Math.max(0, ...Object.values(p.rarity ?? {}).map(r => r.max_unique_count ?? 0));
+      const max = Math.max(0, ...Object.entries(p.rarity ?? {}).filter(([k]) => k !== 'Series').map(([, r]) => r.max_unique_count ?? 0));
       return { val: max, target: 250 };
     }},
   ];
