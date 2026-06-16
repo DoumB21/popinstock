@@ -162,6 +162,23 @@ function buildFooter() {
 /* ── WAX Auth ─────────────────────────────────────────────────────────────── */
 window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
 
+const _SB_URL  = 'https://otzyszbbsuwoxupbpfju.supabase.co';
+const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90enlzemJic3V3b3h1cGJwZmp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDU5ODMsImV4cCI6MjA5MDMyMTk4M30.s8XzcbpZ2PCwOvXJcN7LqPKhqyZop_hdUOFdvLbPCWU';
+
+async function _fetchAndCacheTier(account) {
+  try {
+    const res = await fetch(
+      `${_SB_URL}/rest/v1/funko_collector_tiers?wallet=eq.${encodeURIComponent(account)}&select=max_tier`,
+      { headers: { 'apikey': _SB_ANON, 'Authorization': `Bearer ${_SB_ANON}`, 'Accept-Profile': 'funko' } }
+    );
+    if (!res.ok) return;
+    const rows = await res.json();
+    const tier = rows[0]?.max_tier ?? 0;
+    if (tier >= 1) localStorage.setItem('wax_funko_tier', String(tier));
+    else localStorage.removeItem('wax_funko_tier');
+  } catch { /* network failure — leave cached value */ }
+}
+
 function _loadWaxAuth() {
   if (window.WaxAuth) return Promise.resolve();
   return new Promise((res, rej) => {
@@ -176,6 +193,8 @@ function _waxShort(acc) {
   return acc.length > 13 ? acc.slice(0, 6) + '…' + acc.slice(-4) : acc;
 }
 
+const _NAV_TIER_ICONS = { 1: '🌱', 2: '📚', 3: '🏛️', 4: '👑' };
+
 function _updateNavWaxBtn() {
   const connectBtn   = document.getElementById('navWaxBtn');
   const connectedEl  = document.getElementById('navWaxConnected');
@@ -184,7 +203,12 @@ function _updateNavWaxBtn() {
   if (acc) {
     if (connectBtn)  { connectBtn.style.display = 'none'; connectBtn.disabled = false; }
     if (connectedEl) connectedEl.style.display = 'flex';
-    if (nameEl)      { nameEl.textContent = _waxShort(acc); nameEl.title = 'View profile'; }
+    if (nameEl) {
+      const tier = parseInt(localStorage.getItem('wax_funko_tier') || '0', 10);
+      const icon = tier >= 1 ? _NAV_TIER_ICONS[tier] + ' ' : '';
+      nameEl.textContent = icon + _waxShort(acc);
+      nameEl.title = 'View profile';
+    }
   } else {
     if (connectBtn)  { connectBtn.style.display = ''; connectBtn.textContent = 'Connect Wallet'; connectBtn.disabled = false; }
     if (connectedEl) connectedEl.style.display = 'none';
@@ -204,6 +228,8 @@ async function _handleWaxClick() {
   try {
     await _loadWaxAuth();
     await WaxAuth.login();
+    const _acc = window.getWaxAccount();
+    if (_acc) await _fetchAndCacheTier(_acc);
   } catch { /* cancelled or failed — no action needed */ } finally {
     clearTimeout(_connectTimeout);
     _updateNavWaxBtn();
@@ -217,6 +243,7 @@ async function _handleWaxLogout() {
     await _loadWaxAuth();
     await WaxAuth.logout();
   } catch { /* ignore */ } finally {
+    localStorage.removeItem('wax_funko_tier');
     _updateNavWaxBtn();
   }
 }
@@ -230,8 +257,10 @@ async function _initWaxBtn() {
   try {
     await _loadWaxAuth();
     await WaxAuth.restore();
+    const _acc = window.getWaxAccount();
+    if (_acc) await _fetchAndCacheTier(_acc);
   } catch { /* no saved session */ }
   _updateNavWaxBtn();
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildSiteBanner(); buildBackToTop(); buildFooter(); _initWaxBtn(); });
+document.addEventListener('DOMContentLoaded', () => { buildNav(); _updateNavWaxBtn(); buildSiteBanner(); buildBackToTop(); buildFooter(); _initWaxBtn(); });

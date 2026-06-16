@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collector Profile — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Connect gate ── */
+    .connect-prompt {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 1rem; padding: 4rem 1.5rem; text-align: center;
+    }
+    .connect-prompt-icon { font-size: 2.5rem; opacity: 0.3; }
+    .connect-prompt-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+    .connect-prompt-sub { font-size: 0.85rem; color: var(--text-secondary); max-width: 320px; line-height: 1.6; }
+    .connect-prompt-btn {
+      margin-top: 0.5rem; padding: 0.55rem 1.4rem; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.4); background: rgba(240,168,64,0.09);
+      color: var(--accent-light); font-size: 0.82rem; font-weight: 700;
+      letter-spacing: 0.04em; cursor: pointer; font-family: inherit;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .connect-prompt-btn:hover { background: rgba(240,168,64,0.18); border-color: rgba(240,168,64,0.6); }
+
+    /* ── Profile content gap ── */
+    #profile-content { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    /* ── Profile header ── */
+    #profile-header {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.1rem 1.5rem; display: flex; justify-content: space-between;
+      align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    }
+    .profile-header-left { display: flex; align-items: center; gap: 1rem; }
+    .profile-avatar {
+      width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(192,120,40,0.25), rgba(240,168,64,0.1));
+      border: 2px solid rgba(240,168,64,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; font-weight: 800; color: var(--accent-light);
+    }
+    .profile-wallet-row { display: flex; align-items: center; gap: 0.45rem; }
+    .profile-wallet-name { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; word-break: break-all; }
+    .profile-tier-icon { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+    .profile-current-tier {
+      display: inline-block; margin-top: 4px; font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 9px;
+      border-radius: 999px; color: #a78bfa;
+      background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3);
+    }
+    .edit-profile-btn {
+      display: inline-block; margin-top: 6px; padding: 0.28rem 0.8rem; border-radius: 999px;
+      cursor: not-allowed; border: 1px solid var(--border); background: none;
+      font-family: inherit; color: var(--text-secondary); font-size: 0.7rem;
+      font-weight: 600; opacity: 0.5;
+    }
+    .profile-header-right { display: flex; align-items: center; }
+    #overall-progress {
+      background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.25rem; min-width: 260px;
+    }
+    .overall-progress-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-secondary); margin-bottom: 0.65rem;
+    }
+    .progress-bar-row { display: flex; align-items: center; gap: 0.65rem; }
+    .progress-bar {
+      flex: 1; height: 10px; border-radius: 999px;
+      background: rgba(255,255,255,0.08); overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #a78bfa, #7c3aed);
+      transition: width 0.6s ease;
+    }
+    .progress-bar-pct { font-size: 0.78rem; font-weight: 700; color: #a78bfa; white-space: nowrap; }
+    .overall-progress-sub { font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.5rem; }
+    .overall-progress-sub strong { color: var(--text-primary); }
+
+    /* ── Tier cards ── */
+    #tier-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .tier-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.25rem; display: flex; flex-direction: column; gap: 0.9rem;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      cursor: pointer;
+    }
+    .tier-card--selected { outline: 2px solid rgba(167,139,250,0.6); outline-offset: -2px; }
+    .tier-card--completed.tier-card--selected { outline-color: rgba(74,222,128,0.55); }
+    .tier-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+    .tier-card--completed {
+      background: linear-gradient(145deg, rgba(74,222,128,0.05) 0%, var(--bg-card) 60%);
+      border-color: rgba(74,222,128,0.3);
+    }
+    .tier-card--completed:hover { border-color: rgba(74,222,128,0.5); box-shadow: 0 8px 28px rgba(74,222,128,0.08); }
+    @keyframes tier-current-glow {
+      0%, 100% { box-shadow: 0 0 10px rgba(167,139,250,0.2), 0 0 24px rgba(167,139,250,0.1); }
+      50%       { box-shadow: 0 0 20px rgba(167,139,250,0.4), 0 0 40px rgba(167,139,250,0.18); }
+    }
+    .tier-card--current {
+      background: linear-gradient(145deg, rgba(167,139,250,0.07) 0%, var(--bg-card) 60%);
+      border-color: rgba(167,139,250,0.55);
+      animation: tier-current-glow 2.8s ease-in-out infinite;
+    }
+    .tier-card--current:hover { border-color: rgba(167,139,250,0.75); box-shadow: 0 8px 28px rgba(167,139,250,0.25); animation: none; }
+    .tier-card--locked { opacity: 0.5; }
+    .tier-card--locked:hover { opacity: 0.65; transform: translateY(-2px) scale(1.005); }
+
+    .tier-card-header { display: flex; align-items: flex-start; gap: 0.75rem; }
+    .tier-card-icon { font-size: 1.65rem; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+    .tier-card-name { font-size: 0.93rem; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+    .tier-card-desc { font-size: 0.73rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 5px; }
+    .tier-status-pill {
+      display: inline-block; font-size: 0.63rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
+    }
+    .tier-status-pill.pill--completed { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); }
+    .tier-status-pill.pill--current   { color: #a78bfa; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3); }
+    .tier-status-pill.pill--locked    { color: var(--text-secondary); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+
+    .tier-progress-wrap { display: flex; flex-direction: column; gap: 5px; }
+    .tier-progress-bar { height: 7px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+    .tier-progress-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+    .tier-card--completed .tier-progress-fill { background: linear-gradient(90deg, #4ade80, #22c55e); }
+    .tier-card--current   .tier-progress-fill { background: linear-gradient(90deg, #a78bfa, #7c3aed); }
+    .tier-card--locked    .tier-progress-fill { background: rgba(255,255,255,0.15); }
+    .tier-progress-text { font-size: 0.74rem; color: var(--text-secondary); }
+
+    .tier-card-hint {
+      font-size: 0.74rem; color: var(--text-secondary); border-top: 1px solid var(--border);
+      padding-top: 0.75rem; line-height: 1.5; margin-top: auto;
+    }
+    .tier-card--completed .tier-card-hint { color: #4ade80; }
+
+    /* ── Achievements section ── */
+    #achievements-section { display: flex; flex-direction: column; gap: 1.1rem; }
+    .achievements-heading { font-size: 1rem; font-weight: 800; color: var(--text-primary); }
+
+.tier-achievements { display: flex; flex-direction: column; gap: 0.6rem; }
+    .tier-achievements-header {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+      color: var(--text-secondary); padding: 0 0.25rem;
+    }
+    .tier-achievements-count {
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(255,255,255,0.06); font-weight: 600;
+    }
+    .tier-lock-msg {
+      font-size: 0.85rem; color: var(--text-secondary); padding: 1.25rem;
+      text-align: center; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; line-height: 1.6;
+    }
+
+    .achievement-row {
+      display: flex; align-items: flex-start; gap: 0.85rem;
+      padding: 0.85rem 1rem; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .achievement-row:hover { background: var(--bg-card-hover); border-color: var(--border-hover); }
+    .achievement-row--not-started { }
+
+    .achievement-icon {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    }
+    .achievement-icon--completed  { background: rgba(74,222,128,0.1);  border-color: rgba(74,222,128,0.3); }
+    .achievement-icon--in-progress { background: rgba(59,130,246,0.1);  border-color: rgba(59,130,246,0.3); }
+
+    .achievement-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .achievement-title { font-size: 0.87rem; font-weight: 700; color: var(--text-primary); }
+    .achievement-desc  { font-size: 0.77rem; color: var(--text-secondary); line-height: 1.5; }
+    .achievement-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 5px; }
+    .achievement-mini-bar {
+      width: 120px; height: 4px; border-radius: 999px;
+      background: rgba(255,255,255,0.08); overflow: hidden; flex-shrink: 0;
+    }
+    .achievement-mini-fill { height: 100%; border-radius: 999px; }
+    .achievement-mini-fill.fill--completed  { background: #4ade80; }
+    .achievement-mini-fill.fill--in-progress { background: #3b82f6; }
+    .achievement-mini-label { font-size: 0.7rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+    .achievement-status-pill {
+      flex-shrink: 0; align-self: flex-start; white-space: nowrap;
+      font-size: 0.67rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 3px 9px; border-radius: 999px;
+    }
+    .achievement-status-pill.pill--completed  { color: #4ade80; background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25); }
+    .achievement-status-pill.pill--in-progress { color: #60a5fa; background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.25); }
+    .achievement-status-pill.pill--not-started { color: var(--text-secondary); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+
+    .profile-updated-at {
+      display: block; font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px;
+    }
+    .tier-claim-btn {
+      display: inline-block; padding: 0.45rem 1.1rem; border-radius: 999px; border: none;
+      background: linear-gradient(90deg, #7c3aed, #a78bfa); color: #fff;
+      font-size: 0.76rem; font-weight: 700; letter-spacing: 0.04em;
+      cursor: pointer; font-family: inherit;
+      transition: opacity 0.15s, transform 0.12s;
+    }
+    .tier-claim-btn:hover    { opacity: 0.88; transform: translateY(-1px); }
+    .tier-claim-btn:active   { transform: scale(0.97); }
+    .tier-claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1000px) {
+      #tier-cards { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      #tier-cards { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      #profile-header { flex-direction: column; align-items: flex-start; }
+      .profile-header-right { width: 100%; }
+      #overall-progress { min-width: unset; width: 100%; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Collector <span class="accent">Profile</span></div>
+      <div class="page-subtitle">Track your achievements and collector journey.</div>
+    </div>
+
+    <!-- ── Connect gate ── -->
+    <div id="connect-gate">
+      <div class="connect-prompt">
+        <div class="connect-prompt-icon">&#128274;</div>
+        <div class="connect-prompt-title">Wallet not connected</div>
+        <div class="connect-prompt-sub">Connect your WAX wallet to access your collector profile.</div>
+        <button class="connect-prompt-btn" onclick="document.getElementById('navWaxBtn')?.click()">Connect Wallet</button>
+      </div>
+    </div>
+
+    <!-- ── Profile content ── -->
+    <div id="profile-content" style="display:none">
+
+      <!-- Profile header -->
+      <div id="profile-header">
+        <div class="profile-header-left">
+          <div class="profile-avatar" id="profile-avatar-initial">C</div>
+          <div>
+            <div class="profile-wallet-row">
+              <div class="profile-wallet-name" id="profile-wallet-name">CollectorUsername</div>
+              <span class="profile-tier-icon" id="profile-tier-icon" style="display:none"></span>
+            </div>
+            <div class="profile-current-tier" id="profile-current-tier" style="display:none">📚 Collector</div>
+            <span class="profile-updated-at" id="profile-updated-at"></span>
+            <button class="edit-profile-btn" disabled>Edit Profile</button>
+          </div>
+        </div>
+        <div class="profile-header-right">
+          <div id="overall-progress">
+            <div class="overall-progress-label">Overall Journey</div>
+            <div class="progress-bar-row">
+              <div class="progress-bar"><div class="progress-bar-fill" style="width:65%"></div></div>
+              <span class="progress-bar-pct">65%</span>
+            </div>
+            <div class="overall-progress-sub">You have completed <strong>13</strong> of <strong>20</strong> achievements.</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Tier cards -->
+      <div id="tier-cards">
+
+        <div class="tier-card tier-card--completed" data-tier="1">
+          <div class="tier-card-header">
+            <div class="tier-card-icon">🌱</div>
+            <div>
+              <div class="tier-card-name">Apprentice</div>
+              <div class="tier-card-desc">Just starting your collecting journey.</div>
+              <span class="tier-status-pill pill--completed">&#10003; Completed</span>
+            </div>
+          </div>
+          <div class="tier-progress-wrap">
+            <div class="tier-progress-bar"><div class="tier-progress-fill" style="width:100%"></div></div>
+            <div class="tier-progress-text">6 / 6 achievements complete</div>
+          </div>
+          <div class="tier-card-hint">&#10024; Congratulations! Level completed.</div>
+        </div>
+
+        <div class="tier-card tier-card--current" data-tier="2">
+          <div class="tier-card-header">
+            <div class="tier-card-icon">📚</div>
+            <div>
+              <div class="tier-card-name">Collector</div>
+              <div class="tier-card-desc">Actively building and growing your collection.</div>
+              <span class="tier-status-pill pill--current">&#9679; Current Tier</span>
+            </div>
+          </div>
+          <div class="tier-progress-wrap">
+            <div class="tier-progress-bar"><div class="tier-progress-fill" style="width:43%"></div></div>
+            <div class="tier-progress-text">3 / 8 achievements complete</div>
+          </div>
+          <div class="tier-card-hint">Complete 5 more achievements to unlock Curator.</div>
+        </div>
+
+        <div class="tier-card tier-card--locked" data-tier="3">
+          <div class="tier-card-header">
+            <div class="tier-card-icon">🏛️</div>
+            <div>
+              <div class="tier-card-name">Curator</div>
+              <div class="tier-card-desc">A dedicated collector with a well-developed collection.</div>
+              <span class="tier-status-pill pill--not-started">&#9675; Not Started</span>
+            </div>
+          </div>
+          <div class="tier-progress-wrap">
+            <div class="tier-progress-bar"><div class="tier-progress-fill" style="width:0%"></div></div>
+            <div class="tier-progress-text">0 / 8 achievements complete</div>
+          </div>
+          <div class="tier-card-hint">Complete Collector to unlock this tier.</div>
+        </div>
+
+        <div class="tier-card tier-card--locked" data-tier="4">
+          <div class="tier-card-header">
+            <div class="tier-card-icon">👑</div>
+            <div>
+              <div class="tier-card-name">Legend</div>
+              <div class="tier-card-desc">An elite collector recognized for exceptional dedication and status.</div>
+              <span class="tier-status-pill pill--not-started">&#9675; Not Started</span>
+            </div>
+          </div>
+          <div class="tier-progress-wrap">
+            <div class="tier-progress-bar"><div class="tier-progress-fill" style="width:0%"></div></div>
+            <div class="tier-progress-text">0 / 6 achievements complete</div>
+          </div>
+          <div class="tier-card-hint">Complete Curator to unlock this tier.</div>
+        </div>
+
+      </div>
+
+      <!-- Achievements section -->
+      <div id="achievements-section">
+        <div class="achievements-heading">Achievements</div>
+
+<!-- Tier 1 -->
+        <div class="tier-achievements" id="tier-1-achievements">
+          <div class="tier-achievements-header">Apprentice <span class="tier-achievements-count">6 / 6</span></div>
+
+          <div class="achievement-row" id="ach-1-1">
+            <div class="achievement-icon achievement-icon--completed">&#127183;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Catalog Initiate</div>
+              <div class="achievement-desc">Own at least 2,500 cards from the Funko catalog.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">2,500 / 2,500</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row" id="ach-1-2">
+            <div class="achievement-icon achievement-icon--completed">&#127757;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Collection Explorer</div>
+              <div class="achievement-desc">Own cards from at least 25 different collections.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">25 / 25</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row" id="ach-1-3">
+            <div class="achievement-icon achievement-icon--completed">&#128081;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Royalty Explorer</div>
+              <div class="achievement-desc">Own at least 10 different Royalty sets.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">10 / 10</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row" id="ach-1-4">
+            <div class="achievement-icon achievement-icon--completed">&#10024;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Ultra Enthusiast</div>
+              <div class="achievement-desc">Own all 11 Ultra cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">11 / 11</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row" id="ach-1-5">
+            <div class="achievement-icon achievement-icon--completed">&#128142;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Grail Novice</div>
+              <div class="achievement-desc">Own at least 5 Grail cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">5 / 5</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row" id="ach-1-6">
+            <div class="achievement-icon achievement-icon--completed">&#127919;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Mint Rookie</div>
+              <div class="achievement-desc">Own at least 25 cards with mints between #1 and #99.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">25 / 25</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+        </div>
+
+        <!-- Tier 2 -->
+        <div class="tier-achievements" id="tier-2-achievements" style="display:none">
+          <div class="tier-achievements-header">Collector <span class="tier-achievements-count">2 / 8</span></div>
+
+          <div class="achievement-row" id="ach-2-1">
+            <div class="achievement-icon achievement-icon--completed">&#128218;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Catalog Architect</div>
+              <div class="achievement-desc">Own at least 7,500 cards from the Funko catalog.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">7,500 / 7,500</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row" id="ach-2-2">
+            <div class="achievement-icon achievement-icon--in-progress">&#127757;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Collection Forager</div>
+              <div class="achievement-desc">Own cards from at least 50 different collections.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:70%"></div></div>
+                <span class="achievement-mini-label">35 / 50</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--in-progress">&#9679; In Progress</span>
+          </div>
+
+          <div class="achievement-row" id="ach-2-3">
+            <div class="achievement-icon achievement-icon--completed">&#128081;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Royalty Gatherer</div>
+              <div class="achievement-desc">Own at least 25 different Royalty sets.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--completed" style="width:100%"></div></div>
+                <span class="achievement-mini-label">25 / 25</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--completed">&#10003; Completed</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-2-4">
+            <div class="achievement-icon">&#11088;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Mastery Builder</div>
+              <div class="achievement-desc">Own at least 10 different Mastery sets.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 10</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row" id="ach-2-5">
+            <div class="achievement-icon achievement-icon--in-progress">&#128142;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Legendary Pursuer</div>
+              <div class="achievement-desc">Own at least 50 Legendary cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:60%"></div></div>
+                <span class="achievement-mini-label">30 / 50</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--in-progress">&#9679; In Progress</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-2-6">
+            <div class="achievement-icon">&#129689;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Coin Apprentice</div>
+              <div class="achievement-desc">Own all 83 Series coins.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 96</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-2-7">
+            <div class="achievement-icon">&#127873;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Bonus Harvester</div>
+              <div class="achievement-desc">Own at least 25 Bonus cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 25</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-2-8">
+            <div class="achievement-icon">&#127942;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Rankings Contender</div>
+              <div class="achievement-desc">Rank in the Top 20 of at least one Mint Rankings leaderboard.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 1</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+        </div>
+
+        <!-- Tier 3 -->
+        <div class="tier-achievements" id="tier-3-achievements" style="display:none">
+          <div class="tier-achievements-header">Curator <span class="tier-achievements-count">0 / 8</span></div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-1">
+            <div class="achievement-icon">&#128218;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Catalog Veteran</div>
+              <div class="achievement-desc">Own at least 10,000 cards from the Funko catalog.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 10,000</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-2">
+            <div class="achievement-icon">&#128081;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Royalty Master</div>
+              <div class="achievement-desc">Own at least 50 different Royalty sets.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 50</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-3">
+            <div class="achievement-icon">&#11088;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Mastery Master</div>
+              <div class="achievement-desc">Own at least 50 different Mastery sets.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 50</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-4">
+            <div class="achievement-icon">&#127775;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Mythic Master</div>
+              <div class="achievement-desc">Own all 3 Mythic cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 3</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-5">
+            <div class="achievement-icon">&#128142;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Legendary Master</div>
+              <div class="achievement-desc">Own at least 75 Legendary cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 75</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-6">
+            <div class="achievement-icon">&#128156;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Epic Hoarder</div>
+              <div class="achievement-desc">Own at least 1,000 Epic cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 1,000</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-7">
+            <div class="achievement-icon">&#129689;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Coin Hoarder</div>
+              <div class="achievement-desc">Own at least 500 Series coins.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 500</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-3-8">
+            <div class="achievement-icon">&#127942;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Rankings Strategist</div>
+              <div class="achievement-desc">Rank in the Top 10 of at least one Mint Rankings leaderboard.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 1</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+        </div>
+
+        <!-- Tier 4 -->
+        <div class="tier-achievements" id="tier-4-achievements" style="display:none">
+          <div class="tier-achievements-header">Legend <span class="tier-achievements-count">0 / 6</span></div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-4-1">
+            <div class="achievement-icon">&#127183;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Catalog Emperor</div>
+              <div class="achievement-desc">Own every card from the 83 Mastery sets.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 83</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-4-2">
+            <div class="achievement-icon">&#127873;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Bonus Sovereign</div>
+              <div class="achievement-desc">Own all 43 Bonus cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 43</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-4-3">
+            <div class="achievement-icon">&#127942;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Rankings Colossus</div>
+              <div class="achievement-desc">Rank in the Top 20 of at least 25 Mint Rankings leaderboards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 25</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-4-4">
+            <div class="achievement-icon">&#129351;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Mint Apex Hunter</div>
+              <div class="achievement-desc">Own at least 10 Mint #1 cards.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 10</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-4-5">
+            <div class="achievement-icon">&#128273;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Promo Vault Keeper</div>
+              <div class="achievement-desc">Own all 8 promo cards and 2 promo packs.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 10</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+
+          <div class="achievement-row achievement-row--not-started" id="ach-4-6">
+            <div class="achievement-icon">&#128230;</div>
+            <div class="achievement-body">
+              <div class="achievement-title">Duplicate Monarch</div>
+              <div class="achievement-desc">Own at least 250 copies of any single card.</div>
+              <div class="achievement-bar-row">
+                <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
+                <span class="achievement-mini-label">0 / 250</span>
+              </div>
+            </div>
+            <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../shared/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  const TIER_ICONS  = { 1: '🌱', 2: '📚', 3: '🏛️', 4: '👑' };
+  const TIER_NAMES  = { 1: 'Apprentice', 2: 'Collector', 3: 'Curator', 4: 'Legend' };
+  const TIER_TOTALS = { 1: 6, 2: 8, 3: 8, 4: 6 };
+
+  const SB_HEADERS = {
+    'apikey':          SUPABASE_ANON_KEY,
+    'Authorization':   'Bearer ' + SUPABASE_ANON_KEY,
+    'Accept-Profile':  'funko',
+  };
+
+  const ACHIEVEMENTS = [
+    // Tier 1 — Apprentice
+    { id: 'ach-1-1', tier: 1, check: p => ({ val: p.total_cards              ?? 0, target: 2500 }) },
+    { id: 'ach-1-2', tier: 1, check: p => ({ val: p.unique_collections       ?? 0, target: 25   }) },
+    { id: 'ach-1-3', tier: 1, check: p => ({ val: p.royalty?.unique_count    ?? 0, target: 10   }) },
+    { id: 'ach-1-4', tier: 1, check: p => ({ val: p.rarity?.Ultra?.distinct  ?? 0, target: 11   }) },
+    { id: 'ach-1-5', tier: 1, check: p => ({ val: p.rarity?.Grail?.count     ?? 0, target: 5    }) },
+    { id: 'ach-1-6', tier: 1, check: p => ({ val: p.card_mint?.double_digit  ?? 0, target: 25   }) },
+    // Tier 2 — Collector
+    { id: 'ach-2-1', tier: 2, check: p => ({ val: p.total_cards                ?? 0, target: 7500 }) },
+    { id: 'ach-2-2', tier: 2, check: p => ({ val: p.unique_collections         ?? 0, target: 50   }) },
+    { id: 'ach-2-3', tier: 2, check: p => ({ val: p.royalty?.unique_count      ?? 0, target: 25   }) },
+    { id: 'ach-2-4', tier: 2, check: p => ({ val: p.mastery?.unique_count      ?? 0, target: 10   }) },
+    { id: 'ach-2-5', tier: 2, check: p => ({ val: p.rarity?.Legendary?.count   ?? 0, target: 50   }) },
+    { id: 'ach-2-6', tier: 2, check: p => ({ val: p.rarity?.Series?.distinct   ?? 0, target: 83   }) },
+    { id: 'ach-2-7', tier: 2, check: p => ({ val: p.bonus?.total_count         ?? 0, target: 25   }) },
+    { id: 'ach-2-8', tier: 2, check: p => {
+      const n = Math.min(1, (p.royalty?.top_20_count ?? 0) + (p.mastery?.top_20_count ?? 0));
+      return { val: n, target: 1 };
+    }},
+    // Tier 3 — Curator
+    { id: 'ach-3-1', tier: 3, check: p => ({ val: p.total_cards                 ?? 0,  target: 10000 }) },
+    { id: 'ach-3-2', tier: 3, check: p => ({ val: p.royalty?.unique_count       ?? 0,  target: 50    }) },
+    { id: 'ach-3-3', tier: 3, check: p => ({ val: p.mastery?.unique_count       ?? 0,  target: 50    }) },
+    { id: 'ach-3-4', tier: 3, check: p => ({ val: p.rarity?.Mythic?.distinct    ?? 0,  target: 3     }) },
+    { id: 'ach-3-5', tier: 3, check: p => ({ val: p.rarity?.Legendary?.count    ?? 0,  target: 75    }) },
+    { id: 'ach-3-6', tier: 3, check: p => ({ val: p.rarity?.Epic?.count         ?? 0,  target: 1000  }) },
+    { id: 'ach-3-7', tier: 3, check: p => ({ val: p.rarity?.Series?.count       ?? 0,  target: 500   }) },
+    { id: 'ach-3-8', tier: 3, check: p => {
+      const n = Math.min(1, (p.royalty?.top_10_count ?? 0) + (p.mastery?.top_10_count ?? 0));
+      return { val: n, target: 1 };
+    }},
+    // Tier 4 — Legend
+    { id: 'ach-4-1', tier: 4, check: p => ({ val: p.mastery?.unique_count    ?? 0, target: 83  }) },
+    { id: 'ach-4-2', tier: 4, check: p => ({ val: p.bonus?.unique_count      ?? 0, target: 43  }) },
+    { id: 'ach-4-3', tier: 4, check: p => {
+      const n = (p.royalty?.top_20_count ?? 0) + (p.mastery?.top_20_count ?? 0);
+      return { val: n, target: 25 };
+    }},
+    { id: 'ach-4-4', tier: 4, check: p => ({ val: p.card_mint?.mint1 ?? 0, target: 10 }) },
+    { id: 'ach-4-5', tier: 4, check: p => {
+      const cards = p.promo?.unique_count      ?? 0;
+      const packs = p.promo?.unique_count_pack ?? 0;
+      return { val: cards, target: 8, pass: cards >= 8 && packs >= 2, label: `${cards}/8 cards · ${packs}/2 packs` };
+    }},
+    { id: 'ach-4-6', tier: 4, check: p => {
+      const max = Math.max(0, ...Object.values(p.rarity ?? {}).map(r => r.max_unique_count ?? 0));
+      return { val: max, target: 250 };
+    }},
+  ];
+
+  let appState  = { profile: null, updatedAt: null, maxTier: 0, loaded: false };
+  let selectPanel = null;
+
+  /* ── Data fetch ── */
+  async function fetchData(wallet) {
+    const enc = encodeURIComponent(wallet);
+    const [pRes, tRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/funko_wallet_profiles?wallet=eq.${enc}&select=profile,updated_at`, { headers: SB_HEADERS }),
+      fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=eq.${enc}&select=max_tier`,           { headers: SB_HEADERS }),
+    ]);
+    const pData = pRes.ok ? await pRes.json() : [];
+    const tData = tRes.ok ? await tRes.json() : [];
+    return {
+      profile:   pData[0]?.profile    ?? null,
+      updatedAt: pData[0]?.updated_at ?? null,
+      maxTier:   tData[0]?.max_tier   ?? 0,
+      loaded:    true,
+    };
+  }
+
+  /* ── Helpers ── */
+  function fmtRelative(iso) {
+    const s = (Date.now() - new Date(iso)) / 1000;
+    if (s < 60)       return 'just now';
+    if (s < 3600)     return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400)    return `${Math.floor(s / 3600)}h ago`;
+    if (s < 604800)   return `${Math.floor(s / 86400)}d ago`;
+    return new Date(iso).toLocaleDateString();
+  }
+
+  /* ── Render ── */
+  function renderAll() {
+    const { profile, updatedAt, maxTier, loaded } = appState;
+
+    // Updated-at
+    const updEl = document.getElementById('profile-updated-at');
+    if (updEl) {
+      if (!loaded)     updEl.textContent = 'Loading…';
+      else if (updatedAt) updEl.textContent = `Updated ${fmtRelative(updatedAt)}`;
+      else             updEl.textContent = 'Profile available after 100+ Funko cards.';
+    }
+
+    // Tier icon & label in header
+    const iconEl = document.getElementById('profile-tier-icon');
+    const tierEl = document.getElementById('profile-current-tier');
+    if (maxTier >= 1) {
+      if (iconEl) { iconEl.textContent = TIER_ICONS[maxTier]; iconEl.style.display = ''; }
+      if (tierEl) { tierEl.textContent = `${TIER_ICONS[maxTier]} ${TIER_NAMES[maxTier]}`; tierEl.style.display = ''; }
+    } else {
+      if (iconEl) iconEl.style.display = 'none';
+      if (tierEl) tierEl.style.display = 'none';
+    }
+
+    // Compute live achievement results (use empty object if no profile)
+    const results = {};
+    for (const ach of ACHIEVEMENTS) {
+      const r  = ach.check(profile ?? {});
+      results[ach.id] = { val: r.val, target: r.target, pass: r.pass ?? (r.val >= r.target), label: r.label ?? null };
+    }
+
+    // Live pass counts per tier
+    const tierCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const ach of ACHIEVEMENTS) { if (results[ach.id].pass) tierCounts[ach.tier]++; }
+
+    // Overall progress — completed tiers: full credit; current tier: live count; locked tiers: nothing
+    let totalDone = 0;
+    for (let t = 1; t <= 4; t++) {
+      if (t <= maxTier)          totalDone += TIER_TOTALS[t];
+      else if (t === maxTier + 1) totalDone += tierCounts[t];
+    }
+    const pctAll = Math.round((totalDone / 28) * 100);
+    const fillEl = document.querySelector('#overall-progress .progress-bar-fill');
+    const pctEl  = document.querySelector('#overall-progress .progress-bar-pct');
+    const subEl  = document.querySelector('#overall-progress .overall-progress-sub');
+    if (fillEl) fillEl.style.width     = pctAll + '%';
+    if (pctEl)  pctEl.textContent      = pctAll + '%';
+    if (subEl)  subEl.innerHTML        = `You have completed <strong>${totalDone}</strong> of <strong>28</strong> achievements.`;
+
+    // Tier cards
+    for (let t = 1; t <= 4; t++) {
+      const card = document.querySelector(`.tier-card[data-tier="${t}"]`);
+      if (!card) continue;
+
+      const isCompleted = maxTier >= t;
+      const isCurrent   = !isCompleted && maxTier === t - 1;
+
+      card.classList.remove('tier-card--completed', 'tier-card--current', 'tier-card--locked');
+      card.classList.add(isCompleted ? 'tier-card--completed' : isCurrent ? 'tier-card--current' : 'tier-card--locked');
+
+      const pill = card.querySelector('.tier-status-pill');
+      if (pill) {
+        pill.className = 'tier-status-pill ' + (isCompleted ? 'pill--completed' : isCurrent ? 'pill--current' : 'pill--locked');
+        pill.innerHTML  = isCompleted ? '&#10003; Completed' : isCurrent ? '&#9679; Current Tier' : '&#9675; Not Started';
+      }
+
+      const count    = isCompleted ? TIER_TOTALS[t] : tierCounts[t];
+      const barFill  = card.querySelector('.tier-progress-fill');
+      const barText  = card.querySelector('.tier-progress-text');
+      if (barFill) barFill.style.width = Math.round((count / TIER_TOTALS[t]) * 100) + '%';
+      if (barText) barText.textContent = `${count} / ${TIER_TOTALS[t]} achievements complete`;
+
+      const hint = card.querySelector('.tier-card-hint');
+      if (hint) {
+        const oldBtn = hint.querySelector('.tier-claim-btn');
+        if (oldBtn) oldBtn.remove();
+
+        if (isCompleted) {
+          hint.textContent = '✨ Congratulations! Level completed.';
+        } else if (isCurrent) {
+          if (profile && tierCounts[t] === TIER_TOTALS[t]) {
+            hint.textContent = '';
+            const btn = document.createElement('button');
+            btn.className   = 'tier-claim-btn';
+            btn.textContent = 'Level up!';
+            btn.onclick     = () => claimTier(t);
+            hint.appendChild(btn);
+          } else {
+            const rem      = TIER_TOTALS[t] - tierCounts[t];
+            const nextName = TIER_NAMES[t + 1];
+            hint.textContent = nextName
+              ? `Complete ${rem} more achievement${rem !== 1 ? 's' : ''} to unlock ${nextName}.`
+              : `Complete ${rem} more achievement${rem !== 1 ? 's' : ''} to claim Legend status.`;
+          }
+        } else {
+          hint.textContent = `Complete ${TIER_NAMES[t - 1]} to unlock this tier.`;
+        }
+      }
+    }
+
+    // Achievement rows
+    for (const ach of ACHIEVEMENTS) {
+      const row = document.getElementById(ach.id);
+      if (!row) continue;
+
+      const { val, target, pass, label } = results[ach.id];
+      const tierDone     = maxTier >= ach.tier;
+      const isPass       = tierDone || pass;
+      const isInProgress = !isPass && val > 0;
+      const barVal       = tierDone ? target : val;
+      const pct          = target > 0 ? Math.min(100, Math.round((barVal / target) * 100)) : 0;
+      const miniText     = tierDone
+        ? `${target.toLocaleString()} / ${target.toLocaleString()}`
+        : (label ?? `${val.toLocaleString()} / ${target.toLocaleString()}`);
+
+      const icon = row.querySelector('.achievement-icon');
+      if (icon) {
+        icon.classList.remove('achievement-icon--completed', 'achievement-icon--in-progress');
+        if (isPass)       icon.classList.add('achievement-icon--completed');
+        else if (isInProgress) icon.classList.add('achievement-icon--in-progress');
+      }
+
+      const fill = row.querySelector('.achievement-mini-fill');
+      if (fill) {
+        fill.className   = 'achievement-mini-fill ' + (isPass ? 'fill--completed' : isInProgress ? 'fill--in-progress' : '');
+        fill.style.width = pct + '%';
+      }
+
+      const miniLabel = row.querySelector('.achievement-mini-label');
+      if (miniLabel) miniLabel.textContent = miniText;
+
+      const pill = row.querySelector('.achievement-status-pill');
+      if (pill) {
+        pill.className = 'achievement-status-pill ' + (isPass ? 'pill--completed' : isInProgress ? 'pill--in-progress' : 'pill--not-started');
+        pill.innerHTML  = isPass ? '&#10003; Completed' : isInProgress ? '&#9679; In Progress' : '&#9675; Not Started';
+      }
+    }
+  }
+
+  /* ── Claim tier ── */
+  async function claimTier(tierNum) {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!wallet) return;
+    const hint = document.querySelector(`.tier-card[data-tier="${tierNum}"] .tier-card-hint`);
+    const btn  = hint?.querySelector('.tier-claim-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Claiming…'; }
+    try {
+      const now  = new Date().toISOString();
+      const body = { wallet, max_tier: tierNum, [`tier_${tierNum}_at`]: now, updated_at: now };
+      const r    = await fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers`, {
+        method:  'POST',
+        headers: { ...SB_HEADERS, 'Content-Type': 'application/json', 'Content-Profile': 'funko', 'Prefer': 'resolution=merge-duplicates' },
+        body:    JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      appState.maxTier = tierNum;
+      localStorage.setItem('wax_funko_tier', String(tierNum));
+      renderAll();
+      if (selectPanel) selectPanel(String(Math.min(tierNum + 1, 4)));
+      _updateNavWaxBtn();
+    } catch (e) {
+      console.error('Claim failed:', e);
+      if (btn) { btn.disabled = false; btn.textContent = 'Level up!'; }
+    }
+  }
+
+  /* ── Tier card navigation ── */
+  function setupTierCards() {
+    const cards  = document.querySelectorAll('.tier-card[data-tier]');
+    const panels = document.querySelectorAll('.tier-achievements');
+
+    function select(tier) {
+      cards.forEach(c => c.classList.toggle('tier-card--selected', c.dataset.tier === tier));
+      panels.forEach(p => {
+        const isTarget = p.id === `tier-${tier}-achievements`;
+        p.style.display = isTarget ? '' : 'none';
+        if (!isTarget) return;
+        const card     = [...cards].find(c => c.dataset.tier === tier);
+        const isLocked = card?.classList.contains('tier-card--locked');
+        const rows     = p.querySelectorAll('.achievement-row');
+        let   lockMsg  = p.querySelector('.tier-lock-msg');
+        if (isLocked) {
+          if (!lockMsg) { lockMsg = document.createElement('div'); lockMsg.className = 'tier-lock-msg'; p.appendChild(lockMsg); }
+          lockMsg.textContent   = `You have to complete ${TIER_NAMES[Number(tier) - 1]} to unlock this tier.`;
+          lockMsg.style.display = '';
+          rows.forEach(r => r.style.display = 'none');
+        } else {
+          if (lockMsg) lockMsg.style.display = 'none';
+          rows.forEach(r => r.style.display = '');
+        }
+      });
+    }
+
+    selectPanel = select;
+    cards.forEach(card => card.addEventListener('click', () => select(card.dataset.tier)));
+    select('1');
+  }
+
+  /* ── Entry point ── */
+  async function onWalletChange() {
+    const wallet  = window.getWaxAccount ? window.getWaxAccount() : null;
+    const gate    = document.getElementById('connect-gate');
+    const content = document.getElementById('profile-content');
+
+    if (!wallet) {
+      gate.style.display    = '';
+      content.style.display = 'none';
+      appState = { profile: null, updatedAt: null, maxTier: 0, loaded: false };
+      localStorage.removeItem('wax_funko_tier');
+      return;
+    }
+
+    gate.style.display    = 'none';
+    content.style.display = '';
+    const nameEl    = document.getElementById('profile-wallet-name');
+    const initialEl = document.getElementById('profile-avatar-initial');
+    if (nameEl)    nameEl.textContent    = wallet;
+    if (initialEl) initialEl.textContent = wallet[0].toUpperCase();
+
+    appState = { profile: null, updatedAt: null, maxTier: 0, loaded: false };
+    renderAll();
+
+    try {
+      appState = await fetchData(wallet);
+      localStorage.setItem('wax_funko_tier', String(appState.maxTier));
+      renderAll();
+      if (selectPanel) selectPanel(String(Math.min(appState.maxTier + 1, 4)));
+      _updateNavWaxBtn();
+    } catch (e) {
+      console.error('Profile fetch failed:', e);
+      appState.loaded = true;
+      renderAll();
+    }
+  }
+
+  window.addEventListener('wax-auth-change', onWalletChange);
+  document.addEventListener('DOMContentLoaded', () => { setupTierCards(); onWalletChange(); });
+</script>
+
+</body>
+</html>
