@@ -913,7 +913,7 @@
         pill.innerHTML  = isCompleted ? '&#10003; Completed' : isCurrent ? '&#9679; Current Tier' : '&#9675; Not Started';
       }
 
-      const count    = isCompleted ? TIER_TOTALS[t] : tierCounts[t];
+      const count    = isCompleted ? TIER_TOTALS[t] : isCurrent ? tierCounts[t] : 0;
       const barFill  = card.querySelector('.tier-progress-fill');
       const barText  = card.querySelector('.tier-progress-text');
       if (barFill) barFill.style.width = Math.round((count / TIER_TOTALS[t]) * 100) + '%';
