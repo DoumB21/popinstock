@@ -802,7 +802,7 @@
     }},
   ];
 
-  let appState  = { profile: null, updatedAt: null, maxTier: 0, loaded: false };
+  let appState  = { profile: null, updatedAt: null, maxTier: 0, tierDates: [null,null,null,null,null], loaded: false };
   let selectPanel = null;
 
   /* ── Data fetch ── */
@@ -810,7 +810,7 @@
     const enc = encodeURIComponent(wallet);
     const [pRes, tRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/funko_wallet_profiles?wallet=eq.${enc}&select=profile,updated_at`, { headers: SB_HEADERS }),
-      fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=eq.${enc}&select=max_tier`,           { headers: SB_HEADERS }),
+      fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=eq.${enc}&select=max_tier,tier_1_at,tier_2_at,tier_3_at,tier_4_at`, { headers: SB_HEADERS }),
     ]);
     const pData = pRes.ok ? await pRes.json() : [];
     const tData = tRes.ok ? await tRes.json() : [];
@@ -818,6 +818,7 @@
       profile:   pData[0]?.profile    ?? null,
       updatedAt: pData[0]?.updated_at ?? null,
       maxTier:   tData[0]?.max_tier   ?? 0,
+      tierDates: [null, tData[0]?.tier_1_at ?? null, tData[0]?.tier_2_at ?? null, tData[0]?.tier_3_at ?? null, tData[0]?.tier_4_at ?? null],
       loaded:    true,
     };
   }
@@ -834,7 +835,7 @@
 
   /* ── Render ── */
   function renderAll() {
-    const { profile, updatedAt, maxTier, loaded } = appState;
+    const { profile, updatedAt, maxTier, tierDates, loaded } = appState;
 
     // Updated-at
     const updEl = document.getElementById('profile-updated-at');
@@ -909,7 +910,10 @@
         if (oldBtn) oldBtn.remove();
 
         if (isCompleted) {
-          hint.textContent = '✨ Congratulations! Level completed.';
+          const d = tierDates?.[t] ? new Date(tierDates[t]).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          hint.innerHTML = d
+            ? `✨ Congratulations!<br>Level completed on ${d}`
+            : '✨ Congratulations! Level completed.';
         } else if (isCurrent) {
           if (profile && tierCounts[t] === TIER_TOTALS[t]) {
             hint.textContent = '';
@@ -987,6 +991,7 @@
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       appState.maxTier = tierNum;
+      appState.tierDates[tierNum] = now;
       localStorage.setItem('wax_funko_tier', String(tierNum));
       renderAll();
       if (selectPanel) selectPanel(String(Math.min(tierNum + 1, 4)));
