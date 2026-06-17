@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../shared/global.css" />
   <style>
     .content { display: flex; flex-direction: column; gap: 2rem; }
+    #hof-content { margin-top: -4rem; }
 
     /* ── Hero banner ── */
     .hof-hero {
@@ -35,73 +36,108 @@
     .hof-hero-count-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin-top: 4px; }
 
     /* ── Grid ── */
-    .hof-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .hof-grid { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 1.25rem; row-gap: 0; }
     @media (max-width: 900px) { .hof-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 560px) { .hof-grid { grid-template-columns: 1fr; } }
 
     /* ── Legend card ── */
     @keyframes legend-glow {
-      0%, 100% { box-shadow: 0 0 12px rgba(240,192,64,0.1), 0 0 28px rgba(240,192,64,0.05); }
-      50%       { box-shadow: 0 0 20px rgba(240,192,64,0.22), 0 0 44px rgba(240,192,64,0.1); }
+      0%, 100% { box-shadow: 0 0 18px rgba(240,192,64,0.07), 0 6px 28px rgba(0,0,0,0.4); }
+      50%       { box-shadow: 0 0 36px rgba(240,192,64,0.18), 0 6px 28px rgba(0,0,0,0.4); }
     }
-    .legend-card {
-      background: linear-gradient(145deg, rgba(240,192,64,0.05) 0%, var(--bg-card) 55%);
-      border: 1px solid rgba(240,192,64,0.28); border-radius: 14px;
-      padding: 1.35rem; display: flex; flex-direction: column; gap: 1rem;
-      animation: legend-glow 3.5s ease-in-out infinite;
-      transition: transform 0.18s ease, border-color 0.18s ease;
-    }
-    .legend-card:hover {
-      transform: translateY(-4px) scale(1.01);
-      border-color: rgba(240,192,64,0.5);
-      animation: none;
-      box-shadow: 0 10px 32px rgba(240,192,64,0.12);
+    @keyframes card-shimmer {
+      from { transform: translateX(-100%) skewX(-12deg); }
+      to   { transform: translateX(400%)  skewX(-12deg); }
     }
 
-    .legend-card-top { display: flex; align-items: center; gap: 0.85rem; }
+    .legend-card {
+      background: transparent;
+      display: flex; flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hof-grid .legend-card:nth-child(n+4) { margin-top: -3rem; }
+    .legend-card:hover .legend-crown-section::before {
+      filter: brightness(0.3) saturate(1.2);
+      opacity: 0.75;
+    }
+
+    /* ── Top section: crown background + identity ── */
+    .legend-crown-section {
+      position: relative; overflow: hidden;
+      min-height: 19rem;
+      padding: 0 1.25rem 1.5rem;
+      display: flex; justify-content: center; align-items: flex-end;
+    }
+    .legend-crown-section::before {
+      content: '👑';
+      position: absolute; top: 0; left: 50%;
+      transform: translateX(-50%);
+      font-size: 21rem; line-height: 1;
+      filter: brightness(0) drop-shadow(0 0 6px rgba(240,168,64,0.35));
+      opacity: 0.45;
+      pointer-events: none; z-index: 0;
+      user-select: none;
+      transition: filter 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* ── Identity row inside crown section ── */
+    .legend-card-top {
+      display: flex; flex-direction: row; align-items: center;
+      position: relative; z-index: 1;
+    }
+    .legend-identity { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; flex: 1; }
+
+    /* ── Avatar ── */
     .legend-avatar {
-      width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
-      background: linear-gradient(135deg, rgba(240,192,64,0.25), rgba(192,120,40,0.12));
-      border: 2px solid rgba(240,192,64,0.4);
+      width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(240,192,64,0.28), rgba(192,120,40,0.12));
+      border: 2px solid rgba(240,192,64,0.5);
+      box-shadow: 0 0 0 5px rgba(240,192,64,0.07), 0 6px 20px rgba(0,0,0,0.4);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.25rem; font-weight: 800; color: #f0c040;
+      font-size: 1.85rem; font-weight: 800; color: #f0c040;
       overflow: hidden; position: relative;
     }
     .legend-avatar img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-    .legend-info { min-width: 0; flex: 1; }
+
+    /* ── Identity text ── */
     .legend-name {
-      font-size: 0.97rem; font-weight: 800; color: var(--text-primary);
-      text-decoration: none; word-break: break-all; line-height: 1.2;
-      transition: color 0.15s;
+      font-size: 1.2rem; font-weight: 800; color: var(--text-primary);
+      text-decoration: none; line-height: 1.25;
+      transition: color 0.15s; word-break: break-word; display: block;
     }
     .legend-name:hover { color: #f0c040; }
+    .legend-wallet-sub {
+      font-size: 0.9rem; color: var(--text-secondary);
+      margin-top: 3px; word-break: break-all; line-height: 1.3;
+    }
     .legend-badge {
-      display: inline-flex; align-items: center; gap: 4px; margin-top: 5px;
-      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
-      padding: 2px 8px; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 4px; margin-top: 0.55rem;
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 999px;
       color: #f0c040; background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.28);
     }
     .legend-since {
-      font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.75rem; color: var(--text-secondary);
+      margin-top: 0.4rem; display: flex; align-items: center; gap: 0.35rem;
     }
     .legend-since-date { color: var(--text-primary); font-weight: 600; }
 
-    /* ── Stats ── */
+    /* ── Stats section ── */
+    .legend-stats-section {
+      padding: 0.5rem 1.25rem 1rem;
+      border-top: 1px solid rgba(240,192,64,0.1);
+    }
     .legend-stats {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
-      padding-top: 0.85rem; border-top: 1px solid rgba(240,192,64,0.12);
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem;
     }
-    .legend-stat { display: flex; flex-direction: column; gap: 2px; }
-    .legend-stat-value { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
-    .legend-stat-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
-
-    /* ── Rank badge ── */
-    .legend-rank {
-      flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
-      background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; font-weight: 800; color: #f0c040;
+    .legend-stat {
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      padding: 0.45rem 0.15rem;
+      background: rgba(240,192,64,0.03); border-radius: 8px;
+      border: 1px solid rgba(240,192,64,0.08);
     }
+    .legend-stat-value { font-size: 0.93rem; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
+    .legend-stat-label { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); margin-top: 1px; }
 
     /* ── Loading skeletons ── */
     @keyframes shimmer {
@@ -114,17 +150,22 @@
       border-radius: 6px;
     }
     .skeleton-card {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
-      padding: 1.35rem; display: flex; flex-direction: column; gap: 1rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-top: 2px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1.6rem 1.25rem 1.35rem;
+      display: flex; flex-direction: column; align-items: center; gap: 0;
     }
-    .skeleton-top { display: flex; align-items: center; gap: 0.85rem; }
-    .skeleton-avatar { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; }
-    .skeleton-line-lg { height: 14px; width: 70%; }
-    .skeleton-line-sm { height: 10px; width: 45%; margin-top: 6px; }
-    .skeleton-line-md { height: 11px; width: 55%; }
-    .skeleton-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
-    .skeleton-stat-val { height: 16px; width: 60%; }
-    .skeleton-stat-lbl { height: 9px; width: 80%; margin-top: 4px; }
+    .skeleton-avatar { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; margin-bottom: 0.9rem; }
+    .skeleton-line-lg { height: 14px; width: 65%; }
+    .skeleton-line-sm { height: 10px; width: 80%; margin-top: 6px; }
+    .skeleton-line-badge { height: 18px; width: 90px; border-radius: 999px; margin-top: 10px; }
+    .skeleton-line-date { height: 10px; width: 55%; margin-top: 10px; }
+    .skeleton-divider { width: 75%; height: 1px; margin: 1rem 0 0.85rem; }
+    .skeleton-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; width: 100%; }
+    .skeleton-stat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0.45rem 0.15rem; border-radius: 8px; }
+    .skeleton-stat-val { height: 15px; width: 70%; }
+    .skeleton-stat-lbl { height: 8px; width: 85%; }
 
     /* ── Empty state ── */
     .hof-empty {
@@ -216,19 +257,17 @@
   function renderSkeletons(count = 6) {
     const items = Array.from({ length: count }, () => `
       <div class="skeleton-card">
-        <div class="skeleton-top">
-          <div class="skeleton skeleton-avatar"></div>
-          <div style="flex:1">
-            <div class="skeleton skeleton-line-lg"></div>
-            <div class="skeleton skeleton-line-sm"></div>
-          </div>
-        </div>
-        <div class="skeleton skeleton-line-md"></div>
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line-lg"></div>
+        <div class="skeleton skeleton-line-sm"></div>
+        <div class="skeleton skeleton-line-badge"></div>
+        <div class="skeleton skeleton-line-date"></div>
+        <div class="skeleton skeleton-divider"></div>
         <div class="skeleton-stats">
-          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
-          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
-          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
-          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div class="skeleton-stat"><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div class="skeleton-stat"><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div class="skeleton-stat"><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div class="skeleton-stat"><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
         </div>
       </div>
     `).join('');
@@ -237,10 +276,9 @@
 
   function renderCard(legend, rank) {
     const { wallet, tier4At, username, avatar, profile: p } = legend;
-    const date    = fmtDate(tier4At);
-    const dateHtml = date
-      ? `<div class="legend-since">Legend since <span class="legend-since-date">${date}</span></div>`
-      : '';
+    const date = fmtDate(tier4At);
+
+    const rankClass = rank === 1 ? 'legend-rank--1' : '';
 
     const avatarHtml = avatar
       ? `<div class="legend-avatar"><img src="${avatar}" alt="" /></div>`
@@ -248,41 +286,48 @@
 
     const nameHtml = username
       ? `<a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${username}</a>
-         <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:1px;word-break:break-all">${wallet}</div>`
+         <div class="legend-wallet-sub">${wallet}</div>`
       : `<a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${wallet}</a>`;
 
+    const dateHtml = date
+      ? `<div class="legend-since">Legend since <span class="legend-since-date">${date}</span></div>`
+      : '';
+
     const statsHtml = p ? `
-      <div class="legend-stats">
-        <div class="legend-stat">
-          <div class="legend-stat-value">${fmtNum(p.total_cards)}</div>
-          <div class="legend-stat-label">Total Cards</div>
-        </div>
-        <div class="legend-stat">
-          <div class="legend-stat-value">${fmtNum(p.card_mint?.double_digit)}</div>
-          <div class="legend-stat-label">Mints 1–99</div>
-        </div>
-        <div class="legend-stat">
-          <div class="legend-stat-value">${fmtNum(p.mastery?.total_count)}</div>
-          <div class="legend-stat-label">Mastery Sets</div>
-        </div>
-        <div class="legend-stat">
-          <div class="legend-stat-value">${fmtNum(p.royalty?.total_count)}</div>
-          <div class="legend-stat-label">Royalty Sets</div>
+      <div class="legend-stats-section">
+        <div class="legend-stats">
+          <div class="legend-stat">
+            <div class="legend-stat-value">${fmtNum(p.total_cards)}</div>
+            <div class="legend-stat-label">Cards</div>
+          </div>
+          <div class="legend-stat">
+            <div class="legend-stat-value">${fmtNum(p.card_mint?.double_digit)}</div>
+            <div class="legend-stat-label">Mint 1–99</div>
+          </div>
+          <div class="legend-stat">
+            <div class="legend-stat-value">${fmtNum(p.mastery?.total_count)}</div>
+            <div class="legend-stat-label">Mastery</div>
+          </div>
+          <div class="legend-stat">
+            <div class="legend-stat-value">${fmtNum(p.royalty?.total_count)}</div>
+            <div class="legend-stat-label">Royalty</div>
+          </div>
         </div>
       </div>
     ` : '';
 
     return `
       <div class="legend-card">
-        <div class="legend-card-top">
-          ${avatarHtml}
-          <div class="legend-info">
-            ${nameHtml}
-            <div><span class="legend-badge">👑 Legend</span></div>
+        <div class="legend-crown-section">
+          <div class="legend-card-top">
+            ${avatarHtml}
+            <div class="legend-identity">
+              ${nameHtml}
+              <div class="legend-badge">👑 Legend</div>
+              ${dateHtml}
+            </div>
           </div>
-          <div class="legend-rank">#${rank}</div>
         </div>
-        ${dateHtml}
         ${statsHtml}
       </div>
     `;
