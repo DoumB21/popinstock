@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hall of Fame — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+
+    /* ── Hero banner ── */
+    .hof-hero {
+      position: relative; overflow: hidden;
+      background: linear-gradient(135deg, rgba(240,192,64,0.07) 0%, rgba(192,120,40,0.04) 50%, var(--bg-card) 100%);
+      border: 1px solid rgba(240,192,64,0.25); border-radius: 16px;
+      padding: 2rem 2rem 1.75rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+    }
+    .hof-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 10% 50%, rgba(240,192,64,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hof-hero-crown { font-size: 3rem; line-height: 1; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(240,192,64,0.4)); }
+    .hof-hero-text { flex: 1; min-width: 0; }
+    .hof-hero-title { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
+    .hof-hero-title .accent { color: #f0c040; }
+    .hof-hero-sub { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-top: 0.4rem; }
+    .hof-hero-count {
+      flex-shrink: 0; text-align: center;
+      background: rgba(240,192,64,0.06); border: 1px solid rgba(240,192,64,0.2);
+      border-radius: 12px; padding: 0.85rem 1.5rem;
+    }
+    .hof-hero-count-num { font-size: 2rem; font-weight: 800; color: #f0c040; line-height: 1; }
+    .hof-hero-count-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin-top: 4px; }
+
+    /* ── Grid ── */
+    .hof-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 900px) { .hof-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .hof-grid { grid-template-columns: 1fr; } }
+
+    /* ── Legend card ── */
+    @keyframes legend-glow {
+      0%, 100% { box-shadow: 0 0 12px rgba(240,192,64,0.1), 0 0 28px rgba(240,192,64,0.05); }
+      50%       { box-shadow: 0 0 20px rgba(240,192,64,0.22), 0 0 44px rgba(240,192,64,0.1); }
+    }
+    .legend-card {
+      background: linear-gradient(145deg, rgba(240,192,64,0.05) 0%, var(--bg-card) 55%);
+      border: 1px solid rgba(240,192,64,0.28); border-radius: 14px;
+      padding: 1.35rem; display: flex; flex-direction: column; gap: 1rem;
+      animation: legend-glow 3.5s ease-in-out infinite;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+    .legend-card:hover {
+      transform: translateY(-4px) scale(1.01);
+      border-color: rgba(240,192,64,0.5);
+      animation: none;
+      box-shadow: 0 10px 32px rgba(240,192,64,0.12);
+    }
+
+    .legend-card-top { display: flex; align-items: center; gap: 0.85rem; }
+    .legend-avatar {
+      width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(240,192,64,0.25), rgba(192,120,40,0.12));
+      border: 2px solid rgba(240,192,64,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; font-weight: 800; color: #f0c040;
+    }
+    .legend-info { min-width: 0; flex: 1; }
+    .legend-name {
+      font-size: 0.97rem; font-weight: 800; color: var(--text-primary);
+      text-decoration: none; word-break: break-all; line-height: 1.2;
+      transition: color 0.15s;
+    }
+    .legend-name:hover { color: #f0c040; }
+    .legend-badge {
+      display: inline-flex; align-items: center; gap: 4px; margin-top: 5px;
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 999px;
+      color: #f0c040; background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.28);
+    }
+    .legend-since {
+      font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem;
+    }
+    .legend-since-date { color: var(--text-primary); font-weight: 600; }
+
+    /* ── Stats ── */
+    .legend-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+      padding-top: 0.85rem; border-top: 1px solid rgba(240,192,64,0.12);
+    }
+    .legend-stat { display: flex; flex-direction: column; gap: 2px; }
+    .legend-stat-value { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
+    .legend-stat-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+
+    /* ── Rank badge ── */
+    .legend-rank {
+      flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800; color: #f0c040;
+    }
+
+    /* ── Loading skeletons ── */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 800px 100%; animation: shimmer 1.5s infinite linear;
+      border-radius: 6px;
+    }
+    .skeleton-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.35rem; display: flex; flex-direction: column; gap: 1rem;
+    }
+    .skeleton-top { display: flex; align-items: center; gap: 0.85rem; }
+    .skeleton-avatar { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; }
+    .skeleton-line-lg { height: 14px; width: 70%; }
+    .skeleton-line-sm { height: 10px; width: 45%; margin-top: 6px; }
+    .skeleton-line-md { height: 11px; width: 55%; }
+    .skeleton-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
+    .skeleton-stat-val { height: 16px; width: 60%; }
+    .skeleton-stat-lbl { height: 9px; width: 80%; margin-top: 4px; }
+
+    /* ── Empty state ── */
+    .hof-empty {
+      padding: 4rem 1.5rem; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    }
+    .hof-empty-icon { font-size: 2.5rem; opacity: 0.3; }
+    .hof-empty-title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+    .hof-empty-sub { font-size: 0.85rem; color: var(--text-secondary); max-width: 340px; line-height: 1.6; }
+
+    /* ── Error state ── */
+    .hof-error {
+      padding: 2rem 1.5rem; text-align: center; border-radius: 12px;
+      background: rgba(224,82,82,0.05); border: 1px solid rgba(224,82,82,0.2);
+      font-size: 0.85rem; color: var(--text-secondary);
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Hall of <span class="accent">Fame</span></div>
+      <div class="page-subtitle">Collectors who reached the pinnacle — Legend status.</div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hof-hero">
+      <div class="hof-hero-crown">👑</div>
+      <div class="hof-hero-text">
+        <div class="hof-hero-title">Legend <span class="accent">Collectors</span></div>
+        <div class="hof-hero-sub">These elite collectors have completed all 28 achievements across 4 tiers,<br>earning the highest recognition in the Funko Digital community.</div>
+      </div>
+      <div class="hof-hero-count">
+        <div class="hof-hero-count-num" id="legend-count">—</div>
+        <div class="hof-hero-count-label">Legends</div>
+      </div>
+    </div>
+
+    <!-- Content area -->
+    <div id="hof-content"></div>
+
+  </div>
+</div>
+
+<script src="../shared/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  const SB_HEADERS = {
+    'apikey':         SUPABASE_ANON_KEY,
+    'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+    'Accept-Profile': 'funko',
+  };
+
+  function fmtDate(iso) {
+    if (!iso) return null;
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function fmtNum(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString();
+  }
+
+  async function fetchLegends() {
+    const tiersRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/funko_collector_tiers?max_tier=eq.4&select=wallet,tier_4_at&order=tier_4_at.asc`,
+      { headers: SB_HEADERS }
+    );
+    if (!tiersRes.ok) throw new Error(`HTTP ${tiersRes.status}`);
+    const tiers = await tiersRes.json();
+    if (tiers.length === 0) return [];
+
+    const walletList = tiers.map(t => t.wallet).join(',');
+    const profilesRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/funko_wallet_profiles?wallet=in.(${walletList})&select=wallet,profile`,
+      { headers: SB_HEADERS }
+    );
+    const profiles = profilesRes.ok ? await profilesRes.json() : [];
+    const profileMap = Object.fromEntries(profiles.map(p => [p.wallet, p.profile]));
+
+    return tiers.map(t => ({ wallet: t.wallet, tier4At: t.tier_4_at, profile: profileMap[t.wallet] ?? null }));
+  }
+
+  function renderSkeletons(count = 6) {
+    const items = Array.from({ length: count }, () => `
+      <div class="skeleton-card">
+        <div class="skeleton-top">
+          <div class="skeleton skeleton-avatar"></div>
+          <div style="flex:1">
+            <div class="skeleton skeleton-line-lg"></div>
+            <div class="skeleton skeleton-line-sm"></div>
+          </div>
+        </div>
+        <div class="skeleton skeleton-line-md"></div>
+        <div class="skeleton-stats">
+          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+          <div><div class="skeleton skeleton-stat-val"></div><div class="skeleton skeleton-stat-lbl"></div></div>
+        </div>
+      </div>
+    `).join('');
+    return `<div class="hof-grid">${items}</div>`;
+  }
+
+  function renderCard(legend, rank) {
+    const { wallet, tier4At, profile: p } = legend;
+    const initial = wallet[0].toUpperCase();
+    const date    = fmtDate(tier4At);
+    const dateHtml = date
+      ? `<div class="legend-since">Legend since <span class="legend-since-date">${date}</span></div>`
+      : '';
+
+    const statsHtml = p ? `
+      <div class="legend-stats">
+        <div class="legend-stat">
+          <div class="legend-stat-value">${fmtNum(p.total_cards)}</div>
+          <div class="legend-stat-label">Total Cards</div>
+        </div>
+        <div class="legend-stat">
+          <div class="legend-stat-value">${fmtNum(p.card_mint?.double_digit)}</div>
+          <div class="legend-stat-label">Mints 1–99</div>
+        </div>
+        <div class="legend-stat">
+          <div class="legend-stat-value">${fmtNum(p.mastery?.total_count)}</div>
+          <div class="legend-stat-label">Mastery Sets</div>
+        </div>
+        <div class="legend-stat">
+          <div class="legend-stat-value">${fmtNum(p.royalty?.total_count)}</div>
+          <div class="legend-stat-label">Royalty Sets</div>
+        </div>
+      </div>
+    ` : '';
+
+    return `
+      <div class="legend-card">
+        <div class="legend-card-top">
+          <div class="legend-avatar">${initial}</div>
+          <div class="legend-info">
+            <a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${wallet}</a>
+            <div><span class="legend-badge">👑 Legend</span></div>
+          </div>
+          <div class="legend-rank">#${rank}</div>
+        </div>
+        ${dateHtml}
+        ${statsHtml}
+      </div>
+    `;
+  }
+
+  async function init() {
+    const container = document.getElementById('hof-content');
+    container.innerHTML = renderSkeletons();
+
+    try {
+      const legends = await fetchLegends();
+      document.getElementById('legend-count').textContent = legends.length;
+
+      if (legends.length === 0) {
+        container.innerHTML = `
+          <div class="hof-empty">
+            <div class="hof-empty-icon">👑</div>
+            <div class="hof-empty-title">No Legends yet</div>
+            <div class="hof-empty-sub">Be the first to complete all 4 tiers and earn your place in the Hall of Fame.</div>
+          </div>
+        `;
+        return;
+      }
+
+      const cards = legends.map((l, i) => renderCard(l, i + 1)).join('');
+      container.innerHTML = `<div class="hof-grid">${cards}</div>`;
+    } catch (e) {
+      console.error('Hall of Fame fetch failed:', e);
+      document.getElementById('legend-count').textContent = '—';
+      container.innerHTML = `<div class="hof-error">Could not load Hall of Fame data. Please try refreshing.</div>`;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

@@ -51,6 +51,7 @@
       background: linear-gradient(135deg, rgba(192,120,40,0.25), rgba(240,168,64,0.1));
       border: 2px solid rgba(240,168,64,0.3);
       display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
       font-size: 1.3rem; font-weight: 800; color: var(--accent-light);
     }
     .profile-wallet-row { display: flex; align-items: center; gap: 0.45rem; }
@@ -64,7 +65,7 @@
     }
     .edit-profile-btn {
       display: inline-block; margin-top: 6px; padding: 0.28rem 0.8rem; border-radius: 999px;
-      cursor: not-allowed; border: 1px solid var(--border); background: none;
+      cursor: pointer; border: 1px solid var(--border); background: none; text-decoration: none;
       font-family: inherit; color: var(--text-secondary); font-size: 0.7rem;
       font-weight: 600; opacity: 0.5;
     }
@@ -264,14 +265,17 @@
       <!-- Profile header -->
       <div id="profile-header">
         <div class="profile-header-left">
-          <div class="profile-avatar" id="profile-avatar-initial">C</div>
+          <div class="profile-avatar" id="profile-avatar">
+            <img id="profile-avatar-img" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
+            <span id="profile-avatar-initial">C</span>
+          </div>
           <div>
             <div class="profile-wallet-row">
               <div class="profile-wallet-name" id="profile-wallet-name">CollectorUsername</div>
               <span class="profile-tier-icon" id="profile-tier-icon" style="display:none"></span>
             </div>
             <div class="profile-current-tier" id="profile-current-tier" style="display:none">📚 Collector</div>
-            <button class="edit-profile-btn" disabled style="display:none">Edit Profile</button>
+            <a href="edit-profile.html" class="edit-profile-btn">Edit Profile</a>
           </div>
         </div>
         <div class="profile-header-right">
@@ -822,7 +826,7 @@
     const enc = encodeURIComponent(wallet);
     const [pRes, tRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/funko_wallet_profiles?wallet=eq.${enc}&select=profile,updated_at`, { headers: SB_HEADERS }),
-      fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=eq.${enc}&select=max_tier,tier_1_at,tier_2_at,tier_3_at,tier_4_at`, { headers: SB_HEADERS }),
+      fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=eq.${enc}&select=max_tier,tier_1_at,tier_2_at,tier_3_at,tier_4_at,username,avatar`, { headers: SB_HEADERS }),
     ]);
     const pData = pRes.ok ? await pRes.json() : [];
     const tData = tRes.ok ? await tRes.json() : [];
@@ -831,6 +835,8 @@
       updatedAt: pData[0]?.updated_at ?? null,
       maxTier:   tData[0]?.max_tier   ?? 0,
       tierDates: [null, tData[0]?.tier_1_at ?? null, tData[0]?.tier_2_at ?? null, tData[0]?.tier_3_at ?? null, tData[0]?.tier_4_at ?? null],
+      username:  tData[0]?.username   ?? null,
+      avatar:    tData[0]?.avatar     ?? null,
       loaded:    true,
     };
   }
@@ -847,7 +853,25 @@
 
   /* ── Render ── */
   function renderAll() {
-    const { profile, updatedAt, maxTier, tierDates, loaded } = appState;
+    const { profile, updatedAt, maxTier, tierDates, username, avatar, loaded } = appState;
+
+    // Username and avatar
+    const nameEl    = document.getElementById('profile-wallet-name');
+    const imgEl     = document.getElementById('profile-avatar-img');
+    const initialEl = document.getElementById('profile-avatar-initial');
+    const wallet    = window.getWaxAccount ? window.getWaxAccount() : '';
+    if (nameEl) nameEl.textContent = username || wallet;
+    if (imgEl && initialEl) {
+      if (avatar) {
+        imgEl.src           = avatar;
+        imgEl.style.display = '';
+        initialEl.style.display = 'none';
+      } else {
+        imgEl.style.display     = 'none';
+        initialEl.style.display = '';
+        initialEl.textContent   = wallet ? wallet[0].toUpperCase() : '?';
+      }
+    }
 
     // Sync notice date
     const syncDateEl = document.getElementById('sync-notice-date');
@@ -1065,10 +1089,6 @@
 
     gate.style.display    = 'none';
     content.style.display = '';
-    const nameEl    = document.getElementById('profile-wallet-name');
-    const initialEl = document.getElementById('profile-avatar-initial');
-    if (nameEl)    nameEl.textContent    = wallet;
-    if (initialEl) initialEl.textContent = wallet[0].toUpperCase();
 
     appState = { profile: null, updatedAt: null, maxTier: 0, loaded: false };
     renderAll();

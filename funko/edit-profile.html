@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Profile — Funko Digital — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; max-width: 480px; }
+
+    .edit-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; display: flex; flex-direction: column; gap: 1.75rem;
+    }
+
+    /* ── Avatar ── */
+    .avatar-section { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    .avatar-preview {
+      width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(240,192,64,0.2), rgba(192,120,40,0.1));
+      border: 2px solid rgba(240,192,64,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; font-weight: 800; color: #f0c040;
+      overflow: hidden; position: relative;
+    }
+    .avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .avatar-initial { position: absolute; }
+    .avatar-btn {
+      padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border); background: none;
+      font-family: inherit; color: var(--text-secondary); transition: border-color 0.15s, color 0.15s;
+    }
+    .avatar-btn:hover { border-color: var(--accent-light); color: var(--accent-light); }
+    .avatar-remove {
+      font-size: 0.72rem; color: var(--text-secondary); background: none; border: none;
+      cursor: pointer; font-family: inherit; padding: 0; display: none;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .avatar-remove:hover { color: #e05252; }
+    #avatar-file-input { display: none; }
+
+    /* ── Username ── */
+    .field { display: flex; flex-direction: column; gap: 0.5rem; }
+    .field-label {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .field-input-row { position: relative; }
+    .field-input {
+      width: 100%; box-sizing: border-box;
+      background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.6rem 3rem 0.6rem 0.85rem;
+      font-family: inherit; font-size: 0.95rem; color: var(--text-primary);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field-input:focus { border-color: var(--accent-light); }
+    .field-input::placeholder { color: var(--text-secondary); opacity: 0.6; }
+    .char-count {
+      position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+      font-size: 0.7rem; color: var(--text-secondary); pointer-events: none;
+    }
+    .char-count.over { color: #e05252; }
+    .field-hint { font-size: 0.75rem; color: var(--text-secondary); }
+
+    /* ── Actions ── */
+    .actions { display: flex; align-items: center; gap: 1rem; }
+    .save-btn {
+      padding: 0.55rem 1.5rem; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; border: none; font-family: inherit;
+      background: var(--accent-light); color: #0a0a0f;
+      transition: background 0.2s, color 0.2s, opacity 0.15s;
+    }
+    .save-btn:hover:not(:disabled) { opacity: 0.85; }
+    .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .save-btn--saved { background: #22c55e; color: #fff; }
+    .cancel-link {
+      font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
+      transition: color 0.15s;
+    }
+    .cancel-link:hover { color: var(--text-primary); }
+
+    /* ── Feedback ── */
+    .feedback {
+      padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.85rem; display: none;
+    }
+    .feedback.success { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); color: #4ade80; }
+    .feedback.error   { background: rgba(224,82,82,0.08);  border: 1px solid rgba(224,82,82,0.25);  color: #f87171; }
+
+    /* ── Connect gate ── */
+    .connect-gate {
+      padding: 3rem 1.5rem; text-align: center; display: flex; flex-direction: column;
+      align-items: center; gap: 1rem;
+    }
+    .connect-gate-icon { font-size: 2rem; opacity: 0.4; }
+    .connect-gate-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+    .connect-gate-sub { font-size: 0.85rem; color: var(--text-secondary); }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Edit <span class="accent">Profile</span></div>
+      <div class="page-subtitle">Set a display name and avatar visible in the Hall of Fame.</div>
+    </div>
+
+    <!-- Connect gate -->
+    <div id="connect-gate" class="connect-gate" style="display:none">
+      <div class="connect-gate-icon">🔒</div>
+      <div class="connect-gate-title">Wallet not connected</div>
+      <div class="connect-gate-sub">Connect your WAX wallet to edit your profile.</div>
+    </div>
+
+    <!-- Edit form -->
+    <div id="edit-form" style="display:none">
+      <div class="edit-card">
+
+        <!-- Avatar -->
+        <div class="avatar-section">
+          <div class="avatar-preview" id="avatar-preview">
+            <img id="avatar-img" alt="Avatar" />
+            <span class="avatar-initial" id="avatar-initial"></span>
+          </div>
+          <button class="avatar-btn" id="avatar-btn" type="button">Upload photo</button>
+          <button class="avatar-remove" id="avatar-remove" type="button">Remove photo</button>
+          <input type="file" id="avatar-file-input" accept="image/*" />
+        </div>
+
+        <!-- Username -->
+        <div class="field">
+          <div class="field-label">Display Name</div>
+          <div class="field-input-row">
+            <input class="field-input" id="username-input" type="text" maxlength="20"
+                   placeholder="Your name…" autocomplete="off" spellcheck="false" />
+            <span class="char-count" id="char-count">0 / 20</span>
+          </div>
+          <div class="field-hint">Shown in the Hall of Fame instead of your wallet address. Max 20 characters.</div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="feedback" id="feedback"></div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button class="save-btn" id="save-btn" type="button">Save</button>
+          <a href="profile.html" class="cancel-link">← Back to profile</a>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../shared/supabase-config.js"></script>
+<script src="nav.js"></script>
+<script>
+  const SB_HEADERS_READ = {
+    'apikey':          SUPABASE_ANON_KEY,
+    'Authorization':   'Bearer ' + SUPABASE_ANON_KEY,
+    'Accept-Profile':  'funko',
+  };
+  const SB_HEADERS_WRITE = {
+    ...SB_HEADERS_READ,
+    'Content-Type':    'application/json',
+    'Content-Profile': 'funko',
+    'Prefer':          'resolution=merge-duplicates',
+  };
+
+  const MAX_AVATAR_PX = 128;
+  const MAX_USERNAME  = 20;
+
+  let currentWallet = null;
+  let pendingAvatar = undefined; // undefined = no change; null = remove; string = new data URL
+
+  /* ── Avatar resize ── */
+  function resizeToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        canvas.width  = MAX_AVATAR_PX;
+        canvas.height = MAX_AVATAR_PX;
+        const ctx = canvas.getContext('2d');
+        const side = Math.min(img.width, img.height);
+        const sx   = (img.width  - side) / 2;
+        const sy   = (img.height - side) / 2;
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, MAX_AVATAR_PX, MAX_AVATAR_PX);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  /* ── Avatar preview ── */
+  function setPreview(dataUrl) {
+    const imgEl     = document.getElementById('avatar-img');
+    const initialEl = document.getElementById('avatar-initial');
+    const removeBtn = document.getElementById('avatar-remove');
+    if (dataUrl) {
+      imgEl.src           = dataUrl;
+      imgEl.style.display = 'block';
+      initialEl.style.display = 'none';
+      removeBtn.style.display = '';
+    } else {
+      imgEl.src           = '';
+      imgEl.style.display = 'none';
+      initialEl.style.display = '';
+      removeBtn.style.display = 'none';
+    }
+  }
+
+  function setInitial(wallet) {
+    document.getElementById('avatar-initial').textContent = wallet ? wallet[0].toUpperCase() : '?';
+  }
+
+  /* ── Save button state ── */
+  function setSaved(saved) {
+    const btn = document.getElementById('save-btn');
+    btn.textContent = saved ? 'Saved ✓' : 'Save';
+    btn.classList.toggle('save-btn--saved', saved);
+  }
+
+  /* ── Feedback ── */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedback');
+    el.textContent   = msg;
+    el.className     = `feedback ${type}`;
+    el.style.display = '';
+  }
+  function hideFeedback() {
+    document.getElementById('feedback').style.display = 'none';
+  }
+
+  /* ── Load existing profile ── */
+  async function loadProfile(wallet) {
+    const enc = encodeURIComponent(wallet);
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=eq.${enc}&select=username,avatar`,
+      { headers: SB_HEADERS_READ }
+    );
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!rows.length) return;
+    const { username, avatar } = rows[0];
+    if (username) document.getElementById('username-input').value = username;
+    updateCharCount();
+    if (avatar) {
+      setPreview(avatar);
+    } else {
+      setPreview(null);
+    }
+  }
+
+  /* ── Char counter ── */
+  function updateCharCount() {
+    const input = document.getElementById('username-input');
+    const count = document.getElementById('char-count');
+    const len   = input.value.length;
+    count.textContent = `${len} / ${MAX_USERNAME}`;
+    count.classList.toggle('over', len > MAX_USERNAME);
+  }
+
+  /* ── Save ── */
+  async function save() {
+    const btn      = document.getElementById('save-btn');
+    const username = document.getElementById('username-input').value.trim();
+
+    if (username.length > MAX_USERNAME) {
+      showFeedback(`Display name must be ${MAX_USERNAME} characters or fewer.`, 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    hideFeedback();
+
+    // Determine avatar value to send
+    let avatarValue;
+    if (pendingAvatar === undefined) {
+      avatarValue = undefined; // don't include in payload — no change
+    } else {
+      avatarValue = pendingAvatar; // null = remove, string = new image
+    }
+
+    const payload = { wallet: currentWallet, username: username || null };
+    if (avatarValue !== undefined) payload.avatar = avatarValue;
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/funko_collector_tiers`, {
+        method:  'POST',
+        headers: SB_HEADERS_WRITE,
+        body:    JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || `HTTP ${res.status}`);
+      }
+      pendingAvatar = undefined;
+      setSaved(true);
+    } catch (e) {
+      console.error('Save failed:', e);
+      showFeedback('Save failed. Please try again.', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* ── Wire events ── */
+  function wireEvents() {
+    document.getElementById('username-input').addEventListener('input', () => {
+      hideFeedback();
+      updateCharCount();
+      setSaved(false);
+    });
+
+    document.getElementById('avatar-btn').addEventListener('click', () => {
+      document.getElementById('avatar-file-input').click();
+    });
+
+    document.getElementById('avatar-file-input').addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const dataUrl  = await resizeToDataUrl(file);
+        pendingAvatar  = dataUrl;
+        setPreview(dataUrl);
+        hideFeedback();
+        setSaved(false);
+      } catch {
+        showFeedback('Could not load image. Please try another file.', 'error');
+      }
+      e.target.value = ''; // reset so same file can be re-selected
+    });
+
+    document.getElementById('avatar-remove').addEventListener('click', () => {
+      pendingAvatar = null;
+      setPreview(null);
+      hideFeedback();
+      setSaved(false);
+    });
+
+    document.getElementById('save-btn').addEventListener('click', save);
+  }
+
+  /* ── Entry point ── */
+  async function onWalletChange() {
+    const wallet  = window.getWaxAccount ? window.getWaxAccount() : null;
+    const gate    = document.getElementById('connect-gate');
+    const form    = document.getElementById('edit-form');
+
+    if (!wallet) {
+      gate.style.display = '';
+      form.style.display = 'none';
+      currentWallet = null;
+      return;
+    }
+
+    gate.style.display = 'none';
+    form.style.display = '';
+
+    if (wallet !== currentWallet) {
+      currentWallet = wallet;
+      pendingAvatar = undefined;
+      setInitial(wallet);
+      setPreview(null);
+      document.getElementById('username-input').value = '';
+      updateCharCount();
+      await loadProfile(wallet);
+    }
+  }
+
+  window.addEventListener('wax-auth-change', onWalletChange);
+  document.addEventListener('DOMContentLoaded', () => { wireEvents(); onWalletChange(); });
+</script>
+
+</body>
+</html>
