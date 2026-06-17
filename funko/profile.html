@@ -64,10 +64,14 @@
       background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3);
     }
     .edit-profile-btn {
-      display: inline-block; margin-top: 6px; padding: 0.28rem 0.8rem; border-radius: 999px;
-      cursor: pointer; border: 1px solid var(--border); background: none; text-decoration: none;
-      font-family: inherit; color: var(--text-secondary); font-size: 0.7rem;
-      font-weight: 600; opacity: 0.5;
+      display: inline-block; margin-top: 4px; padding: 3px 9px; border-radius: 999px;
+      cursor: pointer; border: 1px solid var(--accent); background: rgba(192,120,40,0.12); text-decoration: none;
+      font-family: inherit; color: var(--accent-light); font-size: 0.7rem;
+      font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      transition: background 0.15s, color 0.15s;
+    }
+    .edit-profile-btn:hover {
+      background: rgba(192,120,40,0.25); color: #fff;
     }
     .profile-header-right { display: flex; align-items: center; }
     #overall-progress {
