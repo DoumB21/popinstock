@@ -190,6 +190,33 @@
     return { data, count };
   }
 
+  let nameMap = {};
+
+  async function fetchDisplayNames(wallets) {
+    const fresh = wallets.filter(w => !(w in nameMap));
+    if (!fresh.length) return;
+    try {
+      const list = fresh.join(',');
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/funko_collector_tiers?wallet=in.(${list})&select=wallet,username`,
+        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Accept-Profile': 'funko' } }
+      );
+      if (!r.ok) return;
+      const rows = await r.json();
+      for (const row of rows) nameMap[row.wallet] = row.username || null;
+      for (const w of fresh) if (!(w in nameMap)) nameMap[w] = null;
+    } catch {}
+  }
+
+  function walletDisplay(wallet) {
+    const name = nameMap[wallet];
+    if (!name) return wallet;
+    return `<span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+      <span>${wallet}</span>
+      <span style="color:#4ade80">${name}</span>
+    </span>`;
+  }
+
   function rankClass(rank) {
     if (rank === 1) return 'rank-1';
     if (rank === 2) return 'rank-2';
@@ -222,9 +249,9 @@
       const tierIcon = mintTierIcon(e.mint_tier);
       return `<tr onclick="window.location='${href}'">
         <td class="rank-cell ${rankClass(pos)}">#${pos}${rankArrow(e.rank, e.rank_snapshot)}</td>
-        <td class="wallet-cell" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${e.wallet}<span style="display:flex;align-items:center;gap:0.35rem;flex-shrink:0">${setBadge}</span></td>
+        <td class="wallet-cell"><div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${walletDisplay(e.wallet)}<span style="display:flex;align-items:center;gap:0.35rem;flex-shrink:0">${setBadge}</span></div></td>
         <td class="col-r">${e.total_sets ?? 1}</td>
-        <td class="col-r" style="display:flex;align-items:center;justify-content:space-between">${tierIcon}${fmtDec(e.avg_mint, 3)}</td>
+        <td class="col-r"><div style="display:flex;align-items:center;justify-content:space-between">${tierIcon}${fmtDec(e.avg_mint, 3)}</div></td>
         <td class="rating-cell">${fmtDec(e.rating, 3)}</td>
       </tr>`;
     }).join('');
@@ -245,9 +272,12 @@
       const href = 'wallet.html?w=' + enc(h.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
       const dim = h.is_official ? ' style="opacity:0.45"' : '';
       const official = h.is_official ? ' <span style="font-size:0.78rem;color:#888">(official)</span>' : '';
+      const walletCell = nameMap[h.wallet]
+        ? `<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span>${h.wallet}${official}</span><span style="color:#4ade80">${nameMap[h.wallet]}</span></span>`
+        : `${h.wallet}${official}`;
       return `<tr${dim} onclick="window.location='${href}'">
         <td class="rank-cell ${rankClass(h.rank)}">#${h.rank}</td>
-        <td class="wallet-cell">${h.wallet}${official}</td>
+        <td class="wallet-cell">${walletCell}</td>
         <td class="col-r">${fmt(h.total_assets)}</td>
       </tr>`;
     }).join('');
@@ -267,6 +297,7 @@
         '&collection_name=eq.' + enc(c) +
         '&schema_name=eq.' + enc(s) +
         '&order=rank.asc&limit=100');
+      await fetchDisplayNames(data.map(h => h.wallet));
       wrap.innerHTML = renderHoldersTable(data);
       const moreWrap = document.getElementById('showMoreWrap');
       if (moreWrap) moreWrap.remove();
@@ -299,6 +330,13 @@
       const royaltyCount   = royaltyResult.count;
       const masteryEntries = masteryResult.data;
       const masteryCount   = masteryResult.count;
+
+      const allWallets = [...new Set([
+        ...royaltyEntries.map(e => e.wallet),
+        ...masteryEntries.map(e => e.wallet),
+        ...holdersData.map(h => h.wallet),
+      ])];
+      await fetchDisplayNames(allWallets);
 
       const col   = colData[0]   || {};
       const stats = statsData[0] || {};

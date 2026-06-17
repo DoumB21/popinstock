@@ -65,7 +65,9 @@
       border: 2px solid rgba(240,192,64,0.4);
       display: flex; align-items: center; justify-content: center;
       font-size: 1.25rem; font-weight: 800; color: #f0c040;
+      overflow: hidden; position: relative;
     }
+    .legend-avatar img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
     .legend-info { min-width: 0; flex: 1; }
     .legend-name {
       font-size: 0.97rem; font-weight: 800; color: var(--text-primary);
@@ -193,7 +195,7 @@
 
   async function fetchLegends() {
     const tiersRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/funko_collector_tiers?max_tier=eq.4&select=wallet,tier_4_at&order=tier_4_at.asc`,
+      `${SUPABASE_URL}/rest/v1/funko_collector_tiers?max_tier=eq.4&select=wallet,tier_4_at,username,avatar&order=tier_4_at.asc`,
       { headers: SB_HEADERS }
     );
     if (!tiersRes.ok) throw new Error(`HTTP ${tiersRes.status}`);
@@ -208,7 +210,7 @@
     const profiles = profilesRes.ok ? await profilesRes.json() : [];
     const profileMap = Object.fromEntries(profiles.map(p => [p.wallet, p.profile]));
 
-    return tiers.map(t => ({ wallet: t.wallet, tier4At: t.tier_4_at, profile: profileMap[t.wallet] ?? null }));
+    return tiers.map(t => ({ wallet: t.wallet, tier4At: t.tier_4_at, username: t.username ?? null, avatar: t.avatar ?? null, profile: profileMap[t.wallet] ?? null }));
   }
 
   function renderSkeletons(count = 6) {
@@ -234,12 +236,20 @@
   }
 
   function renderCard(legend, rank) {
-    const { wallet, tier4At, profile: p } = legend;
-    const initial = wallet[0].toUpperCase();
+    const { wallet, tier4At, username, avatar, profile: p } = legend;
     const date    = fmtDate(tier4At);
     const dateHtml = date
       ? `<div class="legend-since">Legend since <span class="legend-since-date">${date}</span></div>`
       : '';
+
+    const avatarHtml = avatar
+      ? `<div class="legend-avatar"><img src="${avatar}" alt="" /></div>`
+      : `<div class="legend-avatar">${wallet[0].toUpperCase()}</div>`;
+
+    const nameHtml = username
+      ? `<a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${username}</a>
+         <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:1px;word-break:break-all">${wallet}</div>`
+      : `<a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${wallet}</a>`;
 
     const statsHtml = p ? `
       <div class="legend-stats">
@@ -265,9 +275,9 @@
     return `
       <div class="legend-card">
         <div class="legend-card-top">
-          <div class="legend-avatar">${initial}</div>
+          ${avatarHtml}
           <div class="legend-info">
-            <a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${wallet}</a>
+            ${nameHtml}
             <div><span class="legend-badge">👑 Legend</span></div>
           </div>
           <div class="legend-rank">#${rank}</div>
