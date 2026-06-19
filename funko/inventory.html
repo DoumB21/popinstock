@@ -1662,8 +1662,11 @@ document.getElementById('colFilter').addEventListener('change', e => {
 
 document.getElementById('schemaFilter').addEventListener('change', e => {
   _filterSchema = e.target.value;
-  _selectedRarities.clear();
-  _selectedCardIds.clear();
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const availRarities = new Set(getAvailableValues(_filterCol, schema, 'rarity'));
+  const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
+  for (const r of [..._selectedRarities]) if (!availRarities.has(r)) _selectedRarities.delete(r);
+  for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
   refreshFilterDropdowns();
   loadAssets(true);
 });
