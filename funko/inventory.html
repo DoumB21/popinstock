@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory — PopInStock</title>
+  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    /* ── Auth gate ── */
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 3rem 2rem; text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint { font-size: 0.88rem; }
+
+    /* ── Controls card (filter panel) ── */
+    .controls-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .controls-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 140px; }
+    .control-group--wide { flex: 2; min-width: 200px; }
+    .control-group--narrow { flex: 0 0 auto; }
+    .control-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .filter-row { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .mint-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .mint-range-inputs .control-input { flex: 1; min-width: 0; }
+    .range-sep { color: var(--text-secondary); flex-shrink: 0; }
+    #cardIdGroup { max-width: 175px; }
+    .clear-filters-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 0.6rem 0.9rem;
+      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap; font-family: inherit;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .clear-filters-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: var(--text-primary); }
+
+    /* ── Checkbox dropdown ── */
+    .cb-dropdown { position: relative; }
+    .cb-dropdown-btn {
+      display: flex; align-items: center; gap: 0.45rem;
+      width: 100%;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.6rem 0.9rem;
+      color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
+      cursor: pointer; transition: border-color 0.2s, color 0.15s;
+    }
+    .controls-card .cb-dropdown-btn { background: var(--bg); }
+    .cb-dropdown-btn:hover,
+    .cb-dropdown-btn.open { border-color: rgba(192,120,40,0.5); }
+    .cb-dropdown-btn.has-selection { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
+    .cb-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+    .cb-arrow { font-size: 0.7rem; opacity: 0.55; transition: transform 0.15s; flex-shrink: 0; }
+    .cb-dropdown-btn.open .cb-arrow { transform: rotate(180deg); }
+    .cb-panel {
+      position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 0.35rem 0;
+      min-width: 160px; max-height: 280px; overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+    }
+    .cb-item {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.42rem 0.85rem; cursor: pointer;
+      font-size: 0.83rem; color: var(--text-primary);
+      transition: background 0.1s;
+    }
+    .cb-item:hover { background: rgba(255,255,255,0.05); }
+    .cb-item input[type=checkbox] {
+      accent-color: var(--accent-light); width: 14px; height: 14px;
+      flex-shrink: 0; cursor: pointer;
+    }
+
+    /* ── Spinner ── */
+    .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty ── */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .empty-state strong { display: block; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.4rem; }
+
+    /* ── Inventory grid ── */
+    .inv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.75rem;
+    }
+    .inv-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      display: flex; flex-direction: column;
+    }
+    .inv-card:hover {
+      border-color: rgba(240,168,64,0.45);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
+    .inv-card.is-listed { border-color: rgba(240,168,64,0.2); }
+    .inv-card.is-listed:hover { border-color: rgba(240,168,64,0.55); }
+
+    .inv-card-img {
+      width: 100%; aspect-ratio: 1 / 1; background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+      position: relative;
+    }
+    .inv-card-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .inv-img-placeholder { color: var(--text-secondary); font-size: 1.5rem; opacity: 0.3; }
+    .inv-card-mint {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      color: var(--accent-light); font-size: 0.65rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.3);
+      pointer-events: none;
+    }
+
+    .inv-card-info { padding: 0.55rem 0.7rem 0.4rem; flex: 1; }
+    .inv-card-name {
+      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 0.15rem;
+    }
+    .inv-card-meta { font-size: 0.68rem; color: #9999bb; }
+    .inv-card-floor { font-size: 0.69rem; font-weight: 600; color: #c8903a; margin-top: 0.2rem; }
+    .inv-card-listed-price {
+      font-size: 0.7rem; font-weight: 700; color: #4ade80;
+      margin-top: 0.15rem;
+    }
+
+    .inv-card-foot { padding: 0.4rem 0.7rem 0.65rem; }
+    .inv-card-btn {
+      width: 100%; font-size: 0.72rem; font-weight: 700;
+      padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .inv-card-btn--list {
+      background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12);
+      color: var(--text-secondary);
+    }
+    .inv-card:hover .inv-card-btn--list {
+      background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.35);
+      color: var(--accent-light);
+    }
+    .inv-card-btn--edit {
+      background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.35);
+      color: var(--accent-light);
+    }
+    .inv-card:hover .inv-card-btn--edit {
+      background: rgba(240,168,64,0.18); border-color: rgba(240,168,64,0.6);
+    }
+
+    /* ── Load more ── */
+    .load-more-btn {
+      background: rgba(240,168,64,0.08); border: 1px solid rgba(240,168,64,0.3);
+      color: var(--accent-light); border-radius: 8px; padding: 0.55rem 1.75rem;
+      font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .load-more-btn:hover:not(:disabled) { background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.55); }
+    .load-more-btn:disabled { opacity: 0.45; cursor: default; }
+
+    /* ── Modal overlay ── */
+    .panel-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 200; backdrop-filter: blur(2px);
+    }
+
+    /* ── Listing modal ── */
+    .listing-modal {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 201; width: 420px; max-width: calc(100vw - 2rem);
+      max-height: 90vh; overflow-y: auto;
+      background: var(--bg-card); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 1.5rem 0;
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+    .modal-close {
+      background: none; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 1.1rem; padding: 0.25rem; line-height: 1;
+      border-radius: 4px; transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+    .modal-body { padding: 1.25rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+
+    .modal-asset-img {
+      width: 180px; height: 180px; margin: 0 auto;
+      border-radius: 12px; background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border); overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-asset-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .panel-img-placeholder { color: var(--text-secondary); font-size: 2rem; opacity: 0.3; }
+
+    .modal-asset-info { text-align: center; }
+    .modal-asset-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem; }
+    .modal-asset-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
+    .modal-asset-mint { font-size: 0.8rem; color: var(--accent-light); font-weight: 600; }
+
+    .modal-info-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,255,255,0.04); border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+    }
+    .modal-info-label { font-size: 0.78rem; color: var(--text-secondary); }
+    .modal-info-val { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+    .modal-info-val.loading { color: var(--text-secondary); font-style: italic; font-weight: 400; }
+    .modal-info-val.current-price { color: var(--accent-light); }
+
+    .modal-price-label {
+      font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem;
+    }
+    .modal-price-row {
+      display: flex; align-items: center;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .modal-price-row:focus-within { border-color: rgba(240,168,64,0.5); }
+    .modal-price-input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text-primary); font-size: 1rem; font-weight: 600;
+      padding: 0.65rem 0.9rem; font-variant-numeric: tabular-nums;
+    }
+    .modal-price-input::-webkit-outer-spin-button,
+    .modal-price-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .modal-price-input[type=number] { -moz-appearance: textfield; }
+    .modal-price-input::placeholder { color: var(--text-secondary); font-weight: 400; font-size: 0.88rem; }
+    .modal-price-unit {
+      padding: 0.65rem 0.9rem 0.65rem 0;
+      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600;
+    }
+
+    .modal-msg {
+      font-size: 0.82rem; border-radius: 6px; padding: 0.55rem 0.8rem; text-align: center;
+    }
+    .modal-msg--error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+    .modal-msg--success { background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+
+    .modal-actions { display: flex; gap: 0.65rem; }
+    .modal-btn {
+      flex: 1; font-size: 0.88rem; font-weight: 700; padding: 0.65rem 1rem;
+      border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .modal-btn--cancel {
+      background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);
+      color: var(--text-secondary);
+    }
+    .modal-btn--cancel:not(:disabled):hover { background: rgba(255,255,255,0.1); }
+    .modal-btn--danger {
+      background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.35);
+      color: #e05252;
+    }
+    .modal-btn--danger:not(:disabled):hover { background: rgba(224,82,82,0.2); border-color: rgba(224,82,82,0.55); }
+    .modal-btn--list {
+      background: rgba(240,168,64,0.12); border-color: rgba(240,168,64,0.4);
+      color: var(--accent-light);
+    }
+    .modal-btn--list:not(:disabled):hover { background: rgba(240,168,64,0.22); border-color: rgba(240,168,64,0.65); }
+
+    .modal-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; }
+
+    @media (max-width: 600px) {
+      .inv-grid { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.6rem; }
+    }
+
+    /* ── Info popup (click) ── */
+    .info-popup {
+      position: fixed; z-index: 301; width: 240px;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 0.9rem 1rem 0.85rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.65);
+      font-size: 0.78rem;
+    }
+    .info-popup-close {
+      background: none; border: none; color: var(--text-secondary);
+      cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
+      flex-shrink: 0; transition: color 0.15s;
+    }
+    .info-popup-close:hover { color: var(--text-primary); }
+    /* ── Hover tooltip ── */
+    .hover-tooltip {
+      position: fixed; z-index: 300; width: 200px;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 0.85rem 1rem;
+      pointer-events: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      font-size: 0.78rem;
+    }
+    .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
+    .tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+    .tt-label { color: var(--text-secondary); }
+    .tt-val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .tt-val-copiable { display:inline-flex; align-items:center; gap:4px; }
+    .copy-btn { background:none; border:none; padding:0 1px; cursor:pointer; color:var(--text-secondary); font-size:0.72rem; line-height:1; opacity:0.55; transition:opacity 0.15s, color 0.15s; flex-shrink:0; vertical-align:middle; }
+    .copy-btn:hover { opacity:1; color:var(--accent-light); }
+    .copy-btn.copied { color:#4ade80; opacity:1; }
+    .tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.6rem 0; }
+    .tt-heading { font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem; }
+    .tt-red    { color: #f87171; }
+    .tt-purple { color: #a78bfa; }
+    .tt-orange { color: var(--accent-light); }
+  </style>
+  <script src="../shared/supabase-config.js"></script>
+  <script src="nav.js"></script>
+</head>
+<body>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title">My <span class="accent">Inventory</span></h1>
+    <p class="page-desc">Click any NFT to list it for sale on the WAX blockchain.</p>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to browse your inventory.</p>
+  </div>
+
+  <div id="toolbar" class="controls-card" style="display:none;">
+    <div class="controls-row">
+      <div class="control-group">
+        <label class="control-label">Search</label>
+        <input id="searchInput" type="search" class="control-input" placeholder="Search by name…" autocomplete="off" />
+      </div>
+      <div class="control-group control-group--wide">
+        <label class="control-label">Collection</label>
+        <select id="colFilter" class="control-select">
+          <option value="all">All collections</option>
+        </select>
+      </div>
+      <div class="control-group control-group--narrow">
+        <label class="control-label">Sort by</label>
+        <select id="sortOrder" class="control-select">
+          <option value="transferred_desc">Transferred (Newest)</option>
+          <option value="transferred_asc">Transferred (Oldest)</option>
+          <option value="mint_desc">Mint (Highest)</option>
+          <option value="mint_asc">Mint (Lowest)</option>
+          <option value="name_asc">Alphabetical (A-Z)</option>
+        </select>
+      </div>
+    </div>
+    <div class="controls-row filter-row">
+      <div class="control-group" id="schemaGroup" style="display:none;">
+        <label class="control-label">Schema</label>
+        <select id="schemaFilter" class="control-select">
+          <option value="all">All schemas</option>
+        </select>
+      </div>
+      <div class="control-group" id="rarityGroup" style="display:none;">
+        <label class="control-label">Rarity</label>
+        <div class="cb-dropdown" id="rarityDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">All rarities</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="control-group" id="cardIdGroup" style="display:none;">
+        <label class="control-label">Card ID</label>
+        <div class="cb-dropdown" id="cardIdDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">All card IDs</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="control-group">
+        <label class="control-label">Mint range</label>
+        <div class="mint-range-inputs">
+          <input id="mintMin" type="number" class="control-input" placeholder="Min" min="1" />
+          <span class="range-sep">—</span>
+          <input id="mintMax" type="number" class="control-input" placeholder="Max" min="1" />
+        </div>
+      </div>
+      <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end;">
+        <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadWrap" class="status-wrap" style="display:none;">
+    <div class="spinner"></div>
+    <div>Loading inventory…</div>
+  </div>
+
+  <div id="emptyWrap" class="empty-state" style="display:none;">
+    <strong>No NFTs found</strong>
+    No items match the current filter.
+  </div>
+
+  <div id="invGrid" class="inv-grid" style="display:none;"></div>
+
+  <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
+    <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+  </div>
+</main>
+
+<div id="panelOverlay" class="panel-overlay" style="display:none;"></div>
+<div id="listingModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
+<div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
+<div id="infoPopup" class="info-popup" style="display:none;"></div>
+
+<script>
+'use strict';
+
+// Asset inventory queries — official endpoint times out on sort=transferred from JS, use alternates first
+const ATOMIC_ENDPOINTS = [
+  'https://atomic.wax.eosrio.io',
+  'https://aa.wax.blacklusion.io',
+  'https://wax.api.atomicassets.io',
+];
+let _endpointIdx = 0;
+function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.length]; }
+
+// Market/sales queries — official endpoint has the freshest index; no CORS timeout here
+const MARKET_API = 'https://wax.api.atomicassets.io';
+
+const PAGE_SIZE  = 18;
+const MAKER      = 'popinstockgo';
+
+const SORT_OPTIONS = [
+  { value: 'transferred_desc', label: 'Transferred (Newest)', sort: 'transferred',   order: 'desc' },
+  { value: 'transferred_asc',  label: 'Transferred (Oldest)', sort: 'transferred',   order: 'asc'  },
+  { value: 'mint_desc',        label: 'Mint (Highest)',        sort: 'template_mint', order: 'desc' },
+  { value: 'mint_asc',         label: 'Mint (Lowest)',         sort: 'template_mint', order: 'asc'  },
+  { value: 'name_asc',         label: 'Alphabetical (A-Z)',    sort: 'name',          order: 'asc'  },
+];
+
+let _assets          = [];
+let _listings        = new Map();   // asset_id → { sale_id, price_wax }
+let _page            = 1;
+let _hasMore         = false;
+let _loading         = false;
+let _filterText          = '';
+let _filterCol           = 'all';
+let _filterSchema        = 'all';
+const _selectedRarities  = new Set();
+const _selectedCardIds   = new Set();
+let _filterMintMin       = '';
+let _filterMintMax       = '';
+let _debounceTimer       = null;
+const _schemaCache       = {};  // collection_name → [schema_name, ...]
+const _templateCache     = {};  // collection_name → [{template_id, schema_name, rarity, cardid}]
+let _collections      = new Set();
+let _collectionNames  = new Map();  // collection_name → display name
+let _collectionCounts = new Map();  // collection_name → asset count
+let _totalAssets      = null;       // total NFT count across all collections
+let _sortOrder       = 'transferred_desc';
+let _selected        = null;        // asset open in modal
+let _selectedListing = null;        // listing for that asset (null = not listed)
+let _floorCache      = {};          // templateId → { price, loaded }
+let _listBusy        = false;
+let _activeWallet    = null;    // tracks last connected wallet; null = fresh page load
+const _supplyCache   = {};          // templateId → Promise<supply>
+const _ownedCache    = {};          // `${wallet}:${tid}` → Promise<owned>
+
+const SB_HEADERS = {
+  'apikey': SUPABASE_ANON_KEY,
+  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+  'Accept-Profile': 'funko',
+};
+
+const RARITY_CLASS = {
+  'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
+  'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
+  'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1',
+};
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Helpers                                                                    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchWithRetry(url, retries = 2) {
+  let currentUrl = url;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(currentUrl);
+      if (res.status !== 408 || attempt === retries) return res;
+    } catch (err) {
+      if (attempt === retries) throw err;
+    }
+    // rotate to next provider and patch the URL
+    const oldBase = ATOMIC_ENDPOINTS.find(ep => currentUrl.startsWith(ep)) || ATOMIC_ENDPOINTS[0];
+    _endpointIdx++;
+    currentUrl = currentUrl.replace(oldBase, atomicApi());
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+function imgUrl(hash) {
+  if (!hash) return '';
+  if (hash.startsWith('http')) return hash;
+  const gw = (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/';
+  return gw + hash;
+}
+
+function assetMediaHtml(a, extraAttr = '', eager = false) {
+  const d     = a.data || {};
+  const t     = a.template?.immutable_data || {};
+  const video = d.video || t.video || '';
+  const img   = d.img || d.image || t.img || t.image || '';
+  if (video) {
+    if (eager) return `<video src="${imgUrl(video)}" muted playsinline loop autoplay style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+    return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+  }
+  if (img)   return `<img src="${imgUrl(img)}" alt="${a.name || ''}" ${extraAttr} onerror="this.style.display='none'">`;
+  return '<div class="inv-img-placeholder">?</div>';
+}
+
+function filtered() {
+  if (!_filterText) return _assets;
+  const q = _filterText.toLowerCase();
+  return _assets.filter(a =>
+    (a.name || '').toLowerCase().includes(q) ||
+    (a.collection?.collection_name || '').toLowerCase().includes(q)
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Lazy video loader                                                          */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+let _videoObserver = null;
+
+function initLazyVideos() {
+  if (_videoObserver) _videoObserver.disconnect();
+
+  _videoObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        if (video.dataset.src && !video.src) {
+          video.src = video.dataset.src;
+          video.load();
+        }
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+        // Unload src to free decoder memory; browser cache makes reload instant
+        if (video.src) {
+          video.removeAttribute('src');
+          video.load();
+        }
+      }
+    }
+  }, { rootMargin: '300px' }); // pre-load 300px ahead so videos are ready before they're visible
+
+  document.querySelectorAll('.inv-card-img video[data-src]').forEach(v => _videoObserver.observe(v));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Surgical card patch — updates one card without touching the rest of the DOM */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function patchCard(assetId) {
+  const id   = String(assetId);
+  const card = document.querySelector(`.inv-card[data-id="${id}"]`);
+  if (!card) return;
+  const listing = _listings.get(id);
+
+  if (listing) {
+    card.classList.add('is-listed');
+    let priceEl = card.querySelector('.inv-card-listed-price');
+    if (!priceEl) {
+      priceEl = document.createElement('div');
+      priceEl.className = 'inv-card-listed-price';
+      card.querySelector('.inv-card-info').appendChild(priceEl);
+    }
+    priceEl.textContent = `Listed: ${listing.price_wax.toFixed(2)} WAX`;
+  } else {
+    card.classList.remove('is-listed');
+    card.querySelector('.inv-card-listed-price')?.remove();
+  }
+
+  const btn = card.querySelector('.inv-card-btn');
+  if (btn) {
+    const listed = !!listing;
+    btn.className   = `inv-card-btn ${listed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}`;
+    btn.textContent = listed ? 'Edit listing' : 'List for sale';
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Card events                                                                */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function attachCardEvents(card, asset) {
+  card.addEventListener('click', () => {
+    if (_infoAsset?.asset_id === asset.asset_id && document.getElementById('infoPopup').style.display !== 'none') {
+      closeInfoPopup();
+    } else {
+      openInfoPopup(card, asset);
+    }
+  });
+
+  const btn = card.querySelector('.inv-card-btn');
+  if (btn) btn.addEventListener('click', e => { e.stopPropagation(); openModal(asset); });
+
+  card.addEventListener('mouseenter', () => {
+    if (document.getElementById('listingModal').style.display !== 'none') return;
+    if (document.getElementById('infoPopup').style.display !== 'none') return;
+    scheduleTooltip(card, asset);
+  });
+  card.addEventListener('mouseleave', cancelTooltip);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Info popup (click)                                                         */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function closeInfoPopup() {
+  _infoAsset = null;
+  document.getElementById('infoPopup').style.display = 'none';
+}
+
+function positionInfoPopup(cardEl) {
+  const popup = document.getElementById('infoPopup');
+  const rect  = cardEl.getBoundingClientRect();
+  const PW    = 256;
+  const PH    = popup.offsetHeight || 320;
+  let left = rect.right + 10;
+  if (left + PW > window.innerWidth - 8) left = rect.left - PW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + PH > window.innerHeight - 8) top = window.innerHeight - PH - 8;
+  if (top < 8) top = 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+function renderInfoContent(asset, supply, owned) {
+  const loading  = !supply && !owned;
+  const dash     = loading ? '…' : '—';
+  const fmt      = n => n != null ? Number(n).toLocaleString() : dash;
+  const d        = asset.data || {};
+  const t        = asset.template?.immutable_data || {};
+  const rarity   = d.rarity || t.rarity || '';
+  const rClass   = RARITY_CLASS[rarity] || '';
+  const colName  = asset.collection?.name || asset.collection?.collection_name || '';
+  const schema   = asset.schema?.schema_name || '';
+  const cardid   = d.cardid || t.cardid || null;
+  const issued   = supply?.issued ?? null;
+  const circ     = supply?.circ   ?? null;
+  const locked   = supply?.locked ?? 0;
+  const burned   = issued != null && circ != null ? issued - circ : null;
+  const listing  = _listings.get(String(asset.asset_id));
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${asset.name || 'Unknown'}</div>
+      <button class="info-popup-close" onclick="closeInfoPopup()">✕</button>
+    </div>
+    <div class="tt-heading">Attributes</div>
+    <div class="tt-section" style="margin-bottom:0.5rem">
+      ${colName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${colName}</span></div>` : ''}
+      ${schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${schema}</span></div>` : ''}
+      ${rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${rarity}</span></span></div>` : ''}
+      ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
+      ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${asset.asset_id}<button class="copy-btn" onclick="copyVal(this,'${asset.asset_id}')" title="Copy asset ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
+      ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${asset.template.template_id}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${asset.template.template_id}<button class="copy-btn" onclick="copyVal(this,'${asset.template.template_id}')" title="Copy template ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
+    </div>
+    <div class="tt-divider"></div>
+    <div class="tt-heading">Supply</div>
+    <div class="tt-section">
+      <div class="tt-row"><span class="tt-label">Issued</span><span class="tt-val">${fmt(issued)}</span></div>
+      ${burned > 0 || supply?.showBurned || supply?.funko || loading ? `<div class="tt-row"><span class="tt-label">Burned</span><span class="tt-val tt-red">${fmt(burned)}</span></div>` : ''}
+      ${locked > 0 || supply?.funko ? `<div class="tt-row"><span class="tt-label">Locked (Droppp)</span><span class="tt-val tt-purple">${fmt(locked)}</span></div>` : ''}
+      <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
+    </div>
+    <div class="tt-divider"></div>
+    <div class="tt-heading">You</div>
+    <div class="tt-section">
+      <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
+      ${owned?.count > 0 ? `<div class="tt-row"><span class="tt-label">Lowest mint</span><span class="tt-val tt-orange">#${Number(owned.lowestMint).toLocaleString()}</span></div>` : ''}
+    </div>
+  `;
+}
+
+async function openInfoPopup(cardEl, asset) {
+  cancelTooltip();
+  _infoAsset = asset;
+  const popup = document.getElementById('infoPopup');
+  popup.innerHTML = renderInfoContent(asset, null, null);
+  positionInfoPopup(cardEl);
+  popup.style.display = '';
+
+  const tid    = asset.template?.template_id;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+
+  const [supply, owned] = await Promise.all([
+    tid ? fetchSupply(tid, asset) : Promise.resolve(null),
+    tid && wallet ? fetchOwned(wallet, tid) : Promise.resolve(null),
+  ]);
+
+  if (_infoAsset?.asset_id !== asset.asset_id) return;
+  popup.innerHTML = renderInfoContent(asset, supply, owned);
+  positionInfoPopup(cardEl);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Hover tooltip                                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+let _tooltipTimer = null;
+let _tooltipAsset = null;
+let _infoAsset    = null;
+
+function copyVal(btn, text) {
+  navigator.clipboard.writeText(String(text)).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1200);
+  }).catch(() => {});
+}
+
+function scheduleTooltip(cardEl, asset) {
+  cancelTooltip();
+  _tooltipTimer = setTimeout(() => showTooltip(cardEl, asset), 350);
+}
+
+function cancelTooltip() {
+  clearTimeout(_tooltipTimer);
+  _tooltipTimer = null;
+  _tooltipAsset = null;
+  document.getElementById('hoverTooltip').style.display = 'none';
+}
+
+function positionTooltip(cardEl) {
+  const tip  = document.getElementById('hoverTooltip');
+  const rect = cardEl.getBoundingClientRect();
+  const TW   = 216;
+  const TH   = tip.offsetHeight || 170;
+  let left = rect.right + 10;
+  if (left + TW > window.innerWidth - 8) left = rect.left - TW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + TH > window.innerHeight - 8) top = window.innerHeight - TH - 8;
+  if (top < 8) top = 8;
+  tip.style.left = left + 'px';
+  tip.style.top  = top  + 'px';
+}
+
+function renderTooltip(asset, supply, owned) {
+  const loading = !supply && !owned;
+  const dash    = loading ? '…' : '—';
+  const fmt     = n => n != null ? Number(n).toLocaleString() : dash;
+
+  const issued = supply?.issued ?? null;
+  const circ   = supply?.circ   ?? null;
+  const locked = supply?.locked ?? 0;
+  const burned = issued != null && circ != null ? issued - circ : null;
+
+  const d       = asset.data || {};
+  const t       = asset.template?.immutable_data || {};
+  const rarity  = d.rarity || t.rarity || '';
+  const rClass  = RARITY_CLASS[rarity] || '';
+  const colName = asset.collection?.name || _collectionNames.get(asset.collection?.collection_name) || asset.collection?.collection_name || '';
+  const schema  = asset.schema?.schema_name || '';
+
+  const cardid = d.cardid || t.cardid || null;
+
+  return `
+    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${asset.name || 'Unknown'}</div>
+    <div class="tt-heading">Attributes</div>
+    <div class="tt-section" style="margin-bottom:0.5rem">
+      ${colName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${colName}</span></div>` : ''}
+      ${schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${schema}</span></div>` : ''}
+      ${rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${rarity}</span></span></div>` : ''}
+      ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
+      ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val">#${asset.asset_id}</span></div>` : ''}
+      ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val">#${asset.template.template_id}</span></div>` : ''}
+    </div>
+    <div class="tt-divider"></div>
+    <div class="tt-heading">Supply</div>
+    <div class="tt-section">
+      <div class="tt-row"><span class="tt-label">Issued</span><span class="tt-val">${fmt(issued)}</span></div>
+      ${burned > 0 || supply?.showBurned || supply?.funko || loading ? `<div class="tt-row"><span class="tt-label">Burned</span><span class="tt-val tt-red">${fmt(burned)}</span></div>` : ''}
+      ${locked > 0 || supply?.funko ? `<div class="tt-row"><span class="tt-label">Locked (Droppp)</span><span class="tt-val tt-purple">${fmt(locked)}</span></div>` : ''}
+      <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
+    </div>
+    <div class="tt-divider"></div>
+    <div class="tt-heading">You</div>
+    <div class="tt-section">
+      <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
+      ${owned?.count > 0 ? `<div class="tt-row"><span class="tt-label">Lowest mint</span><span class="tt-val tt-orange">#${Number(owned.lowestMint).toLocaleString()}</span></div>` : ''}
+    </div>`;
+}
+
+async function showTooltip(cardEl, asset) {
+  const tid    = asset.template?.template_id;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  _tooltipAsset = asset.asset_id;
+
+  const tip = document.getElementById('hoverTooltip');
+  tip.innerHTML = renderTooltip(asset, null, null);
+  positionTooltip(cardEl);
+  tip.style.display = '';
+
+  const [supply, owned] = await Promise.all([
+    tid    ? fetchSupply(tid, asset)   : Promise.resolve(null),
+    tid && wallet ? fetchOwned(wallet, tid) : Promise.resolve(null),
+  ]);
+
+  if (_tooltipAsset !== asset.asset_id) return;
+  tip.innerHTML = renderTooltip(asset, supply, owned);
+  positionTooltip(cardEl);
+}
+
+function fetchSupply(templateId, asset) {
+  if (_supplyCache[templateId]) return _supplyCache[templateId];
+  _supplyCache[templateId] = (async () => {
+    // Try Supabase — if row exists it's a Funko template; show all 4 supply values
+    try {
+      const url  = `${SUPABASE_URL}/rest/v1/templates?select=issued_supply,in_circulation,dp_locked_count&template_id=eq.${templateId}`;
+      const res  = await fetch(url, { headers: SB_HEADERS });
+      if (res.ok) {
+        const rows = await res.json();
+        const r    = Array.isArray(rows) ? rows[0] : null;
+        if (r) return { issued: r.issued_supply ?? null, circ: r.in_circulation ?? null, locked: r.dp_locked_count ?? 0, funko: true };
+      }
+    } catch { /* fall through */ }
+    // Blockchain fallback — non-Funko collection: issued, burned, in circulation
+    try {
+      const col = asset?.collection?.collection_name;
+      if (!col) return null;
+      const url  = `${atomicApi()}/atomicassets/v1/templates/${encodeURIComponent(col)}/${templateId}/stats`;
+      const res  = await fetchWithRetry(url);
+      if (!res.ok) return null;
+      const json = await res.json();
+      const s      = json.data;
+      const issued = s?.assets != null ? Number(s.assets) : null;
+      const burned = s?.burned != null ? Number(s.burned) : 0;
+      const circ   = issued != null ? issued - burned : null;
+      return issued != null ? { issued, circ, locked: 0, showBurned: true } : null;
+    } catch { return null; }
+  })();
+  return _supplyCache[templateId];
+}
+
+function fetchOwned(wallet, templateId) {
+  const key = `${wallet}:${templateId}`;
+  if (_ownedCache[key]) return _ownedCache[key];
+  _ownedCache[key] = (async () => {
+    try {
+      const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_id=${templateId}&sort=template_mint&order=asc&limit=500`;
+      const res  = await fetchWithRetry(url);
+      const json = await res.json();
+      const data = json.data || [];
+      return { count: data.length, lowestMint: data[0]?.template_mint ?? null };
+    } catch { return { count: 0, lowestMint: null }; }
+  })();
+  return _ownedCache[key];
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Schema filter                                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchSchemasForCollection(collection) {
+  if (_schemaCache[collection]) return _schemaCache[collection];
+  try {
+    const url  = `${atomicApi()}/atomicassets/v1/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
+    const res  = await fetchWithRetry(url);
+    const json = await res.json();
+    const schemas = (json.data || []).map(s => s.schema_name).sort();
+    _schemaCache[collection] = schemas;
+    return schemas;
+  } catch {
+    _schemaCache[collection] = [];
+    return [];
+  }
+}
+
+function updateSchemaFilter(schemas) {
+  const sel   = document.getElementById('schemaFilter');
+  const group = document.getElementById('schemaGroup');
+  sel.innerHTML = '<option value="all">All schemas</option>' +
+    schemas.map(s => `<option value="${s}">${s}</option>`).join('');
+  sel.value = _filterSchema;
+  if (group) group.style.display = '';
+}
+
+async function fetchTemplatesForCollection(collection) {
+  if (_templateCache[collection]) return _templateCache[collection];
+  const all = [];
+  let page = 1;
+  while (true) {
+    try {
+      const url  = `${atomicApi()}/atomicassets/v1/templates?collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
+      const res  = await fetchWithRetry(url);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      for (const t of json.data) {
+        all.push({
+          template_id: t.template_id,
+          schema_name: t.schema?.schema_name || '',
+          rarity:      t.immutable_data?.rarity  || '',
+          cardid:      t.immutable_data?.cardid != null ? String(t.immutable_data.cardid) : '',
+        });
+      }
+      if (json.data.length < 1000) break;
+      page++;
+    } catch { break; }
+  }
+  _templateCache[collection] = all;
+  return all;
+}
+
+function getAvailableValues(collection, schema, field) {
+  const templates = _templateCache[collection] || [];
+  const pool = schema && schema !== 'all' ? templates.filter(t => t.schema_name === schema) : templates;
+  const vals = new Set(pool.map(t => t[field]).filter(Boolean));
+  if (field === 'rarity') {
+    const ORDER = ['Common','Uncommon','Rare','Epic','Legendary','Mythic','Grail','Ultra','Series','Royalty','1 of 1'];
+    return [...vals].sort((a, b) => {
+      const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      return ai !== -1 ? -1 : bi !== -1 ? 1 : a.localeCompare(b);
+    });
+  }
+  return [...vals].sort((a, b) => {
+    const na = parseInt(a, 10), nb = parseInt(b, 10);
+    return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function refreshCbLabel(container, selectedSet, allLabel) {
+  const labelEl = container.querySelector('.cb-label');
+  if (!labelEl) return;
+  labelEl.textContent = selectedSet.size === 0 ? allLabel
+    : selectedSet.size === 1 ? [...selectedSet][0]
+    : `${selectedSet.size} selected`;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', selectedSet.size > 0);
+}
+
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').style.display = 'none';
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+
+function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const group = container.closest('.control-group');
+  const panel = container.querySelector('.cb-panel');
+  if (items.length === 0) { if (group) group.style.display = 'none'; return; }
+  if (group) group.style.display = '';
+  panel.innerHTML = items.map(v =>
+    `<label class="cb-item"><input type="checkbox" value="${escHtml(v)}"${selectedSet.has(v) ? ' checked' : ''}><span>${escHtml(v)}</span></label>`
+  ).join('');
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedSet.add(cb.value); else selectedSet.delete(cb.value);
+      refreshCbLabel(container, selectedSet, allLabel);
+      onChange();
+    });
+  });
+  refreshCbLabel(container, selectedSet, allLabel);
+}
+
+function refreshFilterDropdowns() {
+  const col    = _filterCol;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  populateCbDropdown('rarityDropdown', getAvailableValues(col, schema, 'rarity'), _selectedRarities, 'All rarities', () => loadAssets(true));
+  populateCbDropdown('cardIdDropdown', getAvailableValues(col, schema, 'cardid'), _selectedCardIds,  'All card IDs', () => loadAssets(true));
+}
+
+function computeTemplateWhitelist() {
+  if (_filterCol === 'all') return null;
+  const templates = _templateCache[_filterCol];
+  if (!templates) return null;
+  const hasRarity = _selectedRarities.size > 0;
+  const hasCardId = _selectedCardIds.size > 0;
+  if (!hasRarity && !hasCardId) return null;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const ids = templates
+    .filter(t => !schema || t.schema_name === schema)
+    .filter(t => !hasRarity || _selectedRarities.has(t.rarity))
+    .filter(t => !hasCardId || _selectedCardIds.has(t.cardid))
+    .map(t => t.template_id);
+  return ids.length > 0 ? ids.join(',') : 'EMPTY';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Grid rendering                                                             */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function renderGrid() {
+  const grid  = document.getElementById('invGrid');
+  const empty = document.getElementById('emptyWrap');
+  const list  = filtered();
+
+  if (list.length === 0) {
+    grid.style.display  = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.style.display  = '';
+
+  grid.innerHTML = list.map(cardHtml).join('');
+
+  grid.querySelectorAll('.inv-card').forEach(card => {
+    const asset = _assets.find(a => a.asset_id === card.dataset.id);
+    if (asset) attachCardEvents(card, asset);
+  });
+}
+
+function cardHtml(a) {
+  const mint    = a.template_mint ? `#${a.template_mint}` : '';
+  const col     = a.collection?.collection_name || '';
+  const listing = _listings.get(String(a.asset_id));
+  const isListed = !!listing;
+  return `
+    <div class="inv-card${isListed ? ' is-listed' : ''}" data-id="${a.asset_id}">
+      <div class="inv-card-img">
+        ${assetMediaHtml(a, 'loading="lazy"')}
+        ${mint ? `<span class="inv-card-mint">${mint}</span>` : ''}
+      </div>
+      <div class="inv-card-info">
+        <div class="inv-card-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
+        <div class="inv-card-meta">${col}</div>
+        ${a.template?.template_id ? `<div class="inv-card-floor" data-floor-tid="${a.template.template_id}"></div>` : ''}
+        ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX</div>` : ''}
+      </div>
+      <div class="inv-card-foot">
+        <button class="inv-card-btn ${isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}">
+          ${isListed ? 'Edit listing' : 'List for sale'}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function appendCards(newAssets) {
+  const grid = document.getElementById('invGrid');
+  grid.style.display = '';
+
+  const frag = document.createDocumentFragment();
+  for (const a of newAssets) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml(a).trim();
+    const card = wrap.firstElementChild;
+    attachCardEvents(card, a);
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+
+  // Observe only the newly added video elements
+  grid.querySelectorAll('.inv-card-img video[data-src]:not([data-obs])').forEach(v => {
+    v.dataset.obs = '1';
+    _videoObserver?.observe(v);
+  });
+
+}
+
+function updateColFilter() {
+  const sel = document.getElementById('colFilter');
+  const totalLabel = _totalAssets != null ? Number(_totalAssets).toLocaleString() : _collections.size;
+  sel.innerHTML = `<option value="all">All collections (${totalLabel})</option>` +
+    [..._collections].sort((a, b) => {
+      const na = (_collectionNames.get(a) || a).toLowerCase();
+      const nb = (_collectionNames.get(b) || b).toLowerCase();
+      return na < nb ? -1 : na > nb ? 1 : 0;
+    }).map(c => {
+      const name  = _collectionNames.get(c) || c;
+      const count = _collectionCounts.get(c);
+      const label = count != null ? `${name} (${Number(count).toLocaleString()})` : name;
+      return `<option value="${c}">${label}</option>`;
+    }).join('');
+  if ([...sel.options].some(o => o.value === _filterCol)) sel.value = _filterCol;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Data loading                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchAllCollections(wallet) {
+  try {
+    const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}`);
+    const json = await res.json();
+    if (!json.success) return;
+    if (json.data?.assets != null) _totalAssets = json.data.assets;
+    for (const entry of (json.data?.collections || [])) {
+      const col = entry.collection;
+      if (!col?.collection_name) continue;
+      _collections.add(col.collection_name);
+      if (col.name) _collectionNames.set(col.collection_name, col.name);
+      if (entry.assets != null) _collectionCounts.set(col.collection_name, entry.assets);
+    }
+    updateColFilter();
+  } catch (err) {
+    console.error('Failed to fetch collections:', err);
+  }
+}
+
+async function fetchListings(wallet) {
+  _listings.clear();
+  try {
+    const limit = 100;
+    let page = 1;
+    while (true) {
+      const url  = `${MARKET_API}/atomicmarket/v1/sales?state=1&seller=${encodeURIComponent(wallet)}&limit=${limit}&page=${page}`;
+      const res  = await fetchWithRetry(url);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      for (const sale of json.data) {
+        const precision = sale.price?.token_precision ?? sale.token?.token_precision ?? 8;
+        const rawPrice  = sale.price?.amount ?? sale.listing_price;
+        const price_wax = Number(rawPrice) / Math.pow(10, precision);
+        for (const asset of (sale.assets || [])) {
+          _listings.set(String(asset.asset_id), { sale_id: sale.sale_id, price_wax });
+        }
+      }
+      if (json.data.length < limit) break;
+      page++;
+    }
+  } catch (err) {
+    console.error('Failed to fetch listings:', err);
+  }
+}
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (_filterCol    !== 'all') p.set('col',    _filterCol);
+  if (_filterSchema !== 'all') p.set('schema', _filterSchema);
+  if (_selectedRarities.size)  p.set('rarity', [..._selectedRarities].join(','));
+  if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
+  if (_filterMintMin)          p.set('mintMin', _filterMintMin);
+  if (_filterMintMax)          p.set('mintMax', _filterMintMax);
+  if (_sortOrder !== SORT_OPTIONS[0].value) p.set('sort', _sortOrder);
+  if (_filterText)             p.set('q',      _filterText);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+}
+
+async function readUrlParams() {
+  const p = new URLSearchParams(location.search);
+  if (!p.toString()) return;
+  _filterCol    = p.get('col')    || 'all';
+  _filterSchema = p.get('schema') || 'all';
+  _selectedRarities.clear();
+  (p.get('rarity') || '').split(',').filter(Boolean).forEach(r => _selectedRarities.add(r));
+  _selectedCardIds.clear();
+  (p.get('cardid') || '').split(',').filter(Boolean).forEach(c => _selectedCardIds.add(c));
+  _filterMintMin = p.get('mintMin') || '';
+  _filterMintMax = p.get('mintMax') || '';
+  _sortOrder     = p.get('sort')   || SORT_OPTIONS[0].value;
+  _filterText    = p.get('q')     || '';
+  document.getElementById('mintMin').value     = _filterMintMin;
+  document.getElementById('mintMax').value     = _filterMintMax;
+  document.getElementById('sortOrder').value   = _sortOrder;
+  document.getElementById('searchInput').value = _filterText;
+  if (_filterCol !== 'all') {
+    const col = _filterCol;
+    // Schema fetch — fire and forget, not needed before loadAssets
+    fetchSchemasForCollection(col).then(schemas => {
+      if (_filterCol !== col) return;
+      if (schemas.length >= 1) updateSchemaFilter(schemas);
+    });
+    // Template cache MUST be ready before loadAssets if rarity/cardid filters are active
+    if (_selectedRarities.size > 0 || _selectedCardIds.size > 0) {
+      await fetchTemplatesForCollection(col);
+      if (_filterCol === col) refreshFilterDropdowns();
+    } else {
+      fetchTemplatesForCollection(col).then(() => {
+        if (_filterCol !== col) return;
+        refreshFilterDropdowns();
+      });
+    }
+  }
+}
+
+async function loadAssets(reset = false, walletChange = false) {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet || _loading) return;
+  if (reset) { _assets = []; _page = 1; _hasMore = false; syncUrl(); }
+
+  if (computeTemplateWhitelist() === 'EMPTY') {
+    document.getElementById('invGrid').style.display      = 'none';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    const ew = document.getElementById('emptyWrap');
+    ew.innerHTML = '<strong>No NFTs found</strong>No items match the current filter.';
+    ew.style.display = '';
+    return;
+  }
+
+  _loading = true;
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading…'; }
+
+  if (reset) {
+    const ew = document.getElementById('emptyWrap');
+    ew.innerHTML = '<strong>No NFTs found</strong>No items match the current filter.';
+    ew.style.display = 'none';
+    document.getElementById('invGrid').style.display      = 'none';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    document.getElementById('loadWrap').style.display     = '';
+  }
+
+  try {
+    const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
+    const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${encodeURIComponent(_filterSchema)}`       : '';
+    const whitelist      = computeTemplateWhitelist(); // 'EMPTY' already handled above
+    const whitelistParam = whitelist ? `&template_whitelist=${whitelist}` : '';
+    const mintMinParam   = _filterMintMin ? `&min_template_mint=${_filterMintMin}` : '';
+    const mintMaxParam   = _filterMintMax ? `&max_template_mint=${_filterMintMax}` : '';
+    const sortOpt        = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
+    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}`;
+
+    let batch = [];
+
+    if (reset) {
+      const [r1] = await Promise.all([
+        fetchWithRetry(`${baseUrl}&page=1`),
+        walletChange ? fetchListings(wallet)      : Promise.resolve(),
+        walletChange ? fetchAllCollections(wallet): Promise.resolve(),
+      ]);
+      if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
+      const j1 = await r1.json();
+      if (!j1.success) throw new Error(j1.message || 'API error');
+
+      batch    = j1.data || [];
+      _hasMore = batch.length === PAGE_SIZE;
+      _page    = 2;
+    } else {
+      const res = await fetchWithRetry(`${baseUrl}&page=${_page}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || 'API error');
+      batch    = json.data || [];
+      _hasMore = batch.length === PAGE_SIZE;
+      _page++;
+    }
+
+    batch.forEach(a => {
+      _assets.push(a);
+      if (a.collection?.collection_name) {
+        _collections.add(a.collection.collection_name);
+        if (a.collection.name) _collectionNames.set(a.collection.collection_name, a.collection.name);
+      }
+    });
+
+    if (reset) {
+      renderGrid();
+      initLazyVideos();
+    } else {
+      appendCards(batch);
+    }
+    loadFloorPricesForCards(batch); // background — doesn't block render
+    document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
+  } catch (err) {
+    console.error('Failed to load inventory:', err);
+    if (reset) {
+      const emptyWrap = document.getElementById('emptyWrap');
+      emptyWrap.innerHTML = `<strong>Failed to load</strong>${err.message || 'Could not reach AtomicAssets API.'}<br><button class="load-more-btn" style="margin-top:1rem" onclick="loadAssets(true,true)">Try again</button>`;
+      emptyWrap.style.display = '';
+    }
+  } finally {
+    _loading = false;
+    if (reset) document.getElementById('loadWrap').style.display = 'none';
+    if (loadMoreBtn) { loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'Load more'; }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Floor price                                                                */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function loadFloorPricesForCards(assets) {
+  const seen = new Set();
+  const todos = assets.filter(a => {
+    const tid = a.template?.template_id;
+    if (!tid || seen.has(tid)) return false;
+    seen.add(tid);
+    return true;
+  });
+
+  const BATCH = 3;
+  for (let i = 0; i < todos.length; i += BATCH) {
+    await Promise.all(todos.slice(i, i + BATCH).map(async a => {
+      const tid   = a.template.template_id;
+      const col   = a.collection?.collection_name || '';
+      const price = await fetchFloorPrice(tid, col);
+      const text  = price != null ? `Floor: ${price.toFixed(2)} WAX` : '';
+      document.querySelectorAll(`[data-floor-tid="${tid}"]`).forEach(el => {
+        el.textContent = text;
+      });
+    }));
+    if (i + BATCH < todos.length) await new Promise(r => setTimeout(r, 120));
+  }
+}
+
+async function fetchFloorPrice(templateId, collection) {
+  if (!templateId) return null;
+  const cached = _floorCache[templateId];
+  if (cached?.loaded) return cached.price;
+
+  _floorCache[templateId] = { loaded: false, price: null };
+  try {
+    const url  = `${MARKET_API}/atomicmarket/v1/sales?state=1&template_id=${templateId}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&sort=price&order=asc&limit=1`;
+    const res  = await fetchWithRetry(url);
+    const json = await res.json();
+    let price  = null;
+    if (json.success && json.data.length > 0) {
+      const sale      = json.data[0];
+      const precision = sale.price?.token_precision ?? sale.token?.token_precision ?? 8;
+      const rawPrice  = sale.price?.amount ?? sale.listing_price;
+      price = Number(rawPrice) / Math.pow(10, precision);
+    }
+    _floorCache[templateId] = { loaded: true, price };
+    return price;
+  } catch {
+    _floorCache[templateId] = { loaded: true, price: null };
+    return null;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Listing modal                                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function openModal(asset) {
+  const listing    = _listings.get(String(asset.asset_id)) || null;
+  _selected        = asset;
+  _selectedListing = listing;
+  _listBusy        = false;
+  renderModal(asset, listing, null, true);
+  document.getElementById('listingModal').style.display = '';
+  document.getElementById('panelOverlay').style.display = '';
+  document.body.style.overflow = 'hidden';
+
+  const tid = asset.template?.template_id;
+  const col = asset.collection?.collection_name || '';
+  if (tid) {
+    fetchFloorPrice(tid, col).then(price => {
+      if (_selected?.asset_id === asset.asset_id) updateModalFloor(price);
+    });
+  }
+}
+
+function closeModal() {
+  _selected        = null;
+  _selectedListing = null;
+  document.getElementById('listingModal').style.display = 'none';
+  document.getElementById('panelOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderModal(asset, listing, floor, loadingFloor) {
+  const isEdit    = !!listing;
+  const mint      = asset.template_mint;
+  const maxSupply = asset.template?.max_supply;
+  const col       = asset.collection?.collection_name || '';
+  const schema    = asset.schema?.schema_name || '';
+  const tid       = asset.template?.template_id;
+
+  const floorText  = loadingFloor ? 'Loading…' : (floor != null ? `${floor.toFixed(2)} WAX` : 'No listings');
+  const floorClass = loadingFloor ? 'modal-info-val loading' : 'modal-info-val';
+
+  document.getElementById('listingModal').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">${isEdit ? 'Edit Listing' : 'List for sale'}</span>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-asset-img">
+        ${assetMediaHtml(asset, '', true)}
+      </div>
+      <div class="modal-asset-info">
+        <div class="modal-asset-name">${asset.name || 'Unknown'}</div>
+        <div class="modal-asset-meta">${col}${schema ? ' · ' + schema : ''}${tid ? ' · #' + tid : ''}</div>
+        ${mint ? `<div class="modal-asset-mint">Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}</div>` : ''}
+      </div>
+
+      ${isEdit ? `
+      <div class="modal-info-row">
+        <span class="modal-info-label">Current listing price</span>
+        <span class="modal-info-val current-price">${listing.price_wax.toFixed(2)} WAX</span>
+      </div>
+      ` : ''}
+
+      <div class="modal-info-row">
+        <span class="modal-info-label">Market floor price</span>
+        <span class="${floorClass}" id="modalFloor">${floorText}</span>
+      </div>
+
+      <div>
+        <div class="modal-price-label">${isEdit ? 'New listing price' : 'Your listing price'}</div>
+        <div class="modal-price-row">
+          <input id="priceInput" type="number" class="modal-price-input"
+            placeholder="0.00" min="0.01" max="10000000" step="0.01" autocomplete="off"
+            oninput="const d=this.value.indexOf('.');if(d!==-1&&this.value.length-d>3)this.value=this.value.slice(0,d+3);"
+            ${isEdit ? `value="${listing.price_wax}"` : ''} />
+          <span class="modal-price-unit">WAX</span>
+        </div>
+      </div>
+
+      <div id="modalMsg" class="modal-msg" style="display:none;"></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn--cancel${isEdit ? ' modal-btn--danger' : ''}" id="modalCancel">${isEdit ? 'Cancel listing' : 'Cancel'}</button>
+        <button class="modal-btn modal-btn--list"   id="modalList">
+          ${isEdit ? 'Update listing' : 'List for sale'}
+        </button>
+      </div>
+
+      <p class="modal-note">Thank you for supporting Pop In Stock.</p>
+    </div>
+  `;
+
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalCancel').addEventListener('click', isEdit ? handleCancelListing : closeModal);
+  document.getElementById('modalList').addEventListener('click', handleList);
+  document.getElementById('panelOverlay').addEventListener('click', closeModal, { once: true });
+  document.getElementById('priceInput').focus();
+}
+
+function updateModalFloor(price) {
+  const el = document.getElementById('modalFloor');
+  if (!el) return;
+  el.className = 'modal-info-val';
+  el.textContent = price != null ? `${price.toFixed(2)} WAX` : 'No listings';
+}
+
+function showModalMsg(text, type) {
+  const el = document.getElementById('modalMsg');
+  if (!el) return;
+  el.className = `modal-msg modal-msg--${type}`;
+  el.textContent = text;
+  el.style.display = '';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Submit transaction                                                         */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function handleCancelListing() {
+  if (_listBusy || !_selected || !_selectedListing) return;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showModalMsg('No wallet connected.', 'error'); return; }
+
+  _listBusy = true;
+  const cancelBtn = document.getElementById('modalCancel');
+  const listBtn   = document.getElementById('modalList');
+  if (cancelBtn) { cancelBtn.disabled = true; cancelBtn.textContent = 'Cancelling…'; }
+  if (listBtn)   listBtn.disabled = true;
+
+  const asset   = _selected;
+  const listing = _selectedListing;
+
+  try {
+    await WaxAuth.transact([{
+      account: 'atomicmarket',
+      name: 'cancelsale',
+      authorization: [{ actor: wallet, permission: 'active' }],
+      data: { sale_id: listing.sale_id },
+    }]);
+    _listings.delete(String(asset.asset_id));
+    patchCard(asset.asset_id);
+    closeModal();
+    fetchListings(wallet); // background sync
+  } catch (err) {
+    console.error('Cancel listing failed:', err);
+    const msg  = (err?.message || '').toLowerCase();
+    const text = (msg.includes('cancel') || msg.includes('user') || msg.includes('abort'))
+      ? 'Transaction cancelled.' : (err.message || 'Transaction failed.');
+    showModalMsg(text, 'error');
+    _listBusy = false;
+    if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel listing'; }
+    if (listBtn)   listBtn.disabled = false;
+  }
+}
+
+async function handleList() {
+  if (_listBusy || !_selected) return;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showModalMsg('No wallet connected.', 'error'); return; }
+
+  const input    = document.getElementById('priceInput');
+  const rawPrice = parseFloat(input?.value);
+  if (!isFinite(rawPrice) || rawPrice <= 0) {
+    showModalMsg('Enter a valid price greater than 0.', 'error');
+    return;
+  }
+  if (rawPrice > 10_000_000) {
+    showModalMsg('Price cannot exceed 10,000,000 WAX.', 'error');
+    return;
+  }
+  // Round to 2 decimal places — no sub-cent price wars
+  const priceWax = Math.round(rawPrice * 100) / 100;
+  if (priceWax < 0.01) {
+    showModalMsg('Price is too small — minimum is 0.01 WAX.', 'error');
+    return;
+  }
+
+  _listBusy = true;
+  const listBtn   = document.getElementById('modalList');
+  const cancelBtn = document.getElementById('modalCancel');
+  if (listBtn)   { listBtn.disabled = true;   listBtn.textContent = _selectedListing ? 'Updating…' : 'Listing…'; }
+  if (cancelBtn)   cancelBtn.disabled = true;
+
+  const asset        = _selected;
+  const listing      = _selectedListing;
+  const listingPrice = `${priceWax.toFixed(8)} WAX`;
+
+  const actions = [];
+
+  if (listing) {
+    actions.push({
+      account: 'atomicmarket',
+      name: 'cancelsale',
+      authorization: [{ actor: wallet, permission: 'active' }],
+      data: { sale_id: listing.sale_id },
+    });
+  }
+
+  actions.push(
+    {
+      account: 'atomicmarket',
+      name: 'announcesale',
+      authorization: [{ actor: wallet, permission: 'active' }],
+      data: {
+        seller: wallet,
+        asset_ids: [asset.asset_id],
+        listing_price: listingPrice,
+        settlement_symbol: '8,WAX',
+        maker_marketplace: MAKER,
+      },
+    },
+    {
+      account: 'atomicassets',
+      name: 'createoffer',
+      authorization: [{ actor: wallet, permission: 'active' }],
+      data: {
+        sender: wallet,
+        recipient: 'atomicmarket',
+        sender_asset_ids: [asset.asset_id],
+        recipient_asset_ids: [],
+        memo: 'sale',
+      },
+    }
+  );
+
+  try {
+    await WaxAuth.transact(actions);
+    // Optimistic update — card reflects the new price immediately, images untouched
+    _listings.set(String(asset.asset_id), { sale_id: null, price_wax: priceWax });
+    patchCard(asset.asset_id);
+    closeModal();
+    // Background refresh to get the real sale_id (needed for future cancel/edit)
+    fetchListings(wallet).then(() => patchCard(asset.asset_id));
+  } catch (err) {
+    console.error('Transaction failed:', err);
+    const msg = (err?.message || '').toLowerCase();
+    const text = msg.includes('cancel') || msg.includes('abort')
+      ? 'Transaction cancelled.'
+      : 'Transaction failed — check the console for details.';
+    showModalMsg(text, 'error');
+    _listBusy = false;
+    if (listBtn)   { listBtn.disabled = false;   listBtn.textContent = listing ? 'Update listing' : 'List for sale'; }
+    if (cancelBtn)   cancelBtn.disabled = false;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Wallet state                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function onWalletChange() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  closeModal();
+  closeInfoPopup();
+  if (!wallet) {
+    document.getElementById('authGate').style.display      = '';
+    document.getElementById('toolbar').style.display       = 'none';
+    document.getElementById('invGrid').style.display       = 'none';
+    document.getElementById('emptyWrap').style.display     = 'none';
+    document.getElementById('loadMoreWrap').style.display  = 'none';
+    _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
+    _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _filterText = ''; _sortOrder = 'transferred_desc';
+    document.getElementById('schemaGroup').style.display  = 'none';
+    document.getElementById('rarityGroup').style.display  = 'none';
+    document.getElementById('cardIdGroup').style.display  = 'none';
+    document.getElementById('mintMin').value = '';
+    document.getElementById('mintMax').value = '';
+    Object.keys(_ownedCache).forEach(k => delete _ownedCache[k]);
+    return;
+  }
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('toolbar').style.display  = '';
+  if (_activeWallet !== null && _activeWallet !== wallet) {
+    // Different wallet connected mid-session — drop URL filters so stale collection doesn't confuse
+    history.replaceState(null, '', location.pathname);
+    document.getElementById('searchInput').value = '';
+    document.getElementById('sortOrder').value   = SORT_OPTIONS[0].value;
+  } else {
+    await readUrlParams();
+  }
+  _activeWallet = wallet;
+  loadAssets(true, true);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Event wiring                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  _filterText = e.target.value.trim();
+  syncUrl();
+  renderGrid();
+});
+
+document.getElementById('colFilter').addEventListener('change', e => {
+  _filterCol = e.target.value;
+  _filterSchema = 'all';
+  _selectedRarities.clear();
+  _selectedCardIds.clear();
+  document.getElementById('schemaGroup').style.display = 'none';
+  document.getElementById('rarityGroup').style.display = 'none';
+  document.getElementById('cardIdGroup').style.display = 'none';
+
+  const col = _filterCol;
+  if (col !== 'all') {
+    fetchSchemasForCollection(col).then(schemas => {
+      if (_filterCol !== col) return;
+      if (schemas.length >= 1) updateSchemaFilter(schemas);
+    });
+    fetchTemplatesForCollection(col).then(() => {
+      if (_filterCol !== col) return;
+      refreshFilterDropdowns();
+    });
+  }
+
+  loadAssets(true);
+});
+
+document.getElementById('schemaFilter').addEventListener('change', e => {
+  _filterSchema = e.target.value;
+  _selectedRarities.clear();
+  _selectedCardIds.clear();
+  refreshFilterDropdowns();
+  loadAssets(true);
+});
+
+function clearFilters() {
+  _filterSchema = 'all';
+  _selectedRarities.clear();
+  _selectedCardIds.clear();
+  _filterMintMin = '';
+  _filterMintMax = '';
+  document.getElementById('schemaFilter').value = 'all';
+  document.getElementById('mintMin').value = '';
+  document.getElementById('mintMax').value = '';
+  document.querySelectorAll('#rarityDropdown input[type=checkbox], #cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  refreshCbLabel(document.getElementById('rarityDropdown'), _selectedRarities, 'All rarities');
+  refreshCbLabel(document.getElementById('cardIdDropdown'), _selectedCardIds, 'All card IDs');
+  loadAssets(true);
+}
+
+function debounceLoad() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => loadAssets(true), 500);
+}
+
+document.getElementById('mintMin').addEventListener('input', e => {
+  _filterMintMin = e.target.value;
+  debounceLoad();
+});
+document.getElementById('mintMax').addEventListener('input', e => {
+  _filterMintMax = e.target.value;
+  debounceLoad();
+});
+document.getElementById('sortOrder').addEventListener('change', e => {
+  _sortOrder = e.target.value;
+  loadAssets(true);
+});
+document.getElementById('loadMoreBtn').addEventListener('click', () => loadAssets(false));
+document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+
+// Checkbox dropdown toggle
+['rarityDropdown', 'cardIdDropdown'].forEach(id => {
+  const container = document.getElementById(id);
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel  = container.querySelector('.cb-panel');
+    const isOpen = panel.style.display !== 'none';
+    closeAllCbDropdowns();
+    if (!isOpen) {
+      panel.style.display = '';
+      container.querySelector('.cb-dropdown-btn').classList.add('open');
+    }
+  });
+});
+
+window.addEventListener('wax-auth-change', onWalletChange);
+document.addEventListener('DOMContentLoaded', onWalletChange);
+
+document.addEventListener('click', e => {
+  const popup = document.getElementById('infoPopup');
+  if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.inv-card')) {
+    closeInfoPopup();
+  }
+  if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
+});
+</script>
+</body>
+</html>

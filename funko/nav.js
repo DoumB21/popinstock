@@ -46,23 +46,34 @@ function buildNav() {
     .nav-wax-btn:disabled { opacity: 0.55; cursor: default; }
     .nav-wax-connected-widget {
       display: none; align-items: center; gap: 6px;
-      padding: 4px 6px 4px 11px; border-radius: 999px; flex-shrink: 0;
+      padding: 4px 11px; border-radius: 999px; flex-shrink: 0;
       border: 1px solid rgba(74,222,128,0.35); background: rgba(74,222,128,0.07);
+      position: relative;
     }
     .nav-wax-name {
       font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
       color: #4ade80; white-space: nowrap; user-select: none;
-      text-decoration: none; transition: opacity 0.15s;
+      background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+      transition: opacity 0.15s;
     }
     .nav-wax-name:hover { opacity: 0.75; }
-    .nav-wax-logout-btn {
-      width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
-      border: 1px solid rgba(74,222,128,0.3); background: none;
-      color: rgba(74,222,128,0.65); cursor: pointer;
-      font-size: 0.62rem; display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    .nav-wax-menu {
+      position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 0.3rem 0; min-width: 165px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     }
-    .nav-wax-logout-btn:hover { background: rgba(224,82,82,0.15); border-color: rgba(224,82,82,0.5); color: #e05252; }
+    .nav-wax-menu-item {
+      display: block; width: 100%; padding: 0.55rem 1rem;
+      font-size: 0.82rem; font-weight: 600; color: var(--text-primary);
+      text-decoration: none; white-space: nowrap; text-align: left;
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      transition: background 0.1s, color 0.1s;
+    }
+    .nav-wax-menu-item:hover { background: rgba(255,255,255,0.06); color: var(--accent-light); }
+    .nav-wax-menu-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 0.3rem 0; }
+    .nav-wax-menu-logout { color: rgba(224,82,82,0.75); }
+    .nav-wax-menu-logout:hover { background: rgba(224,82,82,0.1); color: #e05252; }
   `;
   document.head.appendChild(navStyle);
 
@@ -78,8 +89,13 @@ function buildNav() {
       <div class="nav-links">${links}</div>
       <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">Connect Wallet</button>
       <div id="navWaxConnected" class="nav-wax-connected-widget">
-        <a id="navWaxName" class="nav-wax-name" href="profile.html" title="View your profile"></a>
-        <button id="navWaxLogout" class="nav-wax-logout-btn" title="Logout">✕</button>
+        <button id="navWaxName" class="nav-wax-name" type="button"></button>
+        <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
+          <a href="profile.html" class="nav-wax-menu-item">Collector Profile</a>
+          <a href="inventory.html" class="nav-wax-menu-item">Inventory</a>
+          <div class="nav-wax-menu-divider"></div>
+          <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button">Logout</button>
+        </div>
       </div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -206,8 +222,8 @@ function _updateNavWaxBtn() {
     if (nameEl) {
       const tier = parseInt(localStorage.getItem('wax_funko_tier') || '0', 10);
       const icon = tier >= 1 ? _NAV_TIER_ICONS[tier] + ' ' : '';
-      nameEl.textContent = icon + _waxShort(acc);
-      nameEl.title = 'View profile';
+      nameEl.innerHTML = icon + _waxShort(acc) + ' <span style="font-size:1rem;line-height:1;opacity:0.75">▾</span>';
+      nameEl.title = 'Account options';
     }
   } else {
     if (connectBtn)  { connectBtn.style.display = ''; connectBtn.textContent = 'Connect Wallet'; connectBtn.disabled = false; }
@@ -251,8 +267,17 @@ async function _handleWaxLogout() {
 async function _initWaxBtn() {
   const connectBtn = document.getElementById('navWaxBtn');
   const logoutBtn  = document.getElementById('navWaxLogout');
+  const nameBtn    = document.getElementById('navWaxName');
+  const waxMenu    = document.getElementById('navWaxMenu');
   if (connectBtn) connectBtn.addEventListener('click', _handleWaxClick);
-  if (logoutBtn)  logoutBtn.addEventListener('click', _handleWaxLogout);
+  if (logoutBtn)  logoutBtn.addEventListener('click', () => { waxMenu.style.display = 'none'; _handleWaxLogout(); });
+  if (nameBtn && waxMenu) {
+    nameBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      waxMenu.style.display = waxMenu.style.display === 'none' ? '' : 'none';
+    });
+    document.addEventListener('click', () => { waxMenu.style.display = 'none'; });
+  }
   window.addEventListener('wax-auth-change', _updateNavWaxBtn);
   try {
     await _loadWaxAuth();
