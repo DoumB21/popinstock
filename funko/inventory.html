@@ -531,12 +531,7 @@ function assetMediaHtml(a, extraAttr = '', eager = false) {
 }
 
 function filtered() {
-  if (!_filterText) return _assets;
-  const q = _filterText.toLowerCase();
-  return _assets.filter(a =>
-    (a.name || '').toLowerCase().includes(q) ||
-    (a.collection?.collection_name || '').toLowerCase().includes(q)
-  );
+  return _assets;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1235,8 +1230,9 @@ async function loadAssets(reset = false, walletChange = false) {
     const whitelistParam = whitelist ? `&template_whitelist=${whitelist}` : '';
     const mintMinParam   = _filterMintMin ? `&min_template_mint=${_filterMintMin}` : '';
     const mintMaxParam   = _filterMintMax ? `&max_template_mint=${_filterMintMax}` : '';
+    const matchParam     = _filterText    ? `&match=${encodeURIComponent(_filterText)}` : '';
     const sortOpt        = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
-    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}`;
+    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}`;
 
     let batch = [];
 
@@ -1637,8 +1633,7 @@ async function onWalletChange() {
 
 document.getElementById('searchInput').addEventListener('input', e => {
   _filterText = e.target.value.trim();
-  syncUrl();
-  renderGrid();
+  debounceLoad();
 });
 
 document.getElementById('colFilter').addEventListener('change', e => {
