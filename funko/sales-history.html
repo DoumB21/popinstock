@@ -569,7 +569,7 @@ async function renderTop10(rows) {
 
   try {
     const idStr = [...new Set(top10.map(r => r.template_id))].join(',');
-    const sbData = await sbFetch('templates', `select=template_id,name,rarity,cardid,schema_name,video,img&template_id=in.(${idStr})`);
+    const sbData = await sbFetch('templates', `select=template_id,name,rarity,schema_name,video,img&template_id=in.(${idStr})`);
 
     if (gen !== top10Gen) return;
 
@@ -582,7 +582,7 @@ async function renderTop10(rows) {
       const name   = m.name   || `Template #${r.template_id}`;
       const rarity = m.rarity || '';
       const series = schemaLabel(m.schema_name || r.schema_name);
-      const cardid = m.cardid ? ` · Mint #${m.cardid}` : '';
+      const cardid = r.template_mint ? ` · Mint #${r.template_mint}` : '';
 
       const rarityPill = rarity
         ? `<span class="rarity-pill ${RARITY_CLASS[rarity] || ''}" style="font-size:0.72rem;padding:0.15rem 0.55rem">${rarity}</span>`
@@ -653,7 +653,7 @@ async function renderLast10(rows) {
 
   try {
     const idStr = [...new Set(last10.map(r => r.template_id))].join(',');
-    const sbData = await sbFetch('templates', `select=template_id,name,rarity,cardid,schema_name,video,img&template_id=in.(${idStr})`);
+    const sbData = await sbFetch('templates', `select=template_id,name,rarity,schema_name,video,img&template_id=in.(${idStr})`);
 
     if (gen !== last10Gen) return;
 
@@ -666,7 +666,7 @@ async function renderLast10(rows) {
       const name   = m.name   || `Template #${r.template_id}`;
       const rarity = m.rarity || '';
       const series = schemaLabel(m.schema_name || r.schema_name);
-      const cardid = m.cardid ? ` · Mint #${m.cardid}` : '';
+      const cardid = r.template_mint ? ` · Mint #${r.template_mint}` : '';
 
       const rarityPill = rarity
         ? `<span class="rarity-pill ${RARITY_CLASS[rarity] || ''}" style="font-size:0.72rem;padding:0.15rem 0.55rem">${rarity}</span>`
@@ -702,7 +702,6 @@ async function renderLast10(rows) {
         </div>`;
     }).join('');
   } catch {
-    if (gen !== top10Gen) return;
     if (gen !== last10Gen) return;
     list.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:1rem 0">Could not load last 10 details.</div>';
   }
@@ -835,7 +834,7 @@ async function init() {
   try {
     const [rows, waxEp, collData] = await Promise.all([
       sbFetchAll('funko_sales_history',
-        'select=sale_id,sale_date,created_at,template_id,collection_name,schema_name,wax_amount,usd_amount,seller,buyer&order=sale_date.asc,sale_id.asc'
+        'select=sale_id,sale_date,created_at,template_id,collection_name,schema_name,wax_amount,usd_amount,seller,buyer,template_mint&order=sale_date.asc,sale_id.asc'
       ),
       fetch('data/wax_endpoint.json').then(r => r.json()).catch(() => ({})),
       sbFetch('collections', 'select=collection_name,display_name')
