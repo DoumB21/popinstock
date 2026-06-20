@@ -276,6 +276,10 @@
       color: var(--accent-light);
     }
     .modal-btn--list:not(:disabled):hover { background: rgba(240,168,64,0.22); border-color: rgba(240,168,64,0.65); }
+    .modal-btn--accept {
+      background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.4); color: #22c55e;
+    }
+    .modal-btn--accept:not(:disabled):hover { background: rgba(34,197,94,0.22); border-color: rgba(34,197,94,0.65); }
 
     .modal-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; }
 
@@ -320,6 +324,46 @@
     .tt-red    { color: #f87171; }
     .tt-purple { color: #a78bfa; }
     .tt-orange { color: var(--accent-light); }
+
+    /* ── Buy offers premium banner ── */
+    .buyoffer-banner {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1.25rem; margin-top: 1.25rem; padding: 1.1rem 1.4rem;
+      background: linear-gradient(135deg, rgba(240,168,64,0.10) 0%, rgba(240,168,64,0.04) 100%);
+      border: 1px solid rgba(240,168,64,0.35); border-radius: 12px; flex-wrap: wrap;
+    }
+    .buyoffer-banner-left { display: flex; align-items: center; gap: 0.9rem; }
+    .buyoffer-banner-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
+    .buyoffer-banner-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent-light); margin-bottom: 0.2rem;
+    }
+    .buyoffer-banner-desc { font-size: 0.88rem; color: var(--text-primary); font-weight: 500; line-height: 1.35; }
+    .buyoffer-banner-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+    .buyoffer-fetch-btn {
+      padding: 0.55rem 1.25rem;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
+      border-radius: 8px; color: var(--accent-light); font-size: 0.84rem; font-weight: 700;
+      font-family: inherit; cursor: pointer; white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .buyoffer-fetch-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .buyoffer-fetch-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .buyoffer-progress-wrap { width: 100%; }
+    .buyoffer-progress-label { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.35rem; }
+    .buyoffer-progress-track {
+      height: 5px; background: rgba(240,168,64,0.15); border-radius: 3px; overflow: hidden;
+    }
+    .buyoffer-progress-fill { height: 100%; background: var(--accent-light); border-radius: 3px; transition: width 0.3s; width: 0%; }
+
+    /* ── Card buy offer line ── */
+    .inv-card-buyoffer { font-size: 0.69rem; font-weight: 600; color: #22c55e; margin-top: 0.1rem; display: none; align-items: center; gap: 0.35rem; justify-content: space-between; }
+    .buyoffer-accept-btn {
+      font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.4rem; flex-shrink: 0;
+      background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35);
+      color: #22c55e; border-radius: 4px; cursor: pointer; line-height: 1.5;
+    }
+    .buyoffer-accept-btn:hover { background: rgba(34,197,94,0.22); }
   </style>
   <script src="../shared/supabase-config.js"></script>
   <script src="nav.js"></script>
@@ -330,6 +374,21 @@
   <div class="page-header">
     <h1 class="page-title">My <span class="accent">Inventory</span></h1>
     <p class="page-desc">List your NFTs for sale through Pop In Stock and help support the site and its future development.</p>
+    <div class="buyoffer-banner" id="buyofferBanner">
+      <div class="buyoffer-banner-left">
+        <div class="buyoffer-banner-icon">💎</div>
+        <div>
+          <div class="buyoffer-banner-label">Premium Feature</div>
+          <div class="buyoffer-banner-desc">Fetch active buy offers across all collections in your wallet. Each card will display the best offer price, and you can sort your entire inventory by highest offer.</div>
+          <div class="buyoffer-banner-sub" id="buyofferBannerSub">Connect your wallet to use this feature.</div>
+        </div>
+      </div>
+      <button class="buyoffer-fetch-btn" id="buyofferFetchBtn" onclick="startBuyOfferFetch()" disabled>Fetch Buy Offers →</button>
+      <div class="buyoffer-progress-wrap" id="buyofferProgressWrap" style="display:none">
+        <div class="buyoffer-progress-label" id="buyofferProgressLabel">Fetching…</div>
+        <div class="buyoffer-progress-track"><div class="buyoffer-progress-fill" id="buyofferProgressFill"></div></div>
+      </div>
+    </div>
   </div>
 
   <div id="authGate" class="auth-gate" style="display:none;">
@@ -357,6 +416,7 @@
           <option value="mint_desc">Mint (Highest)</option>
           <option value="mint_asc">Mint (Lowest)</option>
           <option value="name_asc">Alphabetical (A-Z)</option>
+          <option value="buyoffer_desc" id="sortOptBuyoffer" disabled>Best Offer (Highest)</option>
         </select>
       </div>
     </div>
@@ -420,6 +480,7 @@
 
 <div id="panelOverlay" class="panel-overlay" style="display:none;"></div>
 <div id="listingModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
+<div id="acceptOfferModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
 <div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
 <div id="infoPopup" class="info-popup" style="display:none;"></div>
 
@@ -447,6 +508,7 @@ const SORT_OPTIONS = [
   { value: 'mint_desc',        label: 'Mint (Highest)',        sort: 'template_mint', order: 'desc' },
   { value: 'mint_asc',         label: 'Mint (Lowest)',         sort: 'template_mint', order: 'asc'  },
   { value: 'name_asc',         label: 'Alphabetical (A-Z)',    sort: 'name',          order: 'asc'  },
+  { value: 'buyoffer_desc',    label: 'Best Offer (Highest)',  sort: 'transferred',   order: 'desc' },
 ];
 
 let _assets          = [];
@@ -471,8 +533,18 @@ let _totalAssets      = null;       // total NFT count across all collections
 let _sortOrder       = 'transferred_desc';
 let _selected        = null;        // asset open in modal
 let _selectedListing = null;        // listing for that asset (null = not listed)
+let _selectedForAccept = null;      // asset open in accept-offer modal
+let _selectedOffer     = null;      // offer data for accept-offer modal
 let _floorCache      = {};          // templateId → { price, loaded }
+let _buyOffers             = {};         // templateId → highest WAX offer price
+let _buyOffersFetched      = false;
+let _buyOffersBusy         = false;
+let _buyOfferSortedTids    = [];         // template IDs sorted by price desc
+let _buyOfferChunkIdx      = 0;          // next chunk index to fetch
+let _buyOfferBuffer        = [];         // all fetched offer-sorted assets
+let _clientPage            = PAGE_SIZE;  // visible asset count in client-side sort mode
 let _listBusy        = false;
+let _acceptBusy      = false;
 let _activeWallet    = null;    // tracks last connected wallet; null = fresh page load
 const _supplyCache   = {};          // templateId → Promise<supply>
 const _ownedCache    = {};          // `${wallet}:${tid}` → Promise<owned>
@@ -616,6 +688,7 @@ function attachCardEvents(card, asset) {
 
   card.addEventListener('mouseenter', () => {
     if (document.getElementById('listingModal').style.display !== 'none') return;
+    if (document.getElementById('acceptOfferModal').style.display !== 'none') return;
     if (document.getElementById('infoPopup').style.display !== 'none') return;
     scheduleTooltip(card, asset);
   });
@@ -1023,10 +1096,12 @@ function renderGrid() {
   empty.style.display = 'none';
   grid.style.display  = '';
 
-  grid.innerHTML = list.map(cardHtml).join('');
+  const display = _sortOrder === 'buyoffer_desc' ? list.slice(0, _clientPage) : list;
+  grid.innerHTML = display.map(cardHtml).join('');
 
+  const displayed = _sortOrder === 'buyoffer_desc' ? list.slice(0, _clientPage) : list;
   grid.querySelectorAll('.inv-card').forEach(card => {
-    const asset = _assets.find(a => a.asset_id === card.dataset.id);
+    const asset = displayed.find(a => a.asset_id === card.dataset.id);
     if (asset) attachCardEvents(card, asset);
   });
 }
@@ -1046,6 +1121,7 @@ function cardHtml(a) {
         <div class="inv-card-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
         <div class="inv-card-meta">${col}</div>
         ${a.template?.template_id ? `<div class="inv-card-floor" data-floor-tid="${a.template.template_id}"></div>` : ''}
+        ${a.template?.template_id ? `<div class="inv-card-buyoffer" data-buyoffer-tid="${a.template.template_id}"></div>` : ''}
         ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX</div>` : ''}
       </div>
       <div class="inv-card-foot">
@@ -1274,6 +1350,8 @@ async function loadAssets(reset = false, walletChange = false) {
       appendCards(batch);
     }
     loadFloorPricesForCards(batch); // background — doesn't block render
+    if (_buyOffersFetched) updateBuyOfferCards();
+    updateBuyOfferBanner();
     document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
   } catch (err) {
     console.error('Failed to load inventory:', err);
@@ -1339,6 +1417,339 @@ async function fetchFloorPrice(templateId, collection) {
   } catch {
     _floorCache[templateId] = { loaded: true, price: null };
     return null;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Buy offers (premium)                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function updateBuyOfferCards() {
+  document.querySelectorAll('[data-buyoffer-tid]').forEach(el => {
+    const tid   = el.dataset.buyofferTid;
+    const offer = _buyOffers[tid];
+    if (offer != null) {
+      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX</span><button class="buyoffer-accept-btn">Accept</button>`;
+      el.style.display = 'flex';
+      el.querySelector('.buyoffer-accept-btn')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const assetId = el.closest('.inv-card')?.dataset.id;
+        const asset   = _assets.find(a => String(a.asset_id) === assetId);
+        if (asset) openAcceptOfferModal(asset, offer);
+      });
+    } else {
+      el.style.display = 'none';
+      el.innerHTML = '';
+    }
+  });
+}
+
+function updateBuyOfferBanner() {
+  const btn = document.getElementById('buyofferFetchBtn');
+  const sub = document.getElementById('buyofferBannerSub');
+  if (!btn) return;
+  const wallet = WaxAuth?.getAccount?.() || null;
+  if (!wallet) {
+    btn.disabled = true;
+    sub.textContent = 'Connect your wallet to use this feature.';
+    return;
+  }
+  if (_buyOffersBusy) return;
+  const n = _collections.size;
+  if (_buyOffersFetched) {
+    const count = Object.keys(_buyOffers).length;
+    sub.textContent = `${count} templates with active buy offers found across ${n} collection${n !== 1 ? 's' : ''}.`;
+    btn.textContent = 'Refresh →';
+  } else {
+    sub.textContent = n > 0
+      ? `${n} collection${n !== 1 ? 's' : ''} detected in your wallet — typically takes ${Math.ceil(n * 0.2)} – ${Math.ceil(n * 0.5)} seconds.`
+      : 'Load your inventory first.';
+  }
+  btn.disabled = n === 0;
+}
+
+async function fetchBuyOffersForCollection(col) {
+  const needed = new Set(
+    _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
+           .map(a => String(a.template.template_id))
+  );
+  let page = 1;
+  while (true) {
+    let json;
+    try {
+      const res = await fetch(`${MARKET_API}/atomicmarket/v1/template_buyoffers?state=0&collection_whitelist=${encodeURIComponent(col)}&sort=price&order=desc&limit=100&page=${page}&symbol=WAX`);
+      json = await res.json();
+    } catch { break; }
+    if (!json.success || !json.data.length) break;
+    for (const offer of json.data) {
+      const tid = String(offer.template?.template_id || '');
+      if (!tid) continue;
+      if (_buyOffers[tid] == null) {
+        _buyOffers[tid] = {
+          price:           Number(offer.price.amount) / Math.pow(10, offer.price.token_precision),
+          buyoffer_id:     offer.buyoffer_id,
+          buyer:           offer.buyer,
+          raw_amount:      offer.price.amount,
+          token_precision: offer.price.token_precision,
+        };
+      }
+      needed.delete(tid);
+    }
+    if (needed.size === 0 || json.data.length < 100) break;
+    page++;
+    await new Promise(r => setTimeout(r, 300));
+  }
+}
+
+const BUYOFFER_CHUNK = 200;
+
+async function fetchNextBuyOfferChunk() {
+  const start = _buyOfferChunkIdx * BUYOFFER_CHUNK;
+  if (start >= _buyOfferSortedTids.length) return false;
+
+  const tids     = _buyOfferSortedTids.slice(start, start + BUYOFFER_CHUNK);
+  const wallet   = _activeWallet;
+  const colParam = _filterCol !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
+  _buyOfferChunkIdx++;
+
+  let page = 1;
+  while (true) {
+    try {
+      const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      _buyOfferBuffer.push(...json.data);
+      if (json.data.length < 1000) break;
+      page++;
+      await new Promise(r => setTimeout(r, 150));
+    } catch { break; }
+  }
+
+  _buyOfferBuffer.sort((a, b) => {
+    const pa = _buyOffers[String(a.template?.template_id)]?.price ?? -1;
+    const pb = _buyOffers[String(b.template?.template_id)]?.price ?? -1;
+    return pb - pa;
+  });
+  return true;
+}
+
+async function sortByBuyOffer() {
+  _buyOfferSortedTids = Object.entries(_buyOffers)
+    .sort(([, a], [, b]) => b.price - a.price)
+    .map(([tid]) => tid);
+  if (!_buyOfferSortedTids.length) return;
+
+  _assets           = [];
+  _buyOfferBuffer   = [];
+  _buyOfferChunkIdx = 0;
+  _clientPage       = PAGE_SIZE;
+
+  document.getElementById('loadWrap').style.display     = '';
+  document.getElementById('invGrid').style.display      = 'none';
+  document.getElementById('loadMoreWrap').style.display = 'none';
+
+  await fetchNextBuyOfferChunk();
+  _assets = _buyOfferBuffer;
+
+  document.getElementById('loadWrap').style.display = 'none';
+  renderGrid();
+  loadFloorPricesForCards(_assets.slice(0, _clientPage));
+  updateBuyOfferCards();
+  const hasMore = _assets.length > _clientPage || _buyOfferChunkIdx * BUYOFFER_CHUNK < _buyOfferSortedTids.length;
+  document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+}
+
+async function startBuyOfferFetch() {
+  if (_buyOffersBusy) return;
+  _buyOffersBusy = true;
+  _buyOffers     = {};
+  _buyOffersFetched = false;
+
+  const btn       = document.getElementById('buyofferFetchBtn');
+  const sub       = document.getElementById('buyofferBannerSub');
+  const progWrap  = document.getElementById('buyofferProgressWrap');
+  const progFill  = document.getElementById('buyofferProgressFill');
+  const progLabel = document.getElementById('buyofferProgressLabel');
+  const sortOpt   = document.getElementById('sortOptBuyoffer');
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  if (sortOpt) sortOpt.disabled = true;
+  progWrap.style.display = 'block';
+  progFill.style.width   = '0%';
+
+  const collections = [..._collections];
+  const total = collections.length;
+  let done = 0;
+
+  const BATCH = 10;
+  for (let i = 0; i < collections.length; i += BATCH) {
+    const batch = collections.slice(i, i + BATCH);
+    await Promise.all(batch.map(col => fetchBuyOffersForCollection(col)));
+    done += batch.length;
+    progFill.style.width   = Math.round((done / total) * 100) + '%';
+    progLabel.textContent  = `Fetching buy offers… ${done} / ${total} collections`;
+    updateBuyOfferCards();
+    if (i + BATCH < collections.length) await new Promise(r => setTimeout(r, 350));
+  }
+
+  _buyOffersFetched = true;
+  _buyOffersBusy    = false;
+
+  progWrap.style.display = 'none';
+  btn.disabled = false;
+  if (sortOpt) sortOpt.disabled = false;
+  updateBuyOfferBanner();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Accept offer modal                                                         */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function openAcceptOfferModal(asset, offer) {
+  _selectedForAccept = asset;
+  _selectedOffer     = offer;
+  _acceptBusy        = false;
+  renderAcceptOfferModal(asset, offer);
+  document.getElementById('acceptOfferModal').style.display = '';
+  document.getElementById('panelOverlay').style.display = '';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('panelOverlay').addEventListener('click', closeAcceptOfferModal, { once: true });
+}
+
+function closeAcceptOfferModal() {
+  _selectedForAccept = null;
+  _selectedOffer     = null;
+  document.getElementById('acceptOfferModal').style.display = 'none';
+  document.getElementById('panelOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderAcceptOfferModal(asset, offer) {
+  const mint      = asset.template_mint;
+  const maxSupply = asset.template?.max_supply;
+  const col       = asset.collection?.collection_name || '';
+  const schema    = asset.schema?.schema_name || '';
+  const tid       = asset.template?.template_id;
+
+  document.getElementById('acceptOfferModal').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">Accept Buy Offer</span>
+      <button class="modal-close" id="acceptModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-asset-img">
+        ${assetMediaHtml(asset, '', true)}
+      </div>
+      <div class="modal-asset-info">
+        <div class="modal-asset-name">${asset.name || 'Unknown'}</div>
+        <div class="modal-asset-meta">${col}${schema ? ' · ' + schema : ''}${tid ? ' · #' + tid : ''}</div>
+        ${mint ? `<div class="modal-asset-mint">Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}</div>` : ''}
+      </div>
+
+      <div class="modal-info-row">
+        <span class="modal-info-label">Buy offer</span>
+        <span class="modal-info-val" style="color:#22c55e">${offer.price.toFixed(4)} WAX</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">Offer #</span>
+        <span class="modal-info-val">${offer.buyoffer_id}</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">Buyer</span>
+        <span class="modal-info-val" style="font-size:0.8rem;font-weight:500">${offer.buyer}</span>
+      </div>
+
+      <p style="font-size:0.75rem;color:var(--text-secondary);text-align:center;margin:0">
+        Marketplace and collection royalty fees are deducted from the offer amount.
+      </p>
+
+      <div id="acceptModalMsg" class="modal-msg" style="display:none;"></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn--cancel" id="acceptModalCancel">Cancel</button>
+        <button class="modal-btn modal-btn--accept" id="acceptModalAccept">Accept Offer</button>
+      </div>
+      <p class="modal-note">Thank you for supporting Pop In Stock.</p>
+    </div>
+  `;
+
+  document.getElementById('acceptModalClose').addEventListener('click', closeAcceptOfferModal);
+  document.getElementById('acceptModalCancel').addEventListener('click', closeAcceptOfferModal);
+  document.getElementById('acceptModalAccept').addEventListener('click', handleAcceptOffer);
+}
+
+function showAcceptMsg(text, type) {
+  const el = document.getElementById('acceptModalMsg');
+  if (!el) return;
+  el.className = `modal-msg modal-msg--${type}`;
+  el.textContent = text;
+  el.style.display = 'block';
+}
+
+async function handleAcceptOffer() {
+  if (_acceptBusy || !_selectedForAccept || !_selectedOffer) return;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showAcceptMsg('No wallet connected.', 'error'); return; }
+
+  _acceptBusy = true;
+  const acceptBtn = document.getElementById('acceptModalAccept');
+  const cancelBtn = document.getElementById('acceptModalCancel');
+  if (acceptBtn) { acceptBtn.disabled = true; acceptBtn.textContent = 'Accepting…'; }
+  if (cancelBtn) cancelBtn.disabled = true;
+
+  const asset = _selectedForAccept;
+  const offer = _selectedOffer;
+
+  // EOSIO asset format: amount with token_precision decimal places + " WAX"
+  const waxPrice = (Number(offer.raw_amount) / Math.pow(10, offer.token_precision))
+    .toFixed(offer.token_precision) + ' WAX';
+
+  try {
+    await WaxAuth.transact([
+      {
+        account: 'atomicassets',
+        name: 'createoffer',
+        authorization: [{ actor: wallet, permission: 'active' }],
+        data: {
+          sender:              wallet,
+          recipient:           'atomicmarket',
+          sender_asset_ids:    [asset.asset_id],
+          recipient_asset_ids: [],
+          memo:                'tbuyoffer',
+        },
+      },
+      {
+        account: 'atomicmarket',
+        name: 'fulfilltbuyo',
+        authorization: [{ actor: wallet, permission: 'active' }],
+        data: {
+          seller:            wallet,
+          buyoffer_id:       offer.buyoffer_id,
+          asset_id:          asset.asset_id,
+          expected_price:    waxPrice,
+          taker_marketplace: 'popinstockgo',
+        },
+      },
+    ]);
+
+    const tid = String(asset.template?.template_id || '');
+    if (tid) delete _buyOffers[tid];
+    updateBuyOfferCards();
+
+    showAcceptMsg('Offer accepted! Transaction submitted.', 'success');
+    if (acceptBtn) acceptBtn.textContent = 'Accepted!';
+    setTimeout(closeAcceptOfferModal, 2500);
+    fetchListings(wallet);
+  } catch (err) {
+    console.error('Accept offer failed:', err);
+    const msg  = (err?.message || '').toLowerCase();
+    const text = (msg.includes('cancel') || msg.includes('user') || msg.includes('abort'))
+      ? 'Transaction cancelled.' : (err.message || 'Transaction failed.');
+    showAcceptMsg(text, 'error');
+    _acceptBusy = false;
+    if (acceptBtn) { acceptBtn.disabled = false; acceptBtn.textContent = 'Accept Offer'; }
+    if (cancelBtn) cancelBtn.disabled = false;
   }
 }
 
@@ -1605,6 +2016,9 @@ async function onWalletChange() {
     document.getElementById('loadMoreWrap').style.display  = 'none';
     _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
     _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _filterText = ''; _sortOrder = 'transferred_desc';
+    _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false;
+    const sortOpt = document.getElementById('sortOptBuyoffer'); if (sortOpt) sortOpt.disabled = true;
+    updateBuyOfferBanner();
     document.getElementById('schemaGroup').style.display  = 'none';
     document.getElementById('rarityGroup').style.display  = 'none';
     document.getElementById('cardIdGroup').style.display  = 'none';
@@ -1699,11 +2113,39 @@ document.getElementById('mintMax').addEventListener('input', e => {
   _filterMintMax = e.target.value;
   debounceLoad();
 });
-document.getElementById('sortOrder').addEventListener('change', e => {
+document.getElementById('sortOrder').addEventListener('change', async e => {
   _sortOrder = e.target.value;
-  loadAssets(true);
+  if (_sortOrder === 'buyoffer_desc' && _buyOffersFetched) {
+    await sortByBuyOffer();
+  } else {
+    loadAssets(true);
+  }
 });
-document.getElementById('loadMoreBtn').addEventListener('click', () => loadAssets(false));
+document.getElementById('loadMoreBtn').addEventListener('click', async () => {
+  if (_sortOrder === 'buyoffer_desc') {
+    const btn = document.getElementById('loadMoreBtn');
+    const prev = _clientPage;
+    _clientPage += PAGE_SIZE;
+    if (_clientPage > _buyOfferBuffer.length) {
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      await fetchNextBuyOfferChunk();
+      _assets = _buyOfferBuffer;
+      btn.disabled = false;
+      btn.textContent = 'Load more';
+    }
+    const batch = filtered().slice(prev, _clientPage);
+    if (batch.length) {
+      appendCards(batch);
+      loadFloorPricesForCards(batch);
+      updateBuyOfferCards();
+    }
+    const hasMore = _buyOfferBuffer.length > _clientPage || _buyOfferChunkIdx * BUYOFFER_CHUNK < _buyOfferSortedTids.length;
+    document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+  } else {
+    loadAssets(false);
+  }
+});
 document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
 
 // Checkbox dropdown toggle
