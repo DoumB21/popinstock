@@ -1760,9 +1760,10 @@ function _renderOfferPhase1(asset, offers) {
       </div>
     </div>`;
 
-  document.getElementById('offerModalClose').addEventListener('click', closeOfferModal);
-  document.getElementById('offerModalCancel').addEventListener('click', closeOfferModal);
-  document.querySelectorAll('.offer-select-btn').forEach(btn => {
+  const modal = document.getElementById('acceptOfferModal');
+  modal.querySelector('#offerModalClose').addEventListener('click', closeOfferModal);
+  modal.querySelector('#offerModalCancel').addEventListener('click', closeOfferModal);
+  modal.querySelectorAll('.offer-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const offer = offers[parseInt(btn.dataset.idx)];
       if (offer) _renderOfferPhase2(asset, offer);
@@ -1813,12 +1814,7 @@ function _renderOfferPhase2(asset, offer) {
   document.getElementById('offerModalBack').addEventListener('click', () => {
     _selectedOffer = null;
     _acceptBusy    = false;
-    if (_offerModalOffers !== null) {
-      _renderOfferPhase1(asset, _offerModalOffers);
-    } else {
-      _renderOfferPhase1Loading(asset);
-      _fetchOfferList(asset);
-    }
+    _renderOfferPhase1(asset, _offerModalOffers);
   });
   document.getElementById('acceptModalCancel').addEventListener('click', closeOfferModal);
   document.getElementById('acceptModalAccept').addEventListener('click', handleAcceptOffer);
