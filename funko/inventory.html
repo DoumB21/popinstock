@@ -283,6 +283,29 @@
 
     .modal-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; }
 
+    /* ── Buy offer list (phase 1) ── */
+    .modal-back {
+      background: none; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 1rem; padding: 0.25rem 0.4rem; line-height: 1; border-radius: 4px;
+    }
+    .modal-back:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .offer-list { display: flex; flex-direction: column; gap: 0.45rem; }
+    .offer-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.65rem;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+    }
+    .offer-rank { font-size: 0.72rem; color: var(--text-secondary); width: 1rem; flex-shrink: 0; text-align: right; }
+    .offer-price { font-size: 0.88rem; font-weight: 700; color: #22c55e; flex-shrink: 0; min-width: 7rem; }
+    .offer-buyer { font-size: 0.75rem; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .offer-select-btn {
+      font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; flex-shrink: 0;
+      background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);
+      color: #22c55e; border-radius: 6px; cursor: pointer;
+    }
+    .offer-select-btn:hover { background: rgba(34,197,94,0.2); }
+
     @media (max-width: 600px) {
       .inv-grid { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.6rem; }
     }
@@ -533,8 +556,9 @@ let _totalAssets      = null;       // total NFT count across all collections
 let _sortOrder       = 'transferred_desc';
 let _selected        = null;        // asset open in modal
 let _selectedListing = null;        // listing for that asset (null = not listed)
-let _selectedForAccept = null;      // asset open in accept-offer modal
-let _selectedOffer     = null;      // offer data for accept-offer modal
+let _offerModalAsset  = null;        // asset open in buy offer modal
+let _offerModalOffers = null;        // cached top-10 list for phase 1 (null = not fetched)
+let _selectedOffer    = null;        // offer selected for phase 2
 let _floorCache      = {};          // templateId → { price, loaded }
 let _buyOffers             = {};         // templateId → highest WAX offer price
 let _buyOffersFetched      = false;
@@ -1435,7 +1459,7 @@ function updateBuyOfferCards() {
         e.stopPropagation();
         const assetId = el.closest('.inv-card')?.dataset.id;
         const asset   = _assets.find(a => String(a.asset_id) === assetId);
-        if (asset) openAcceptOfferModal(asset, offer);
+        if (asset) openOfferModal(asset);
       });
     } else {
       el.style.display = 'none';
@@ -1611,49 +1635,139 @@ async function startBuyOfferFetch() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/* Accept offer modal                                                         */
+/* Buy offer modal — 2-phase: offer list → accept confirm                    */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function openAcceptOfferModal(asset, offer) {
-  _selectedForAccept = asset;
-  _selectedOffer     = offer;
-  _acceptBusy        = false;
-  renderAcceptOfferModal(asset, offer);
+function openOfferModal(asset) {
+  _offerModalAsset  = asset;
+  _offerModalOffers = null;
+  _selectedOffer    = null;
+  _acceptBusy       = false;
+  _renderOfferPhase1Loading(asset);
   document.getElementById('acceptOfferModal').style.display = '';
   document.getElementById('panelOverlay').style.display = '';
   document.body.style.overflow = 'hidden';
-  document.getElementById('panelOverlay').addEventListener('click', closeAcceptOfferModal, { once: true });
+  document.getElementById('panelOverlay').addEventListener('click', closeOfferModal, { once: true });
+  _fetchOfferList(asset);
 }
 
-function closeAcceptOfferModal() {
-  _selectedForAccept = null;
-  _selectedOffer     = null;
+function closeOfferModal() {
+  _offerModalAsset  = null;
+  _offerModalOffers = null;
+  _selectedOffer    = null;
   document.getElementById('acceptOfferModal').style.display = 'none';
   document.getElementById('panelOverlay').style.display = 'none';
   document.body.style.overflow = '';
 }
 
-function renderAcceptOfferModal(asset, offer) {
+function _offerAssetHeaderHtml(asset) {
   const mint      = asset.template_mint;
   const maxSupply = asset.template?.max_supply;
   const col       = asset.collection?.collection_name || '';
   const schema    = asset.schema?.schema_name || '';
   const tid       = asset.template?.template_id;
+  return `
+    <div class="modal-asset-img">${assetMediaHtml(asset, '', true)}</div>
+    <div class="modal-asset-info">
+      <div class="modal-asset-name">${asset.name || 'Unknown'}</div>
+      <div class="modal-asset-meta">${col}${schema ? ' · ' + schema : ''}${tid ? ' · #' + tid : ''}</div>
+      ${mint ? `<div class="modal-asset-mint">Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}</div>` : ''}
+    </div>`;
+}
+
+function _renderOfferPhase1Loading(asset) {
+  document.getElementById('acceptOfferModal').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">Buy Offers</span>
+      <button class="modal-close" id="offerModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      ${_offerAssetHeaderHtml(asset)}
+      <div style="text-align:center;color:var(--text-secondary);font-size:0.82rem;padding:1rem 0">Loading offers…</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn--cancel" id="offerModalCancel">Cancel</button>
+      </div>
+    </div>`;
+  document.getElementById('offerModalClose').addEventListener('click', closeOfferModal);
+  document.getElementById('offerModalCancel').addEventListener('click', closeOfferModal);
+}
+
+async function _fetchOfferList(asset) {
+  const tid = asset.template?.template_id;
+  let offers = [];
+  if (tid) {
+    try {
+      const res  = await fetch(`${MARKET_API}/atomicmarket/v1/template_buyoffers?state=0&template_id=${tid}&sort=price&order=desc&limit=10&symbol=WAX`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        offers = json.data.map(o => ({
+          price:           Number(o.price.amount) / Math.pow(10, o.price.token_precision),
+          buyoffer_id:     o.buyoffer_id,
+          buyer:           o.buyer,
+          raw_amount:      o.price.amount,
+          token_precision: o.price.token_precision,
+        }));
+      }
+    } catch { /* show empty list */ }
+  }
+  // Update the cached best offer in case it changed
+  if (offers.length > 0) {
+    _buyOffers[String(tid)] = offers[0];
+    updateBuyOfferCards();
+  }
+  _offerModalOffers = offers;
+  // Only render if the user hasn't closed/navigated away
+  if (_offerModalAsset?.asset_id === asset.asset_id && _selectedOffer === null) {
+    _renderOfferPhase1(asset, offers);
+  }
+}
+
+function _renderOfferPhase1(asset, offers) {
+  const rowsHtml = offers.length === 0
+    ? `<p style="text-align:center;color:var(--text-secondary);font-size:0.82rem;margin:0.5rem 0">No active buy offers found.</p>`
+    : offers.map((o, i) => `
+        <div class="offer-row">
+          <span class="offer-rank">${i + 1}</span>
+          <span class="offer-price">${o.price.toFixed(4)} WAX</span>
+          <span class="offer-buyer">${o.buyer}</span>
+          <button class="offer-select-btn" data-idx="${i}">Accept</button>
+        </div>`).join('');
 
   document.getElementById('acceptOfferModal').innerHTML = `
     <div class="modal-header">
-      <span class="modal-title">Accept Buy Offer</span>
-      <button class="modal-close" id="acceptModalClose" aria-label="Close">✕</button>
+      <span class="modal-title">Buy Offers</span>
+      <button class="modal-close" id="offerModalClose" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
-      <div class="modal-asset-img">
-        ${assetMediaHtml(asset, '', true)}
+      ${_offerAssetHeaderHtml(asset)}
+      <div class="offer-list">${rowsHtml}</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn--cancel" id="offerModalCancel">Cancel</button>
       </div>
-      <div class="modal-asset-info">
-        <div class="modal-asset-name">${asset.name || 'Unknown'}</div>
-        <div class="modal-asset-meta">${col}${schema ? ' · ' + schema : ''}${tid ? ' · #' + tid : ''}</div>
-        ${mint ? `<div class="modal-asset-mint">Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}</div>` : ''}
-      </div>
+    </div>`;
+
+  document.getElementById('offerModalClose').addEventListener('click', closeOfferModal);
+  document.getElementById('offerModalCancel').addEventListener('click', closeOfferModal);
+  document.querySelectorAll('.offer-select-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const offer = offers[parseInt(btn.dataset.idx)];
+      if (offer) _renderOfferPhase2(asset, offer);
+    });
+  });
+}
+
+function _renderOfferPhase2(asset, offer) {
+  _selectedOffer = offer;
+  _acceptBusy    = false;
+
+  document.getElementById('acceptOfferModal').innerHTML = `
+    <div class="modal-header">
+      <button class="modal-back" id="offerModalBack" aria-label="Back">←</button>
+      <span class="modal-title" style="flex:1;text-align:center">Accept Buy Offer</span>
+      <button class="modal-close" id="offerModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      ${_offerAssetHeaderHtml(asset)}
 
       <div class="modal-info-row">
         <span class="modal-info-label">Buy offer</span>
@@ -1679,11 +1793,20 @@ function renderAcceptOfferModal(asset, offer) {
         <button class="modal-btn modal-btn--accept" id="acceptModalAccept">Accept Offer</button>
       </div>
       <p class="modal-note">Thank you for supporting Pop In Stock.</p>
-    </div>
-  `;
+    </div>`;
 
-  document.getElementById('acceptModalClose').addEventListener('click', closeAcceptOfferModal);
-  document.getElementById('acceptModalCancel').addEventListener('click', closeAcceptOfferModal);
+  document.getElementById('offerModalClose').addEventListener('click', closeOfferModal);
+  document.getElementById('offerModalBack').addEventListener('click', () => {
+    _selectedOffer = null;
+    _acceptBusy    = false;
+    if (_offerModalOffers !== null) {
+      _renderOfferPhase1(asset, _offerModalOffers);
+    } else {
+      _renderOfferPhase1Loading(asset);
+      _fetchOfferList(asset);
+    }
+  });
+  document.getElementById('acceptModalCancel').addEventListener('click', closeOfferModal);
   document.getElementById('acceptModalAccept').addEventListener('click', handleAcceptOffer);
 }
 
@@ -1696,7 +1819,7 @@ function showAcceptMsg(text, type) {
 }
 
 async function handleAcceptOffer() {
-  if (_acceptBusy || !_selectedForAccept || !_selectedOffer) return;
+  if (_acceptBusy || !_offerModalAsset || !_selectedOffer) return;
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) { showAcceptMsg('No wallet connected.', 'error'); return; }
 
@@ -1706,10 +1829,10 @@ async function handleAcceptOffer() {
   if (acceptBtn) { acceptBtn.disabled = true; acceptBtn.textContent = 'Accepting…'; }
   if (cancelBtn) cancelBtn.disabled = true;
 
-  const asset = _selectedForAccept;
+  const asset = _offerModalAsset;
   const offer = _selectedOffer;
 
-  // EOSIO asset format: amount with token_precision decimal places + " WAX"
+  // EOSIO asset string format: 8 decimal places + " WAX"
   const waxPrice = (Number(offer.raw_amount) / Math.pow(10, offer.token_precision))
     .toFixed(offer.token_precision) + ' WAX';
 
@@ -1747,7 +1870,7 @@ async function handleAcceptOffer() {
 
     showAcceptMsg('Offer accepted! Transaction submitted.', 'success');
     if (acceptBtn) acceptBtn.textContent = 'Accepted!';
-    setTimeout(closeAcceptOfferModal, 2500);
+    setTimeout(closeOfferModal, 2500);
     fetchListings(wallet);
   } catch (err) {
     console.error('Accept offer failed:', err);
