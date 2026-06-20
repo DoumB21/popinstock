@@ -1429,7 +1429,7 @@ function updateBuyOfferCards() {
     const tid   = el.dataset.buyofferTid;
     const offer = _buyOffers[tid];
     if (offer != null) {
-      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX</span><button class="buyoffer-accept-btn">Accept</button>`;
+      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX</span><button class="buyoffer-accept-btn">View</button>`;
       el.style.display = 'flex';
       el.querySelector('.buyoffer-accept-btn')?.addEventListener('click', e => {
         e.stopPropagation();
