@@ -43,7 +43,7 @@
     #profile-header {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
       padding: 1.1rem 1.5rem; display: flex; justify-content: space-between;
-      align-items: center; gap: 1.5rem; flex-wrap: wrap;
+      align-items: center; flex-wrap: wrap;
     }
     .profile-header-left { display: flex; align-items: center; gap: 1rem; }
     .profile-avatar {
@@ -229,7 +229,7 @@
       #tier-cards { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
-      #profile-header { flex-direction: column; align-items: flex-start; }
+      #profile-header { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
       .profile-header-right { width: 100%; }
       #overall-progress { min-width: unset; width: 100%; }
     }
@@ -291,6 +291,9 @@
             </div>
             <div class="overall-progress-sub">You have completed <strong>13</strong> of <strong>20</strong> achievements.</div>
           </div>
+        </div>
+        <div style="width:100%;margin-top:0.5rem;">
+          <a href="hall-of-fame.html" style="display:inline-flex;align-items:center;gap:0.4rem;color:var(--accent-light);text-decoration:none;font-size:0.9rem;font-weight:600;"><span style="font-size:1.2rem;line-height:1;position:relative;top:-1px;">&#128081;</span> Visit the Hall of Fame</a>
         </div>
       </div>
 
@@ -594,10 +597,10 @@
             <div class="achievement-icon">&#11088;</div>
             <div class="achievement-body">
               <div class="achievement-title">Mastery Master</div>
-              <div class="achievement-desc">Own at least 50 different Mastery sets.</div>
+              <div class="achievement-desc">Own at least 25 different Mastery sets.</div>
               <div class="achievement-bar-row">
                 <div class="achievement-mini-bar"><div class="achievement-mini-fill fill--in-progress" style="width:0%"></div></div>
-                <span class="achievement-mini-label">0 / 50</span>
+                <span class="achievement-mini-label">0 / 25</span>
               </div>
             </div>
             <span class="achievement-status-pill pill--not-started">&#9675; Not Started</span>
@@ -794,7 +797,7 @@
     // Tier 3 — Curator
     { id: 'ach-3-1', tier: 3, check: p => ({ val: p.total_cards                 ?? 0,  target: 10000 }) },
     { id: 'ach-3-2', tier: 3, check: p => ({ val: p.royalty?.unique_count       ?? 0,  target: 50    }) },
-    { id: 'ach-3-3', tier: 3, check: p => ({ val: p.mastery?.unique_count       ?? 0,  target: 50    }) },
+    { id: 'ach-3-3', tier: 3, check: p => ({ val: p.mastery?.unique_count       ?? 0,  target: 25    }) },
     { id: 'ach-3-4', tier: 3, check: p => ({ val: p.rarity?.Mythic?.distinct    ?? 0,  target: 3     }) },
     { id: 'ach-3-5', tier: 3, check: p => ({ val: p.rarity?.Legendary?.count    ?? 0,  target: 75    }) },
     { id: 'ach-3-6', tier: 3, check: p => ({ val: p.rarity?.Epic?.count         ?? 0,  target: 1000  }) },
