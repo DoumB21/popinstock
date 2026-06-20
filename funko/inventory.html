@@ -1544,6 +1544,13 @@ async function sortByBuyOffer() {
   _buyOfferChunkIdx = 0;
   _clientPage       = PAGE_SIZE;
 
+  // Cancel in-flight image loads and release old video observer references
+  // so the browser isn't fetching thousands of old IPFS assets in the background.
+  const prevGrid = document.getElementById('invGrid');
+  prevGrid.querySelectorAll('img').forEach(img => { img.src = ''; });
+  if (_videoObserver) { _videoObserver.disconnect(); _videoObserver = null; }
+  prevGrid.innerHTML = '';
+
   document.getElementById('loadWrap').style.display     = '';
   document.getElementById('invGrid').style.display      = 'none';
   document.getElementById('loadMoreWrap').style.display = 'none';
@@ -1553,6 +1560,7 @@ async function sortByBuyOffer() {
 
   document.getElementById('loadWrap').style.display = 'none';
   renderGrid();
+  initLazyVideos();
   loadFloorPricesForCards(_assets.slice(0, _clientPage));
   updateBuyOfferCards();
   const hasMore = _assets.length > _clientPage || _buyOfferChunkIdx * BUYOFFER_CHUNK < _buyOfferSortedTids.length;
