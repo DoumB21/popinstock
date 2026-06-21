@@ -440,7 +440,7 @@
         <div class="buyoffer-banner-icon">💎</div>
         <div>
           <div class="buyoffer-banner-label">Premium Feature</div>
-          <div class="buyoffer-banner-desc">Fetch active buy offers across all collections in your wallet. Each card will display its best offer price and unlock the <strong>Best Offer (Highest)</strong> sort option.</div>
+          <div class="buyoffer-banner-desc">Fetch active buy offers across all collections in your wallet. Each card will display its best offer price and unlock the <strong>Buy Offer (Highest)</strong> sort option.</div>
           <div class="buyoffer-banner-sub" id="buyofferBannerSub">Connect your wallet to use this feature.</div>
         </div>
       </div>
@@ -477,7 +477,7 @@
           <option value="mint_desc">Mint (Highest)</option>
           <option value="mint_asc">Mint (Lowest)</option>
           <option value="name_asc">Alphabetical (A-Z)</option>
-          <option value="buyoffer_desc" id="sortOptBuyoffer" disabled>Best Offer (Highest)</option>
+          <option value="buyoffer_desc" id="sortOptBuyoffer" disabled>Buy Offer (Highest)</option>
         </select>
       </div>
     </div>
@@ -577,7 +577,7 @@ const SORT_OPTIONS = [
   { value: 'mint_desc',        label: 'Mint (Highest)',        sort: 'template_mint', order: 'desc' },
   { value: 'mint_asc',         label: 'Mint (Lowest)',         sort: 'template_mint', order: 'asc'  },
   { value: 'name_asc',         label: 'Alphabetical (A-Z)',    sort: 'name',          order: 'asc'  },
-  { value: 'buyoffer_desc',    label: 'Best Offer (Highest)',  sort: 'transferred',   order: 'desc' },
+  { value: 'buyoffer_desc',    label: 'Buy Offer (Highest)',  sort: 'transferred',   order: 'desc' },
 ];
 
 let _assets          = [];
@@ -1559,7 +1559,7 @@ function updateBuyOfferBanner() {
   const n = _collections.size;
   if (_buyOffersFetched) {
     const count = Object.keys(_buyOffers).length;
-    sub.textContent = `We found ${count} templates with active buy offers across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Best Offer (Highest)".`;
+    sub.textContent = `We found ${count} templates with active buy offers across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Buy Offer (Highest)".`;
     btn.style.display = 'none';
   } else {
     btn.style.display = '';
