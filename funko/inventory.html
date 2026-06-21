@@ -618,6 +618,7 @@ let _clientPage            = PAGE_SIZE;  // visible asset count in client-side s
 let _listBusy           = false;
 let _listingRoyaltyPct  = 0;
 const _cancelledSaleIds = new Set();
+let _waxUsdRate         = null;
 let _collectionsReady   = false; // sale_ids cancelled this session — filtered out of stale API responses
 
 const MARKET_FEE    = 0.02;
@@ -642,6 +643,19 @@ const RARITY_CLASS = {
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Helpers                                                                    */
 /* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchWaxPrice() {
+  try {
+    const r    = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    const json = await r.json();
+    _waxUsdRate = json?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+function usdTag(wax) {
+  if (!_waxUsdRate || wax == null) return '';
+  return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>`;
+}
 
 async function fetchWithRetry(url, retries = 2) {
   let currentUrl = url;
@@ -734,7 +748,7 @@ function patchCard(assetId) {
       priceEl.className = 'inv-card-listed-price';
       card.querySelector('.inv-card-info').appendChild(priceEl);
     }
-    priceEl.textContent = `Listed: ${listing.price_wax.toFixed(2)} WAX`;
+    priceEl.innerHTML = `Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}`;
   } else {
     card.classList.remove('is-listed');
     card.querySelector('.inv-card-listed-price')?.remove();
@@ -1213,7 +1227,7 @@ function cardHtml(a) {
         <div class="inv-card-meta">${col}</div>
         ${a.template?.template_id ? `<div class="inv-card-floor" data-floor-tid="${a.template.template_id}"></div>` : ''}
         ${a.template?.template_id ? `<div class="inv-card-buyoffer" data-buyoffer-tid="${a.template.template_id}"></div>` : ''}
-        ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX</div>` : ''}
+        ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</div>` : ''}
       </div>
       <div class="inv-card-foot">
         <button class="inv-card-btn ${isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}">
@@ -1484,9 +1498,9 @@ async function loadFloorPricesForCards(assets) {
       const tid   = a.template.template_id;
       const col   = a.collection?.collection_name || '';
       const price = await fetchFloorPrice(tid, col);
-      const text  = price != null ? `Floor: ${price.toFixed(2)} WAX` : '';
+      const text  = price != null ? `Floor: ${price.toFixed(2)} WAX${usdTag(price)}` : '';
       document.querySelectorAll(`[data-floor-tid="${tid}"]`).forEach(el => {
-        el.textContent = text;
+        el.innerHTML = text;
       });
     }));
     if (i + BATCH < todos.length) await new Promise(r => setTimeout(r, 120));
@@ -1530,7 +1544,7 @@ function updateBuyOfferCards() {
     const tid   = el.dataset.buyofferTid;
     const offer = _buyOffers[tid];
     if (offer != null) {
-      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX</span><button class="buyoffer-accept-btn">View</button>`;
+      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX${usdTag(offer.price)}</span><button class="buyoffer-accept-btn">View</button>`;
       el.style.display = 'flex';
       el.querySelector('.buyoffer-accept-btn')?.addEventListener('click', e => {
         e.stopPropagation();
@@ -1822,7 +1836,7 @@ function _renderOfferPhase1(asset, offers) {
         return `
         <div class="offer-row">
           <span class="offer-rank">${i + 1}</span>
-          <span class="offer-price">${o.price.toFixed(4)} WAX</span>
+          <span class="offer-price">${o.price.toFixed(4)} WAX${_waxUsdRate ? `<span style="display:block;font-size:0.75rem;font-weight:400;color:var(--text-secondary)">≈ $${(o.price * _waxUsdRate).toFixed(2)}</span>` : ''}</span>
           <span class="offer-info">
             <span class="offer-buyer">${o.buyer}</span>
             ${dateStr ? `<span class="offer-date">${dateStr}</span>` : ''}
@@ -1899,11 +1913,11 @@ async function _renderOfferPhase2(asset, offer) {
 
       <div class="modal-info-row">
         <span class="modal-info-label">Buy offer</span>
-        <span class="modal-info-val" style="color:var(--accent-light)">${offer.price.toFixed(8)} WAX</span>
+        <span class="modal-info-val" style="color:var(--accent-light)">${offer.price.toFixed(8)} WAX${usdTag(offer.price)}</span>
       </div>
       <div class="modal-info-row">
         <span class="modal-info-label">You receive</span>
-        <span class="modal-info-val" style="color:#22c55e;font-size:1rem">${netAmt.toFixed(8)} WAX</span>
+        <span class="modal-info-val" style="color:#22c55e;font-size:1rem">${netAmt.toFixed(8)} WAX${usdTag(netAmt)}</span>
       </div>
       <div class="modal-info-row">
         <span class="modal-info-label">Offer #</span>
@@ -2115,7 +2129,7 @@ function renderModal(asset, listing, floor, loadingFloor) {
   const schema    = asset.schema?.schema_name || '';
   const tid       = asset.template?.template_id;
 
-  const floorText  = loadingFloor ? 'Loading…' : (floor != null ? `${floor.toFixed(2)} WAX` : 'No listings');
+  const floorText  = loadingFloor ? 'Loading…' : (floor != null ? `${floor.toFixed(2)} WAX${usdTag(floor)}` : 'No listings');
   const floorClass = loadingFloor ? 'modal-info-val loading' : 'modal-info-val';
 
   document.getElementById('listingModal').innerHTML = `
@@ -2136,7 +2150,7 @@ function renderModal(asset, listing, floor, loadingFloor) {
       ${isEdit ? `
       <div class="modal-info-row">
         <span class="modal-info-label">Current listing price</span>
-        <span class="modal-info-val current-price">${listing.price_wax.toFixed(2)} WAX</span>
+        <span class="modal-info-val current-price">${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</span>
       </div>
       ` : ''}
 
@@ -2157,7 +2171,7 @@ function renderModal(asset, listing, floor, loadingFloor) {
       </div>
 
       <div class="modal-info-row modal-info-row--price">
-        <span class="modal-info-label">You receive</span>
+        <div class="modal-info-label">You receive<div id="modalReceiveUsd" style="font-size:0.75rem;color:#4ade80;font-weight:500;margin-top:2px"></div></div>
         <div class="modal-price-row">
           <span id="modalYouReceive" class="modal-price-display">—</span>
           <span class="modal-price-unit">WAX</span>
@@ -2196,7 +2210,7 @@ function updateModalFloor(price) {
   const el = document.getElementById('modalFloor');
   if (!el) return;
   el.className = 'modal-info-val';
-  el.textContent = price != null ? `${price.toFixed(2)} WAX` : 'No listings';
+  el.innerHTML = price != null ? `${price.toFixed(2)} WAX${usdTag(price)}` : 'No listings';
 }
 
 function fmtWax(n) {
@@ -2222,6 +2236,8 @@ function updateListingReceipt(priceStr) {
   const totalFee = MARKET_FEE + ECOSYSTEM_FEE + _listingRoyaltyPct;
   const net = price * (1 - totalFee);
   receiveEl.textContent = fmtWax(net);
+  const usdEl = document.getElementById('modalReceiveUsd');
+  if (usdEl) usdEl.textContent = _waxUsdRate ? `≈ $${(net * _waxUsdRate).toFixed(2)}` : '';
 }
 
 function updateModalFees(royaltyPct) {
@@ -2602,6 +2618,7 @@ document.getElementById('clearFiltersBtn').addEventListener('click', clearFilter
   });
 });
 
+fetchWaxPrice();
 window.addEventListener('wax-auth-change', onWalletChange);
 document.addEventListener('DOMContentLoaded', onWalletChange);
 
