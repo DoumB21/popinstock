@@ -1029,13 +1029,8 @@ function switchTab(tab) {
 }
 
 /* ── Sales history ── */
-function fmtAge(ts) {
-  const sec = Math.floor((Date.now() - Number(ts)) / 1000);
-  if (sec < 60)      return `${sec}s ago`;
-  if (sec < 3600)    return `${Math.floor(sec / 60)}m ago`;
-  if (sec < 86400)   return `${Math.floor(sec / 3600)}h ago`;
-  if (sec < 2592000) return `${Math.floor(sec / 86400)}d ago`;
-  return new Date(Number(ts)).toLocaleDateString();
+function fmtDate(ts) {
+  return new Date(Number(ts)).toLocaleString([], { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 async function fetchSalesHistory() {
@@ -1064,7 +1059,7 @@ function renderSalesHistory() {
       const seller = shortAddr(s.seller || '—');
       const buyer  = shortAddr(s.buyer  || '—');
       return `<tr>
-        <td><span class="mp-history-age">${fmtAge(s.updated_at_time)}</span></td>
+        <td><span class="mp-history-age">${fmtDate(s.updated_at_time)}</span></td>
         <td>Mint #${mint}</td>
         <td class="col-r">
           <div class="mp-history-price">${priceStr}</div>
