@@ -113,6 +113,7 @@
 </div>
 
 <script src="../shared/supabase-config.js"></script>
+<script src="../shared/wax-api.js"></script>
 <script src="nav.js"></script>
 <script>
 'use strict';
@@ -201,13 +202,7 @@ async function sbFetchAll(table, qs) {
 }
 
 /* ── AtomicAssets ── */
-async function apiFetch(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('API ' + r.status);
-  const json = await r.json();
-  if (!json.success) throw new Error('API error');
-  return json.data;
-}
+function apiFetch(url) { return WaxApi.apiFetch(url); }
 
 async function fetchAllPages(baseUrl) {
   const out = [];
@@ -248,8 +243,7 @@ async function startScan() {
   try {
     setProgress('Loading WAX endpoint…', 0);
     if (!waxApi) {
-      const ep = await fetch('data/wax_endpoint.json').then(r => r.json());
-      waxApi = ep.atomicassets;
+      waxApi = WaxApi.aaBase();
     }
 
     setProgress('Loading catalog…', 5);
@@ -415,7 +409,7 @@ function getFiltered() {
 
 function buildRows(cards) {
   return cards.map(t => {
-    const link = `../marketplace.html?template_id=${enc(t.template_id)}&project=funko`;
+    const link = `../marketplace.html?template_id=${enc(t.template_id)}`;
     return `<tr>
       <td>
         <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>

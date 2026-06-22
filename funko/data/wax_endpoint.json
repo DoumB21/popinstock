@@ -1,4 +1,4 @@
 {
-  "atomicassets": "https://wax.eosusa.io/atomicassets/v1",
+  "atomicassets": "https://wax.api.atomicassets.io/atomicassets/v1",
   "atomicmarket": "https://wax.api.atomicassets.io/atomicmarket/v1"
 }

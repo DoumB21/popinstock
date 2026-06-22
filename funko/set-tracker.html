@@ -324,6 +324,7 @@
 </div>
 
 <script src="../shared/supabase-config.js"></script>
+<script src="../shared/wax-api.js"></script>
 <script src="nav.js"></script>
 <script>
   'use strict';
@@ -425,13 +426,7 @@
   }
 
   /* ── AtomicAssets fetch ── */
-  async function apiFetch(url) {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('API ' + r.status);
-    const json = await r.json();
-    if (!json.success) throw new Error('API returned error');
-    return json.data;
-  }
+  function apiFetch(url) { return WaxApi.apiFetch(url); }
 
   async function fetchAllPages(baseUrl) {
     const out = [];
@@ -572,12 +567,8 @@
       setStatus('Initialising…');
       const initTasks = [];
       if (!waxApi) {
-        initTasks.push(
-          fetch('data/wax_endpoint.json').then(r => r.json()).then(ep => {
-            waxApi       = ep.atomicassets;
-            waxMarketApi = ep.atomicmarket;
-          })
-        );
+        waxApi       = WaxApi.aaBase();
+        waxMarketApi = WaxApi.marketBase();
       }
       initTasks.push(fetchWaxPrice());
       await Promise.all(initTasks);
@@ -804,7 +795,7 @@
           ? `<span class="rarity-pill ${RARITY_CLASS[t.rarity]}">${t.rarity}</span>`
           : `<span class="rarity-pill">${t.rarity || '—'}</span>`;
         const links = `<div class="market-links">
-          <a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}&project=funko" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock"><img src="../images/FoxLogo.png" alt="PopInStock"></a>
+          <a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock"><img src="../images/FoxLogo.png" alt="PopInStock"></a>
           <a class="market-link" href="${ATOMIC_MARKET}?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="View on AtomicHub"><img src="../images/atomic.svg" alt="AtomicHub"></a>
           <a class="market-link" href="https://nfthive.io/market?term=${enc(tid)}&order_by=price_asc&offer_type=listings" target="_blank" rel="noopener noreferrer" title="View on NFTHive"><img src="../images/nfthive.svg" alt="NFTHive"></a>
         </div>`;

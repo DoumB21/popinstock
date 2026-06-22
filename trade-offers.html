@@ -186,6 +186,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/supabase-config.js"></script>
   <script src="shared/wax-auth.js"></script>
+  <script src="shared/wax-api.js"></script>
 </head>
 <body>
 
@@ -294,12 +295,11 @@ let TOPPS_COLLECTIONS  = new Set();
 let API_BASE = '';
 
 async function loadAllData() {
-  const [funkoDCRes, toppsDCRes, funkoSORes, toppsSORes, epRes] = await Promise.allSettled([
+  const [funkoDCRes, toppsDCRes, funkoSORes, toppsSORes] = await Promise.allSettled([
     fetch('funko/data/drops_catalog.json').then(r => r.ok ? r.json() : []),
     fetch('topps/data/drops_catalog.json').then(r => r.ok ? r.json() : []),
     fetch('funko/data/sort_order.json').then(r => r.ok ? r.json() : {}),
     fetch('topps/data/sort_order.json').then(r => r.ok ? r.json() : {}),
-    fetch('funko/data/wax_endpoint.json').then(r => r.ok ? r.json() : null),
   ]);
 
   if (funkoDCRes.status === 'fulfilled') {
@@ -326,9 +326,7 @@ async function loadAllData() {
       TOPPS_RARITY_ORDER[schema] = (data.rarity || []).map(r => r.toLowerCase());
     }
   }
-  if (epRes.status === 'fulfilled' && epRes.value) {
-    API_BASE = epRes.value.atomicassets;
-  }
+  API_BASE = WaxApi.aaBase();
 }
 
 /* ── Classification ────────────────────────────────────────────────────────── */
@@ -479,8 +477,8 @@ async function fetchLowestMints(wallet, templateIds) {
   if (!templateIds.length || !wallet) return new Map();
   const entries = await Promise.all([...new Set(templateIds)].map(async tid => {
     try {
-      const url = `${API_BASE}/assets?owner=${encodeURIComponent(wallet)}&template_id=${encodeURIComponent(tid)}&sort=template_mint&order=asc&limit=1`;
-      const res = await fetch(url);
+      const url = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_id=${encodeURIComponent(tid)}&sort=template_mint&order=asc&limit=1`;
+      const res = await WaxApi.rawFetch(url);
       if (!res.ok) return null;
       const json = await res.json();
       const mint = json.data?.[0]?.template_mint;
@@ -665,8 +663,8 @@ async function loadOffers() {
 
   showState('loading');
   try {
-    const url = `${API_BASE}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100&page=1`;
-    const res = await fetch(url);
+    const url = `${WaxApi.aaBase()}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100&page=1`;
+    const res = await WaxApi.rawFetch(url);
     if (!res.ok) throw new Error(`API ${res.status}`);
     const json = await res.json();
     const offers = json.data || [];

@@ -662,7 +662,7 @@ async function fetchWithRetry(url, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(currentUrl);
-      if (res.status !== 408 || attempt === retries) return res;
+      if ((res.status !== 408 && res.status !== 429 && res.status !== 503) || attempt === retries) return res;
     } catch (err) {
       if (attempt === retries) throw err;
     }

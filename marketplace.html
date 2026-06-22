@@ -442,6 +442,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/wax-auth.js"></script>
+  <script src="shared/wax-api.js"></script>
 </head>
 <body>
 
@@ -494,13 +495,11 @@
 const TAKER_MARKETPLACE = 'popinstockgo';
 const IPFS_GW           = 'https://ipfs.io/ipfs/';
 const ATOMIC_MARKET_URL = 'https://wax.atomichub.io/market';
-const WAX_API           = 'https://wax.api.atomicassets.io/atomicassets/v1';
-const WAX_MARKET_API    = 'https://wax.api.atomicassets.io/atomicmarket/v1';
+const WAX_MARKET_API    = WaxApi.marketBase();
 const PAGE_SIZE         = 25;
 
 const params     = new URLSearchParams(location.search);
 const templateId = params.get('template_id') || '';
-const project    = params.get('project')     || '';
 
 let collectionName = '';
 let schemaName     = '';
@@ -557,7 +556,7 @@ async function fetchWaxPrice() {
 
 /* ── API ── */
 async function fetchTemplate() {
-  const r    = await fetch(`${WAX_API}/templates?ids=${enc(templateId)}&limit=1`);
+  const r    = await WaxApi.rawFetch(`${WaxApi.aaBase()}/templates?ids=${enc(templateId)}&limit=1`);
   const json = await r.json();
   if (!json.success || !json.data.length) throw new Error('Template not found');
   const tpl  = json.data[0];
@@ -568,24 +567,33 @@ async function fetchTemplate() {
 
 async function fetchSupplyDetails() {
   try {
-    const url = SUPABASE_URL + '/rest/v1/funko_market_prices?' +
-      `template_id=eq.${enc(templateId)}&select=dp_locked_count&limit=1`;
-    const r = await fetch(url, {
-      headers: {
-        'apikey':         SUPABASE_ANON_KEY,
-        'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
-        'Accept-Profile': 'funko',
-      }
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data[0] || null;
+    const hdrs = {
+      'apikey':         SUPABASE_ANON_KEY,
+      'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+      'Accept-Profile': 'funko',
+    };
+    // funko.templates is the authoritative catalog — if the template_id is here, it's a Funko card
+    const tr = await fetch(
+      SUPABASE_URL + `/rest/v1/templates?template_id=eq.${enc(templateId)}&select=template_id&limit=1`,
+      { headers: hdrs }
+    );
+    if (!tr.ok) return null;
+    const tRows = await tr.json();
+    if (!tRows.length) return null; // not a Funko card
+
+    // Confirmed Funko — fetch dp_locked_count (may be absent for cards with no active listings)
+    const mr = await fetch(
+      SUPABASE_URL + `/rest/v1/funko_market_prices?template_id=eq.${enc(templateId)}&select=dp_locked_count&limit=1`,
+      { headers: hdrs }
+    );
+    const mRows = mr.ok ? await mr.json() : [];
+    return { isFunko: true, dp_locked_count: mRows[0]?.dp_locked_count ?? null };
   } catch { return null; }
 }
 
 async function fetchBurnedCount() {
   try {
-    const r    = await fetch(`${WAX_API}/templates/${enc(collectionName)}/${enc(templateId)}/stats`);
+    const r    = await WaxApi.rawFetch(`${WaxApi.aaBase()}/templates/${enc(collectionName)}/${enc(templateId)}/stats`);
     const json = await r.json();
     if (!json.success) return null;
     return json.data?.burned != null ? parseInt(json.data.burned) : null;
@@ -819,7 +827,7 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
     <div class="mp-supply-breakdown">
       <div class="mp-supply-item"><span class="mp-supply-label">Issued</span><span class="mp-supply-val">${issued}</span></div>
       <div class="mp-supply-item"><span class="mp-supply-label">Burned</span><span class="mp-supply-val">${burnedFmt}</span></div>
-      ${project === 'funko' ? `<div class="mp-supply-item"><span class="mp-supply-label">Locked in Droppp</span><span class="mp-supply-val">${dpLocked}</span></div>` : ''}
+      ${supply?.isFunko ? `<div class="mp-supply-item"><span class="mp-supply-label">Locked in Droppp</span><span class="mp-supply-val">${dpLocked}</span></div>` : ''}
       <div class="mp-supply-item"><span class="mp-supply-label">In Circulation</span><span class="mp-supply-val">${inCirculation}</span></div>
     </div>`;
 
@@ -999,7 +1007,7 @@ async function fetchAndRenderOwned() {
   slot.innerHTML = `<div class="mp-owned"><div class="mp-owned-label" style="opacity:0.5">Loading your copies…</div></div>`;
 
   try {
-    const r    = await fetch(`${WAX_API}/assets?owner=${enc(wallet)}&template_id=${enc(templateId)}&sort=template_mint&order=asc&limit=1000`);
+    const r    = await WaxApi.rawFetch(`${WaxApi.aaBase()}/assets?owner=${enc(wallet)}&template_id=${enc(templateId)}&sort=template_mint&order=asc&limit=1000`);
     const json = await r.json();
     if (!json.success || !json.data.length) { slot.innerHTML = ''; return; }
 

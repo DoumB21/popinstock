@@ -230,6 +230,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="../shared/supabase-config.js"></script>
   <script src="../shared/wax-auth.js"></script>
+  <script src="../shared/wax-api.js"></script>
 </head>
 <body>
   <div id="nav"></div>
@@ -435,15 +436,14 @@
     }
 
     async function init() {
-      const [drops, rarities, subsets, sortOrder, endpoint] = await Promise.all([
+      const [drops, rarities, subsets, sortOrder] = await Promise.all([
         loadJSON('data/drops_catalog.json'),
         loadJSON('data/rarities_catalog.json'),
         loadJSON('data/subsets_catalog.json'),
         loadJSON('data/sort_order.json'),
-        loadJSON('data/wax_endpoint.json'),
       ]);
 
-      API             = endpoint.atomicassets;
+      API             = WaxApi.aaBase();
       dropsCatalog    = drops;
       raritiesCatalog = rarities;
       subsetsCatalog  = subsets;
@@ -550,13 +550,7 @@
 
     // ── API helpers ───────────────────────────────────────────────────────────
 
-    async function apiFetch(url) {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`API ${r.status}: ${url}`);
-      const json = await r.json();
-      if (!json.success) throw new Error(`API error: ${url}`);
-      return json.data;
-    }
+    function apiFetch(url) { return WaxApi.apiFetch(url); }
 
     async function fetchAllPages(baseUrl) {
       const out = [];
@@ -775,7 +769,7 @@
         const linksWrap = document.createElement('div');
         linksWrap.className = 'market-links';
         [
-          { href: `../marketplace.html?template_id=${tmpl.templateId}&project=topps&sort=mint-asc`, icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', primary: true },
+          { href: `../marketplace.html?template_id=${tmpl.templateId}&sort=mint-asc`, icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', primary: true },
           { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=template_mint&symbol=WAX&template_id=${tmpl.templateId}&max_assets=1`, icon: '../images/atomic.svg', title: 'View on AtomicHub' },
           { href: `https://nfthive.io/market?term=${tmpl.templateId}&order_by=mint_asc&offer_type=listings`, icon: '../images/nfthive.svg', title: 'View on NFTHive' },
         ].forEach(({ href, icon, title, primary }) => {
@@ -1340,9 +1334,8 @@
       const bar = document.getElementById('pendingOffersBar');
       if (!wallet || !bar) return;
       try {
-        const endpoint = await fetch('data/wax_endpoint.json').then(r => r.json());
-        const url = `${endpoint.atomicassets}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100`;
-        const res = await fetch(url);
+        const url = `${WaxApi.aaBase()}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100`;
+        const res = await WaxApi.rawFetch(url);
         if (!res.ok) return;
         const json = await res.json();
         const count = (json.data || []).length;
