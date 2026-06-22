@@ -48,6 +48,8 @@
     .trade-filter-btn--active { background: rgba(74,222,128,0.1); border-color: #4ade80; color: #4ade80; }
     .trade-filter-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
     .trade-filter-empty { display: none; text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .offer-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+    .offer-tag { display: inline-block; padding: 0.08rem 0.38rem; border-radius: 4px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.02em; }
     .table-scroll { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
     .results-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
     .results-table th { background: rgba(255,255,255,0.04); color: var(--text-secondary); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; padding: 0.65rem 0.85rem; text-align: left; text-transform: uppercase; white-space: nowrap; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border); }
@@ -317,6 +319,10 @@
     <div id="resultsWrap" style="display:none;">
       <div class="results-header">
         <div class="results-meta" id="resultsMeta"></div>
+        <button id="smartFilterBtn" class="trade-filter-btn" onclick="toggleSmartFilter()" style="display:none;">
+          <span class="trade-filter-dot"></span>
+          <span id="smartFilterLabel">Smart offers only</span>
+        </button>
         <button id="tradeFilterBtn" class="trade-filter-btn" onclick="toggleTradeFilter()">
           <span class="trade-filter-dot"></span>
           <span id="tradeFilterLabel">Show trade only</span>
@@ -394,6 +400,15 @@
     let lastCollection   = '';
     let lastSchema       = '';
     let tradeFilterActive = false;
+    let smartFilterActive = false;
+
+    const WALLET_COLORS = [
+      { text: '#f0a840', bg: 'rgba(240,168,64,0.12)',  border: 'rgba(240,168,64,0.28)'  },
+      { text: '#4ade80', bg: 'rgba(74,222,128,0.10)',  border: 'rgba(74,222,128,0.25)'  },
+      { text: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.28)'  },
+      { text: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.28)' },
+      { text: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.28)' },
+    ];
 
     // ── Trade Summary state ───────────────────────────────────────────────────
     let tradeSummary   = [];
@@ -709,6 +724,7 @@
           th.textContent = col;
           th.className = 'col-wallet';
           th.title = wallets[i - 1];
+          th.style.color = WALLET_COLORS[(i - 1) % WALLET_COLORS.length].text;
         }
         hr.appendChild(th);
       });
@@ -786,6 +802,11 @@
         subRow.appendChild(tdMeta);
 
         fillWalletCells(row, subRow, tmpl, walletMaps, curHasMin, curMin, curHasMax, curMax);
+
+        if (wallets.length >= 2) {
+          applyOfferBadges(tdName, cardTbody, tmpl, curHasMin, curMin, curHasMax, curMax);
+        }
+
         cardTbody.appendChild(row);
         cardTbody.appendChild(subRow);
 
@@ -793,6 +814,13 @@
       }
 
       tableEl.appendChild(frag);
+
+      // Show smart filter button for any multi-wallet search; reset state on each render
+      const smartBtn = document.getElementById('smartFilterBtn');
+      smartBtn.style.display = wallets.length >= 2 ? '' : 'none';
+      smartFilterActive = false;
+      smartBtn.classList.remove('trade-filter-btn--active');
+      document.getElementById('smartFilterLabel').textContent = 'Smart offers only';
 
       // Meta
       updateResultsMeta(sorted.length, sorted.length);
@@ -881,6 +909,47 @@
       });
     }
 
+    function applyOfferBadges(tdName, cardGroup, tmpl, hasMin, min, hasMax, max) {
+      const existing = tdName.querySelector('.offer-badges');
+      if (existing) existing.remove();
+      tdName.style.borderLeft = '';
+      delete cardGroup.dataset.offer;
+
+      if (lastWallets.length < 2) return;
+
+      const offerPairs = [];
+      for (let oi = 0; oi < lastWallets.length; oi++) {
+        for (let oj = 0; oj < lastWallets.length; oj++) {
+          if (oi === oj) continue;
+          const ei   = lastWalletMaps[oi].get(tmpl.templateId);
+          const ej   = lastWalletMaps[oj].get(tmpl.templateId);
+          const visI = (ei?.mints ?? []).filter(m => mintInRange(m, hasMin, min, hasMax, max));
+          const visJ = (ej?.mints ?? []).filter(m => mintInRange(m, hasMin, min, hasMax, max));
+          const ispare = visI[1] ?? Infinity;
+          const jbest  = visJ[0] ?? Infinity;
+          if (visI.length > 1 && (visJ.length === 0 || ispare < jbest)) offerPairs.push({ from: oi, to: oj });
+        }
+      }
+
+      if (offerPairs.length > 0) {
+        cardGroup.dataset.offer = '1';
+        const badgesDiv = document.createElement('div');
+        badgesDiv.className = 'offer-badges';
+        for (const { from, to } of offerPairs) {
+          const col = WALLET_COLORS[from % WALLET_COLORS.length];
+          const badge = document.createElement('span');
+          badge.className = 'offer-tag';
+          badge.style.color = col.text;
+          badge.style.background = col.bg;
+          badge.style.border = `1px solid ${col.border}`;
+          badge.textContent = `${abbrev(lastWallets[from])} → ${abbrev(lastWallets[to])}`;
+          badgesDiv.appendChild(badge);
+        }
+        tdName.appendChild(badgesDiv);
+        tdName.style.borderLeft = `2px solid ${WALLET_COLORS[offerPairs[0].from % WALLET_COLORS.length].text}`;
+      }
+    }
+
     function applyFilter() {
       const minVal = parseInt(document.getElementById('mintMin').value, 10);
       const maxVal = parseInt(document.getElementById('mintMax').value, 10);
@@ -891,6 +960,7 @@
       const subRows  = document.querySelectorAll('.card-sub-row');
       lastSorted.forEach((tmpl, i) => {
         fillWalletCells(mainRows[i], subRows[i], tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
+        applyOfferBadges(mainRows[i].cells[0], mainRows[i].closest('.card-group'), tmpl, hasMin, minVal, hasMax, maxVal);
       });
       applyTradeFilter();
     }
@@ -1076,20 +1146,27 @@
       applyTradeFilter();
     }
 
+    function toggleSmartFilter() {
+      smartFilterActive = !smartFilterActive;
+      const btn = document.getElementById('smartFilterBtn');
+      btn.classList.toggle('trade-filter-btn--active', smartFilterActive);
+      document.getElementById('smartFilterLabel').textContent = smartFilterActive ? 'Show all cards' : 'Smart offers only';
+      applyTradeFilter();
+    }
+
     function applyTradeFilter() {
       const groups = document.querySelectorAll('.card-group');
       const tableScroll = document.querySelector('.table-scroll');
       const emptyEl = document.getElementById('tradeFilterEmpty');
       let visible = 0;
       groups.forEach(group => {
-        if (!tradeFilterActive) { group.style.display = ''; visible++; }
-        else {
-          const hasSelected = group.querySelector('.mint-selected') !== null;
-          group.style.display = hasSelected ? '' : 'none';
-          if (hasSelected) visible++;
-        }
+        const showForTrade = !tradeFilterActive || group.querySelector('.mint-selected') !== null;
+        const showForSmart = !smartFilterActive || !!group.dataset.offer;
+        const show = showForTrade && showForSmart;
+        group.style.display = show ? '' : 'none';
+        if (show) visible++;
       });
-      const isEmpty = tradeFilterActive && visible === 0;
+      const isEmpty = (tradeFilterActive || smartFilterActive) && visible === 0;
       tableScroll.style.display = isEmpty ? 'none' : '';
       emptyEl.style.display     = isEmpty ? 'block' : 'none';
       updateResultsMeta(visible, lastSorted.length);
