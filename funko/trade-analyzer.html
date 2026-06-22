@@ -727,6 +727,22 @@
 
     function apiFetch(url) { return WaxApi.apiFetch(url); }
 
+    async function fetchWhitelistedIds(templateIds) {
+      if (templateIds.length === 0) return new Set();
+      const ids = templateIds.join(',');
+      const url = `${SUPABASE_URL}/rest/v1/templates?select=template_id&template_id=in.(${ids})`;
+      const res = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Accept-Profile': 'funko',
+        }
+      });
+      if (!res.ok) return new Set(templateIds); // fail open: show all if Supabase unreachable
+      const rows = await res.json();
+      return new Set(rows.map(r => String(r.template_id)));
+    }
+
     async function fetchAllPages(baseUrl) {
       const out = [];
       let page = 1;
@@ -772,17 +788,21 @@
           `${API}/templates?collection_name=${collection}&schema_name=${schema}`
         );
 
-        const templates = new Map();
+        const rawMap = new Map();
         for (const t of rawTemplates) {
           if (parseInt(t.issued_supply, 10) === 0) continue;
           const d = t.immutable_data ?? {};
-          templates.set(t.template_id, {
+          rawMap.set(t.template_id, {
             templateId : t.template_id,
             name       : d.name   ?? t.name ?? `#${t.template_id}`,
             cardId     : d.cardid ?? '—',
             rarity     : packIds.has(t.template_id) ? 'Pack' : (d.rarity ?? 'Unknown'),
           });
         }
+
+        setStatus('Validating templates…');
+        const whitelist = await fetchWhitelistedIds([...rawMap.keys()]);
+        const templates = new Map([...rawMap].filter(([id]) => whitelist.has(String(id))));
 
         setStatus(`Fetching assets for ${wallets.length} wallet${wallets.length > 1 ? 's' : ''}…`);
         const walletMaps = await Promise.all(wallets.map(w => fetchWalletAssets(collection, schema, w)));
