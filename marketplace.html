@@ -1048,21 +1048,43 @@ async function fetchSalesHistory() {
   return json.data.filter(s => s.assets?.length === 1);
 }
 
+async function fetchHistoricalRates(dates) {
+  const unique = [...new Set(dates)].filter(Boolean);
+  if (!unique.length) return {};
+  const hdrs = {
+    'apikey':         SUPABASE_ANON_KEY,
+    'Authorization':  'Bearer ' + SUPABASE_ANON_KEY,
+    'Accept-Profile': 'funko',
+  };
+  const r = await fetch(
+    SUPABASE_URL + `/rest/v1/wax_usd_rates?rate_date=in.(${unique.join(',')})&select=rate_date,usd_per_wax`,
+    { headers: hdrs }
+  );
+  const rows = await r.json();
+  return Object.fromEntries((rows || []).map(r => [r.rate_date, r.usd_per_wax]));
+}
+
 function renderSalesHistory() {
   const section = document.getElementById('historySection');
   section.innerHTML = '<div class="state"><div class="spinner" style="margin:0 auto"></div></div>';
 
-  fetchSalesHistory().then(sales => {
+  fetchSalesHistory().then(async sales => {
     if (!sales.length) {
       section.innerHTML = '<div class="no-results">No recent sales found for this card.</div>';
       return;
     }
-    const rows = sales.map(s => {
+    const dates = sales.map(s => s.updated_at_time
+      ? new Date(Number(s.updated_at_time)).toISOString().slice(0, 10)
+      : null
+    );
+    const rateMap = await fetchHistoricalRates(dates);
+    const rows = sales.map((s, i) => {
       const mint     = s.assets?.[0]?.template_mint || '?';
       const waxAmt   = s.price?.amount ? parseInt(s.price.amount) : null;
       const priceStr = waxAmt != null ? fmtWax(waxAmt) : '—';
-      const priceUsd = waxAmt != null && waxUsdRate
-        ? `≈ $${(waxAmt / 1e8 * waxUsdRate).toFixed(2)}`
+      const saleRate = rateMap[dates[i]] ?? null;
+      const priceUsd = waxAmt != null && saleRate
+        ? `≈ $${(waxAmt / 1e8 * saleRate).toFixed(2)}`
         : '';
       const seller = shortAddr(s.seller || '—');
       const buyer  = shortAddr(s.buyer  || '—');
