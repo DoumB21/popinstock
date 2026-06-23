@@ -574,20 +574,21 @@ async function fetchSupplyDetails() {
     };
     // funko.templates is the authoritative catalog — if the template_id is here, it's a Funko card
     const tr = await fetch(
-      SUPABASE_URL + `/rest/v1/templates?template_id=eq.${enc(templateId)}&select=template_id&limit=1`,
+      SUPABASE_URL + `/rest/v1/templates?template_id=eq.${enc(templateId)}&select=template_id,dp_locked_count&limit=1`,
       { headers: hdrs }
     );
     if (!tr.ok) return null;
     const tRows = await tr.json();
     if (!tRows.length) return null; // not a Funko card
 
-    // Confirmed Funko — fetch dp_locked_count (may be absent for cards with no active listings)
+    // Confirmed Funko — fetch dp_locked_count from market prices; fall back to templates if no listing row
     const mr = await fetch(
       SUPABASE_URL + `/rest/v1/funko_market_prices?template_id=eq.${enc(templateId)}&select=dp_locked_count&limit=1`,
       { headers: hdrs }
     );
     const mRows = mr.ok ? await mr.json() : [];
-    return { isFunko: true, dp_locked_count: mRows[0]?.dp_locked_count ?? null };
+    const dpLocked = mRows[0]?.dp_locked_count ?? tRows[0]?.dp_locked_count ?? null;
+    return { isFunko: true, dp_locked_count: dpLocked };
   } catch { return null; }
 }
 
