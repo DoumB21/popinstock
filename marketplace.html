@@ -395,6 +395,8 @@
       letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 0.4rem;
     }
     .mp-owned-label strong { color: var(--text-primary); font-size: 0.9rem; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+    .mp-owned-inv-link { display: block; margin-top: 0.5rem; font-size: 0.72rem; color: var(--accent-light); text-decoration: none; opacity: 0.85; transition: opacity 0.15s; }
+    .mp-owned-inv-link:hover { opacity: 1; }
 
     /* ── Nav wallet styles ── */
     .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 0.5rem 0 0.25rem; flex-shrink: 0; }
@@ -503,6 +505,8 @@ const templateId = params.get('template_id') || '';
 
 let collectionName = '';
 let schemaName     = '';
+let isFunko        = false;
+let cardId         = '';
 
 let waxUsdRate    = null;
 let allListings   = [];
@@ -921,7 +925,10 @@ function renderListings() {
   const section = document.getElementById('listingsSection');
 
   if (!allListings.length) {
-    section.innerHTML = `<div class="no-results">No listings available for this card right now.</div>`;
+    const invLinkHtml = (isFunko && cardId)
+      ? `<a href="funko/inventory.html?col=${enc(collectionName)}&schema=${enc(schemaName)}&cardid=${enc(cardId)}" target="_blank" rel="noopener" class="mp-owned-inv-link" style="display:block;margin-top:0.75rem;font-size:0.85rem">List one for sale from your inventory ↗</a>`
+      : '';
+    section.innerHTML = `<div class="no-results" style="text-align:center">No listings available for this card right now.${invLinkHtml}</div>`;
     return;
   }
 
@@ -1016,10 +1023,14 @@ async function fetchAndRenderOwned() {
     const total   = assets.length;
     const mintStr = assets.slice(0, 5).map(a => a.template_mint).join(' - ');
 
+    const invLink = isFunko
+      ? `<a href="funko/inventory.html?col=${enc(collectionName)}&schema=${enc(schemaName)}&cardid=${enc(cardId)}" target="_blank" rel="noopener" class="mp-owned-inv-link">List one for sale from your inventory ↗</a>`
+      : '';
     slot.innerHTML = `
       <div class="mp-owned">
         <div class="mp-owned-label">You own <strong>${total}</strong></div>
         <div class="mp-owned-label">Lowest mint # <strong>${mintStr}</strong></div>
+        ${invLink}
       </div>`;
   } catch { slot.innerHTML = ''; }
 }
@@ -1142,6 +1153,8 @@ async function init() {
     ]);
     allListings = listings;
 
+    isFunko = supply?.isFunko ?? false;
+    cardId  = tpl.immutable_data?.cardid != null ? String(tpl.immutable_data.cardid) : '';
     renderHero(tpl, listings.length, supply, burnedCount);
     fetchAndRenderOwned();
     document.getElementById('mpTabs').style.display = '';
