@@ -167,9 +167,10 @@
     .market-link { display: flex; align-items: center; opacity: 0.4; transition: opacity 0.15s; text-decoration: none; }
     .market-link:hover { opacity: 1; }
     .market-link img { width: 20px; height: 20px; object-fit: contain; }
-    .market-link--primary { opacity: 1; transition: filter 0.2s; }
+    .market-link--primary { display: inline-flex; align-items: center; gap: 0.4rem; opacity: 1; transition: filter 0.2s; text-decoration: none; }
     .market-link--primary img { width: 24px; height: 24px; filter: invert(1); }
     .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); }
+    .buy-label { font-size: 0.82rem; font-weight: 700; color: var(--accent-light); letter-spacing: 0.03em; }
 
     /* ── Set row drill-through ── */
     .set-row-link { font-size: 0.68rem; opacity: 0; margin-left: 5px; transition: opacity 0.15s; color: var(--accent-light); }
@@ -518,20 +519,7 @@ function buildCardTable(rows, append) {
     const col = row.collection_name;
     const sch = row.schema_name;
 
-    const links = [
-      { href: `../marketplace.html?template_id=${enc(tid)}`,
-        icon: '../images/Hoardio_fav.png', title: 'Buy on Hoardio', primary: true },
-      { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${enc(tid)}`,
-        icon: '../images/atomic.svg', title: 'View on AtomicHub' },
-      // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${enc(col)}&order=asc&page=1&sort=price&template_id=${enc(tid)}`,
-      //   icon: '../images/neftyblocks.svg', title: 'View on NeftyBlocks' },
-      { href: `https://nfthive.io/market?term=${enc(tid)}&order_by=price_asc&offer_type=listings`,
-        icon: '../images/nfthive.svg', title: 'View on NFTHive' },
-    ];
-
-    const linksHtml = links.map(l =>
-      `<a class="market-link${l.primary ? ' market-link--primary' : ''}" href="${l.href}" target="_blank" rel="noopener noreferrer" title="${l.title}"><img src="${l.icon}" alt="${l.title}"></a>`
-    ).join('');
+    const linksHtml = `<a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>`;
 
     const circ = row.in_circulation;
     const issued = row.issued_supply;
