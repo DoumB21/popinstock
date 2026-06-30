@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Topps Trade Analyzer — PopInStock</title>
+  <title>Topps Trade Analyzer — Hoardio</title>
   <meta name="description" content="Compare the NFT inventory of up to 5 WAX wallets for any Topps Digital drop. Instantly spot trade opportunities and find missing cards to complete your set." />
-  <link rel="canonical" href="https://www.popinstock.com/topps/trade-analyzer.html" />
+  <link rel="canonical" href="https://www.hoardio.com/topps/trade-analyzer.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.popinstock.com/topps/trade-analyzer.html" />
-  <meta property="og:title" content="Topps Trade Analyzer — PopInStock" />
+  <meta property="og:url" content="https://www.hoardio.com/topps/trade-analyzer.html" />
+  <meta property="og:title" content="Topps Trade Analyzer — Hoardio" />
   <meta property="og:description" content="Compare the NFT inventory of up to 5 WAX wallets for any Topps Digital drop. Instantly spot trade opportunities and find missing cards to complete your set." />
-  <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Topps Trade Analyzer — PopInStock" />
+  <meta name="twitter:title" content="Topps Trade Analyzer — Hoardio" />
   <meta name="twitter:description" content="Compare the NFT inventory of up to 5 WAX wallets for any Topps Digital drop. Instantly spot trade opportunities and find missing cards to complete your set." />
-  <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
-  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="../shared/global.css" />
   <style>
     /* ── Controls card ── */
@@ -414,7 +415,7 @@
     let tradeSummary   = [];
     let tradeIdCounter = 0;
 
-    const TRADE_STORAGE_KEY = 'popinstock_trade_topps';
+    const TRADE_STORAGE_KEY = 'Hoardio_trade_topps';
 
     function saveTrade() {
       localStorage.setItem(TRADE_STORAGE_KEY, JSON.stringify({ items: tradeSummary, counter: tradeIdCounter }));
@@ -785,7 +786,7 @@
         const linksWrap = document.createElement('div');
         linksWrap.className = 'market-links';
         [
-          { href: `../marketplace.html?template_id=${tmpl.templateId}&sort=mint-asc`, icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', primary: true },
+          { href: `../marketplace.html?template_id=${tmpl.templateId}&sort=mint-asc`, icon: '../images/Hoardio_fav.svg', title: 'Buy on Hoardio', primary: true },
           { href: `https://wax.atomichub.io/market?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=template_mint&symbol=WAX&template_id=${tmpl.templateId}&max_assets=1`, icon: '../images/atomic.svg', title: 'View on AtomicHub' },
           { href: `https://nfthive.io/market?term=${tmpl.templateId}&order_by=mint_asc&offer_type=listings`, icon: '../images/nfthive.svg', title: 'View on NFTHive' },
         ].forEach(({ href, icon, title, primary }) => {
@@ -1230,7 +1231,7 @@
             recipient          : partner,
             sender_asset_ids   : myAssets,
             recipient_asset_ids: theirAssets,
-            memo               : 'Trade via PopInStock',
+            memo               : 'Trade via Hoardio',
           },
         }]);
         btn.textContent = 'Offer Sent!';

@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventory — PopInStock</title>
-  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <title>Inventory — Hoardio</title>
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="../shared/global.css" />
   <style>
     /* ── Auth gate ── */
@@ -434,7 +435,7 @@
 <main class="page-main">
   <div class="page-header">
     <h1 class="page-title">My <span class="accent">Inventory</span></h1>
-    <p class="page-desc">List your NFTs for sale through Pop In Stock and help support the site and its future development.</p>
+    <p class="page-desc">List your NFTs for sale through Hoardio and help support the site and its future development.</p>
     <div class="buyoffer-banner" id="buyofferBanner">
       <div class="buyoffer-banner-left">
         <div class="buyoffer-banner-icon">💎</div>
@@ -569,7 +570,7 @@ function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.l
 const MARKET_API = 'https://wax.api.atomicassets.io';
 
 const PAGE_SIZE  = 18;
-const MAKER      = 'popinstockgo';
+const MAKER      = 'Hoardiogo';
 
 const SORT_OPTIONS = [
   { value: 'transferred_desc', label: 'Transferred (Newest)', sort: 'transferred',   order: 'desc' },
@@ -1958,7 +1959,7 @@ async function _renderOfferPhase2(asset, offer) {
         <button class="modal-btn modal-btn--cancel" id="acceptModalCancel">Cancel</button>
         <button class="modal-btn modal-btn--accept" id="acceptModalAccept">Accept Offer</button>
       </div>
-      <p class="modal-note">Thank you for supporting Pop In Stock.</p>
+      <p class="modal-note">Thank you for supporting Hoardio.</p>
     </div>`;
 
   document.getElementById('offerModalClose').addEventListener('click', closeOfferModal);
@@ -2020,7 +2021,7 @@ async function handleAcceptOffer() {
           buyoffer_id:       offer.buyoffer_id,
           asset_id:          asset.asset_id,
           expected_price:    waxPrice,
-          taker_marketplace: 'popinstockgo',
+          taker_marketplace: 'Hoardiogo',
         },
       },
     ]);
@@ -2195,7 +2196,7 @@ function renderModal(asset, listing, floor, loadingFloor) {
         </button>
       </div>
 
-      <p class="modal-note">Thank you for supporting Pop In Stock.</p>
+      <p class="modal-note">Thank you for supporting Hoardio.</p>
     </div>
   `;
 

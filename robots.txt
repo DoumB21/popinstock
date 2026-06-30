@@ -17,4 +17,4 @@ Disallow: /discord/
 # Internal tooling — OG banner source file, not a real page
 Disallow: /og-banner.html
 
-Sitemap: https://www.popinstock.com/sitemap.xml
+Sitemap: https://www.hoardio.com/sitemap.xml

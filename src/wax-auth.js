@@ -12,7 +12,7 @@ const WAX_CHAIN = {
 const ui = new WebRenderer();
 
 const sessionKit = new SessionKit({
-  appName: 'Pop In Stock',
+  appName: 'Hoardio',
   chains: [WAX_CHAIN],
   ui,
   walletPlugins: [

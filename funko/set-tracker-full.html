@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Full Inventory Scan — Funko Digital — PopInStock</title>
-  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <title>Full Inventory Scan — Funko Digital — Hoardio</title>
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="../shared/global.css" />
   <style>
     .content { display: flex; flex-direction: column; gap: 2rem; }
@@ -71,7 +72,7 @@
     .cell-price-usd  { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; margin-top: 2px; }
     .cell-supply     { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
 
-    /* ── PopInStock link ── */
+    /* ── Hoardio link ── */
     .market-link--primary { display: inline-flex; align-items: center; opacity: 1; transition: filter 0.2s; text-decoration: none; }
     .market-link--primary img { width: 24px; height: 24px; }
     .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); }
@@ -419,8 +420,8 @@ function buildRows(cards) {
       <td class="col-r" style="width:90px">${supplyCell(t)}</td>
       <td class="col-r" style="width:110px">${priceCell(t.wax, t.usd)}</td>
       <td style="width:44px;text-align:right">
-        <a class="market-link--primary" href="${link}" target="_blank" rel="noopener noreferrer" title="Buy on PopInStock">
-          <img src="../images/FoxLogo.png" alt="PopInStock">
+        <a class="market-link--primary" href="${link}" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio">
+          <img src="../images/Hoardio_fav.svg" alt="Hoardio">
         </a>
       </td>
     </tr>`;
@@ -464,7 +465,7 @@ function renderTable() {
 
   section.innerHTML = `
     <div class="missing-heading">Missing cards — <span>${filteredCache.length.toLocaleString()} cards</span></div>
-    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.6">💎 <strong style="color:var(--text-primary)">Premium Feature:</strong> This feature links exclusively to the Pop In Stock Marketplace. Purchases made through these links help support the site and future development.</div>
+    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.6">💎 <strong style="color:var(--text-primary)">Premium Feature:</strong> This feature links exclusively to the Hoardio Marketplace. Purchases made through these links help support the site and future development.</div>
     <div class="cards-table-wrap">
       <table class="cards-table">
         <thead><tr>

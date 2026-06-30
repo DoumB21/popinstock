@@ -2,6 +2,12 @@
   "redirects": [
     {
       "source": "/(.*)",
+      "has": [{ "type": "host", "value": "hoardio.com" }],
+      "destination": "https://www.hoardio.com/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
       "has": [{ "type": "host", "value": "popinstock.com" }],
       "destination": "https://www.popinstock.com/$1",
       "permanent": true

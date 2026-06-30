@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Set Detail — Funko Digital — PopInStock</title>
-  <link rel="icon" type="image/png" href="../images/FoxLogo.png" />
+  <title>Set Detail — Funko Digital — Hoardio</title>
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="../shared/global.css" />
   <style>
     /* ── Banner ── */
@@ -253,7 +254,7 @@ function buildTable() {
 
     const links = [
       { href: `../marketplace.html?template_id=${enc(tid)}`,
-        icon: '../images/FoxLogo.png', title: 'Buy on PopInStock', cls: 'market-link market-link--primary' },
+        icon: '../images/Hoardio_fav.svg', title: 'Buy on Hoardio', cls: 'market-link market-link--primary' },
       { href: `${ATOMIC_MARKET}?blockchain=wax-mainnet&order=asc&primary_chain=wax-mainnet&sort=price&symbol=WAX&template_id=${enc(tid)}`,
         icon: '../images/atomic.svg', title: 'View on AtomicHub' },
       // { href: `https://neftyblocks.com/marketplace/listing?collection_name=${enc(col)}&order=asc&page=1&sort=price&template_id=${enc(tid)}`,
@@ -350,7 +351,7 @@ async function init() {
     const dropName = cleanName(col.display_name || COL);
     const label    = schemaLabel(SCH);
 
-    document.title = `${dropName} ${label} — Market — PopInStock`;
+    document.title = `${dropName} ${label} — Market — Hoardio`;
 
     // Banner
     const bannerCid  = col.banner;

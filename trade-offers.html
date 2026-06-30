@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trade Offers — PopInStock</title>
+  <title>Trade Offers — Hoardio</title>
   <meta name="description" content="Review and respond to incoming WAX trade offers for your NFT cards." />
-  <link rel="canonical" href="https://www.popinstock.com/trade-offers.html" />
+  <link rel="canonical" href="https://www.hoardio.com/trade-offers.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.popinstock.com/trade-offers.html" />
-  <meta property="og:title" content="Trade Offers — PopInStock" />
+  <meta property="og:url" content="https://www.hoardio.com/trade-offers.html" />
+  <meta property="og:title" content="Trade Offers — Hoardio" />
   <meta property="og:description" content="Review and respond to incoming WAX trade offers for your NFT cards." />
-  <meta property="og:image" content="https://www.popinstock.com/images/og-banner.png" />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Trade Offers — PopInStock" />
+  <meta name="twitter:title" content="Trade Offers — Hoardio" />
   <meta name="twitter:description" content="Review and respond to incoming WAX trade offers for your NFT cards." />
-  <meta name="twitter:image" content="https://www.popinstock.com/images/og-banner.png" />
-  <link rel="icon" type="image/png" href="images/FoxLogo.png" />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="shared/global.css" />
   <style>
     /* ── Nav ── */
@@ -193,7 +194,7 @@
 <nav class="site-nav">
   <div class="nav-inner">
     <a href="index.html" class="nav-home" title="Back to homepage">
-      <img src="images/FoxLogo.png" alt="PopInStock" />
+      <img src="images/Hoardio_fav.svg" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
     <div class="nav-links"></div>
@@ -555,7 +556,7 @@ function buildOfferItem(offer, tplMap, lowestMints, type) {
 
   let bodyHtml;
   if (type === 'unknown') {
-    bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets not tracked by Pop In Stock. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
+    bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets not tracked by Hoardio. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
   } else if (type === 'mixed') {
     bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets from multiple projects. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
   } else {
@@ -713,5 +714,6 @@ async function init() {
 
 init().catch(err => console.error('Init failed:', err));
 </script>
+<script src="shared/moved.js"></script>
 </body>
 </html>

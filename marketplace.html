@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marketplace — PopInStock</title>
-  <link rel="icon" type="image/png" href="images/FoxLogo.png" />
+  <title>Marketplace — Hoardio</title>
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="shared/global.css" />
   <style>
     .content { display: flex; flex-direction: column; gap: 2rem; }
@@ -451,7 +452,7 @@
 <nav class="site-nav">
   <div class="nav-inner">
     <a href="index.html" class="nav-home" title="Back to homepage">
-      <img src="images/FoxLogo.png" alt="PopInStock" />
+      <img src="images/Hoardio_fav.svg" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
     <div class="nav-links"></div>
@@ -468,7 +469,7 @@
 
     <div class="page-header">
       <div class="page-title">Market<span class="accent">place</span></div>
-      <div class="page-subtitle">Shop through the Pop In Stock Marketplace to help support the site and its future development.</div>
+      <div class="page-subtitle">Shop through the Hoardio Marketplace to help support the site and its future development.</div>
     </div>
 
     <div id="heroSection">
@@ -486,7 +487,7 @@
 </div>
 
 <footer>
-  &copy; 2026 PopInStock &mdash; All rights reserved.
+  &copy; 2026 Hoardio &mdash; All rights reserved.
   <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
 </footer>
 
@@ -494,7 +495,7 @@
 <script>
 'use strict';
 
-const TAKER_MARKETPLACE = 'popinstockgo';
+const TAKER_MARKETPLACE = 'Hoardiogo';
 const IPFS_GW           = 'https://ipfs.io/ipfs/';
 const ATOMIC_MARKET_URL = 'https://wax.atomichub.io/market';
 const WAX_MARKET_API    = WaxApi.marketBase();
@@ -781,7 +782,7 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
   const img    = tpl.immutable_data?.img;
   const video  = tpl.immutable_data?.video;
 
-  document.title = `${name} — Marketplace — PopInStock`;
+  document.title = `${name} — Marketplace — Hoardio`;
 
   const rarityHtml = rarity
     ? `<span class="rarity-pill ${RARITY_CLASS[rarity] || ''}">${rarity}</span>`
@@ -953,7 +954,7 @@ function renderListings() {
       </div>
       <div class="mp-grid" id="mpGrid"></div>
       <div id="mpShowMore"></div>
-      <div class="commission-note" style="margin-top:1rem">Purchases made here support PopInStock.</div>
+      <div class="commission-note" style="margin-top:1rem">Purchases made here support Hoardio.</div>
     </div>`;
 
   renderGrid();
@@ -1139,7 +1140,7 @@ async function init() {
 
   if (!templateId) {
     document.getElementById('heroSection').innerHTML =
-      `<div class="state state-error">No card selected. Please navigate here from one of the PopInStock tools.</div>`;
+      `<div class="state state-error">No card selected. Please navigate here from one of the Hoardio tools.</div>`;
     return;
   }
 
@@ -1168,6 +1169,7 @@ async function init() {
 
 init();
 </script>
+<script src="shared/moved.js"></script>
 
 </body>
 </html>
