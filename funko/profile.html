@@ -1042,7 +1042,7 @@
       localStorage.setItem('wax_funko_tier', String(tierNum));
       renderAll();
       if (selectPanel) selectPanel(String(Math.min(tierNum + 1, 4)));
-      _updateNavWaxBtn();
+      window._walletWidget?.render();
     } catch (e) {
       console.error('Claim failed:', e);
       if (btn) { btn.disabled = false; btn.textContent = 'Level up!'; }
@@ -1106,7 +1106,7 @@
       localStorage.setItem('wax_funko_tier', String(appState.maxTier));
       renderAll();
       if (selectPanel) selectPanel(String(Math.min(appState.maxTier + 1, 4)));
-      _updateNavWaxBtn();
+      window._walletWidget?.render();
     } catch (e) {
       console.error('Profile fetch failed:', e);
       appState.loaded = true;

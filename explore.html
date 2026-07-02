@@ -389,6 +389,7 @@
 <script src="shared/supabase-config.js"></script>
 <script src="shared/moved.js"></script>
 <script src="shared/wax-api.js"></script>
+<script src="shared/wallet-widget.js"></script>
 <script>
 /* ── Config ── */
 const PAGE_SIZE = 20;
@@ -941,7 +942,7 @@ function resetResults() {
    the actual cause of the slowness — this defers a video's src (and
    playback) until it's about to scroll into view, and releases it again
    when it scrolls away, matching the pattern already used in
-   funko/inventory.html. ── */
+   inventory.html. ── */
 let _videoObserver = new IntersectionObserver((entries) => {
   for (const entry of entries) {
     const video = entry.target;
@@ -1220,6 +1221,10 @@ async function restoreFromUrl() {
 }
 
 /* ── Init ── */
+WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: [{ href: 'inventory.html', label: 'Inventory' }],
+});
 fetchWaxUsd();
 restoreFromUrl();
 </script>

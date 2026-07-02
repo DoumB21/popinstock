@@ -3,6 +3,12 @@
 // Set to null to hide.
 const SITE_BANNER = null;
 
+// Defined synchronously here (not just inside shared/wallet-widget.js, which
+// this page loads lazily) so pages calling window.getWaxAccount() from their
+// own DOMContentLoaded handler never race the widget's dynamic script load —
+// shared/wallet-widget.js redefines this identically once it loads, harmless.
+window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
+
 const NAV_LINKS = [
   { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
   { label: 'Mint Rankings', href: 'mint-rankings.html' },
@@ -35,45 +41,6 @@ function buildNav() {
     .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 0.5rem 0 0.25rem; flex-shrink: 0; }
     .nav-section { font-size: 0.75rem; font-weight: 700; color: var(--accent); flex-shrink: 0; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 0.75rem; text-decoration: none; }
     .nav-section:hover { opacity: 0.75; }
-    .nav-wax-btn {
-      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
-      padding: 5px 12px; border-radius: 999px; flex-shrink: 0;
-      border: 1px solid rgba(240,168,64,0.35); background: rgba(240,168,64,0.07);
-      color: var(--accent-light); cursor: pointer; white-space: nowrap;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .nav-wax-btn:hover:not(:disabled) { background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.55); }
-    .nav-wax-btn:disabled { opacity: 0.55; cursor: default; }
-    .nav-wax-connected-widget {
-      display: none; align-items: center; gap: 6px;
-      padding: 4px 11px; border-radius: 999px; flex-shrink: 0;
-      border: 1px solid rgba(74,222,128,0.35); background: rgba(74,222,128,0.07);
-      position: relative;
-    }
-    .nav-wax-name {
-      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
-      color: #4ade80; white-space: nowrap; user-select: none;
-      background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
-      transition: opacity 0.15s;
-    }
-    .nav-wax-name:hover { opacity: 0.75; }
-    .nav-wax-menu {
-      position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px; padding: 0.3rem 0; min-width: 165px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-    }
-    .nav-wax-menu-item {
-      display: block; width: 100%; padding: 0.55rem 1rem;
-      font-size: 0.82rem; font-weight: 600; color: var(--text-primary);
-      text-decoration: none; white-space: nowrap; text-align: left;
-      background: none; border: none; cursor: pointer; font-family: inherit;
-      transition: background 0.1s, color 0.1s;
-    }
-    .nav-wax-menu-item:hover { background: rgba(255,255,255,0.06); color: var(--accent-light); }
-    .nav-wax-menu-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 0.3rem 0; }
-    .nav-wax-menu-logout { color: rgba(224,82,82,0.75); }
-    .nav-wax-menu-logout:hover { background: rgba(224,82,82,0.1); color: #e05252; }
   `;
   document.head.appendChild(navStyle);
 
@@ -87,16 +54,6 @@ function buildNav() {
       <span class="nav-divider"></span>
       <a href="funko.html" class="nav-section">${SECTION_NAME}</a>
       <div class="nav-links">${links}</div>
-      <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">Connect Wallet</button>
-      <div id="navWaxConnected" class="nav-wax-connected-widget">
-        <button id="navWaxName" class="nav-wax-name" type="button"></button>
-        <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
-          <a href="profile.html" class="nav-wax-menu-item">Collector Profile</a>
-          <a href="inventory.html" class="nav-wax-menu-item">Inventory</a>
-          <div class="nav-wax-menu-divider"></div>
-          <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button">Logout</button>
-        </div>
-      </div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -176,8 +133,6 @@ function buildFooter() {
 }
 
 /* ── WAX Auth ─────────────────────────────────────────────────────────────── */
-window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
-
 const _SB_URL  = 'https://otzyszbbsuwoxupbpfju.supabase.co';
 const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90enlzemJic3V3b3h1cGJwZmp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDU5ODMsImV4cCI6MjA5MDMyMTk4M30.s8XzcbpZ2PCwOvXJcN7LqPKhqyZop_hdUOFdvLbPCWU';
 
@@ -195,97 +150,38 @@ async function _fetchAndCacheTier(account) {
   } catch { /* network failure — leave cached value */ }
 }
 
-function _loadWaxAuth() {
-  if (window.WaxAuth) return Promise.resolve();
+const _NAV_TIER_ICONS = { 1: '🌱', 2: '📚', 3: '🏛️', 4: '👑' };
+
+function _loadWalletWidget() {
+  if (window.WalletWidget) return Promise.resolve();
   return new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '../shared/wax-auth.js';
+    s.src = '../shared/wallet-widget.js';
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
 }
 
-function _waxShort(acc) {
-  return acc.length > 13 ? acc.slice(0, 6) + '…' + acc.slice(-4) : acc;
-}
-
-const _NAV_TIER_ICONS = { 1: '🌱', 2: '📚', 3: '🏛️', 4: '👑' };
-
-function _updateNavWaxBtn() {
-  const connectBtn   = document.getElementById('navWaxBtn');
-  const connectedEl  = document.getElementById('navWaxConnected');
-  const nameEl       = document.getElementById('navWaxName');
-  const acc = window.getWaxAccount();
-  if (acc) {
-    if (connectBtn)  { connectBtn.style.display = 'none'; connectBtn.disabled = false; }
-    if (connectedEl) connectedEl.style.display = 'flex';
-    if (nameEl) {
+async function _initWallet() {
+  await _loadWalletWidget();
+  // Exposed so pages that update localStorage.wax_funko_tier themselves
+  // (e.g. profile.html on claiming a tier) can force an immediate nav
+  // re-render instead of waiting for the next wax-auth-change event.
+  window._walletWidget = WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: '../shared/wax-auth.js',
+    menuItems: [
+      { href: 'profile.html', label: 'Collector Profile' },
+      { href: '../inventory.html', label: 'Inventory' },
+    ],
+    // Reads the cached tier synchronously so the icon appears instantly —
+    // onAccount below refreshes it in the background, never blocking paint.
+    decorateName: () => {
       const tier = parseInt(localStorage.getItem('wax_funko_tier') || '0', 10);
-      const icon = tier >= 1 ? _NAV_TIER_ICONS[tier] + ' ' : '';
-      nameEl.innerHTML = icon + _waxShort(acc) + ' <span style="font-size:1rem;line-height:1;opacity:0.75">▾</span>';
-      nameEl.title = 'Account options';
-    }
-  } else {
-    if (connectBtn)  { connectBtn.style.display = ''; connectBtn.textContent = 'Connect Wallet'; connectBtn.disabled = false; }
-    if (connectedEl) connectedEl.style.display = 'none';
-  }
-}
-
-let _connectTimeout = null;
-
-async function _handleWaxClick() {
-  const btn = document.getElementById('navWaxBtn');
-  if (!btn) return;
-  btn.disabled = true;
-  btn.textContent = 'Connecting…';
-  clearTimeout(_connectTimeout);
-  // Failsafe: reset after 5 minutes if the wallet promise never settles
-  _connectTimeout = setTimeout(() => _updateNavWaxBtn(), 300000);
-  try {
-    await _loadWaxAuth();
-    await WaxAuth.login();
-    const _acc = window.getWaxAccount();
-    if (_acc) await _fetchAndCacheTier(_acc);
-  } catch { /* cancelled or failed — no action needed */ } finally {
-    clearTimeout(_connectTimeout);
-    _updateNavWaxBtn();
-  }
-}
-
-async function _handleWaxLogout() {
-  const btn = document.getElementById('navWaxLogout');
-  if (btn) btn.disabled = true;
-  try {
-    await _loadWaxAuth();
-    await WaxAuth.logout();
-  } catch { /* ignore */ } finally {
-    localStorage.removeItem('wax_funko_tier');
-    _updateNavWaxBtn();
-  }
-}
-
-async function _initWaxBtn() {
-  const connectBtn = document.getElementById('navWaxBtn');
-  const logoutBtn  = document.getElementById('navWaxLogout');
-  const nameBtn    = document.getElementById('navWaxName');
-  const waxMenu    = document.getElementById('navWaxMenu');
-  if (connectBtn) connectBtn.addEventListener('click', _handleWaxClick);
-  if (logoutBtn)  logoutBtn.addEventListener('click', () => { waxMenu.style.display = 'none'; _handleWaxLogout(); });
-  if (nameBtn && waxMenu) {
-    nameBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      waxMenu.style.display = waxMenu.style.display === 'none' ? '' : 'none';
-    });
-    document.addEventListener('click', () => { waxMenu.style.display = 'none'; });
-  }
-  window.addEventListener('wax-auth-change', _updateNavWaxBtn);
-  try {
-    await _loadWaxAuth();
-    await WaxAuth.restore();
-    const _acc = window.getWaxAccount();
-    if (_acc) await _fetchAndCacheTier(_acc);
-  } catch { /* no saved session */ }
-  _updateNavWaxBtn();
+      return tier >= 1 ? _NAV_TIER_ICONS[tier] + ' ' : '';
+    },
+    onAccount: acc => _fetchAndCacheTier(acc),
+    onLogout: () => localStorage.removeItem('wax_funko_tier'),
+  });
 }
 
 function _showMovedOverlay() {
@@ -304,4 +200,4 @@ function _showMovedOverlay() {
   document.body.appendChild(el);
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); _updateNavWaxBtn(); buildSiteBanner(); buildBackToTop(); buildFooter(); _initWaxBtn(); _showMovedOverlay(); });
+document.addEventListener('DOMContentLoaded', () => { buildNav(); buildSiteBanner(); buildBackToTop(); buildFooter(); _initWallet(); _showMovedOverlay(); });

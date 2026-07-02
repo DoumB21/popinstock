@@ -104,6 +104,31 @@ function buildFooter() {
   document.body.appendChild(footer);
 }
 
+/* ── WAX Auth ─────────────────────────────────────────────────────────────── */
+// Defined synchronously here (not just inside shared/wallet-widget.js, which
+// this page loads lazily) so pages calling window.getWaxAccount() from their
+// own DOMContentLoaded handler never race the widget's dynamic script load —
+// shared/wallet-widget.js redefines this identically once it loads, harmless.
+window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
+
+function _loadWalletWidget() {
+  if (window.WalletWidget) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = '../shared/wallet-widget.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function _initWallet() {
+  await _loadWalletWidget();
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: '../shared/wax-auth.js',
+    menuItems: [{ href: '../inventory.html', label: 'Inventory' }],
+  });
+}
+
 function _showMovedOverlay() {
   if (!location.hostname.includes('popinstock.com')) return;
   const newUrl = location.href.replace('popinstock.com', 'hoardio.com');
@@ -120,4 +145,4 @@ function _showMovedOverlay() {
   document.body.appendChild(el);
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); _showMovedOverlay(); });
+document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); _initWallet(); _showMovedOverlay(); });
