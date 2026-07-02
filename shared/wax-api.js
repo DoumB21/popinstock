@@ -1,23 +1,28 @@
 'use strict';
 (function () {
-  /* AtomicAssets community nodes, ordered by measured real-world latency
-     (health + assets query response time, 2026-07 spot check) — fastest
-     first, since _idx starts at 0 and the first request of a session
-     hits that node with no upfront health probing.
+  /* AtomicAssets community nodes — this is ONLY the bootstrap default, used
+     synchronously before the Supabase read below resolves (or if Supabase
+     is ever unreachable). The real, authoritative list — both which
+     endpoints exist and their order — lives in Supabase
+     (public.wax_endpoint_health) and fully REPLACES this array on every
+     page load via _syncEndpointOrder/_applyOrder. That row is populated by
+     an external health-check agent (not this codebase), so this array does
+     not need to be kept in sync with it by hand going forward.
      atomicmarket is only reliably hosted on the official node — market
      URLs are detected and excluded from rotation automatically, so this
      ordering only affects atomicassets calls (aaBase). */
   const AA_ENDPOINTS = [
-    'https://wax.eosusa.io',              // ~300-400ms
-    'https://atomic.wax.eosrio.io',       // ~700-750ms
-    'https://wax.api.atomicassets.io',    // ~750-1000ms — official node, kept high as the reliable reference
-    'https://wax-aa.eu.eosamsterdam.net', // 2.3-7s but works; best block freshness of the group
-    'https://atomic.hivebp.io',           // slow/flaky health, but usable once connected
-    'https://aa.dapplica.io',             // untested — kept as fallback
-    'https://wax-atomic.alcor.exchange',
-    'https://wax-atomic-api.eosphere.io',
-    'https://atomic.sentnl.io',
     'https://atomic.wax.detroitledger.tech',
+    'https://wax-atomic.alcor.exchange',
+    'https://wax.api.atomicassets.io',    // official node, kept as the reliable reference
+    'https://api.waxsweden.org',
+    'https://wax-aa.eu.eosamsterdam.net',
+    'https://atomic.wax.eosrio.io',
+    'https://atomic.sentnl.io',
+    'https://wax-atomic-api.eosphere.io',
+    'https://atomic.hivebp.io',
+    'https://wax.eosusa.io',              // fast /health, but real queries 429 heavily — see note above
+    'https://atomic-api.wax.cryptolions.io',
   ];
 
   const RETRY          = new Set([429, 503, 408]);
@@ -30,13 +35,12 @@
 
   /* A node can pass /health (fast, not rate-limited) while its real
      /atomicassets/v1 queries 429 constantly (seen on wax.eosusa.io,
-     2026-07). The 6h shared reorder below now probes a real query instead
-     of /health, but that only runs once per 6h per browser and can still
-     race a temporarily-quiet moment. This penalty box is the fast local
-     backstop: any 429/503/408 a page actually hits gets remembered so the
-     *next* page load (not just the current session, since _idx resets on
-     every navigation) skips that node too, without waiting for the next
-     6h cycle. */
+     2026-07) — the external health-check agent behind wax_endpoint_health
+     may not catch that instantly either. This penalty box is the fast
+     local backstop: any 429/503/408 a page actually hits gets remembered
+     so the *next* page load (not just the current session, since _idx
+     resets on every navigation) skips that node too, without waiting for
+     the shared list to be updated. */
   const PENALTY_KEY = 'wax_node_penalty_v1';
   const PENALTY_TTL = 10 * 60 * 1000; // 10 min — long enough to skip a hot node, short enough to retry once it cools down
 
@@ -259,42 +263,21 @@
     return ranked.slice(0, n).map(ep => ep + '/atomicassets/v1');
   }
 
-  /* ── Shared endpoint ordering, refreshed at most once per REFRESH_TTL ──
+  /* ── Shared endpoint list, read-only from the site's side ──
      A row in Supabase (public.wax_endpoint_health) holds the current
-     fastest-to-slowest order and when it was last measured. Every page load
-     reads it (cheap, one row) and reorders AA_ENDPOINTS to match. If it's
-     older than REFRESH_TTL, this visitor's browser times every endpoint in
-     the background and writes the new order back — the update only takes
-     effect server-side if the row is *still* stale by then, so many
-     visitors doing this at once is harmless; at most one write per window
-     actually changes anything. Any failure here (table not created yet,
-     Supabase unreachable, etc.) is silent — the hardcoded order above is
-     always a safe fallback. */
-  const REFRESH_TTL = 6 * 60 * 60 * 1000; // 6 hours
-
+     endpoint list, kept fresh by an external health-check agent (not this
+     codebase). Every page load reads it (cheap, one row) and REPLACES
+     AA_ENDPOINTS with it wholesale — both membership and order. The site
+     never writes to this table: adding/removing/reordering endpoints is
+     managed entirely in Supabase, no code change or deploy needed. Any
+     failure here (table not created yet, Supabase unreachable, this page
+     not loading supabase-config.js, etc.) is silent — the hardcoded
+     bootstrap list above is used for that page load instead. */
   function _applyOrder(order) {
-    if (!Array.isArray(order) || !order.length) return;
-    const incoming = order.filter(ep => AA_ENDPOINTS.includes(ep));
-    const missing  = AA_ENDPOINTS.filter(ep => !incoming.includes(ep));
+    if (!Array.isArray(order) || !order.length) return; // malformed/empty row — keep current list
     AA_ENDPOINTS.length = 0;
-    AA_ENDPOINTS.push(...incoming, ...missing);
+    AA_ENDPOINTS.push(...order);
     _idx = 0;
-  }
-
-  async function _measureFastestOrder() {
-    // Probes a real /atomicassets/v1 query, not /health: a node can be up
-    // and fast on /health while still 429ing on actual data queries (seen
-    // on wax.eosusa.io, 2026-07) — /health alone kept it ranked first forever.
-    const timed = await Promise.all(AA_ENDPOINTS.map(async base => {
-      const start = Date.now();
-      try {
-        const res = await _fetchWithTimeout(base + '/atomicassets/v1/assets?limit=1', 6000);
-        return { base, ms: res.ok ? Date.now() - start : Infinity };
-      } catch { return { base, ms: Infinity }; }
-    }));
-    const reachable   = timed.filter(t => t.ms !== Infinity).sort((a, b) => a.ms - b.ms).map(t => t.base);
-    const unreachable = timed.filter(t => t.ms === Infinity).map(t => t.base);
-    return [...reachable, ...unreachable]; // unreachable ones kept at the end as last-resort fallbacks
   }
 
   async function _syncEndpointOrder() {
@@ -306,26 +289,13 @@
     const headers = { apikey: key, Authorization: 'Bearer ' + key };
 
     try {
-      const res = await fetch(url + '/rest/v1/wax_endpoint_health?id=eq.1&select=endpoint_order,checked_at', { headers });
-      if (!res.ok) return; // table not created yet, or unreachable — keep the built-in order
+      const res = await fetch(url + '/rest/v1/wax_endpoint_health?id=eq.1&select=endpoint_order', { headers });
+      if (!res.ok) return; // table not created yet, or unreachable — keep the built-in list
       const rows = await res.json();
       const row = rows && rows[0];
       if (!row) return;
-
       _applyOrder(row.endpoint_order);
-
-      const age = Date.now() - new Date(row.checked_at).getTime();
-      if (age < REFRESH_TTL) return; // fresh enough — nothing else to do
-
-      const freshOrder = await _measureFastestOrder();
-      _applyOrder(freshOrder);
-
-      await fetch(url + '/rest/v1/rpc/update_wax_endpoint_health', {
-        method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
-        body: JSON.stringify({ p_order: freshOrder }),
-      }).catch(() => {});
-    } catch {} // any failure — the page keeps working with whatever order it already has
+    } catch {} // any failure — the page keeps working with whatever list it already has
   }
 
   // Deferred so it never delays this page's own first request: by the time
