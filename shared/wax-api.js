@@ -28,11 +28,63 @@
   const MAX_BLOCK_GAP  = 1000; // blocks — ~8 min on WAX; anything further is considered lagging
   const MARKET_RETRIES = 3; // same-endpoint retries for atomicmarket URLs, which never rotate
 
+  /* A node can pass /health (fast, not rate-limited) while its real
+     /atomicassets/v1 queries 429 constantly (seen on wax.eosusa.io,
+     2026-07). The 6h shared reorder below now probes a real query instead
+     of /health, but that only runs once per 6h per browser and can still
+     race a temporarily-quiet moment. This penalty box is the fast local
+     backstop: any 429/503/408 a page actually hits gets remembered so the
+     *next* page load (not just the current session, since _idx resets on
+     every navigation) skips that node too, without waiting for the next
+     6h cycle. */
+  const PENALTY_KEY = 'wax_node_penalty_v1';
+  const PENALTY_TTL = 10 * 60 * 1000; // 10 min — long enough to skip a hot node, short enough to retry once it cools down
+
   let _idx = 0;
   const _blockCache = new Map(); // base → { block: number|null, ts: number }
 
-  function _cur()     { return AA_ENDPOINTS[_idx % AA_ENDPOINTS.length]; }
-  function _delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function _baseOf(url) { return AA_ENDPOINTS.find(ep => url.startsWith(ep)); }
+  function _delay(ms)   { return new Promise(r => setTimeout(r, ms)); }
+
+  function _readPenalties() {
+    try {
+      const raw = localStorage.getItem(PENALTY_KEY);
+      if (!raw) return {};
+      const map = JSON.parse(raw);
+      const now = Date.now();
+      let changed = false;
+      for (const base in map) {
+        if (!(map[base] > now)) { delete map[base]; changed = true; }
+      }
+      if (changed) localStorage.setItem(PENALTY_KEY, JSON.stringify(map));
+      return map;
+    } catch { return {}; }
+  }
+
+  function _penalize(base) {
+    if (!base) return;
+    try {
+      const map = _readPenalties();
+      map[base] = Date.now() + PENALTY_TTL;
+      localStorage.setItem(PENALTY_KEY, JSON.stringify(map));
+    } catch { /* localStorage unavailable (privacy mode, etc.) — penalty just won't persist */ }
+  }
+
+  function _isPenalized(base, penalties) { return !!(penalties || _readPenalties())[base]; }
+
+  /* Preferred endpoint, skipping any currently-penalized node. Walks
+     forward from _idx rather than mutating it, so the underlying
+     preference order (and aaBases' fan-out) is untouched once a penalty
+     expires. */
+  function _cur() {
+    const n = AA_ENDPOINTS.length;
+    const penalties = _readPenalties();
+    for (let i = 0; i < n; i++) {
+      const cand = AA_ENDPOINTS[(_idx + i) % n];
+      if (!_isPenalized(cand, penalties)) return cand;
+    }
+    return AA_ENDPOINTS[_idx % n]; // everything penalized — use the preferred one anyway
+  }
 
   function _fetchWithTimeout(url, ms) {
     const ctrl  = new AbortController();
@@ -45,7 +97,7 @@
   }
 
   function _swapBase(url) {
-    const old = AA_ENDPOINTS.find(ep => url.startsWith(ep));
+    const old = _baseOf(url);
     return old ? _cur() + url.slice(old.length) : url;
   }
 
@@ -90,7 +142,7 @@
        • has a block_num within MAX_BLOCK_GAP of the reference
      If no healthy candidate exists, throw rather than silently use a lagging node. */
   async function _rotateToHealthy(failedUrl) {
-    const failedBase = AA_ENDPOINTS.find(ep => failedUrl.startsWith(ep));
+    const failedBase = _baseOf(failedUrl);
 
     const checks = await Promise.all(
       AA_ENDPOINTS.map(async base => ({ base, block: await _withDeadline(_fetchBlockNum(base), ROTATE_DEADLINE) }))
@@ -104,17 +156,24 @@
       return _swapBase(failedUrl);
     }
 
-    const healthy = checks.filter(c =>
+    const blockHealthy = checks.filter(c =>
       c.block !== null &&
       maxBlock - c.block <= MAX_BLOCK_GAP &&
       c.base !== failedBase
     );
 
-    if (healthy.length === 0) {
+    if (blockHealthy.length === 0) {
       throw new Error('No healthy WAX endpoint available');
     }
 
-    _idx = AA_ENDPOINTS.indexOf(healthy[0].base);
+    // Prefer a candidate that isn't also currently rate-limit-penalized, but
+    // fall back to ignoring the penalty rather than throwing — a node that
+    // 429'd 10 minutes ago may well be fine again even if the box hasn't expired.
+    const penalties = _readPenalties();
+    const preferred = blockHealthy.filter(c => !_isPenalized(c.base, penalties));
+    const pick = (preferred.length ? preferred : blockHealthy)[0];
+
+    _idx = AA_ENDPOINTS.indexOf(pick.base);
     return _swapBase(failedUrl);
   }
 
@@ -132,7 +191,7 @@
         res = await _fetchWithTimeout(cur, rotatable ? TIMEOUT : MARKET_TIMEOUT);
       } catch (err) {
         if (i === maxAttempts - 1) throw err;
-        if (rotatable) { cur = await _rotateToHealthy(cur); await _delay(300); }
+        if (rotatable) { _penalize(_baseOf(cur)); cur = await _rotateToHealthy(cur); await _delay(300); }
         else await _delay(400 * (i + 1));
         continue;
       }
@@ -142,7 +201,7 @@
         return json.data;
       }
       if (RETRY.has(res.status) && i < maxAttempts - 1) {
-        if (rotatable) { cur = await _rotateToHealthy(cur); await _delay(i === 0 ? 300 : 600); }
+        if (rotatable) { _penalize(_baseOf(cur)); cur = await _rotateToHealthy(cur); await _delay(i === 0 ? 300 : 600); }
         else await _delay(400 * (i + 1));
         continue;
       }
@@ -162,12 +221,12 @@
         res = await _fetchWithTimeout(cur, rotatable ? TIMEOUT : MARKET_TIMEOUT);
       } catch (err) {
         if (i === maxAttempts - 1) throw err;
-        if (rotatable) { cur = await _rotateToHealthy(cur); await _delay(300); }
+        if (rotatable) { _penalize(_baseOf(cur)); cur = await _rotateToHealthy(cur); await _delay(300); }
         else await _delay(400 * (i + 1));
         continue;
       }
       if (!RETRY.has(res.status) || i === maxAttempts - 1) return res;
-      if (rotatable) { cur = await _rotateToHealthy(cur); await _delay(i === 0 ? 300 : 600); }
+      if (rotatable) { _penalize(_baseOf(cur)); cur = await _rotateToHealthy(cur); await _delay(i === 0 ? 300 : 600); }
       else await _delay(400 * (i + 1));
     }
   }
@@ -193,9 +252,11 @@
      connection limit (~6 concurrent per host). */
   function aaBases(count) {
     const n = Math.max(1, Math.min(count, AA_ENDPOINTS.length));
-    const out = [];
-    for (let i = 0; i < n; i++) out.push(AA_ENDPOINTS[(_idx + i) % AA_ENDPOINTS.length] + '/atomicassets/v1');
-    return out;
+    const penalties = _readPenalties();
+    const ordered = [];
+    for (let i = 0; i < AA_ENDPOINTS.length; i++) ordered.push(AA_ENDPOINTS[(_idx + i) % AA_ENDPOINTS.length]);
+    const ranked = [...ordered.filter(ep => !_isPenalized(ep, penalties)), ...ordered.filter(ep => _isPenalized(ep, penalties))];
+    return ranked.slice(0, n).map(ep => ep + '/atomicassets/v1');
   }
 
   /* ── Shared endpoint ordering, refreshed at most once per REFRESH_TTL ──
@@ -221,10 +282,13 @@
   }
 
   async function _measureFastestOrder() {
+    // Probes a real /atomicassets/v1 query, not /health: a node can be up
+    // and fast on /health while still 429ing on actual data queries (seen
+    // on wax.eosusa.io, 2026-07) — /health alone kept it ranked first forever.
     const timed = await Promise.all(AA_ENDPOINTS.map(async base => {
       const start = Date.now();
       try {
-        const res = await _fetchWithTimeout(base + '/health', 6000);
+        const res = await _fetchWithTimeout(base + '/atomicassets/v1/assets?limit=1', 6000);
         return { base, ms: res.ok ? Date.now() - start : Infinity };
       } catch { return { base, ms: Infinity }; }
     }));
