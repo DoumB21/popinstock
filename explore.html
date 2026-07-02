@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explore — Hoardio</title>
+  <meta name="description" content="Browse WAX NFT listings across all collections. Filter by collection, schema, rarity, and price." />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    /* ── Explore layout ── */
+    .explore-layout {
+      display: flex; align-items: flex-start; gap: 1.25rem;
+    }
+
+    /* ── Sidebar ── */
+    .ex-sidebar {
+      width: 260px; flex-shrink: 0;
+      position: sticky; top: calc(64px + 2.5rem);
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.25rem;
+    }
+
+    .filter-section { margin-bottom: 1.25rem; }
+    .filter-label {
+      display: block; margin-bottom: 0.45rem;
+      font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-secondary);
+    }
+
+    /* ── Collection typeahead ── */
+    .typeahead-wrap { position: relative; }
+    #colSearch { width: 100%; box-sizing: border-box; }
+
+    #colSuggestions {
+      display: none; position: absolute;
+      top: calc(100% + 4px); left: 0; right: 0;
+      background: #1a1a28; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; z-index: 400;
+      max-height: 259px; overflow-y: auto;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+    }
+    #colSuggestions::-webkit-scrollbar { width: 4px; }
+    #colSuggestions::-webkit-scrollbar-track { background: transparent; }
+    #colSuggestions::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    .col-sug {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.55rem 0.85rem; cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .col-sug:hover { background: rgba(255,255,255,0.05); border-left-color: var(--accent); }
+    .col-sug + .col-sug { border-top: 1px solid rgba(255,255,255,0.05); }
+    .col-sug img { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
+    .col-sug-ph { width: 28px; height: 28px; border-radius: 5px; background: rgba(255,255,255,0.07); flex-shrink: 0; }
+    .col-sug-info { min-width: 0; flex: 1; }
+    .col-sug-name { display: block; font-size: 0.84rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .col-sug-slug { display: block; font-size: 0.71rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Selected collection chip ── */
+    .col-chip {
+      display: none; align-items: center; gap: 0.45rem;
+      margin-top: 0.5rem;
+      background: rgba(192,120,40,0.1); border: 1px solid rgba(192,120,40,0.3);
+      border-radius: 6px; padding: 0.4rem 0.6rem;
+    }
+    .col-chip img { width: 22px; height: 22px; border-radius: 3px; object-fit: cover; flex-shrink: 0; }
+    .col-chip-name { flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .col-chip-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.25rem; flex-shrink: 0; }
+    .col-chip-clear:hover { color: var(--text-primary); }
+
+    /* ── Filter inputs ──
+       Base look (padding/radius/font/colors) lives in shared/global.css
+       (.filter-select, .control-input, .cb-dropdown*, .clear-filters-btn) —
+       only page-specific layout rules stay here. */
+    .ex-sidebar .cb-panel { z-index: 400; } /* sticky sidebar sits near the nav (z-index 100) */
+    .cb-item-tag {
+      margin-left: auto; font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-secondary); background: rgba(255,255,255,0.06);
+      padding: 0.12rem 0.4rem; border-radius: 999px; flex-shrink: 0;
+    }
+
+    /* ── Price range ── */
+    .price-row { display: flex; align-items: center; gap: 0.4rem; }
+    .price-inp { flex: 1; min-width: 0; }
+    .price-sep { color: var(--text-secondary); font-size: 0.82rem; flex-shrink: 0; }
+
+    /* ── Sort row ── */
+    .sort-row { display: flex; gap: 0.4rem; }
+    .sort-row .filter-select { flex: 1; }
+
+    .clear-filters-btn { width: 100%; }
+
+    /* ── Hidden filter sections ── */
+    .filter-section.hidden { display: none; }
+
+    /* ── Main ── */
+    .explore-main { flex: 1; min-width: 0; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center; padding: 5rem 2rem;
+      color: var(--text-secondary);
+    }
+    .empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
+    .empty-state h2 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.4rem; }
+    .empty-state p { font-size: 0.88rem; margin: 0; }
+
+    /* ── Status ── */
+    .results-status { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; min-height: 1.2em; }
+
+    /* ── Cards grid ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 1rem;
+    }
+
+    /* ── Card ── */
+    .ex-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+      display: flex; flex-direction: column;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    }
+    .ex-card:hover {
+      border-color: rgba(192,120,40,0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+    }
+    .ex-card-img {
+      aspect-ratio: 1; background: rgba(0,0,0,0.25);
+      overflow: hidden; display: flex; align-items: center; justify-content: center;
+    }
+    .ex-card-img img, .ex-card-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .ex-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
+
+    .ex-card-body { padding: 0.7rem; display: flex; flex-direction: column; gap: 0.3rem; flex: 1; }
+
+    .ex-card-name {
+      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+      line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .ex-card-rarity { align-self: flex-start; }
+
+    .ex-card-price { margin-top: auto; padding-top: 0.3rem; }
+    .ex-price-wax { font-size: 0.86rem; font-weight: 700; color: var(--accent-light); display: block; }
+    .ex-price-usd { font-size: 0.73rem; color: var(--text-secondary); }
+    .ex-listings { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem; display: block; }
+
+    .ex-buy-btn {
+      display: block; text-align: center; margin-top: 0.5rem;
+      padding: 0.38rem; border-radius: 5px; font-size: 0.79rem; font-weight: 700;
+      background: rgba(192,120,40,0.14); border: 1px solid rgba(192,120,40,0.28);
+      color: var(--accent-light); text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .ex-buy-btn:hover { background: rgba(192,120,40,0.26); border-color: rgba(192,120,40,0.5); }
+
+    /* ── Load more ── */
+    #loadMoreWrap { display: none; text-align: center; padding: 2rem 0 1rem; }
+    #loadMoreBtn {
+      padding: 0.6rem 2rem; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-primary); font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+    }
+    #loadMoreBtn:hover:not(:disabled) { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+    #loadMoreBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Retry / error states ── */
+    .retry-btn {
+      padding: 0.6rem 2rem; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-primary); font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+      font-family: inherit;
+    }
+    .retry-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+    .results-error {
+      padding: 3rem 1.5rem; text-align: center; color: var(--text-secondary);
+      font-size: 0.88rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    }
+
+    /* ── Spinner ── */
+    .spin {
+      display: inline-block; width: 14px; height: 14px; vertical-align: middle;
+      border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent-light);
+      border-radius: 50%; animation: rot 0.65s linear infinite; margin-right: 0.35rem;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* ── Toolbar (above cards) ── */
+    .explore-toolbar {
+      display: none;
+      align-items: center; gap: 0.65rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 0.85rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .explore-toolbar.visible { display: flex; }
+    .explore-name-search { flex: 1; min-width: 0; }
+    .explore-sort-wrap { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .explore-sort-wrap .cb-dropdown-btn { width: auto; }
+    .explore-sort-wrap .cb-panel { min-width: 130px; }
+
+    /* Mobile-collapsible filters toggle — hidden outside the mobile
+       breakpoint at all times, regardless of the .hidden class (which only
+       matters once we're inside the media query below). */
+    .filters-toggle { display: none; }
+
+    /* ── Mobile ── */
+    @media (max-width: 820px) {
+      .explore-layout { flex-direction: column; gap: 1rem; }
+      .ex-sidebar { width: 100%; position: static; }
+      .explore-toolbar { flex-wrap: wrap; }
+      .explore-sort-wrap { flex-shrink: 0; }
+
+      /* Collection picker always shows; the rest collapses behind a toggle
+         so a phone doesn't have to scroll past the whole sidebar before
+         reaching any results. */
+      .filters-toggle:not(.hidden) {
+        display: flex; align-items: center; justify-content: space-between;
+        width: 100%; margin-top: 1rem; padding: 0; border: none; background: none;
+        color: var(--text-primary); font-size: 0.88rem; font-weight: 700;
+        font-family: inherit; cursor: pointer;
+      }
+      .filters-toggle-arrow { color: var(--text-secondary); font-size: 0.75rem; transition: transform 0.2s; }
+      .filters-toggle.open .filters-toggle-arrow { transform: rotate(180deg); }
+
+      .ex-filters-content { display: none; margin-top: 1rem; }
+      .ex-filters-content.open { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+
+<div class="page">
+<div class="content">
+
+  <div class="page-header">
+    <div class="page-title">Explo<span class="accent">re</span></div>
+    <div class="page-subtitle">Browse WAX NFT listings across any collection. Select a collection to start.</div>
+  </div>
+
+<div class="explore-layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="ex-sidebar">
+
+    <!-- Collection -->
+    <div class="filter-section" id="secCollection">
+      <span class="filter-label">Collection</span>
+      <div class="typeahead-wrap">
+        <input type="text" id="colSearch" class="search-input" placeholder="Type to search…" autocomplete="off" spellcheck="false" />
+        <div id="colSuggestions"></div>
+      </div>
+      <div class="col-chip" id="colChip">
+        <img id="colChipImg" src="" alt="" />
+        <span class="col-chip-name" id="colChipName"></span>
+        <button class="col-chip-clear" id="colChipClear" title="Clear">✕</button>
+      </div>
+    </div>
+
+    <!-- Mobile-only: the rest of the filters are collapsed behind this
+         toggle so a phone screen doesn't have to scroll past the whole
+         sidebar before reaching any results. No effect on desktop. -->
+    <button type="button" class="filters-toggle hidden" id="filtersToggle">
+      <span>More filters</span>
+      <span class="filters-toggle-arrow">▾</span>
+    </button>
+
+    <div class="ex-filters-content" id="exFiltersContent">
+
+      <!-- Schema -->
+      <div class="filter-section hidden" id="secSchema">
+        <span class="filter-label">Schema</span>
+        <div class="cb-dropdown" id="schemaDd">
+          <button class="cb-dropdown-btn" id="schemaTrigger" type="button">
+            <span class="cb-label">All schemas</span>
+            <span class="cb-arrow">▼</span>
+          </button>
+          <div class="cb-panel" id="schemaPanel"></div>
+        </div>
+      </div>
+
+      <!-- Rarity -->
+      <div class="filter-section hidden" id="secRarity">
+        <span class="filter-label">Rarity</span>
+        <div class="cb-dropdown" id="rarityDd">
+          <button class="cb-dropdown-btn" id="rarityTrigger" type="button">
+            <span class="cb-label">All rarities</span>
+            <span class="cb-arrow">▼</span>
+          </button>
+          <div class="cb-panel" id="rarityPanel"></div>
+        </div>
+      </div>
+
+      <!-- Price -->
+      <div class="filter-section hidden" id="secPrice">
+        <span class="filter-label">Price (WAX)</span>
+        <div class="price-row">
+          <input type="number" class="price-inp control-input" id="minPrice" placeholder="Min" min="0" step="1" />
+          <span class="price-sep">—</span>
+          <input type="number" class="price-inp control-input" id="maxPrice" placeholder="Max" min="0" step="1" />
+        </div>
+      </div>
+
+      <!-- Listing type -->
+      <div class="filter-section hidden" id="secBundle">
+        <span class="filter-label">Listing type</span>
+        <div class="cb-dropdown" id="bundleDd">
+          <button class="cb-dropdown-btn" id="bundleTrigger" type="button">
+            <span class="cb-label">All listings</span>
+            <span class="cb-arrow">▼</span>
+          </button>
+          <div class="cb-panel" id="bundlePanel"></div>
+        </div>
+      </div>
+
+      <!-- Clear filters -->
+      <div class="filter-section hidden" id="secClear">
+        <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="explore-main">
+
+    <!-- Toolbar: visible when a collection is selected -->
+    <div class="explore-toolbar" id="exploreToolbar">
+      <input type="text" id="nameSearch" class="explore-name-search control-input" placeholder="Search by name…" autocomplete="off" spellcheck="false" />
+      <div class="explore-sort-wrap">
+        <div class="cb-dropdown" id="sortByDd">
+          <button class="cb-dropdown-btn" id="sortByTrigger" type="button">
+            <span class="cb-label">Price</span>
+            <span class="cb-arrow">▼</span>
+          </button>
+          <div class="cb-panel" id="sortByPanel"></div>
+        </div>
+        <div class="cb-dropdown" id="sortOrderDd">
+          <button class="cb-dropdown-btn" id="sortOrderTrigger" type="button">
+            <span class="cb-label">Asc</span>
+            <span class="cb-arrow">▼</span>
+          </button>
+          <div class="cb-panel" id="sortOrderPanel"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="empty-state-icon">🔍</div>
+      <h2>Search for a collection</h2>
+      <p>Type a collection name in the sidebar to start browsing the WAX marketplace.</p>
+    </div>
+
+    <div class="results-status" id="resultsStatus" style="display:none"></div>
+    <div class="cards-grid" id="cardsGrid"></div>
+    <div id="loadMoreWrap">
+      <button id="loadMoreBtn">Load more</button>
+    </div>
+  </main>
+
+</div><!-- .explore-layout -->
+</div><!-- .content -->
+</div><!-- .page -->
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script src="shared/supabase-config.js"></script>
+<script src="shared/moved.js"></script>
+<script src="shared/wax-api.js"></script>
+<script>
+/* ── Config ── */
+const PAGE_SIZE = 20;
+const IPFS_GW   = 'https://ipfs.io/ipfs/';
+
+const RARITY_ORDER = [
+  '1 of 1','Mythic','Grail','Royalty','Legendary','Epic',
+  'Super Rare','Ultra Rare','Rare','Uncommon','Common',
+];
+const RARITY_CSS = {
+  'common':'r-common','uncommon':'r-uncommon','rare':'r-rare',
+  'epic':'r-epic','legendary':'r-legendary','grail':'r-grail',
+  'mythic':'r-mythic','royalty':'r-royalty','1 of 1':'r-1of1',
+  'ultra rare':'r-ultra','super rare':'r-super-rare',
+};
+
+/* ── State ── */
+let _col        = null;          // {collection_name, name, img}
+let _schema     = '';
+let _rarity     = '';            // single value — the sales API only matches data:text.rarity exactly, no OR
+let _minP       = '';
+let _maxP       = '';
+let _bundle     = 'single'; // 'all'/'bundle' disabled in the UI until bundle display + buy flow exist
+let _sortBy     = 'price';
+let _sortOrd    = 'asc';
+let _nameFilter = '';
+
+let _waxUsd     = 0;
+let _suggestions = [];
+
+// Results pagination state
+let _gen     = 0;                // incremented on reset to invalidate in-flight fetches
+let _seen    = new Set();        // template IDs already in grid
+let _queue   = [];               // fetched templates not yet rendered
+let _shownN  = 0;
+let _apiPage = 1;
+let _apiDone = false;
+let _busy    = false;
+
+/* ── Utils ── */
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtWax(n) {
+  if (!isFinite(n) || n <= 0) return '—';
+  return n.toFixed((n * 1000 % 10 !== 0) ? 3 : 2) + ' WAX';
+}
+function rcls(r) { return RARITY_CSS[(r || '').toLowerCase()] || ''; }
+
+/* ── WAX/USD ── */
+async function fetchWaxUsd() {
+  try {
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd', { signal: ctrl.signal });
+    clearTimeout(timer);
+    _waxUsd = (await r.json())?.wax?.usd || 0;
+  } catch {} // decorative — cards still render fine without a USD conversion
+}
+
+/* ── Collection typeahead ── */
+const $colSearch = document.getElementById('colSearch');
+const $colSugs   = document.getElementById('colSuggestions');
+const $colChip   = document.getElementById('colChip');
+
+let _debT = null;
+$colSearch.addEventListener('input', () => {
+  clearTimeout(_debT);
+  const q = $colSearch.value.trim();
+  if (q.length < 3) { hideSugs(); return; }
+  _debT = setTimeout(() => searchCollections(q), 300);
+});
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.typeahead-wrap')) hideSugs();
+  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+});
+
+function toggleDd(id) {
+  const wrap = document.getElementById(id);
+  const panel = wrap.querySelector('.cb-panel');
+  const trigger = wrap.querySelector('.cb-dropdown-btn');
+  const isOpen = panel.classList.contains('open');
+  closeAllDd();
+  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+}
+function closeAllDd() {
+  document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+}
+
+// "match" filters by substring anywhere in collection_name with no relevance
+// ranking, so a popular query (e.g. "topps") surfaces dozens of copycat
+// collections cloning the real one's display name. Text similarity alone
+// can't tell them apart (spam clones often match just as well or better).
+// Asset count does: real collections have orders of magnitude more assets
+// than one-off impersonators, so pull per-collection stats for the
+// text-relevant candidates and let asset count decide the final order.
+function matchScore(c, q) {
+  const slug = (c.collection_name || '').toLowerCase();
+  const name = (c.name || '').toLowerCase();
+  const segs = slug.split('.'); // WAX collections often encode as "brand.partner" (e.g. "mlb.topps")
+  if (slug === q) return 0;
+  if (segs.includes(q)) return 1;
+  if (slug.startsWith(q)) return 2;
+  if (segs.some(s => s.startsWith(q))) return 3;
+  if (name.startsWith(q)) return 4;
+  if (slug.includes(q)) return 5;
+  return 6;
+}
+
+// Bounds a promise to `ms` — for best-effort enrichment calls (search
+// ranking, rarity preload) where a slow node should never be allowed to
+// stall the UI. A rejected/timed-out call degrades to the caller's catch,
+// it never blocks the group it's part of.
+function raced(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
+// Fetches one exact URL and, on a 429/503/408, retries that *same* URL
+// with backoff — it never rotates to a different node. For sequential
+// pages of one paginated result set, WaxApi.apiFetch's normal behavior
+// (instantly switch nodes on a 429, no same-node retry first) would
+// silently pull a later page from a different node the moment any single
+// page gets rate-limited — quietly reintroducing the exact cross-node
+// inconsistency pinning them to one node was meant to prevent. This
+// trades that away for slightly worse resilience (if this one node is
+// genuinely down, the whole fetch fails rather than falling back to a
+// healthy node) — an acceptable trade here since callers already treat a
+// failed page as "return what we have" rather than a hard error.
+async function pinnedFetch(url, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (err) {
+      if (i === attempts - 1) throw err;
+      await new Promise(r => setTimeout(r, 500 * (i + 1)));
+      continue;
+    }
+    if (res.ok) {
+      const json = await res.json();
+      if (!json.success) throw new Error('API error');
+      return json.data;
+    }
+    if ((res.status === 429 || res.status === 503 || res.status === 408) && i < attempts - 1) {
+      await new Promise(r => setTimeout(r, 500 * (i + 1)));
+      continue;
+    }
+    throw new Error('API ' + res.status);
+  }
+}
+
+// collection_name → asset count, for the life of the page. Typing "topps"
+// re-searches largely overlapping candidates on almost every keystroke
+// ("to" → "top" → "topp" → "topps"), so this cuts most of the stats
+// lookups below to zero network calls after the first search or two.
+const _statsCache = new Map();
+
+let _colGen = 0;
+async function searchCollections(q) {
+  const myGen = ++_colGen;
+  try {
+    // Pull as much of the match pool as practical — a popular query can have
+    // 100+ hits, and the real collection (often years old) sorts far behind
+    // recent copycats when ordered by created-desc, so a small limit silently
+    // drops it before we ever get to rank by relevance/asset count.
+    // Fetched as two pages of 100 (rather than one page of 200 — some
+    // AtomicAssets nodes cap /collections at limit=100 and reject anything
+    // higher with a 400), run in parallel — but from the SAME node, via
+    // pinnedFetch (not WaxApi.apiFetch): these are two pages of one
+    // continuous, ordered result set, and apiFetch rotates to a different
+    // node the instant either page gets rate-limited, which would silently
+    // pull that page from a node a few blocks out of sync with the other —
+    // a collection could then be duplicated across both pages, or skipped
+    // by both. Two requests to one origin is still well within the
+    // browser's ~6-per-origin connection limit, so this costs nothing.
+    const base = WaxApi.aaBase();
+    const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
+    const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
+    const [p1, p2] = await Promise.all([
+      pinnedFetch(q1).catch(() => []),
+      pinnedFetch(q2).catch(() => []),
+    ]);
+    if (myGen !== _colGen) return; // stale — a newer keystroke superseded this
+
+    const ql = q.toLowerCase();
+    // Only pre-rank the top 15 by text relevance before spending a network
+    // call on each — the list only ever shows 12, and asset-count re-ranking
+    // exists to break ties among genuine near-matches, not to rescue
+    // candidates matchScore already ranked in the bottom half of 30.
+    const candidates = [...p1, ...p2]
+      .sort((a, b) => matchScore(a, ql) - matchScore(b, ql))
+      .slice(0, 15);
+
+    // Skip the network entirely for anything already looked up this session.
+    const uncached = candidates.filter(c => !_statsCache.has(c.collection_name));
+
+    // Spread the remaining lookups across a few nodes — the browser caps
+    // concurrent connections per origin (~6), so several requests to one
+    // node queue up while the same batch spread across 3 nodes can mostly
+    // run at once. Deliberately capped at 3 (not the full pool): this is a
+    // live-search ranking signal, and some pool nodes are healthy but
+    // simply slow (seconds per request) — fine as a last-resort fallback,
+    // bad as a peer in a fan-out. A 2.5s per-call cap on top means even a
+    // node that's slow right now can't stall typing.
+    const statBases = WaxApi.aaBases(3);
+    await Promise.all(uncached.map(async (c, i) => {
+      let assets = 0;
+      try {
+        const data = await raced(
+          WaxApi.apiFetch(`${statBases[i % statBases.length]}/collections/${encodeURIComponent(c.collection_name)}/stats`),
+          2500
+        );
+        assets = parseInt(data?.assets || 0);
+      } catch {} // one bad/slow node just ranks that collection as 0 assets, doesn't break search
+      _statsCache.set(c.collection_name, assets);
+    }));
+    if (myGen !== _colGen) return;
+
+    const withAssets = candidates.map(c => ({ c, assets: _statsCache.get(c.collection_name) || 0 }));
+
+    _suggestions = withAssets
+      .sort((a, b) => b.assets - a.assets || matchScore(a.c, ql) - matchScore(b.c, ql))
+      .slice(0, 12)
+      .map(x => x.c);
+    renderSugs();
+  } catch { hideSugs(); }
+}
+
+function renderSugs() {
+  if (!_suggestions.length) { hideSugs(); return; }
+  $colSugs.innerHTML = _suggestions.map((c, i) => {
+    const img = c.img ? `<img src="${IPFS_GW}${esc(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'col-sug-ph'}))">` : '<div class="col-sug-ph"></div>';
+    return `<div class="col-sug" data-i="${i}">
+      ${img}
+      <div class="col-sug-info">
+        <span class="col-sug-name">${esc(c.name || c.collection_name)}</span>
+        <span class="col-sug-slug">${esc(c.collection_name)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  $colSugs.style.display = 'block';
+}
+
+$colSugs.addEventListener('mousedown', e => {
+  const el = e.target.closest('.col-sug');
+  if (el) selectCollection(_suggestions[+el.dataset.i]);
+});
+
+function hideSugs() { $colSugs.style.display = 'none'; }
+
+async function selectCollection(c) {
+  hideSugs();
+  $colSearch.value = '';
+  _col = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
+
+  // Show chip
+  const $img  = document.getElementById('colChipImg');
+  const $name = document.getElementById('colChipName');
+  if (_col.img) { $img.src = IPFS_GW + _col.img; $img.style.display = ''; }
+  else { $img.style.display = 'none'; }
+  $name.textContent = _col.name;
+  $colChip.style.display = 'flex';
+
+  // Reset rarity/schema/name when user picks a new collection manually
+  _rarity = '';
+  _schema = '';
+  _nameFilter = '';
+  document.getElementById('nameSearch').value = '';
+  document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  document.getElementById('schemaPanel').innerHTML = '';
+  document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+  document.getElementById('rarityPanel').innerHTML = '';
+
+  showFilters();
+  pushUrl();
+  resetResults();
+  {
+    const [b1, b2] = WaxApi.aaBases(2);
+    loadSchemas(b1);
+    loadRarityOptions(b2);
+  }
+  loadMore();
+}
+
+document.getElementById('colChipClear').addEventListener('click', clearCollection);
+function clearCollection() {
+  _col = null; _schema = ''; _rarity = ''; _nameFilter = '';
+  $colChip.style.display = 'none';
+  $colSearch.value = '';
+  document.getElementById('nameSearch').value = '';
+  document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  document.getElementById('schemaPanel').innerHTML = '';
+  document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+  document.getElementById('rarityPanel').innerHTML = '';
+  hideFilters();
+  pushUrl();
+  resetResults();
+  document.getElementById('emptyState').style.display = '';
+}
+
+/* ── Filter sections visibility ── */
+const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secBundle','secClear'];
+function showFilters() {
+  FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
+  document.getElementById('exploreToolbar').classList.add('visible');
+  document.getElementById('filtersToggle').classList.remove('hidden');
+  collapseFiltersOnMobile();
+}
+function hideFilters() {
+  FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('exploreToolbar').classList.remove('visible');
+  document.getElementById('filtersToggle').classList.add('hidden');
+  collapseFiltersOnMobile();
+}
+
+// Collapsed by default on mobile every time a collection is (re)selected —
+// desktop ignores .open entirely (CSS only hides/shows via that class
+// inside the mobile media query), so this is a no-op there.
+function collapseFiltersOnMobile() {
+  document.getElementById('filtersToggle').classList.remove('open');
+  document.getElementById('exFiltersContent').classList.remove('open');
+}
+document.getElementById('filtersToggle').addEventListener('click', () => {
+  document.getElementById('filtersToggle').classList.toggle('open');
+  document.getElementById('exFiltersContent').classList.toggle('open');
+});
+
+/* ── Schemas ── */
+async function loadSchemas(base) {
+  if (!_col) return;
+  try {
+    const data = await WaxApi.apiFetch(`${base || WaxApi.aaBase()}/schemas?collection_name=${_col.collection_name}&limit=100`);
+    buildSchemaDropdown((data || []).map(s => s.schema_name));
+  } catch {
+    buildSchemaDropdown([]); // schema filter just won't offer options — cards load independently
+  }
+}
+
+function buildSchemaDropdown(schemas) {
+  const panel = document.getElementById('schemaPanel');
+  panel.innerHTML = [
+    `<div class="cb-item${!_schema ? ' active' : ''}" data-val=""><span>All schemas</span></div>`,
+    ...schemas.map(s => `<div class="cb-item${_schema === s ? ' active' : ''}" data-val="${esc(s)}"><span>${esc(s)}</span></div>`)
+  ].join('');
+  document.querySelector('#schemaDd .cb-label').textContent = _schema || 'All schemas';
+
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      _schema = item.dataset.val;
+      _rarity = '';
+      closeAllDd();
+      document.querySelector('#schemaDd .cb-label').textContent = _schema || 'All schemas';
+      panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _schema));
+      document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+      document.getElementById('rarityPanel').innerHTML = '';
+      pushUrl(); resetResults(); loadRarityOptions(); loadMore();
+    });
+  });
+}
+
+document.getElementById('schemaTrigger').addEventListener('click', () => toggleDd('schemaDd'));
+document.getElementById('rarityTrigger').addEventListener('click', () => toggleDd('rarityDd'));
+
+/* ── Rarity (single-select — the sales API filters by data:text.rarity
+   server-side, and it only matches one exact value, not a list, so the
+   filter itself has to be single-select too). This fetch only populates
+   the dropdown's options, not a filter list, so unlike the old
+   template_whitelist approach, small cross-node inconsistencies at page
+   boundaries don't matter here: at worst a handful of templates get
+   counted twice or skipped, never a whole rarity tier silently dropped.
+   Safe to distribute pages across nodes and fetch them fully in parallel.
+   (A single page-1-only fetch isn't enough — rarities aren't evenly
+   spread across pages; e.g. mlb.topps/series1 has ~2000 templates and
+   half its rarity values only appear on page 2.) ── */
+async function loadRarityOptions(base) {
+  const col = _col?.collection_name;
+  if (!col) { buildRarityDropdown([]); return; }
+
+  const pageUrl = (b, page) => {
+    let url = `${b}/templates?collection_name=${col}&has_assets=true&limit=1000&page=${page}`;
+    if (_schema) url += `&schema_name=${encodeURIComponent(_schema)}`;
+    return url;
+  };
+
+  const rarities = new Set();
+  try {
+    const first = await WaxApi.apiFetch(pageUrl(base || WaxApi.aaBase(), 1));
+    (first || []).forEach(t => { const r = t.immutable_data?.rarity; if (r) rarities.add(r); });
+
+    if ((first || []).length === 1000) {
+      const bases = WaxApi.aaBases(3);
+      const pages = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const rest = await Promise.all(
+        pages.map((p, i) => raced(WaxApi.apiFetch(pageUrl(bases[i % bases.length], p)), 4000).catch(() => []))
+      );
+      for (const batch of rest) (batch || []).forEach(t => { const r = t.immutable_data?.rarity; if (r) rarities.add(r); });
+    }
+  } catch {} // rarity filter just won't offer options — cards load independently
+
+  buildRarityDropdown([...rarities].sort((a, b) => a.localeCompare(b)));
+}
+
+function buildRarityDropdown(rarities) {
+  const panel = document.getElementById('rarityPanel');
+  panel.innerHTML = [
+    `<div class="cb-item${!_rarity ? ' active' : ''}" data-val=""><span>All rarities</span></div>`,
+    ...rarities.map(r => `<div class="cb-item${_rarity === r ? ' active' : ''}" data-val="${esc(r)}"><span>${esc(r)}</span></div>`)
+  ].join('');
+  document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'All rarities';
+
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      _rarity = item.dataset.val;
+      closeAllDd();
+      document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'All rarities';
+      panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _rarity));
+      pushUrl(); resetResults(); loadMore();
+    });
+  });
+}
+
+/* ── Price ── */
+let _priceT = null;
+function onPriceChange() {
+  clearTimeout(_priceT);
+  _priceT = setTimeout(() => { pushUrl(); resetResults(); loadMore(); }, 600);
+}
+document.getElementById('minPrice').addEventListener('input', function () { _minP = this.value.trim(); onPriceChange(); });
+document.getElementById('maxPrice').addEventListener('input', function () { _maxP = this.value.trim(); onPriceChange(); });
+
+/* ── Bundle / Sort ── */
+function initStaticDropdown(ddId, options, getValue, onSelect) {
+  const root  = document.getElementById(ddId);
+  const label = root.querySelector('.cb-label');
+  const panel = root.querySelector('.cb-panel');
+  function render() {
+    const cur = getValue();
+    panel.innerHTML = options.map(o =>
+      `<div class="cb-item${o.value===cur?' active':''}${o.disabled?' disabled':''}" data-val="${o.value}">
+        <span>${o.label}</span>${o.disabled ? '<span class="cb-item-tag">Soon</span>' : ''}
+      </div>`
+    ).join('');
+    label.textContent = (options.find(o => o.value === cur) || options[0]).label;
+    panel.querySelectorAll('.cb-item').forEach((item, i) => {
+      if (options[i].disabled) return; // inert — not wired to onSelect at all
+      item.addEventListener('click', () => {
+        closeAllDd();
+        onSelect(item.dataset.val);
+        render();
+      });
+    });
+  }
+  root.querySelector('.cb-dropdown-btn').addEventListener('click', () => toggleDd(ddId));
+  render();
+  return render;
+}
+
+// Bundle listings aren't visually distinguishable from single cards yet
+// (no "NFT Bundle (x/y)" treatment, no way to browse a bundle's contents,
+// and the buy button assumes one template_id per listing, which a bundle
+// doesn't have). Until that's built, "All listings" and "Bundles only"
+// stay visible but inert so the feature reads as "coming soon" rather
+// than missing — see feature-plan notes. Single cards only is the sole
+// selectable option and the fetch itself is hardcoded to it below,
+// independent of this dropdown's state.
+const renderBundleDd = initStaticDropdown('bundleDd', [
+  { value: 'all',    label: 'All listings',      disabled: true },
+  { value: 'single', label: 'Single cards only' },
+  { value: 'bundle', label: 'Bundles only',       disabled: true },
+], () => _bundle, v => { _bundle = v; pushUrl(); resetResults(); loadMore(); });
+
+const renderSortByDd = initStaticDropdown('sortByDd', [
+  { value: 'price',   label: 'Price' },
+  { value: 'created', label: 'Date listed' },
+], () => _sortBy, v => { _sortBy = v; pushUrl(); resetResults(); loadMore(); });
+
+const renderSortOrderDd = initStaticDropdown('sortOrderDd', [
+  { value: 'asc',  label: 'Asc' },
+  { value: 'desc', label: 'Desc' },
+], () => _sortOrd, v => { _sortOrd = v; pushUrl(); resetResults(); loadMore(); });
+
+/* ── Name search ── */
+let _nameT = null;
+document.getElementById('nameSearch').addEventListener('input', function () {
+  _nameFilter = this.value.trim();
+  clearTimeout(_nameT);
+  _nameT = setTimeout(() => { pushUrl(); resetResults(); loadMore(); }, 400);
+});
+
+/* ── Clear filters (keeps the selected collection) ── */
+function clearFilters() {
+  _schema = '';
+  _rarity = '';
+  _minP = ''; _maxP = '';
+  _bundle = 'all';
+  _sortBy = 'price'; _sortOrd = 'asc';
+  _nameFilter = '';
+
+  document.getElementById('minPrice').value = '';
+  document.getElementById('maxPrice').value = '';
+  renderBundleDd();
+  renderSortByDd();
+  renderSortOrderDd();
+  document.getElementById('nameSearch').value = '';
+  document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  document.getElementById('schemaPanel').innerHTML = '';
+  document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+  document.getElementById('rarityPanel').innerHTML = '';
+
+  pushUrl();
+  resetResults();
+  {
+    const [b1, b2] = WaxApi.aaBases(2);
+    loadSchemas(b1);
+    loadRarityOptions(b2);
+  }
+  loadMore();
+}
+document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+
+/* ── Results ── */
+function resetResults() {
+  _gen++;
+  _seen.clear(); _queue = [];
+  _shownN = 0; _apiPage = 1; _apiDone = false; _busy = false;
+  _videoObserver?.disconnect(); // grid is about to be wiped — drop refs to the old (soon-detached) video elements
+  document.getElementById('cardsGrid').innerHTML    = '';
+  document.getElementById('loadMoreWrap').style.display  = 'none';
+  document.getElementById('resultsStatus').style.display = 'none';
+  document.getElementById('emptyState').style.display    = 'none';
+}
+
+/* ── Lazy video loading — cards render off-screen too (up to PAGE_SIZE per
+   batch), and every card can be a video for some collections (e.g.
+   daria.funko). Loading/playing all of them at once at insert time was
+   the actual cause of the slowness — this defers a video's src (and
+   playback) until it's about to scroll into view, and releases it again
+   when it scrolls away, matching the pattern already used in
+   funko/inventory.html. ── */
+let _videoObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    const video = entry.target;
+    if (entry.isIntersecting) {
+      if (video.dataset.src && !video.src) { video.src = video.dataset.src; video.load(); }
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+      if (video.src) { video.removeAttribute('src'); video.load(); } // free decoder memory; browser cache makes reload instant
+    }
+  }
+}, { rootMargin: '300px' }); // start loading slightly before it's actually visible
+
+function observeNewVideos(root) {
+  root.querySelectorAll('video[data-src]:not([data-obs])').forEach(v => {
+    v.dataset.obs = '1';
+    _videoObserver.observe(v);
+  });
+}
+
+async function loadMore() {
+  if (!_col || _busy) return;
+  _busy = true;
+  const myGen = _gen;
+
+  const $btn    = document.getElementById('loadMoreBtn');
+  const $grid   = document.getElementById('cardsGrid');
+  const $status = document.getElementById('resultsStatus');
+
+  $btn.disabled = true;
+  $btn.innerHTML = '<span class="spin"></span>Loading…';
+
+  const MAX_PAGES_PER_CALL = 10;
+  const BATCH_SIZE         = 3; // sales pages fetched in parallel per round, within the browser's per-origin connection limit
+  let pagesLoaded = 0;
+  let hadError    = false;
+
+  while (_queue.length < PAGE_SIZE && !_apiDone && pagesLoaded < MAX_PAGES_PER_CALL) {
+    const n = Math.min(BATCH_SIZE, MAX_PAGES_PER_CALL - pagesLoaded);
+    const pageNums = Array.from({ length: n }, (_, i) => _apiPage + i);
+    const results  = await Promise.allSettled(pageNums.map(fetchSalesPage));
+    if (myGen !== _gen) return; // stale — another reset happened
+
+    // Stop at the first failure so a retry resumes at exactly the page that
+    // failed, rather than silently skipping past a gap in the results.
+    const firstFailIdx = results.findIndex(r => r.status === 'rejected');
+    const usable = firstFailIdx === -1 ? results : results.slice(0, firstFailIdx);
+
+    for (const result of usable) {
+      const sales = result.value || [];
+      if (sales.length < 100) _apiDone = true;
+      for (const sale of sales) {
+        const asset = sale.assets?.[0];
+        if (!asset) continue;
+        const tid = String(asset.template?.template_id ?? '');
+        if (!tid || _seen.has(tid)) continue;
+        _seen.add(tid);
+        _queue.push(buildCardHtml(sale, asset));
+      }
+    }
+    _apiPage    += usable.length;
+    pagesLoaded += usable.length;
+
+    if (firstFailIdx !== -1) { hadError = true; break; }
+  }
+
+  if (myGen !== _gen) return;
+
+  const batch = _queue.splice(0, PAGE_SIZE);
+  if (batch.length) {
+    $grid.insertAdjacentHTML('beforeend', batch.join(''));
+    _shownN += batch.length;
+    observeNewVideos($grid);
+  }
+
+  $status.style.display = '';
+  if (_shownN === 0 && hadError) {
+    $status.textContent = '';
+    $grid.innerHTML = `<div class="results-error">
+      <div>Couldn't load listings right now — the marketplace didn't respond.</div>
+    </div>`;
+  } else if (_shownN === 0 && _apiDone) {
+    $status.textContent = '';
+    $grid.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-secondary);font-size:0.88rem">No listings found for the selected filters.</div>';
+  } else {
+    $status.textContent = _shownN
+      ? `${_shownN} template${_shownN !== 1 ? 's' : ''} shown${(!_apiDone || _queue.length) ? ' — more available' : ''}${hadError ? ' — some results may be missing, try again' : ''}`
+      : '';
+  }
+
+  const hasMore = !_apiDone || _queue.length > 0 || hadError;
+  document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
+  $btn.disabled    = false;
+  $btn.textContent = hadError ? 'Try again' : 'Load more';
+
+  _busy = false;
+}
+
+function fetchSalesPage(page) {
+  const base = WaxApi.marketBase().replace('/v1', '/v2');
+  let url = `${base}/sales?state=1&symbol=WAX`;
+  url += `&collection_name=${encodeURIComponent(_col.collection_name)}`;
+  url += `&sort=${_sortBy}&order=${_sortOrd}&limit=100&page=${page}`;
+  if (_schema)     url += `&schema_name=${encodeURIComponent(_schema)}`;
+  if (_nameFilter) url += `&name=${encodeURIComponent(_nameFilter)}`;
+  if (_minP)       url += `&min_price=${parseFloat(_minP)}`;
+  if (_maxP)       url += `&max_price=${parseFloat(_maxP)}`;
+  // Hardcoded, not `if (_bundle === 'single')` — bundles have no card
+  // display or working buy flow yet, so single-only is enforced at the
+  // fetch itself. Even if someone forces _bundle to 'all'/'bundle' via
+  // devtools, this line doesn't consult that variable at all, so no
+  // bundle listing can ever actually be requested. Restore the
+  // conditional (and re-enable the two disabled dropdown options) once
+  // bundle display + purchase flow are built.
+  url += '&max_assets=1';
+
+  // Filtered server-side by exact rarity value — no template list to build
+  // or fit in the URL, and no dependency on the (best-effort, page-1-only)
+  // rarity dropdown data actually being complete.
+  if (_rarity) url += `&data:text.rarity=${encodeURIComponent(_rarity)}`;
+
+  // marketBase() is a single fixed endpoint (atomicmarket isn't reliably
+  // mirrored elsewhere), but apiFetch still gives it a bounded timeout and
+  // same-endpoint retries with backoff on 429/503/408 instead of a plain
+  // fetch() that could hang indefinitely or fail on the first hiccup.
+  return WaxApi.apiFetch(url).then(data => data || []);
+}
+
+function toMediaUrl(v) {
+  return /^https?:\/\//i.test(v) ? v : IPFS_GW + v;
+}
+
+// Best-effort media resolution: not every creator follows the img/video
+// convention. Explicit conventional keys (img/video/image) are checked
+// first — unambiguous author intent, static image wins if both exist.
+// Only when none of those are present do we fall back to scanning the
+// schema's declared field types, and video is checked before the generic
+// image scan there: a field named/typed as video is a better signal of the
+// primary art than an unrelated secondary image field (e.g. a card back).
+// A field's `type` is just how it's stored — many schemas declare a video
+// field as type:"image" too, and the AtomicMarket sales endpoint's embedded
+// schema (unlike /templates) doesn't include `mediatype` to disambiguate —
+// so field *name* is the only signal this endpoint actually gives us here.
+function resolveMedia(asset) {
+  const data   = asset.data || asset.template?.immutable_data || {};
+  const fields = asset.schema?.format || [];
+  const looksLikeVideo = name => /video|animat/i.test(name);
+
+  if (data.img)   return { kind: 'img',   url: toMediaUrl(data.img) };
+  if (data.video) return { kind: 'video', url: toMediaUrl(data.video) };
+  if (data.image) return { kind: 'img',   url: toMediaUrl(data.image) };
+
+  for (const f of fields) {
+    if ((f.type === 'ipfs' || looksLikeVideo(f.name)) && data[f.name]) {
+      return { kind: 'video', url: toMediaUrl(data[f.name]) };
+    }
+  }
+  for (const f of fields) {
+    if (f.type === 'image' && !looksLikeVideo(f.name) && data[f.name]) {
+      return { kind: 'img', url: toMediaUrl(data[f.name]) };
+    }
+  }
+
+  return null;
+}
+
+function buildCardHtml(sale, asset) {
+  const data   = asset.data || asset.template?.immutable_data || {};
+  const rarity = data.rarity || '';
+  const name   = esc(asset.name || data.name || '—');
+  const media  = resolveMedia(asset);
+  const tid    = asset.template?.template_id;
+  const col    = asset.collection?.collection_name || _col?.collection_name || '';
+  const price  = parseInt(sale.price?.amount || 0) / 1e8;
+  const rc     = rcls(rarity);
+  const href   = `marketplace.html?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
+  const usd    = _waxUsd ? `≈ $${(price * _waxUsd).toFixed(2)}` : '';
+
+  let mediaHtml;
+  if (media?.kind === 'video') {
+    mediaHtml = `<video data-src="${esc(media.url)}" muted loop playsinline preload="none"></video>`;
+  } else if (media?.kind === 'img') {
+    mediaHtml = `<img src="${esc(media.url)}" alt="${name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=ex-card-img-ph>?</div>'">`;
+  } else {
+    mediaHtml = '<div class="ex-card-img-ph">?</div>';
+  }
+
+  return `<div class="ex-card">
+    <div class="ex-card-img">
+      ${mediaHtml}
+    </div>
+    <div class="ex-card-body">
+      <div class="ex-card-name">${name}</div>
+      <div class="ex-card-price">
+        <span class="ex-price-wax">${fmtWax(price)}</span>
+        ${usd ? `<span class="ex-price-usd">${usd}</span>` : ''}
+      </div>
+      <a class="ex-buy-btn" href="${href}" target="_blank" rel="noopener noreferrer">View listings</a>
+    </div>
+  </div>`;
+}
+
+document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
+
+/* ── URL sync ── */
+function pushUrl() {
+  const p = new URLSearchParams();
+  if (_col)               p.set('col',    _col.collection_name);
+  if (_schema)            p.set('schema', _schema);
+  if (_rarity)            p.set('rarity', _rarity);
+  if (_minP)              p.set('minP',   _minP);
+  if (_maxP)              p.set('maxP',   _maxP);
+  // _bundle intentionally not persisted — see restoreFromUrl and
+  // fetchSalesPage; it's pinned to 'single' regardless of URL content.
+  if (_sortBy !== 'price')  p.set('sort',  _sortBy);
+  if (_sortOrd !== 'asc')   p.set('order', _sortOrd);
+  if (_nameFilter)        p.set('name',   _nameFilter);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
+async function restoreFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const colName = p.get('col');
+  if (!colName) return;
+
+  // Restore scalar state before fetching collection
+  _schema     = p.get('schema')  || '';
+  _rarity     = p.get('rarity')  || '';
+  _minP       = p.get('minP')    || '';
+  _maxP       = p.get('maxP')    || '';
+  // _bundle is never read from the URL — always 'single' until bundles
+  // are actually supported, no matter what a hand-edited URL contains.
+  _sortBy     = p.get('sort')    || 'price';
+  _sortOrd    = p.get('order')   || 'asc';
+  _nameFilter = p.get('name')    || '';
+
+  // Sync UI controls
+  renderSortByDd();
+  renderSortOrderDd();
+  renderBundleDd();
+  if (_minP) document.getElementById('minPrice').value = _minP;
+  if (_maxP) document.getElementById('maxPrice').value = _maxP;
+  if (_nameFilter) document.getElementById('nameSearch').value = _nameFilter;
+
+  try {
+    const c = await WaxApi.apiFetch(`${WaxApi.aaBase()}/collections/${encodeURIComponent(colName)}`);
+    if (!c) return;
+    _col = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
+
+    const $img  = document.getElementById('colChipImg');
+    const $name = document.getElementById('colChipName');
+    if (_col.img) { $img.src = IPFS_GW + _col.img; $img.style.display = ''; }
+    else { $img.style.display = 'none'; }
+    $name.textContent = _col.name;
+    $colChip.style.display = 'flex';
+
+    showFilters();
+    resetResults();
+    const [b1, b2] = WaxApi.aaBases(2);
+    loadSchemas(b1);       // restores schema select value after populating
+    loadRarityOptions(b2); // respects _schema; restored _rarity is applied once options render
+    loadMore();
+  } catch {
+    // Deep link failed to resolve (bad collection name or every node unreachable) —
+    // don't silently fall back to the generic "search for a collection" empty state.
+    const $empty = document.getElementById('emptyState');
+    $empty.innerHTML = `
+      <div class="empty-state-icon">⚠️</div>
+      <h2>Couldn't load this collection</h2>
+      <p>The link may be broken, or the WAX API is temporarily unreachable.</p>
+      <button type="button" class="retry-btn" id="retryRestoreBtn" style="margin-top:1rem">Try again</button>`;
+    $empty.style.display = '';
+    document.getElementById('retryRestoreBtn').addEventListener('click', restoreFromUrl);
+  }
+}
+
+/* ── Init ── */
+fetchWaxUsd();
+restoreFromUrl();
+</script>
+
+</body>
+</html>

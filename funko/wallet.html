@@ -62,11 +62,9 @@
     .ov-avg { color: var(--text-secondary); }
     .ov-none { color: rgba(255,255,255,0.15); }
 
-    /* Set selector */
+    /* Set selector — base look (.set-selector) lives in shared/global.css */
     .set-selector-wrap { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
     .set-selector-label { font-size: 0.75rem; color: var(--text-secondary); }
-    .set-selector { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 0.82rem; padding: 0.35rem 0.7rem; outline: none; cursor: pointer; transition: border-color 0.2s; font-family: inherit; }
-    .set-selector:focus { border-color: rgba(192,120,40,0.45); }
 
     /* Set summary block */
     .set-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
@@ -129,9 +127,13 @@
         <button class="lookup-btn" id="lookupBtn" onclick="lookupWallet()" disabled>Look Up</button>
       </div>
       <div class="controls-row">
-        <select class="drop-select" id="dropSelect" onchange="onDropChange()">
-          <option value="">Loading drops…</option>
-        </select>
+        <div class="cb-dropdown drop-select" id="dropDd">
+          <button class="cb-dropdown-btn" id="dropTrigger" type="button">
+            <span class="cb-label">Loading drops…</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="dropPanel"></div>
+        </div>
         <button class="clear-btn" onclick="clearDrop()">Clear</button>
       </div>
     </div>
@@ -226,24 +228,56 @@
       display_name:    collNameMap.get(s.collection_name) || s.collection_name,
     })).sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-    let html = '<option value="">— All Drops —</option>';
-    for (const d of allDrops)
-      html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
-
-    const select = document.getElementById('dropSelect');
-    select.innerHTML = html;
-
-    if (initC && initS) select.value = initC + '|' + initS;
+    _dropItems = [{ value: '', label: 'All drops' },
+      ...allDrops.map(d => ({ value: `${d.collection_name}|${d.schema_name}`, label: `${d.display_name} — ${schemaLabel(d.schema_name)}` }))];
+    if (initC && initS) _dropValue = initC + '|' + initS;
+    renderDropDd();
   }
 
+  let _dropValue = '';
+  let _dropItems = [];
+  function renderDropDd() {
+    const panel = document.getElementById('dropPanel');
+    panel.innerHTML = _dropItems.map(i =>
+      `<div class="cb-item${i.value === _dropValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+    ).join('');
+    const active = _dropItems.find(i => i.value === _dropValue) || _dropItems[0];
+    document.querySelector('#dropDd .cb-label').textContent = active ? active.label : '';
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => {
+        _dropValue = item.dataset.val;
+        closeAllDd();
+        renderDropDd();
+        onDropChange();
+      });
+    });
+  }
+  function toggleDd(id) {
+    const wrap    = document.getElementById(id);
+    const panel   = wrap.querySelector('.cb-panel');
+    const trigger = wrap.querySelector('.cb-dropdown-btn');
+    const isOpen  = panel.classList.contains('open');
+    closeAllDd();
+    if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+  }
+  function closeAllDd() {
+    document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  }
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+  });
+  document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
+
   function clearDrop() {
-    document.getElementById('dropSelect').value = '';
+    _dropValue = '';
+    renderDropDd();
     onDropChange();
   }
 
   function onDropChange() {
     if (!currentWallet) return;
-    const val = document.getElementById('dropSelect').value;
+    const val = _dropValue;
     if (!val) {
       renderOverview();
     } else {
@@ -253,7 +287,8 @@
   }
 
   function selectDrop(c, s) {
-    document.getElementById('dropSelect').value = c + '|' + s;
+    _dropValue = c + '|' + s;
+    renderDropDd();
     onDropChange();
   }
 
@@ -265,7 +300,7 @@
     currentWallet = w;
     const url = new URL(location.href);
     url.searchParams.set('w', w);
-    const dropVal = document.getElementById('dropSelect').value;
+    const dropVal = _dropValue;
     if (dropVal) {
       const [c, s] = dropVal.split('|');
       url.searchParams.set('c', c);
@@ -289,7 +324,7 @@
           'select=total_assets,collection_name,schema_name&wallet=eq.' + enc(wallet) + '&limit=500'),
       ]);
 
-      const dropVal = document.getElementById('dropSelect').value;
+      const dropVal = _dropValue;
       if (dropVal) {
         const [c, s] = dropVal.split('|');
         renderDropDetail(c, s);
@@ -457,8 +492,9 @@
       </div>`;
     }
 
-    const options = rows.map(r =>
-      `<option value="${r.set_number}">Set #${r.set_number} &nbsp;·&nbsp; Rank #${r.rank} &nbsp;·&nbsp; Avg ${fmtDec(r.avg_mint)} &nbsp;·&nbsp; Rating ${fmtDec(r.rating)}</option>`
+    const setLabel = r => `Set #${r.set_number} &nbsp;·&nbsp; Rank #${r.rank} &nbsp;·&nbsp; Avg ${fmtDec(r.avg_mint)} &nbsp;·&nbsp; Rating ${fmtDec(r.rating)}`;
+    const options = rows.map((r, i) =>
+      `<div class="cb-item${i === 0 ? ' active' : ''}" data-val="${r.set_number}" onclick="switchSet('${sectionId}', '${r.set_number}', this)"><span>${setLabel(r)}</span></div>`
     ).join('');
 
     const tables = rows.map((r, i) => {
@@ -478,18 +514,29 @@
       <div class="section-heading">${heading}</div>
       <div class="set-selector-wrap">
         <span class="set-selector-label">Viewing:</span>
-        <select class="set-selector" id="sel-${sectionId}" onchange="switchSet('${sectionId}', this.value)">
-          ${options}
-        </select>
+        <div class="cb-dropdown set-selector" id="sel-${sectionId}">
+          <button class="cb-dropdown-btn" type="button" onclick="toggleDd('sel-${sectionId}')">
+            <span class="cb-label">${setLabel(rows[0])}</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel">${options}</div>
+        </div>
       </div>
       ${tables}
     </div>`;
   }
 
-  function switchSet(sectionId, setNum) {
-    document.getElementById('walletContent').querySelectorAll(`[id^="${sectionId}-set-"]`).forEach(el => el.style.display = 'none');
+  function switchSet(sectionId, setNum, el) {
+    document.getElementById('walletContent').querySelectorAll(`[id^="${sectionId}-set-"]`).forEach(el2 => el2.style.display = 'none');
     const target = document.getElementById(`${sectionId}-set-${setNum}`);
     if (target) target.style.display = '';
+    if (el) {
+      const dd = el.closest('.cb-dropdown');
+      dd.querySelector('.cb-label').textContent = el.querySelector('span').textContent;
+      dd.querySelectorAll('.cb-item').forEach(i => i.classList.remove('active'));
+      el.classList.add('active');
+    }
+    closeAllDd();
   }
 
   function buildDropOverviewHtml(c, s) {

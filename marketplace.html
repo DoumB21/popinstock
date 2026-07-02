@@ -152,35 +152,11 @@
       color: var(--text-secondary);
       white-space: nowrap;
     }
-    .mp-filter-input {
-      width: 75px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text-primary);
-      font-size: 0.85rem;
-      padding: 0.35rem 0.6rem;
-      outline: none;
-      font-family: inherit;
-      transition: border-color 0.2s;
-    }
-    .mp-filter-input:focus { border-color: rgba(192,120,40,0.5); }
+    /* .mp-filter-input / .mp-sort-select base look lives in shared/global.css
+       (.control-input / .filter-select) — only layout stays here. */
+    .mp-filter-input { width: 75px; }
     .mp-filter-sep { color: var(--text-secondary); font-size: 0.8rem; }
-    .mp-sort-select {
-      margin-left: auto;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text-primary);
-      font-size: 0.82rem;
-      padding: 0.35rem 0.7rem;
-      outline: none;
-      cursor: pointer;
-      font-family: inherit;
-      transition: border-color 0.2s;
-    }
-    .mp-sort-select:focus { border-color: rgba(192,120,40,0.5); }
-    .mp-sort-select option { background: #1a1a2a; }
+    .mp-sort-select { margin-left: auto; }
 
     .mp-grid {
       display: grid;
@@ -436,6 +412,48 @@
       .mp-hero-stats { justify-content: center; }
       .mp-hero-image, .mp-hero-image img, .mp-hero-image video, .mp-hero-image-placeholder { width: 160px; height: 160px; }
       .mp-hero-name { font-size: 1.3rem; }
+
+      /* ── Sales history: stacked card layout — same pattern as
+         funko/redemptions.html's .figures-table. Every field stays
+         visible, no horizontal scroll, no hidden columns. ── */
+      .mp-history-table { display: block; }
+      .mp-history-table thead { display: none; }
+      .mp-history-table tbody { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; }
+      .mp-history-table tbody tr {
+        display: block;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+      }
+      .mp-history-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.3rem 0;
+        border-bottom: none;
+        text-align: right;
+      }
+      .mp-history-table tbody td::before {
+        content: attr(data-label);
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+        text-align: left;
+        margin-right: 0.75rem;
+      }
+      /* Date is the card header — no label prefix */
+      .mp-history-table tbody td:first-child {
+        padding-bottom: 0.6rem;
+        margin-bottom: 0.25rem;
+        border-bottom: 1px solid var(--border);
+        justify-content: flex-start;
+      }
+      .mp-history-table tbody td:first-child::before { display: none; }
+      .mp-history-table .mp-history-price-sub { margin-top: 2px; }
     }
 
     @media (max-width: 480px) {
@@ -526,6 +544,31 @@ const SORT_CONFIG = {
   'date-desc':  { sort: 'created',       order: 'desc' },
   'date-asc':   { sort: 'created',       order: 'asc'  },
 };
+
+const SORT_LABELS = {
+  'price-asc':  'Price (Lowest)',
+  'price-desc': 'Price (Highest)',
+  'mint-asc':   'Mint (Lowest)',
+  'mint-desc':  'Mint (Highest)',
+  'date-desc':  'Listings (Newest)',
+  'date-asc':   'Listings (Oldest)',
+};
+
+function toggleDd(id) {
+  const wrap    = document.getElementById(id);
+  const panel   = wrap.querySelector('.cb-panel');
+  const trigger = wrap.querySelector('.cb-dropdown-btn');
+  const isOpen  = panel.classList.contains('open');
+  closeAllDd();
+  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+}
+function closeAllDd() {
+  document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+});
 
 const RARITY_CLASS = {
   'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
@@ -625,8 +668,15 @@ function getFilteredListings() {
   });
 }
 
-async function onSortChange(val) {
+async function onSortChange(val, el) {
   currentSort  = val;
+  closeAllDd();
+  if (el) {
+    const dd = el.closest('.cb-dropdown');
+    dd.querySelector('.cb-label').textContent = SORT_LABELS[val];
+    dd.querySelectorAll('.cb-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+  }
   visibleCount = PAGE_SIZE;
   document.getElementById('mpGrid').innerHTML    = '<div class="state" style="grid-column:1/-1"><div class="spinner" style="margin:0 auto"></div></div>';
   document.getElementById('mpShowMore').innerHTML = '';
@@ -939,18 +989,21 @@ function renderListings() {
       <div class="mp-controls">
         <div class="mp-filter-group">
           <span class="mp-filter-label">Mint</span>
-          <input class="mp-filter-input" id="mpMintMin" type="number" placeholder="Min" min="1" value="${mintMin}" oninput="onMintFilterChange()" />
+          <input class="control-input mp-filter-input" id="mpMintMin" type="number" placeholder="Min" min="1" value="${mintMin}" oninput="onMintFilterChange()" />
           <span class="mp-filter-sep">—</span>
-          <input class="mp-filter-input" id="mpMintMax" type="number" placeholder="Max" min="1" value="${mintMax}" oninput="onMintFilterChange()" />
+          <input class="control-input mp-filter-input" id="mpMintMax" type="number" placeholder="Max" min="1" value="${mintMax}" oninput="onMintFilterChange()" />
         </div>
-        <select class="mp-sort-select" id="mpSort" onchange="onSortChange(this.value)">
-          <option value="price-asc"  ${currentSort==='price-asc'  ?'selected':''}>Price (Lowest)</option>
-          <option value="price-desc" ${currentSort==='price-desc' ?'selected':''}>Price (Highest)</option>
-          <option value="mint-asc"   ${currentSort==='mint-asc'   ?'selected':''}>Mint (Lowest)</option>
-          <option value="mint-desc"  ${currentSort==='mint-desc'  ?'selected':''}>Mint (Highest)</option>
-          <option value="date-desc"  ${currentSort==='date-desc'  ?'selected':''}>Listings (Newest)</option>
-          <option value="date-asc"   ${currentSort==='date-asc'   ?'selected':''}>Listings (Oldest)</option>
-        </select>
+        <div class="cb-dropdown mp-sort-select" id="mpSortDd">
+          <button class="cb-dropdown-btn" type="button" onclick="toggleDd('mpSortDd')">
+            <span class="cb-label">${SORT_LABELS[currentSort]}</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel">
+            ${Object.entries(SORT_LABELS).map(([val, label]) =>
+              `<div class="cb-item${currentSort===val?' active':''}" data-val="${val}" onclick="onSortChange('${val}', this)"><span>${label}</span></div>`
+            ).join('')}
+          </div>
+        </div>
       </div>
       <div class="mp-grid" id="mpGrid"></div>
       <div id="mpShowMore"></div>
@@ -1103,12 +1156,14 @@ function renderSalesHistory() {
       const buyer  = shortAddr(s.buyer  || '—');
       return `<tr>
         <td><span class="mp-history-age">${fmtDate(s.updated_at_time)}</span></td>
-        <td>Mint #${mint}</td>
-        <td class="col-r">
-          <div class="mp-history-price">${priceStr}</div>
-          ${priceUsd ? `<div class="mp-history-price-sub">${priceUsd}</div>` : ''}
+        <td data-label="Mint">Mint #${mint}</td>
+        <td class="col-r" data-label="Sale Price">
+          <div class="mp-history-price-block">
+            <div class="mp-history-price">${priceStr}</div>
+            ${priceUsd ? `<div class="mp-history-price-sub">${priceUsd}</div>` : ''}
+          </div>
         </td>
-        <td class="col-r" style="font-size:0.8rem;font-family:monospace;white-space:nowrap">
+        <td class="col-r" data-label="Seller → Buyer" style="font-size:0.8rem;font-family:monospace;white-space:nowrap">
           ${seller}<span class="mp-history-arrow">→</span>${buyer}
         </td>
       </tr>`;

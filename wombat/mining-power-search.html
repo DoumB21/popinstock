@@ -395,29 +395,36 @@
       <div class="filter-row">
 
         <div class="filter-group filter-group--narrow">
-          <label class="control-label" for="selBlockchain">Blockchain</label>
-          <select id="selBlockchain" class="control-select">
-            <option value="EOS">EOS</option>
-            <option value="WAX" selected>WAX</option>
-          </select>
+          <label class="control-label">Blockchain</label>
+          <div class="cb-dropdown" id="blockchainDd">
+            <button class="cb-dropdown-btn" id="blockchainTrigger" type="button">
+              <span class="cb-label">WAX</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="blockchainPanel"></div>
+          </div>
         </div>
 
         <div class="filter-group">
-          <label class="control-label" for="selCollection">Collection</label>
-          <select id="selCollection" class="control-select">
-            <option value="">All collections</option>
-          </select>
+          <label class="control-label">Collection</label>
+          <div class="cb-dropdown" id="collectionDd">
+            <button class="cb-dropdown-btn" id="collectionTrigger" type="button">
+              <span class="cb-label">All collections</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="collectionPanel"></div>
+          </div>
         </div>
 
         <div class="filter-group filter-group--narrow">
-          <label class="control-label" for="selMaterial">Material</label>
-          <select id="selMaterial" class="control-select">
-            <option value="">All materials</option>
-            <option value="Gold">Gold</option>
-            <option value="Iron">Iron</option>
-            <option value="Uranium">Uranium</option>
-            <option value="Coal">Coal</option>
-          </select>
+          <label class="control-label">Material</label>
+          <div class="cb-dropdown" id="materialDd">
+            <button class="cb-dropdown-btn" id="materialTrigger" type="button">
+              <span class="cb-label">All materials</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="materialPanel"></div>
+          </div>
         </div>
 
         <div class="filter-group">
@@ -475,18 +482,36 @@
       <div class="filter-row">
 
         <div class="filter-group filter-group--narrow">
-          <label class="control-label" for="selSort1">Sort by</label>
-          <select id="selSort1" class="control-select"></select>
+          <label class="control-label">Sort by</label>
+          <div class="cb-dropdown" id="sort1Dd">
+            <button class="cb-dropdown-btn" id="sort1Trigger" type="button">
+              <span class="cb-label"></span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="sort1Panel"></div>
+          </div>
         </div>
 
         <div class="filter-group filter-group--narrow">
-          <label class="control-label" for="selSort2">Then by</label>
-          <select id="selSort2" class="control-select"></select>
+          <label class="control-label">Then by</label>
+          <div class="cb-dropdown" id="sort2Dd">
+            <button class="cb-dropdown-btn" id="sort2Trigger" type="button">
+              <span class="cb-label"></span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="sort2Panel"></div>
+          </div>
         </div>
 
         <div class="filter-group filter-group--narrow">
-          <label class="control-label" for="selSort3">Then by</label>
-          <select id="selSort3" class="control-select"></select>
+          <label class="control-label">Then by</label>
+          <div class="cb-dropdown" id="sort3Dd">
+            <button class="cb-dropdown-btn" id="sort3Trigger" type="button">
+              <span class="cb-label"></span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="sort3Panel"></div>
+          </div>
         </div>
 
         <div class="filter-actions">
@@ -589,9 +614,6 @@
     ];
 
     /* ── DOM refs ── */
-    const selBlockchain  = document.getElementById('selBlockchain');
-    const selCollection  = document.getElementById('selCollection');
-    const selMaterial    = document.getElementById('selMaterial');
     const chkIncludeAll  = document.getElementById('chkIncludeAll');
     const hintIncludeAll = document.getElementById('hintIncludeAll');
     const lblPricePerMP  = document.getElementById('lblPricePerMP');
@@ -600,10 +622,85 @@
     const txtPricePMHigh = document.getElementById('txtPricePMHigh');
     const txtPriceLow    = document.getElementById('txtPriceLow');
     const txtPriceHigh   = document.getElementById('txtPriceHigh');
-    const selSort1       = document.getElementById('selSort1');
-    const selSort2       = document.getElementById('selSort2');
-    const selSort3       = document.getElementById('selSort3');
     const resultsArea    = document.getElementById('resultsArea');
+
+    /* ── Dropdown state ── */
+    let _blockchainValue = 'WAX';
+    let _collectionValue = '';
+    let _materialValue   = '';
+    let _sort1Value = '', _sort2Value = '', _sort3Value = '';
+    let _collectionItems = [{ value: '', label: 'All collections' }];
+    let _sortItems = [];
+    const MATERIAL_ITEMS = [
+      { value: '',        label: 'All materials' },
+      { value: 'Gold',    label: 'Gold' },
+      { value: 'Iron',    label: 'Iron' },
+      { value: 'Uranium', label: 'Uranium' },
+      { value: 'Coal',    label: 'Coal' },
+    ];
+
+    function bindSingleDd(ddId, items, currentValue, onSelect) {
+      const wrap  = document.getElementById(ddId);
+      const panel = wrap.querySelector('.cb-panel');
+      const label = wrap.querySelector('.cb-label');
+      const active = items.find(i => i.value === currentValue) || items[0];
+      label.textContent = active ? active.label : '';
+      panel.innerHTML = items.map(i =>
+        `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+      ).join('');
+      panel.querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('click', () => {
+          closeAllDd();
+          onSelect(item.dataset.val);
+        });
+      });
+    }
+    function toggleDd(id) {
+      const wrap    = document.getElementById(id);
+      const panel   = wrap.querySelector('.cb-panel');
+      const trigger = wrap.querySelector('.cb-dropdown-btn');
+      const isOpen  = panel.classList.contains('open');
+      closeAllDd();
+      if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+    }
+    function closeAllDd() {
+      document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+    }
+    document.addEventListener('mousedown', e => {
+      if (!e.target.closest('.cb-dropdown')) closeAllDd();
+    });
+
+    function renderBlockchainDd() {
+      bindSingleDd('blockchainDd', [{ value: 'EOS', label: 'EOS' }, { value: 'WAX', label: 'WAX' }], _blockchainValue, val => {
+        _blockchainValue = val;
+        renderBlockchainDd();
+        onBlockchainChange();
+      });
+    }
+    function renderCollectionDd() {
+      bindSingleDd('collectionDd', _collectionItems, _collectionValue, val => {
+        _collectionValue = val;
+        renderCollectionDd();
+        onCollectionChange();
+      });
+    }
+    function renderMaterialDd() {
+      bindSingleDd('materialDd', MATERIAL_ITEMS, _materialValue, val => { _materialValue = val; renderMaterialDd(); });
+    }
+    function renderSort1Dd() { bindSingleDd('sort1Dd', _sortItems, _sort1Value, val => { _sort1Value = val; renderSort1Dd(); }); }
+    function renderSort2Dd() { bindSingleDd('sort2Dd', _sortItems, _sort2Value, val => { _sort2Value = val; renderSort2Dd(); }); }
+    function renderSort3Dd() { bindSingleDd('sort3Dd', _sortItems, _sort3Value, val => { _sort3Value = val; renderSort3Dd(); }); }
+
+    document.getElementById('blockchainTrigger').addEventListener('click', () => toggleDd('blockchainDd'));
+    document.getElementById('collectionTrigger').addEventListener('click', () => toggleDd('collectionDd'));
+    document.getElementById('materialTrigger').addEventListener('click', () => toggleDd('materialDd'));
+    document.getElementById('sort1Trigger').addEventListener('click', () => toggleDd('sort1Dd'));
+    document.getElementById('sort2Trigger').addEventListener('click', () => toggleDd('sort2Dd'));
+    document.getElementById('sort3Trigger').addEventListener('click', () => toggleDd('sort3Dd'));
+
+    renderBlockchainDd();
+    renderMaterialDd();
 
     /* ── Init ── */
     populateSortDropdowns(SORT_OPTIONS_WAX);
@@ -613,15 +710,13 @@
 
     /* ── Load collections via RPC ── */
     async function loadCollections(blockchain) {
-      selCollection.innerHTML = '<option value="">All collections</option>';
+      _collectionValue = '';
+      _collectionItems = [{ value: '', label: 'All collections' }];
+      renderCollectionDd();
       try {
         const data = await sbRpc('get_wombat_collections', { p_blockchain: blockchain });
-        data.forEach(row => {
-          const opt = document.createElement('option');
-          opt.value = row.collection_name;
-          opt.textContent = row.collection_name;
-          selCollection.appendChild(opt);
-        });
+        _collectionItems = [{ value: '', label: 'All collections' }, ...data.map(row => ({ value: row.collection_name, label: row.collection_name }))];
+        renderCollectionDd();
       } catch (e) {
         console.warn('loadCollections failed:', e);
       }
@@ -643,8 +738,8 @@
     }
 
     /* ── Blockchain change ── */
-    selBlockchain.addEventListener('change', () => {
-      const bc = selBlockchain.value;
+    function onBlockchainChange() {
+      const bc = _blockchainValue;
       const isPolygon = bc === 'Polygon';
 
       lblPricePerMP.textContent = bc + ' / Mining Power';
@@ -669,14 +764,14 @@
       populateSortDropdowns(opts);
 
       loadCollections(bc);
-    });
+    }
 
     /* ── Collection change ── */
-    selCollection.addEventListener('change', () => {
-      const bc = selBlockchain.value;
+    function onCollectionChange() {
+      const bc = _blockchainValue;
       if (bc === 'Polygon') return;
 
-      if (selCollection.value !== '') {
+      if (_collectionValue !== '') {
         chkIncludeAll.disabled = false;
         hintIncludeAll.textContent = '';
       } else {
@@ -684,21 +779,19 @@
         chkIncludeAll.disabled = true;
         hintIncludeAll.textContent = 'Select a collection to enable';
       }
-    });
+    }
 
     /* ── Populate sort dropdowns ── */
     function populateSortDropdowns(options) {
-      [selSort1, selSort2, selSort3].forEach(sel => {
-        sel.innerHTML = options.map(o =>
-          `<option value="${o.value}">${o.label}</option>`
-        ).join('');
-      });
+      _sortItems = options;
+      _sort1Value = ''; _sort2Value = ''; _sort3Value = '';
+      renderSort1Dd(); renderSort2Dd(); renderSort3Dd();
     }
 
     /* ── Build sort string (PostgREST format) ── */
     function buildSortString() {
-      const bc = selBlockchain.value;
-      const parts = [selSort1.value, selSort2.value, selSort3.value].filter(v => v !== '');
+      const bc = _blockchainValue;
+      const parts = [_sort1Value, _sort2Value, _sort3Value].filter(v => v !== '');
       if (parts.length > 0) return parts.join(',');
       if (bc === 'Polygon') return 'mining_power.desc';
       return 'token_per_mp.asc.nullslast,mining_power.desc,price_token.asc.nullslast';
@@ -706,10 +799,10 @@
 
     /* ── Search handler ── */
     async function handleSearch(limit = 50) {
-      const bc         = selBlockchain.value;
+      const bc         = _blockchainValue;
       const isPolygon  = bc === 'Polygon';
-      const collection = selCollection.value;
-      const material   = selMaterial.value;
+      const collection = _collectionValue;
+      const material   = _materialValue;
       const includeAll = chkIncludeAll.checked;
       const mpLow      = document.getElementById('txtMPLow').value.trim();
       const mpHigh     = document.getElementById('txtMPHigh').value.trim();

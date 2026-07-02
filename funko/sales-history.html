@@ -15,14 +15,8 @@
       display: flex; align-items: center; justify-content: space-between;
       gap: 0.75rem; flex-wrap: wrap;
     }
-    .collection-select {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text-primary); font-size: 0.85rem; padding: 0.4rem 0.75rem;
-      outline: none; cursor: pointer; font-family: inherit;
-      transition: border-color 0.2s; min-width: 220px;
-    }
-    .collection-select:focus { border-color: rgba(192,120,40,0.5); }
-    .collection-select option { background: #1a1a2a; }
+    /* .collection-select base look (.filter-select) lives in shared/global.css */
+    .collection-select { min-width: 220px; }
 
     /* ── Granularity toggle ── */
     .gran-toggle {
@@ -162,9 +156,13 @@
     </div>
 
     <div class="controls-bar">
-      <select class="collection-select" id="collectionSelect">
-        <option value="">All Collections</option>
-      </select>
+      <div class="cb-dropdown collection-select" id="collectionDd">
+        <button class="cb-dropdown-btn" id="collectionTrigger" type="button">
+          <span class="cb-label">All collections</span>
+          <span class="cb-arrow">▾</span>
+        </button>
+        <div class="cb-panel" id="collectionPanel"></div>
+      </div>
       <div class="gran-toggle">
         <button class="gran-btn active" data-gran="month" onclick="setGranularity('month')">Monthly</button>
         <button class="gran-btn"        data-gran="week"  onclick="setGranularity('week')">Weekly</button>
@@ -421,6 +419,40 @@ function setCollection(col) {
   selectedCollection = col;
   refresh();
 }
+
+let _collectionItems = [];
+function renderCollectionDd(items) {
+  if (items) _collectionItems = items;
+  const panel = document.getElementById('collectionPanel');
+  panel.innerHTML = _collectionItems.map(i =>
+    `<div class="cb-item${i.value === selectedCollection ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+  ).join('');
+  document.querySelector('#collectionDd .cb-label').textContent =
+    (_collectionItems.find(i => i.value === selectedCollection) || _collectionItems[0]).label;
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllDd();
+      setCollection(item.dataset.val);
+      renderCollectionDd();
+    });
+  });
+}
+function toggleDd(id) {
+  const wrap    = document.getElementById(id);
+  const panel   = wrap.querySelector('.cb-panel');
+  const trigger = wrap.querySelector('.cb-dropdown-btn');
+  const isOpen  = panel.classList.contains('open');
+  closeAllDd();
+  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+}
+function closeAllDd() {
+  document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+});
+document.getElementById('collectionTrigger').addEventListener('click', () => toggleDd('collectionDd'));
 
 function setGranularity(g) {
   granularity = g;
@@ -845,13 +877,9 @@ async function init() {
     collectionMap = new Map((collData || []).map(c => [c.collection_name, cleanName(c.display_name || c.collection_name)]));
 
     const collections = [...new Set(allRows.map(r => r.collection_name))].sort();
-    const select = document.getElementById('collectionSelect');
-    for (const c of collections) {
-      const opt = document.createElement('option');
-      opt.value = c; opt.textContent = collectionMap.get(c) || c;
-      select.appendChild(opt);
-    }
-    select.addEventListener('change', e => setCollection(e.target.value));
+    const collectionItems = [{ value: '', label: 'All collections' },
+      ...collections.map(c => ({ value: c, label: collectionMap.get(c) || c }))];
+    renderCollectionDd(collectionItems);
 
     const now          = new Date();
     const curYear      = String(now.getFullYear());

@@ -270,24 +270,36 @@
     <div class="controls-card">
       <div class="controls-row">
         <div class="control-group">
-          <label for="dropSelect" class="control-label">Collection</label>
-          <select id="dropSelect" class="control-select">
-            <option value="">— Select a category —</option>
-          </select>
+          <label class="control-label">Collection</label>
+          <div class="cb-dropdown" id="dropDd">
+            <button class="cb-dropdown-btn" id="dropTrigger" type="button">
+              <span class="cb-label">— Select a category —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="dropPanel"></div>
+          </div>
         </div>
       </div>
       <div class="controls-row" style="margin-top:1rem;">
         <div class="control-group">
-          <label for="raritySelect" class="control-label">Rarity</label>
-          <select id="raritySelect" class="control-select" disabled>
-            <option value="">— Select a rarity —</option>
-          </select>
+          <label class="control-label">Rarity</label>
+          <div class="cb-dropdown" id="rarityDd">
+            <button class="cb-dropdown-btn" id="rarityTrigger" type="button" disabled>
+              <span class="cb-label">— Select a rarity —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="rarityPanel"></div>
+          </div>
         </div>
         <div class="control-group">
-          <label for="subsetSelect" class="control-label">Subset</label>
-          <select id="subsetSelect" class="control-select" disabled>
-            <option value="">— Does not apply —</option>
-          </select>
+          <label class="control-label">Subset</label>
+          <div class="cb-dropdown" id="subsetDd">
+            <button class="cb-dropdown-btn" id="subsetTrigger" type="button" disabled>
+              <span class="cb-label">— Does not apply —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="subsetPanel"></div>
+          </div>
         </div>
       </div>
       <div class="controls-row" style="margin-top:1rem;">
@@ -466,20 +478,16 @@
       subsetsCatalog  = subsets;
       sortOrderData   = sortOrder;
 
-      const sel = document.getElementById('dropSelect');
-      for (const d of drops) {
-        const opt = document.createElement('option');
-        opt.value = `${d.collection}|${d.schema}`;
-        opt.textContent = `${d.displayname ?? d.collection}  —  ${fmtSchema(d.schema)}`;
-        if (d.defaultvalue === 1) opt.selected = true;
-        sel.appendChild(opt);
-      }
+      _dropItems = drops.map(d => ({
+        value: `${d.collection}|${d.schema}`,
+        label: `${d.displayname ?? d.collection}  —  ${fmtSchema(d.schema)}`,
+      }));
+      const defaultDrop = drops.find(d => d.defaultvalue === 1);
+      if (defaultDrop) _dropValue = `${defaultDrop.collection}|${defaultDrop.schema}`;
+      renderDropDd();
 
       onCollectionChange();
 
-      sel.addEventListener('change', onCollectionChange);
-      document.getElementById('raritySelect').addEventListener('change', updateBtn);
-      document.getElementById('subsetSelect').addEventListener('change', updateBtn);
       const walletsInput = document.getElementById('walletsInput');
       walletsInput.addEventListener('input', () => {
         const { selectionStart, selectionEnd } = walletsInput;
@@ -493,17 +501,19 @@
     }
 
     function onCollectionChange() {
-      const val          = document.getElementById('dropSelect').value;
-      const raritySelect = document.getElementById('raritySelect');
-      const subsetSelect = document.getElementById('subsetSelect');
+      const val = _dropValue;
+      _rarityValue = '';
+      _subsetValue = '';
 
       if (!val) {
-        raritySelect.innerHTML = '<option value="">— Select a rarity —</option>';
-        raritySelect.disabled  = true;
-        currentRarityMode      = 'optional';
-        subsetSelect.innerHTML = '<option value="">— Does not apply —</option>';
-        subsetSelect.disabled  = true;
-        currentSubsetMode      = 'disabled';
+        _rarityItems    = [{ value: '', label: '— Select a rarity —' }];
+        _rarityDisabled = true;
+        currentRarityMode = 'optional';
+        _subsetItems    = [{ value: '', label: '— Does not apply —' }];
+        _subsetDisabled = true;
+        currentSubsetMode = 'disabled';
+        renderRarityDd();
+        renderSubsetDd();
         updateBtn();
         return;
       }
@@ -520,50 +530,95 @@
       });
 
       if (currentRarityMode === 'disabled') {
-        raritySelect.innerHTML = '<option value="">— Does not apply —</option>';
-        raritySelect.disabled  = true;
+        _rarityItems    = [{ value: '', label: '— Does not apply —' }];
+        _rarityDisabled = true;
       } else {
-        raritySelect.disabled  = false;
+        _rarityDisabled = false;
         const rarityEntry = raritiesCatalog.find(e => e.collection === collection && e.schema === schema);
         const rarities    = rarityEntry?.rarities ?? [];
-        const placeholder = currentRarityMode === 'required' ? '— Select a rarity —' : '— All rarities —';
-        raritySelect.innerHTML = `<option value="">${placeholder}</option>`;
-        for (const r of rarities) {
-          const opt = document.createElement('option');
-          opt.value       = r;
-          opt.textContent = r;
-          raritySelect.appendChild(opt);
-        }
+        const placeholder = currentRarityMode === 'required' ? '— Select a rarity —' : 'All rarities';
+        _rarityItems = [{ value: '', label: placeholder }, ...rarities.map(r => ({ value: r, label: r }))];
       }
+      renderRarityDd();
 
       if (currentSubsetMode === 'disabled') {
-        subsetSelect.innerHTML = '<option value="">— Does not apply —</option>';
-        subsetSelect.disabled  = true;
+        _subsetItems    = [{ value: '', label: '— Does not apply —' }];
+        _subsetDisabled = true;
       } else {
-        subsetSelect.disabled  = false;
+        _subsetDisabled = false;
         const subsetEntry = subsetsCatalog.find(e => e.collection === collection && e.schema === schema);
         const subsetList  = subsetEntry?.subsets ?? [];
-        const placeholder = currentSubsetMode === 'required' ? '— Select a subset —' : '— All subsets —';
-        subsetSelect.innerHTML = `<option value="">${placeholder}</option>`;
-        for (const s of subsetList) {
-          const opt = document.createElement('option');
-          opt.value       = s;
-          opt.textContent = s;
-          subsetSelect.appendChild(opt);
-        }
+        const placeholder = currentSubsetMode === 'required' ? '— Select a subset —' : 'All subsets';
+        _subsetItems = [{ value: '', label: placeholder }, ...subsetList.map(s => ({ value: s, label: s }))];
       }
+      renderSubsetDd();
 
       updateBtn();
     }
 
     function updateBtn() {
-      const hasDrop    = document.getElementById('dropSelect').value !== '';
+      const hasDrop    = _dropValue !== '';
       const hasWallets = document.getElementById('walletsInput').value.trim() !== '';
-      const hasRarity  = document.getElementById('raritySelect').value !== '';
-      const hasSubset  = document.getElementById('subsetSelect').value !== '';
+      const hasRarity  = _rarityValue !== '';
+      const hasSubset  = _subsetValue !== '';
       const rarityOk   = currentRarityMode !== 'required' || hasRarity || hasSubset;
       document.getElementById('searchBtn').disabled = !(hasDrop && hasWallets && rarityOk);
     }
+
+    let _dropValue = '', _rarityValue = '', _subsetValue = '';
+    let _dropItems = [];
+    let _rarityItems = [{ value: '', label: '— Select a rarity —' }];
+    let _subsetItems = [{ value: '', label: '— Does not apply —' }];
+    let _rarityDisabled = true, _subsetDisabled = true;
+
+    function renderSingleDd(ddId, items, currentValue, disabled) {
+      const wrap    = document.getElementById(ddId);
+      const trigger = wrap.querySelector('.cb-dropdown-btn');
+      const panel   = wrap.querySelector('.cb-panel');
+      trigger.disabled = !!disabled;
+      const active = items.find(i => i.value === currentValue) || items[0];
+      wrap.querySelector('.cb-label').textContent = active ? active.label : '';
+      panel.innerHTML = items.map(i =>
+        `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+      ).join('');
+    }
+    function bindDdItems(ddId, disabled, onPick) {
+      if (disabled) return;
+      document.querySelector(`#${ddId} .cb-panel`).querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('click', () => { onPick(item.dataset.val); closeAllDd(); });
+      });
+    }
+    function renderDropDd() {
+      renderSingleDd('dropDd', _dropItems, _dropValue, false);
+      bindDdItems('dropDd', false, val => { _dropValue = val; renderDropDd(); onCollectionChange(); });
+    }
+    function renderRarityDd() {
+      renderSingleDd('rarityDd', _rarityItems, _rarityValue, _rarityDisabled);
+      bindDdItems('rarityDd', _rarityDisabled, val => { _rarityValue = val; renderRarityDd(); updateBtn(); });
+    }
+    function renderSubsetDd() {
+      renderSingleDd('subsetDd', _subsetItems, _subsetValue, _subsetDisabled);
+      bindDdItems('subsetDd', _subsetDisabled, val => { _subsetValue = val; renderSubsetDd(); updateBtn(); });
+    }
+    function toggleDd(id) {
+      const wrap    = document.getElementById(id);
+      const trigger = wrap.querySelector('.cb-dropdown-btn');
+      if (trigger.disabled) return;
+      const panel   = wrap.querySelector('.cb-panel');
+      const isOpen  = panel.classList.contains('open');
+      closeAllDd();
+      if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+    }
+    function closeAllDd() {
+      document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+    }
+    document.addEventListener('mousedown', e => {
+      if (!e.target.closest('.cb-dropdown')) closeAllDd();
+    });
+    document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
+    document.getElementById('rarityTrigger').addEventListener('click', () => toggleDd('rarityDd'));
+    document.getElementById('subsetTrigger').addEventListener('click', () => toggleDd('subsetDd'));
 
     // ── API helpers ───────────────────────────────────────────────────────────
 
@@ -603,9 +658,9 @@
         btn.disabled = false; return;
       }
 
-      const [collection, schema] = document.getElementById('dropSelect').value.split('|');
-      const selectedRarity = document.getElementById('raritySelect').value;
-      const selectedSubset = document.getElementById('subsetSelect').value;
+      const [collection, schema] = _dropValue.split('|');
+      const selectedRarity = _rarityValue;
+      const selectedSubset = _subsetValue;
 
       try {
         setStatus('Fetching template data…');
@@ -634,7 +689,7 @@
         lastWallets = wallets;
         lastCollection = collection;
         lastSchema = schema;
-        currentDropLabel = document.getElementById('dropSelect').selectedOptions[0].text;
+        currentDropLabel = _dropItems.find(i => i.value === _dropValue)?.label ?? '';
 
         hideStatus();
         renderTable(templates, wallets, walletMaps);

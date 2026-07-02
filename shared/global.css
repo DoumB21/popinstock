@@ -606,11 +606,86 @@ body::before {
 .set-selector:focus { border-color: rgba(192, 120, 40, 0.5); }
 
 .control-select option,
-.drop-select option { background: #1a1a2a; }
+.drop-select option,
+.filter-select option { background: #1a1a2a; }
 
-/* Trade analyzer uses darker bg for inputs inside the controls-card */
+/* Darker bg for inputs sitting inside a card-styled toolbar/panel */
 .controls-card .control-select,
-.controls-card .control-input { background: var(--bg); }
+.controls-card .control-input,
+.mp-controls .control-input,
+.mp-controls .filter-select,
+.mp-controls .cb-dropdown-btn,
+.filter-bar .control-input { background: var(--bg); }
+
+/* Hide native number spinners everywhere so number inputs match text inputs */
+.search-input::-webkit-outer-spin-button, .search-input::-webkit-inner-spin-button,
+.control-input::-webkit-outer-spin-button, .control-input::-webkit-inner-spin-button,
+.wallet-input::-webkit-outer-spin-button, .wallet-input::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.search-input[type="number"], .control-input[type="number"], .wallet-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+
+/* ── Checkbox / single-select dropdown ── */
+.cb-dropdown { position: relative; }
+.cb-dropdown-btn {
+  display: flex; align-items: center; gap: 0.45rem;
+  width: 100%;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.6rem 0.9rem;
+  color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
+  cursor: pointer; transition: border-color 0.2s, color 0.15s;
+}
+.controls-card .cb-dropdown-btn,
+.ex-sidebar .cb-dropdown-btn { background: var(--bg); }
+.ex-sidebar .search-input,
+.ex-sidebar .filter-select,
+.ex-sidebar .control-input,
+.explore-toolbar .control-input { background: var(--bg); }
+.cb-dropdown-btn:hover,
+.cb-dropdown-btn.open { border-color: rgba(192,120,40,0.5); }
+.cb-dropdown-btn.has-selection { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
+.cb-dropdown-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.cb-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.cb-arrow { font-size: 0.7rem; opacity: 0.55; transition: transform 0.15s; flex-shrink: 0; }
+.cb-dropdown-btn.open .cb-arrow { transform: rotate(180deg); }
+.cb-panel {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+  background: #16161f; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 0.35rem 0;
+  min-width: 160px; max-height: 280px; overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+}
+/* Some pages toggle visibility via inline style, others via this class */
+.cb-panel.open { display: block; }
+.cb-panel::-webkit-scrollbar { width: 4px; }
+.cb-panel::-webkit-scrollbar-track { background: transparent; }
+.cb-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+.cb-item {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.42rem 0.85rem; cursor: pointer;
+  font-size: 0.83rem; color: var(--text-primary);
+  transition: background 0.1s;
+}
+.cb-item:hover { background: rgba(255,255,255,0.05); }
+.cb-item.active { color: var(--accent-light); }
+.cb-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.cb-item input[type=checkbox] {
+  accent-color: var(--accent-light); width: 14px; height: 14px;
+  flex-shrink: 0; cursor: pointer;
+}
+
+/* ── Clear filters button ── */
+.clear-filters-btn {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 0.6rem 0.9rem;
+  color: var(--text-secondary); font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.clear-filters-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: var(--text-primary); }
 
 
 /* ── Rarity badges ── */

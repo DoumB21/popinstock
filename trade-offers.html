@@ -82,6 +82,7 @@
     .offer-item.open .offer-chevron { transform: rotate(90deg); }
     .offer-from { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .offer-from-wallet { color: var(--accent-light); }
+    .offer-meta { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
     .offer-ratio {
       flex-shrink: 0; display: grid;
       grid-template-columns: max-content 1.25rem max-content;
@@ -177,10 +178,16 @@
       .page-main { padding: 1.25rem 0.75rem 3rem; }
       .offer-sides { grid-template-columns: 1fr; }
       .offer-side + .offer-side { border-top: 1px solid var(--border); }
-      .offer-header { flex-wrap: wrap; gap: 0.5rem 1rem; }
-      .offer-from  { flex-basis: 0; }
+      /* Sender name gets its own full-width row — sharing one line with the
+         fixed-width ratio/age stats left it squeezed down to a couple of
+         characters (e.g. "Offer f..."). Wrapping .offer-meta as a whole
+         onto row 2 keeps Receiving/Giving and the age together, spread
+         apart with space-between. */
+      .offer-header { flex-wrap: wrap; gap: 0.35rem 1rem; }
+      .offer-from  { flex-basis: calc(100% - 18px - 1rem); white-space: normal; }
+      .offer-meta  { flex-basis: 100%; justify-content: space-between; padding-left: calc(18px + 1rem); box-sizing: border-box; }
       .offer-ratio { width: auto; }
-      .offer-age   { width: auto; margin-left: auto; }
+      .offer-age   { width: auto; }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -224,7 +231,7 @@
 
   <div id="emptyWrap" class="empty-state" style="display:none;">
     <strong>No pending offers</strong>
-    You have no incoming trade offers at this time.
+    You have no incoming trade offers at this time. You can close this tab and return to the Trade Analyzer.
   </div>
 
   <div id="offersList" class="offers-list" style="display:none;"></div>
@@ -588,12 +595,14 @@ function buildOfferItem(offer, tplMap, lowestMints, type) {
     <div class="offer-header">
       <svg class="offer-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       <span class="offer-from">Offer from <span class="offer-from-wallet">${sender}</span>${type === 'funko' ? ' — Funko' : type === 'topps' ? ' — Topps' : ''}</span>
-      <div class="offer-ratio">
-        <span class="ratio-receive">Receiving <span class="ratio-num">${senderN}</span></span>
-        <span class="ratio-sep">&middot;</span>
-        <span class="ratio-give">Giving <span class="ratio-num">${recipientN}</span></span>
+      <div class="offer-meta">
+        <div class="offer-ratio">
+          <span class="ratio-receive">Receiving <span class="ratio-num">${senderN}</span></span>
+          <span class="ratio-sep">&middot;</span>
+          <span class="ratio-give">Giving <span class="ratio-num">${recipientN}</span></span>
+        </div>
+        <span class="offer-age">${age}</span>
       </div>
-      <span class="offer-age">${age}</span>
     </div>
     <div class="offer-body">${bodyHtml}</div>
   `;

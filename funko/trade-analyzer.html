@@ -34,6 +34,7 @@
     .control-hint { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; }
     .control-group--filter { max-width: 280px; }
     .input-error { color: #e05252; font-size: 0.82rem; margin-top: 0.6rem; }
+    .template-id-meta { display: none; } /* shown on mobile only — see responsive media query below */
 
     /* ── Sticky first column ── */
     .results-table th:first-child {
@@ -108,6 +109,19 @@
       .results-table th, .results-table td { padding: 0.4rem 0.5rem; }
       .results-table td.col-wallet, .results-table td.col-empty { padding-left: 0.35rem; padding-right: 0.35rem; }
       .trade-sidebar { width: 100%; right: -100%; }
+
+      /* Template ID moves down to sit with rarity/buy instead of forcing
+         the name row (and so the whole first column) wide enough to fit
+         both the name and a far-right-aligned template ID. The meta row
+         wraps onto two lines here: rarity alone on top (flex-basis:100%
+         forces the wrap), then Template ID (left) and Buy (right) share
+         the line below via the row's existing space-between. Packing all
+         three onto one line would just recreate the same width problem
+         one row down. */
+      .template-id-name { display: none; }
+      .template-id-meta { display: inline; }
+      .card-meta-line { flex-wrap: wrap; row-gap: 0.35rem; }
+      .card-meta-line .rarity-badge { flex-basis: 100%; }
     }
 
     /* ── Pending offers banner ── */
@@ -519,10 +533,14 @@
     <div class="controls-card">
       <div class="controls-row">
         <div class="control-group">
-          <label for="dropSelect" class="control-label">Drop</label>
-          <select id="dropSelect" class="control-select">
-            <option value="">— Select a drop —</option>
-          </select>
+          <label class="control-label">Drop</label>
+          <div class="cb-dropdown" id="dropDd">
+            <button class="cb-dropdown-btn" id="dropTrigger" type="button">
+              <span class="cb-label">— Select a drop —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="dropPanel"></div>
+          </div>
         </div>
         <div class="control-group control-group--wide">
           <label for="walletsInput" class="control-label">
@@ -704,19 +722,16 @@
           .replace(/\s+x\s+Funko Digital Pop!$/i, '');
       }
 
-      const sel = document.getElementById('dropSelect');
       const sortedDrops = [...drops].sort((a, b) =>
         cleanName(a.displayname ?? a.collection).localeCompare(cleanName(b.displayname ?? b.collection)) ||
         a.schema.localeCompare(b.schema)
       );
-      for (const d of sortedDrops) {
-        const opt = document.createElement('option');
-        opt.value = `${d.collection}|${d.schema}`;
-        opt.textContent = `${cleanName(d.displayname ?? d.collection)}  —  ${fmtSchema(d.schema)}`;
-        sel.appendChild(opt);
-      }
+      _dropItems = sortedDrops.map(d => ({
+        value: `${d.collection}|${d.schema}`,
+        label: `${cleanName(d.displayname ?? d.collection)}  —  ${fmtSchema(d.schema)}`,
+      }));
+      renderDropDd();
 
-      sel.addEventListener('change', updateBtn);
       const walletsInput = document.getElementById('walletsInput');
       walletsInput.addEventListener('input', () => {
         const { selectionStart, selectionEnd } = walletsInput;
@@ -739,10 +754,45 @@
     }
 
     function updateBtn() {
-      const hasDrop    = document.getElementById('dropSelect').value !== '';
+      const hasDrop    = _dropValue !== '';
       const hasWallets = document.getElementById('walletsInput').value.trim() !== '';
       document.getElementById('searchBtn').disabled = !(hasDrop && hasWallets);
     }
+
+    let _dropValue = '';
+    let _dropItems = [];
+    function renderDropDd() {
+      const panel = document.getElementById('dropPanel');
+      panel.innerHTML = _dropItems.map(i =>
+        `<div class="cb-item${i.value === _dropValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+      ).join('');
+      const active = _dropItems.find(i => i.value === _dropValue);
+      document.querySelector('#dropDd .cb-label').textContent = active ? active.label : '— Select a drop —';
+      panel.querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('click', () => {
+          _dropValue = item.dataset.val;
+          closeAllDd();
+          renderDropDd();
+          updateBtn();
+        });
+      });
+    }
+    function toggleDd(id) {
+      const wrap    = document.getElementById(id);
+      const panel   = wrap.querySelector('.cb-panel');
+      const trigger = wrap.querySelector('.cb-dropdown-btn');
+      const isOpen  = panel.classList.contains('open');
+      closeAllDd();
+      if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+    }
+    function closeAllDd() {
+      document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+    }
+    document.addEventListener('mousedown', e => {
+      if (!e.target.closest('.cb-dropdown')) closeAllDd();
+    });
+    document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
 
     // ── API helpers ───────────────────────────────────────────────────────────
 
@@ -798,7 +848,7 @@
         btn.disabled = false; return;
       }
 
-      const [collection, schema] = document.getElementById('dropSelect').value.split('|');
+      const [collection, schema] = _dropValue.split('|');
 
       const packEntry = packsCatalog.find(e => e.collection === collection && e.schema === schema);
       const packIds   = new Set((packEntry?.packs ?? []).map(String));
@@ -831,7 +881,7 @@
         lastWallets = wallets;
         lastCollection = collection;
         lastSchema = schema;
-        currentDropLabel = document.getElementById('dropSelect').selectedOptions[0].text;
+        currentDropLabel = _dropItems.find(i => i.value === _dropValue)?.label ?? '';
 
         hideStatus();
         renderTable(templates, wallets, walletMaps);
@@ -913,7 +963,7 @@
           const left = document.createElement('span');
           left.textContent = 'ID — Card';
           const right = document.createElement('span');
-          right.className = 'template-id-suffix';
+          right.className = 'template-id-suffix template-id-name';
           right.style.opacity = '0.4';
           right.textContent = 'Template ID';
           wrap.appendChild(left);
@@ -964,7 +1014,7 @@
         }
         nameLeft.appendChild(document.createTextNode(tmpl.name));
         const tidSpan = document.createElement('span');
-        tidSpan.className = 'template-id-suffix';
+        tidSpan.className = 'template-id-suffix template-id-name';
         tidSpan.textContent = tmpl.templateId;
         nameLine.appendChild(nameLeft);
         nameLine.appendChild(tidSpan);
@@ -983,6 +1033,10 @@
         rarityBadge.className = `rarity-badge rarity-${rarityKey(tmpl.rarity)}`;
         rarityBadge.textContent = tmpl.rarity;
         metaLine.appendChild(rarityBadge);
+        const tidMetaSpan = document.createElement('span');
+        tidMetaSpan.className = 'template-id-suffix template-id-meta';
+        tidMetaSpan.textContent = tmpl.templateId;
+        metaLine.appendChild(tidMetaSpan);
         const linksWrap = document.createElement('div');
         linksWrap.className = 'market-links';
         const buyA = document.createElement('a');

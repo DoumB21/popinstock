@@ -307,9 +307,13 @@
         </div>
       </div>
       <div class="controls-row">
-        <select class="drop-select" id="dropSelect">
-          <option value="">Loading drops…</option>
-        </select>
+        <div class="cb-dropdown drop-select" id="dropDd">
+          <button class="cb-dropdown-btn" id="dropTrigger" type="button">
+            <span class="cb-label">Loading drops…</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="dropPanel"></div>
+        </div>
         <button class="lookup-btn" id="trackBtn" onclick="lookupWallet()" disabled>Track</button>
       </div>
       <div class="controls-row">
@@ -469,15 +473,48 @@
       display_name:    collNameMap.get(s.collection_name) || s.collection_name,
     })).sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-    let html = '<option value="">— Select a Drop —</option>';
-    for (const d of allDrops)
-      html += `<option value="${d.collection_name}|${d.schema_name}">${d.display_name} — ${schemaLabel(d.schema_name)}</option>`;
-
-    const select = document.getElementById('dropSelect');
-    select.innerHTML = html;
-    if (initC && initS) select.value = initC + '|' + initS;
+    _dropItems = [{ value: '', label: '— Select a Drop —' },
+      ...allDrops.map(d => ({ value: `${d.collection_name}|${d.schema_name}`, label: `${d.display_name} — ${schemaLabel(d.schema_name)}` }))];
+    if (initC && initS) _dropValue = initC + '|' + initS;
+    renderDropDd();
     updateTrackBtn();
   }
+
+  let _dropValue = '';
+  let _dropItems = [];
+  function renderDropDd() {
+    const panel = document.getElementById('dropPanel');
+    panel.innerHTML = _dropItems.map(i =>
+      `<div class="cb-item${i.value === _dropValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+    ).join('');
+    const active = _dropItems.find(i => i.value === _dropValue) || _dropItems[0];
+    document.querySelector('#dropDd .cb-label').textContent = active ? active.label : '';
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => {
+        _dropValue = item.dataset.val;
+        closeAllDd();
+        renderDropDd();
+        syncUrl();
+        updateTrackBtn();
+      });
+    });
+  }
+  function toggleDd(id) {
+    const wrap    = document.getElementById(id);
+    const panel   = wrap.querySelector('.cb-panel');
+    const trigger = wrap.querySelector('.cb-dropdown-btn');
+    const isOpen  = panel.classList.contains('open');
+    closeAllDd();
+    if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+  }
+  function closeAllDd() {
+    document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  }
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+  });
+  document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
 
   /* ── Toggle ── */
   function setActiveType(type) {
@@ -491,7 +528,8 @@
 
   /* ── Clear ── */
   function clearAll() {
-    document.getElementById('dropSelect').value = '';
+    _dropValue = '';
+    renderDropDd();
     document.getElementById('walletInput').value = '';
     document.getElementById('trackerContent').innerHTML = '';
     currentWallet = ''; currentCollection = ''; currentSchema = '';
@@ -503,7 +541,7 @@
     const url = new URL(location.href);
     if (currentWallet) url.searchParams.set('w', currentWallet);
     else url.searchParams.delete('w');
-    const val = document.getElementById('dropSelect').value;
+    const val = _dropValue;
     if (val) {
       const [c, s] = val.split('|');
       url.searchParams.set('c', c);
@@ -537,7 +575,7 @@
   function lookupWallet() {
     const raw = document.getElementById('walletInput').value.trim();
     if (!raw) return;
-    const val = document.getElementById('dropSelect').value;
+    const val = _dropValue;
     if (!val) {
       document.getElementById('trackerContent').innerHTML =
         '<div class="state state-error">Please select a drop first.</div>';
@@ -836,7 +874,7 @@
 
   function updateTrackBtn() {
     const hasWallet = document.getElementById('walletInput').value.trim() !== '';
-    const hasDrop   = document.getElementById('dropSelect').value !== '';
+    const hasDrop   = _dropValue !== '';
     document.getElementById('trackBtn').disabled = !(hasWallet && hasDrop);
   }
 
@@ -852,11 +890,6 @@
     if (e.key === 'Enter') lookupWallet();
   });
 
-  document.getElementById('dropSelect').addEventListener('change', () => {
-    syncUrl();
-    updateTrackBtn();
-  });
-
   async function init() {
     await initDropSelector();
     if (initW) {
@@ -864,7 +897,8 @@
       currentWallet = initW;
     }
     if (initW && initC && initS) {
-      document.getElementById('dropSelect').value = initC + '|' + initS;
+      _dropValue = initC + '|' + initS;
+      renderDropDd();
       currentCollection = initC;
       currentSchema     = initS;
       const wallets = [...new Set(initW.split(',').map(w => w.trim()).filter(Boolean))];

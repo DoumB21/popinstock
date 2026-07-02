@@ -34,50 +34,9 @@
     .mint-range-inputs .control-input { flex: 1; min-width: 0; }
     .range-sep { color: var(--text-secondary); flex-shrink: 0; }
     #cardIdGroup { max-width: 175px; }
-    .clear-filters-btn {
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px; padding: 0.6rem 0.9rem;
-      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600;
-      cursor: pointer; white-space: nowrap; font-family: inherit;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    .clear-filters-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: var(--text-primary); }
-
-    /* ── Checkbox dropdown ── */
-    .cb-dropdown { position: relative; }
-    .cb-dropdown-btn {
-      display: flex; align-items: center; gap: 0.45rem;
-      width: 100%;
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 10px; padding: 0.6rem 0.9rem;
-      color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
-      cursor: pointer; transition: border-color 0.2s, color 0.15s;
-    }
-    .controls-card .cb-dropdown-btn { background: var(--bg); }
-    .cb-dropdown-btn:hover,
-    .cb-dropdown-btn.open { border-color: rgba(192,120,40,0.5); }
-    .cb-dropdown-btn.has-selection { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
-    .cb-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-    .cb-arrow { font-size: 0.7rem; opacity: 0.55; transition: transform 0.15s; flex-shrink: 0; }
-    .cb-dropdown-btn.open .cb-arrow { transform: rotate(180deg); }
-    .cb-panel {
-      position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px; padding: 0.35rem 0;
-      min-width: 160px; max-height: 280px; overflow-y: auto;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
-    }
-    .cb-item {
-      display: flex; align-items: center; gap: 0.55rem;
-      padding: 0.42rem 0.85rem; cursor: pointer;
-      font-size: 0.83rem; color: var(--text-primary);
-      transition: background 0.1s;
-    }
-    .cb-item:hover { background: rgba(255,255,255,0.05); }
-    .cb-item input[type=checkbox] {
-      accent-color: var(--accent-light); width: 14px; height: 14px;
-      flex-shrink: 0; cursor: pointer;
-    }
+    /* .clear-filters-btn and the checkbox-dropdown component (.cb-dropdown,
+       .cb-dropdown-btn, .cb-label, .cb-arrow, .cb-panel, .cb-item) live in
+       shared/global.css now — no page-specific overrides needed here. */
 
     /* ── Spinner ── */
     .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
@@ -466,28 +425,35 @@
       </div>
       <div class="control-group control-group--wide">
         <label class="control-label">Collection</label>
-        <select id="colFilter" class="control-select">
-          <option value="all">All collections</option>
-        </select>
+        <div class="cb-dropdown" id="colDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">All collections</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel"></div>
+        </div>
       </div>
       <div class="control-group control-group--narrow">
         <label class="control-label">Sort by</label>
-        <select id="sortOrder" class="control-select">
-          <option value="transferred_desc">Transferred (Newest)</option>
-          <option value="transferred_asc">Transferred (Oldest)</option>
-          <option value="mint_desc">Mint (Highest)</option>
-          <option value="mint_asc">Mint (Lowest)</option>
-          <option value="name_asc">Alphabetical (A-Z)</option>
-          <option value="buyoffer_desc" id="sortOptBuyoffer" disabled>Buy Offer (Highest)</option>
-        </select>
+        <div class="cb-dropdown" id="sortDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">Transferred (Newest)</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel"></div>
+        </div>
       </div>
     </div>
     <div class="controls-row filter-row">
       <div class="control-group" id="schemaGroup" style="display:none;">
         <label class="control-label">Schema</label>
-        <select id="schemaFilter" class="control-select">
-          <option value="all">All schemas</option>
-        </select>
+        <div class="cb-dropdown" id="schemaDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">All schemas</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel"></div>
+        </div>
       </div>
       <div class="control-group" id="rarityGroup" style="display:none;">
         <label class="control-label">Rarity</label>
@@ -496,7 +462,7 @@
             <span class="cb-label">All rarities</span>
             <span class="cb-arrow">▾</span>
           </button>
-          <div class="cb-panel" style="display:none;"></div>
+          <div class="cb-panel"></div>
         </div>
       </div>
       <div class="control-group" id="cardIdGroup" style="display:none;">
@@ -506,7 +472,7 @@
             <span class="cb-label">All card IDs</span>
             <span class="cb-arrow">▾</span>
           </button>
-          <div class="cb-panel" style="display:none;"></div>
+          <div class="cb-panel"></div>
         </div>
       </div>
       <div class="control-group">
@@ -1056,13 +1022,25 @@ async function fetchSchemasForCollection(collection) {
   }
 }
 
+let _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
+
 function updateSchemaFilter(schemas) {
-  const sel   = document.getElementById('schemaFilter');
   const group = document.getElementById('schemaGroup');
-  sel.innerHTML = '<option value="all">All schemas</option>' +
-    schemas.map(s => `<option value="${s}">${s}</option>`).join('');
-  sel.value = _filterSchema;
+  _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...schemas.map(s => ({ value: s, label: s }))];
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
   if (group) group.style.display = '';
+}
+
+function onSchemaFilterChange(val) {
+  _filterSchema = val;
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const availRarities = new Set(getAvailableValues(_filterCol, schema, 'rarity'));
+  const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
+  for (const r of [..._selectedRarities]) if (!availRarities.has(r)) _selectedRarities.delete(r);
+  for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
+  refreshFilterDropdowns();
+  loadAssets(true);
 }
 
 async function fetchTemplatesForCollection(collection) {
@@ -1124,8 +1102,25 @@ function refreshCbLabel(container, selectedSet, allLabel) {
 
 function closeAllCbDropdowns() {
   document.querySelectorAll('.cb-dropdown').forEach(d => {
-    d.querySelector('.cb-panel').style.display = 'none';
+    d.querySelector('.cb-panel').classList.remove('open');
     d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i =>
+    `<div class="cb-item${i.value === currentValue ? ' active' : ''}${i.disabled ? ' disabled' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`
+  ).join('');
+  panel.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
   });
 }
 
@@ -1262,11 +1257,12 @@ function appendCards(newAssets) {
   reapplySoldState(grid);
 }
 
+let _colItemsCache = [{ value: 'all', label: 'All collections' }];
+
 function updateColFilter() {
-  const sel = document.getElementById('colFilter');
   const totalLabel = _totalAssets != null ? Number(_totalAssets).toLocaleString() : _collections.size;
-  sel.innerHTML = `<option value="all">All collections (${totalLabel})</option>` +
-    [..._collections].sort((a, b) => {
+  _colItemsCache = [{ value: 'all', label: `All collections (${totalLabel})` },
+    ...[..._collections].sort((a, b) => {
       const na = (_collectionNames.get(a) || a).toLowerCase();
       const nb = (_collectionNames.get(b) || b).toLowerCase();
       return na < nb ? -1 : na > nb ? 1 : 0;
@@ -1274,9 +1270,35 @@ function updateColFilter() {
       const name  = _collectionNames.get(c) || c;
       const count = _collectionCounts.get(c);
       const label = count != null ? `${name} (${Number(count).toLocaleString()})` : name;
-      return `<option value="${c}">${label}</option>`;
-    }).join('');
-  if ([...sel.options].some(o => o.value === _filterCol)) sel.value = _filterCol;
+      return { value: c, label };
+    })];
+  const cur = _colItemsCache.some(i => i.value === _filterCol) ? _filterCol : 'all';
+  buildSingleCbDropdown('colDropdown', _colItemsCache, cur, onColFilterChange);
+}
+
+function onColFilterChange(val) {
+  _filterCol = val;
+  _filterSchema = 'all';
+  _selectedRarities.clear();
+  _selectedCardIds.clear();
+  document.getElementById('schemaGroup').style.display = 'none';
+  document.getElementById('rarityGroup').style.display = 'none';
+  document.getElementById('cardIdGroup').style.display = 'none';
+  buildSingleCbDropdown('colDropdown', _colItemsCache, _filterCol, onColFilterChange);
+
+  const col = _filterCol;
+  if (col !== 'all') {
+    fetchSchemasForCollection(col).then(schemas => {
+      if (_filterCol !== col) return;
+      if (schemas.length >= 1) updateSchemaFilter(schemas);
+    });
+    fetchTemplatesForCollection(col).then(() => {
+      if (_filterCol !== col) return;
+      refreshFilterDropdowns();
+    });
+  }
+
+  loadAssets(true);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1361,7 +1383,7 @@ async function readUrlParams() {
   _filterText    = p.get('q')     || '';
   document.getElementById('mintMin').value     = _filterMintMin;
   document.getElementById('mintMax').value     = _filterMintMax;
-  document.getElementById('sortOrder').value   = _sortOrder;
+  renderSortDropdown();
   document.getElementById('searchInput').value = _filterText;
   if (_filterCol !== 'all') {
     const col = _filterCol;
@@ -1701,11 +1723,10 @@ async function startBuyOfferFetch() {
   const progWrap  = document.getElementById('buyofferProgressWrap');
   const progFill  = document.getElementById('buyofferProgressFill');
   const progLabel = document.getElementById('buyofferProgressLabel');
-  const sortOpt   = document.getElementById('sortOptBuyoffer');
 
   btn.disabled = true;
   btn.textContent = 'Fetching…';
-  if (sortOpt) sortOpt.disabled = true;
+  renderSortDropdown();
   progWrap.style.display = 'block';
   progFill.style.width   = '0%';
 
@@ -1729,7 +1750,7 @@ async function startBuyOfferFetch() {
 
   progWrap.style.display = 'none';
   btn.disabled = false;
-  if (sortOpt) sortOpt.disabled = false;
+  renderSortDropdown();
   updateBuyOfferBanner();
 }
 
@@ -2470,7 +2491,7 @@ async function onWalletChange() {
     _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
     _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _filterText = ''; _sortOrder = 'transferred_desc';
     _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _soldAssets.clear(); _collectionsReady = false;
-    const sortOpt = document.getElementById('sortOptBuyoffer'); if (sortOpt) sortOpt.disabled = true;
+    renderSortDropdown();
     updateBuyOfferBanner();
     document.getElementById('schemaGroup').style.display  = 'none';
     document.getElementById('rarityGroup').style.display  = 'none';
@@ -2486,7 +2507,8 @@ async function onWalletChange() {
     // Different wallet connected mid-session — drop URL filters so stale collection doesn't confuse
     history.replaceState(null, '', location.pathname);
     document.getElementById('searchInput').value = '';
-    document.getElementById('sortOrder').value   = SORT_OPTIONS[0].value;
+    _sortOrder = SORT_OPTIONS[0].value;
+    renderSortDropdown();
   } else {
     await readUrlParams();
   }
@@ -2503,48 +2525,13 @@ document.getElementById('searchInput').addEventListener('input', e => {
   debounceLoad();
 });
 
-document.getElementById('colFilter').addEventListener('change', e => {
-  _filterCol = e.target.value;
-  _filterSchema = 'all';
-  _selectedRarities.clear();
-  _selectedCardIds.clear();
-  document.getElementById('schemaGroup').style.display = 'none';
-  document.getElementById('rarityGroup').style.display = 'none';
-  document.getElementById('cardIdGroup').style.display = 'none';
-
-  const col = _filterCol;
-  if (col !== 'all') {
-    fetchSchemasForCollection(col).then(schemas => {
-      if (_filterCol !== col) return;
-      if (schemas.length >= 1) updateSchemaFilter(schemas);
-    });
-    fetchTemplatesForCollection(col).then(() => {
-      if (_filterCol !== col) return;
-      refreshFilterDropdowns();
-    });
-  }
-
-  loadAssets(true);
-});
-
-document.getElementById('schemaFilter').addEventListener('change', e => {
-  _filterSchema = e.target.value;
-  const schema = _filterSchema !== 'all' ? _filterSchema : null;
-  const availRarities = new Set(getAvailableValues(_filterCol, schema, 'rarity'));
-  const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
-  for (const r of [..._selectedRarities]) if (!availRarities.has(r)) _selectedRarities.delete(r);
-  for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
-  refreshFilterDropdowns();
-  loadAssets(true);
-});
-
 function clearFilters() {
   _filterSchema = 'all';
   _selectedRarities.clear();
   _selectedCardIds.clear();
   _filterMintMin = '';
   _filterMintMax = '';
-  document.getElementById('schemaFilter').value = 'all';
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, 'all', onSchemaFilterChange);
   document.getElementById('mintMin').value = '';
   document.getElementById('mintMax').value = '';
   document.querySelectorAll('#rarityDropdown input[type=checkbox], #cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
@@ -2566,14 +2553,21 @@ document.getElementById('mintMax').addEventListener('input', e => {
   _filterMintMax = e.target.value;
   debounceLoad();
 });
-document.getElementById('sortOrder').addEventListener('change', async e => {
-  _sortOrder = e.target.value;
-  if (_sortOrder === 'buyoffer_desc' && _buyOffersFetched) {
-    await sortByBuyOffer();
-  } else {
-    loadAssets(true);
-  }
-});
+function renderSortDropdown() {
+  const items = SORT_OPTIONS.map(o => ({
+    value: o.value, label: o.label, disabled: o.value === 'buyoffer_desc' && !_buyOffersFetched,
+  }));
+  buildSingleCbDropdown('sortDropdown', items, _sortOrder, async val => {
+    _sortOrder = val;
+    renderSortDropdown();
+    if (_sortOrder === 'buyoffer_desc' && _buyOffersFetched) {
+      await sortByBuyOffer();
+    } else {
+      loadAssets(true);
+    }
+  });
+}
+renderSortDropdown();
 document.getElementById('loadMoreBtn').addEventListener('click', async () => {
   if (_sortOrder === 'buyoffer_desc') {
     const btn = document.getElementById('loadMoreBtn');
@@ -2604,16 +2598,15 @@ document.getElementById('loadMoreBtn').addEventListener('click', async () => {
 });
 document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
 
-// Checkbox dropdown toggle
-['rarityDropdown', 'cardIdDropdown'].forEach(id => {
-  const container = document.getElementById(id);
+// Checkbox / single-select dropdown toggle
+document.querySelectorAll('.cb-dropdown').forEach(container => {
   container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
     e.stopPropagation();
     const panel  = container.querySelector('.cb-panel');
-    const isOpen = panel.style.display !== 'none';
+    const isOpen = panel.classList.contains('open');
     closeAllCbDropdowns();
     if (!isOpen) {
-      panel.style.display = '';
+      panel.classList.add('open');
       container.querySelector('.cb-dropdown-btn').classList.add('open');
     }
   });

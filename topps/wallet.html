@@ -54,11 +54,9 @@
     /* ── Subset context label ── */
     .subset-context { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
 
-    /* ── Set selector ── */
+    /* ── Set selector — base look (.set-selector) lives in shared/global.css ── */
     .set-selector-wrap { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
     .set-selector-label { font-size: 0.75rem; color: var(--text-secondary); }
-    .set-selector { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 0.82rem; padding: 0.35rem 0.7rem; outline: none; cursor: pointer; transition: border-color 0.2s; font-family: inherit; }
-    .set-selector:focus { border-color: rgba(245,158,11,0.45); }
 
     /* ── Set summary ── */
     .set-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
@@ -116,9 +114,13 @@
         <button class="lookup-btn" id="lookupBtn" onclick="lookupWallet()" disabled>Look Up</button>
       </div>
       <div class="controls-row">
-        <select class="drop-select" id="subsetSelect" onchange="onSubsetChange()">
-          <option value="">— All Subsets —</option>
-        </select>
+        <div class="cb-dropdown drop-select" id="subsetDd">
+          <button class="cb-dropdown-btn" id="subsetTrigger" type="button">
+            <span class="cb-label">All subsets</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="subsetPanel"></div>
+        </div>
         <button class="clear-btn" onclick="clearSubset()">Clear</button>
       </div>
     </div>
@@ -179,23 +181,57 @@
 
   // ── Subset dropdown ────────────────────────────────────────────
 
+  let _subsetValue = '';
+  let _subsetItems = [{ value: '', label: 'All subsets' }];
+  function renderSubsetDd() {
+    const panel = document.getElementById('subsetPanel');
+    panel.innerHTML = _subsetItems.map(i =>
+      `<div class="cb-item${i.value === _subsetValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+    ).join('');
+    const active = _subsetItems.find(i => i.value === _subsetValue) || _subsetItems[0];
+    document.querySelector('#subsetDd .cb-label').textContent = active ? active.label : '';
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => {
+        _subsetValue = item.dataset.val;
+        closeAllDd();
+        renderSubsetDd();
+        onSubsetChange();
+      });
+    });
+  }
+  function toggleDd(id) {
+    const wrap    = document.getElementById(id);
+    const panel   = wrap.querySelector('.cb-panel');
+    const trigger = wrap.querySelector('.cb-dropdown-btn');
+    const isOpen  = panel.classList.contains('open');
+    closeAllDd();
+    if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+  }
+  function closeAllDd() {
+    document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  }
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+  });
+  document.getElementById('subsetTrigger').addEventListener('click', () => toggleDd('subsetDd'));
+
   function populateSubsetDropdown() {
     const subsets = [...new Set(cachedLbData.map(r => r.subset))].sort();
-    let html = '<option value="">— All Subsets —</option>';
-    for (const s of subsets) html += `<option value="${s}">${s}</option>`;
-    const sel = document.getElementById('subsetSelect');
-    sel.innerHTML = html;
-    if (initSub && subsets.includes(initSub)) sel.value = initSub;
+    _subsetItems = [{ value: '', label: 'All subsets' }, ...subsets.map(s => ({ value: s, label: s }))];
+    if (initSub && subsets.includes(initSub)) _subsetValue = initSub;
+    renderSubsetDd();
   }
 
   function clearSubset() {
-    document.getElementById('subsetSelect').value = '';
+    _subsetValue = '';
+    renderSubsetDd();
     onSubsetChange();
   }
 
   function onSubsetChange() {
     if (!currentWallet) return;
-    const subset = document.getElementById('subsetSelect').value;
+    const subset = _subsetValue;
     const url = new URL(location.href);
     url.searchParams.set('w', currentWallet);
     if (subset) url.searchParams.set('subset', subset);
@@ -205,7 +241,8 @@
   }
 
   function selectSubset(subset) {
-    document.getElementById('subsetSelect').value = subset;
+    _subsetValue = subset;
+    renderSubsetDd();
     onSubsetChange();
   }
 
@@ -215,7 +252,9 @@
     const w = document.getElementById('walletInput').value.trim();
     if (!w) return;
     currentWallet = w;
-    document.getElementById('subsetSelect').innerHTML = '<option value="">— All Subsets —</option>';
+    _subsetValue = '';
+    _subsetItems = [{ value: '', label: 'All subsets' }];
+    renderSubsetDd();
     const url = new URL(location.href);
     url.searchParams.set('w', w);
     url.searchParams.delete('subset');
@@ -249,7 +288,7 @@
   // ── Render dispatcher ──────────────────────────────────────────
 
   function render() {
-    const subset = document.getElementById('subsetSelect').value;
+    const subset = _subsetValue;
     if (subset) renderSubsetDetail(subset);
     else renderOverview();
   }
@@ -364,10 +403,17 @@
     </table></div>`;
   }
 
-  function switchSet(setNum) {
-    document.getElementById('walletContent').querySelectorAll('[id^="subset-set-"]').forEach(el => el.style.display = 'none');
+  function switchSet(setNum, el) {
+    document.getElementById('walletContent').querySelectorAll('[id^="subset-set-"]').forEach(el2 => el2.style.display = 'none');
     const target = document.getElementById('subset-set-' + setNum);
     if (target) target.style.display = '';
+    if (el) {
+      const dd = el.closest('.cb-dropdown');
+      dd.querySelector('.cb-label').textContent = el.querySelector('span').textContent;
+      dd.querySelectorAll('.cb-item').forEach(i => i.classList.remove('active'));
+      el.classList.add('active');
+    }
+    closeAllDd();
   }
 
   async function renderSubsetDetail(subset) {
@@ -417,8 +463,9 @@
         for (const t of tplData) tplMapCache.set(t.template_id, t);
       }
 
-      const options = fullRows.map(r =>
-        `<option value="${r.set_number}">Set #${r.set_number} · Rank #${r.rank} · Avg ${fmtDec(r.avg_mint)} · Rating ${fmtDec(r.rating)}</option>`
+      const setLabel = r => `Set #${r.set_number} · Rank #${r.rank} · Avg ${fmtDec(r.avg_mint)} · Rating ${fmtDec(r.rating)}`;
+      const options = fullRows.map((r, i) =>
+        `<div class="cb-item${i === 0 ? ' active' : ''}" data-val="${r.set_number}" onclick="switchSet('${r.set_number}', this)"><span>${setLabel(r)}</span></div>`
       ).join('');
 
       const setBlocks = fullRows.map((r, i) => `
@@ -436,7 +483,13 @@
       const selectorHtml = fullRows.length > 1
         ? `<div class="set-selector-wrap">
             <span class="set-selector-label">Viewing:</span>
-            <select class="set-selector" onchange="switchSet(this.value)">${options}</select>
+            <div class="cb-dropdown set-selector" id="subsetSetDd">
+              <button class="cb-dropdown-btn" type="button" onclick="toggleDd('subsetSetDd')">
+                <span class="cb-label">${setLabel(fullRows[0])}</span>
+                <span class="cb-arrow">▾</span>
+              </button>
+              <div class="cb-panel">${options}</div>
+            </div>
           </div>`
         : '';
 

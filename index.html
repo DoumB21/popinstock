@@ -107,6 +107,16 @@
       opacity: 0.8;
     }
 
+    /* ── Homepage sections stack vertically: Featured / Supported Projects /
+       Socials. Each section scales independently as more cards are added —
+       .featured-list stacks more banner rows, .grid wraps more tiles. ── */
+    .features {
+      flex-direction: column;
+      align-items: center;
+      gap: 3rem;
+    }
+    .features .section { width: 100%; max-width: 1280px; }
+
     /* ── Grid: max 3 columns on homepage ── */
     .features .grid {
       grid-template-columns: repeat(3, 1fr);
@@ -115,6 +125,27 @@
 
     @media (max-width: 820px) { .features .grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 500px) { .features .grid { grid-template-columns: 1fr; } }
+
+    /* ── Featured: a growing list of full-width banner cards ── */
+    .featured-list { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .card--banner {
+      flex-direction: row;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.75rem 2.25rem;
+    }
+    .card--banner .card-icon { width: 64px; height: 64px; }
+    .card--banner .card-icon svg { width: 32px; height: 32px; }
+    .card--banner .card-body { flex: 1; gap: 0.35rem; }
+    .card--banner .card-title { font-size: 1.25rem; }
+    .card--banner .card-desc { font-size: 0.92rem; }
+    .card--banner .card-arrow { font-size: 1.3rem; align-self: center; }
+
+    @media (max-width: 600px) {
+      .card--banner { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
+      .card--banner .card-arrow { align-self: flex-end; margin-top: -1.5rem; }
+    }
 
     /* ── Card icon ── */
     .card-icon {
@@ -202,71 +233,107 @@
     </section>
 
     <section class="features">
-      <div class="grid">
 
-        <!-- Funko NFTs -->
-        <a href="funko/funko.html" class="card card--funko">
-          <div class="card-icon">
-            <img src="images/funko-icon.png" alt="Funko" />
-          </div>
-          <div class="card-body">
-            <div class="card-title">Funko</div>
-            <div class="card-desc">Explore key Funko digital collection data on the WAX blockchain and advanced collector tools.</div>
-          </div>
-          <div class="card-arrow">↗</div>
-        </a>
+      <!-- Featured — currently just Explore, but this list is meant to grow:
+           each new featured item is another .card--banner appended below,
+           stacking automatically via .featured-list. -->
+      <div class="section">
+        <div class="section-heading">Featured</div>
+        <div class="featured-list">
+          <a href="explore.html" class="card card--explore card--banner">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Explore</div>
+              <div class="card-desc">Browse WAX NFT listings across all collections. Filter by collection, schema, rarity, and more.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
+        </div>
+      </div>
 
-        <!-- Topps NFTs -->
-        <a href="topps/topps.html" class="card card--topps">
-          <div class="card-icon">
-            <img src="images/topps.png" alt="Topps" style="width:42px;height:42px;object-fit:contain;" />
-          </div>
-          <div class="card-body">
-            <div class="card-title">Topps</div>
-            <div class="card-desc">Explore key Topps digital collection data on the WAX blockchain and advanced collector tools.</div>
-          </div>
-          <div class="card-arrow">↗</div>
-        </a>
+      <!-- Supported Projects -->
+      <div class="section">
+        <div class="section-heading">Supported Projects</div>
+        <div class="grid">
 
-        <!-- Wombat Dungeon Master -->
-        <a href="wombat/wombat.html" class="card card--wombat">
-          <div class="card-icon">
-            <img src="images/wombat-icon.png" alt="Wombat" />
-          </div>
-          <div class="card-body">
-            <div class="card-title">Wombat Dungeon Master</div>
-            <div class="card-desc">Tools and stats for Wombat Dungeon Master collectors.</div>
-          </div>
-          <div class="card-arrow">↗</div>
-        </a>
+          <!-- Funko NFTs -->
+          <a href="funko/funko.html" class="card card--funko">
+            <div class="card-icon">
+              <img src="images/funko-icon.png" alt="Funko" />
+            </div>
+            <div class="card-body">
+              <div class="card-title">Funko</div>
+              <div class="card-desc">Explore key Funko digital collection data on the WAX blockchain and advanced collector tools.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
 
-        <!-- Twitch -->
-        <a href="twitch/twitch.html" class="card card--twitch">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
-            </svg>
-          </div>
-          <div class="card-body">
-            <div class="card-title">Twitch</div>
-            <div class="card-desc">24/7 live streams, chat games, and prizes to win. View stream stats and more.</div>
-          </div>
-          <div class="card-arrow">↗</div>
-        </a>
+          <!-- Topps NFTs -->
+          <a href="topps/topps.html" class="card card--topps">
+            <div class="card-icon">
+              <img src="images/topps.png" alt="Topps" style="width:42px;height:42px;object-fit:contain;" />
+            </div>
+            <div class="card-body">
+              <div class="card-title">Topps</div>
+              <div class="card-desc">Explore key Topps digital collection data on the WAX blockchain and advanced collector tools.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
 
-        <!-- Discord -->
-        <a href="https://discord.gg/vzw45F5wnN" target="_blank" rel="noopener noreferrer" class="card card--discord">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.042.03.052a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-            </svg>
-          </div>
-          <div class="card-body">
-            <div class="card-title">Discord</div>
-            <div class="card-desc">Join the community, chat, and keep up with the latest news.</div>
-          </div>
-          <div class="card-arrow">↗</div>
-        </a>
+          <!-- Wombat Dungeon Master -->
+          <a href="wombat/wombat.html" class="card card--wombat">
+            <div class="card-icon">
+              <img src="images/wombat-icon.png" alt="Wombat" />
+            </div>
+            <div class="card-body">
+              <div class="card-title">Wombat Dungeon Master</div>
+              <div class="card-desc">Tools and stats for Wombat Dungeon Master collectors.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- Socials -->
+      <div class="section">
+        <div class="section-heading">Socials</div>
+        <div class="grid">
+
+          <!-- Twitch -->
+          <a href="twitch/twitch.html" class="card card--twitch">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Twitch</div>
+              <div class="card-desc">24/7 live streams, chat games, and prizes to win. View stream stats and more.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
+
+          <!-- Discord -->
+          <a href="https://discord.gg/vzw45F5wnN" target="_blank" rel="noopener noreferrer" class="card card--discord">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.042.03.052a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Discord</div>
+              <div class="card-desc">Join the community, chat, and keep up with the latest news.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
+
+        </div>
+      </div>
 
       </div>
     </section>

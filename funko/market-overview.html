@@ -83,7 +83,7 @@
     /* ── Filter bar ── */
     .filter-bar { display: flex; flex-direction: column; gap: 0.6rem; }
     .filter-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-    .filter-row .filter-select { min-width: 180px; flex: 1; max-width: 320px; }
+    .filter-row .cb-dropdown { min-width: 180px; flex: 1; max-width: 320px; }
     .filter-row .name-search   { min-width: 160px; flex: 1; max-width: 260px; }
     .supply-filter { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
     .supply-label  { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
@@ -180,7 +180,7 @@
     .load-more-wrap { text-align: center; padding-top: 0.5rem; }
 
     @media (max-width: 600px) {
-      .filter-row .filter-select,
+      .filter-row .cb-dropdown,
       .filter-row .name-search { max-width: none; }
     }
   </style>
@@ -201,9 +201,13 @@
 
     <div class="filter-bar">
       <div class="filter-row">
-        <select class="filter-select" id="collectionSelect">
-          <option value="">All Drops</option>
-        </select>
+        <div class="cb-dropdown" id="collectionDd">
+          <button class="cb-dropdown-btn" id="collectionTrigger" type="button">
+            <span class="cb-label">All drops</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="collectionPanel"></div>
+        </div>
         <input class="name-search search-input" id="nameSearch" type="search" placeholder="Search cards…" autocomplete="off" />
         <div class="supply-filter">
           <span class="supply-label">Supply</span>
@@ -452,18 +456,44 @@ function cleanName(name) {
     .replace(/\s+x\s+Funko Digital Pop!$/i, '');
 }
 
+function toggleDd(id) {
+  const wrap    = document.getElementById(id);
+  const panel   = wrap.querySelector('.cb-panel');
+  const trigger = wrap.querySelector('.cb-dropdown-btn');
+  const isOpen  = panel.classList.contains('open');
+  closeAllDd();
+  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+}
+function closeAllDd() {
+  document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+});
+document.getElementById('collectionTrigger').addEventListener('click', () => toggleDd('collectionDd'));
+
 function populateCollections(rows) {
-  const sel = document.getElementById('collectionSelect');
+  const panel = document.getElementById('collectionPanel');
   const sorted = [...rows]
     .map(d => ({ ...d, _name: cleanName(d.drop_displayname || d.collection_name) }))
     .sort((a, b) => a._name.localeCompare(b._name) || a.schema_name.localeCompare(b.schema_name));
-  let h = '<option value="">All Drops</option>';
-  for (const d of sorted) {
-    const v = d.collection_name + '|' + d.schema_name;
-    h += `<option value="${v}">${d._name}  —  ${schemaLabel(d.schema_name)}</option>`;
-  }
-  sel.innerHTML = h;
-  if (state.collection) sel.value = state.collection;
+  const items = [{ value: '', label: 'All drops' },
+    ...sorted.map(d => ({ value: d.collection_name + '|' + d.schema_name, label: `${d._name}  —  ${schemaLabel(d.schema_name)}` }))];
+  const cur = items.some(i => i.value === state.collection) ? state.collection : '';
+  panel.innerHTML = items.map(i =>
+    `<div class="cb-item${i.value === cur ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
+  ).join('');
+  document.querySelector('#collectionDd .cb-label').textContent = (items.find(i => i.value === cur) || items[0]).label;
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllDd();
+      state.collection = item.dataset.val;
+      state.offset = 0; tableRows = [];
+      populateCollections(rows);
+      loadData();
+    });
+  });
 }
 
 /* ── Card table (funko_market_prices) ── */
@@ -928,12 +958,6 @@ async function init() {
   }
 
   buildRarityTabs();
-
-  document.getElementById('collectionSelect').addEventListener('change', e => {
-    state.collection = e.target.value;
-    state.offset = 0; tableRows = [];
-    loadData();
-  });
 
   document.getElementById('nameSearch').addEventListener('input', e => {
     clearTimeout(nameTimer);

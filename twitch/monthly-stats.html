@@ -60,20 +60,8 @@
       color: var(--text-secondary);
       white-space: nowrap;
     }
-    .filter-bar input[type="month"] {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text-primary);
-      font-size: 0.875rem;
-      font-family: inherit;
-      padding: 0.55rem 0.85rem;
-      outline: none;
-      cursor: pointer;
-      color-scheme: dark;
-      transition: border-color 0.2s;
-    }
-    .filter-bar input[type="month"]:focus { border-color: var(--accent-light); }
+    /* base look (.control-input) lives in shared/global.css */
+    .filter-bar input[type="month"] { cursor: pointer; color-scheme: dark; }
 
     .btn-submit {
       background: linear-gradient(135deg, var(--accent-light), var(--accent));
@@ -353,7 +341,7 @@
 
     <div class="filter-bar">
       <label for="month-picker">Select month:</label>
-      <input type="month" id="month-picker">
+      <input type="month" id="month-picker" class="control-input">
       <button class="btn-submit" id="btn-submit">Show Stats</button>
     </div>
 

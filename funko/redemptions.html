@@ -200,14 +200,13 @@
         <svg viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
         <input type="text" class="search-input" id="searchInput" placeholder="Search sets or figures…" />
       </div>
-      <select class="filter-select" id="rarityFilter">
-        <option value="">All Rarities</option>
-        <option value="Mythic">Mythic</option>
-        <option value="Ultra">Ultra</option>
-        <option value="Grail">Grail</option>
-        <option value="Legendary">Legendary</option>
-        <option value="Royalty">Royalty</option>
-      </select>
+      <div class="cb-dropdown" id="rarityDd">
+        <button class="cb-dropdown-btn" id="rarityTrigger" type="button">
+          <span class="cb-label">All rarities</span>
+          <span class="cb-arrow">▾</span>
+        </button>
+        <div class="cb-panel" id="rarityPanel"></div>
+      </div>
       <button class="ctrl-btn" id="expandAll">Expand All</button>
       <button class="ctrl-btn" id="collapseAll">Collapse All</button>
       <span class="stats" id="stats"></span>
@@ -312,9 +311,11 @@
       visible === total ? `${total} sets` : `${visible} of ${total} sets`;
   }
 
+  let _rarityFilter = '';
+
   function applyFilters() {
     const query = document.getElementById('searchInput').value.toLowerCase().trim();
-    const rarity = document.getElementById('rarityFilter').value;
+    const rarity = _rarityFilter;
     let visibleCount = 0;
 
     document.querySelectorAll('.set-item').forEach(item => {
@@ -358,7 +359,50 @@
   }
 
   document.getElementById('searchInput').addEventListener('input', applyFilters);
-  document.getElementById('rarityFilter').addEventListener('change', applyFilters);
+
+  const RARITY_OPTIONS = [
+    { value: '',          label: 'All rarities' },
+    { value: 'Mythic',    label: 'Mythic' },
+    { value: 'Ultra',     label: 'Ultra' },
+    { value: 'Grail',     label: 'Grail' },
+    { value: 'Legendary', label: 'Legendary' },
+    { value: 'Royalty',   label: 'Royalty' },
+  ];
+  function renderRarityDd() {
+    const panel = document.getElementById('rarityPanel');
+    panel.innerHTML = RARITY_OPTIONS.map(o =>
+      `<div class="cb-item${o.value === _rarityFilter ? ' active' : ''}" data-val="${o.value}"><span>${o.label}</span></div>`
+    ).join('');
+    document.querySelector('#rarityDd .cb-label').textContent =
+      (RARITY_OPTIONS.find(o => o.value === _rarityFilter) || RARITY_OPTIONS[0]).label;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => {
+        _rarityFilter = item.dataset.val;
+        closeAllDd();
+        renderRarityDd();
+        applyFilters();
+      });
+    });
+  }
+  renderRarityDd();
+
+  function toggleDd(id) {
+    const wrap    = document.getElementById(id);
+    const panel   = wrap.querySelector('.cb-panel');
+    const trigger = wrap.querySelector('.cb-dropdown-btn');
+    const isOpen  = panel.classList.contains('open');
+    closeAllDd();
+    if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+  }
+  function closeAllDd() {
+    document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  }
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+  });
+  document.getElementById('rarityTrigger').addEventListener('click', () => toggleDd('rarityDd'));
+
   document.getElementById('expandAll').addEventListener('click', () => {
     document.querySelectorAll('.set-item:not(.hidden)').forEach(i => i.classList.add('open'));
   });
