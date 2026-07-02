@@ -72,6 +72,18 @@
     return block;
   }
 
+  const ROTATE_DEADLINE = 2500; // ms — cap how long picking a healthy node can stall on one hung endpoint;
+                                 // _fetchBlockNum keeps running past this and still populates _blockCache for next time
+
+  // Resolves to `block` if it arrives within `ms`, otherwise null — without
+  // cancelling the underlying check (it finishes on its own and caches).
+  function _withDeadline(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise(r => setTimeout(() => r(null), ms)),
+    ]);
+  }
+
   /* Health-check all endpoints in parallel, pick the highest block_num as
      the reference, and select the first candidate that:
        • is not the endpoint that just failed
@@ -81,7 +93,7 @@
     const failedBase = AA_ENDPOINTS.find(ep => failedUrl.startsWith(ep));
 
     const checks = await Promise.all(
-      AA_ENDPOINTS.map(async base => ({ base, block: await _fetchBlockNum(base) }))
+      AA_ENDPOINTS.map(async base => ({ base, block: await _withDeadline(_fetchBlockNum(base), ROTATE_DEADLINE) }))
     );
 
     const maxBlock = Math.max(...checks.map(c => c.block ?? -Infinity));
@@ -163,6 +175,16 @@
   /* Base URL helpers — always reflect the current (possibly rotated) endpoint. */
   function aaBase()     { return _cur() + '/atomicassets/v1'; }
   function marketBase() { return 'https://wax.api.atomicassets.io/atomicmarket/v1'; }
+
+  /* Best-effort: a caller that pinned itself to one node for consistency
+     (e.g. explore.html's paginated collection search) and found that node
+     unusable calls this to move the shared preferred node elsewhere, using
+     the same health-based selection apiFetch's automatic rotation uses.
+     Returns the new aaBase()-equivalent URL (same path suffix as the one
+     passed in), or null if no healthy alternative could be found. */
+  async function rotateAwayFrom(url) {
+    try { return await _rotateToHealthy(url); } catch { return null; }
+  }
 
   /* Returns `count` distinct AtomicAssets base URLs (atomicassets/v1),
      starting from the current preferred endpoint and wrapping through the
@@ -247,5 +269,5 @@
   // supabase-config.js, regardless of tag order) has already run.
   if (typeof window !== 'undefined') setTimeout(_syncEndpointOrder, 0);
 
-  window.WaxApi = { apiFetch, rawFetch, aaBase, aaBases, marketBase };
+  window.WaxApi = { apiFetch, rawFetch, aaBase, aaBases, marketBase, rotateAwayFrom };
 })();

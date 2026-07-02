@@ -511,17 +511,11 @@ function raced(promise, ms) {
 }
 
 // Fetches one exact URL and, on a 429/503/408, retries that *same* URL
-// with backoff — it never rotates to a different node. For sequential
-// pages of one paginated result set, WaxApi.apiFetch's normal behavior
-// (instantly switch nodes on a 429, no same-node retry first) would
-// silently pull a later page from a different node the moment any single
-// page gets rate-limited — quietly reintroducing the exact cross-node
-// inconsistency pinning them to one node was meant to prevent. This
-// trades that away for slightly worse resilience (if this one node is
-// genuinely down, the whole fetch fails rather than falling back to a
-// healthy node) — an acceptable trade here since callers already treat a
-// failed page as "return what we have" rather than a hard error.
-async function pinnedFetch(url, attempts = 3) {
+// with backoff — it never rotates to a different node mid-call, so a
+// caller fetching sequential pages of one paginated result set can pin
+// them all to one node (see fetchCollectionPages below) without risking
+// a later page silently landing on a different, possibly out-of-sync node.
+async function pinnedFetch(url, attempts = 2) {
   for (let i = 0; i < attempts; i++) {
     let res;
     try {
@@ -544,6 +538,33 @@ async function pinnedFetch(url, attempts = 3) {
   }
 }
 
+// Fetches both pages of one /collections?match= query, pinned together to
+// the same node (see pinnedFetch above). If that node is currently bad
+// (e.g. rate-limiting this route for everyone), both pages fail together —
+// rather than giving up and returning nothing, this rotates the shared
+// preferred node elsewhere via WaxApi.rotateAwayFrom and retries both
+// pages against the new node. Tries up to 3 distinct nodes before giving
+// up for real, so one misbehaving node can't make the search box unusable
+// until an unrelated request elsewhere happens to rotate away from it.
+async function fetchCollectionPages(q) {
+  let base = WaxApi.aaBase();
+  const tried = new Set();
+  for (let hop = 0; hop < 3; hop++) {
+    tried.add(base);
+    const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
+    const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
+    try {
+      const [p1, p2] = await Promise.all([pinnedFetch(q1), pinnedFetch(q2)]);
+      return [...p1, ...p2];
+    } catch {
+      const next = await WaxApi.rotateAwayFrom(base);
+      if (!next || tried.has(next)) break;
+      base = next;
+    }
+  }
+  return [];
+}
+
 // collection_name → asset count, for the life of the page. Typing "topps"
 // re-searches largely overlapping candidates on almost every keystroke
 // ("to" → "top" → "topp" → "topps"), so this cuts most of the stats
@@ -560,21 +581,10 @@ async function searchCollections(q) {
     // drops it before we ever get to rank by relevance/asset count.
     // Fetched as two pages of 100 (rather than one page of 200 — some
     // AtomicAssets nodes cap /collections at limit=100 and reject anything
-    // higher with a 400), run in parallel — but from the SAME node, via
-    // pinnedFetch (not WaxApi.apiFetch): these are two pages of one
-    // continuous, ordered result set, and apiFetch rotates to a different
-    // node the instant either page gets rate-limited, which would silently
-    // pull that page from a node a few blocks out of sync with the other —
-    // a collection could then be duplicated across both pages, or skipped
-    // by both. Two requests to one origin is still well within the
-    // browser's ~6-per-origin connection limit, so this costs nothing.
-    const base = WaxApi.aaBase();
-    const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
-    const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
-    const [p1, p2] = await Promise.all([
-      pinnedFetch(q1).catch(() => []),
-      pinnedFetch(q2).catch(() => []),
-    ]);
+    // higher with a 400), pinned to the same node per attempt so the two
+    // pages of this one ordered result set can't land on out-of-sync nodes
+    // — see fetchCollectionPages for the node-rotation-on-failure logic.
+    const results = await fetchCollectionPages(q);
     if (myGen !== _colGen) return; // stale — a newer keystroke superseded this
 
     const ql = q.toLowerCase();
@@ -582,7 +592,7 @@ async function searchCollections(q) {
     // call on each — the list only ever shows 12, and asset-count re-ranking
     // exists to break ties among genuine near-matches, not to rescue
     // candidates matchScore already ranked in the bottom half of 30.
-    const candidates = [...p1, ...p2]
+    const candidates = results
       .sort((a, b) => matchScore(a, ql) - matchScore(b, ql))
       .slice(0, 15);
 
