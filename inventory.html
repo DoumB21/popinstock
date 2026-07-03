@@ -667,6 +667,35 @@ function imgUrl(hash) {
   return gw + hash;
 }
 
+// Public IPFS gateways don't all have the same peers/cache — a CID that's
+// cold on one (times out fetching it fresh from the P2P network) can
+// already be warm on another. Cycle through a few gateways instead of
+// retrying the same one, before giving up and hiding the image.
+const IPFS_GATEWAY_LIST = [
+  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function onAssetImgError(el) {
+  const hash = el.dataset.ipfsHash;
+  if (hash) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+      return;
+    }
+  } else if (!el.dataset.retried) {
+    // Not a bare CID (already an absolute, non-gateway URL) — nothing to
+    // swap gateways on, so just retry the same URL once.
+    el.dataset.retried = '1';
+    setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
+    return;
+  }
+  el.style.display = 'none';
+}
+
 function assetMediaHtml(a, extraAttr = '', eager = false) {
   const d     = a.data || {};
   const t     = a.template?.immutable_data || {};
@@ -676,7 +705,7 @@ function assetMediaHtml(a, extraAttr = '', eager = false) {
     if (eager) return `<video src="${imgUrl(video)}" muted playsinline loop autoplay style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
     return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
   }
-  if (img)   return `<img src="${imgUrl(img)}" alt="${a.name || ''}" ${extraAttr} onerror="this.style.display='none'">`;
+  if (img)   return `<img src="${imgUrl(img)}" alt="${a.name || ''}" ${extraAttr} data-ipfs-hash="${img.startsWith('http') ? '' : img}" data-gw-idx="0" onerror="onAssetImgError(this)">`;
   return '<div class="inv-img-placeholder">?</div>';
 }
 

@@ -126,9 +126,10 @@
     @media (max-width: 820px) { .features .grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 500px) { .features .grid { grid-template-columns: 1fr; } }
 
-    /* ── Featured: a growing 2-column grid of flagship tool cards ── */
-    .featured-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
-    @media (max-width: 700px) { .featured-list { grid-template-columns: 1fr; } }
+    /* ── Featured: a growing 3-column grid of flagship tool cards ── */
+    .featured-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+    @media (max-width: 820px) { .featured-list { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .featured-list { grid-template-columns: 1fr; } }
 
     /* ── Card icon ── */
     .card-icon {
@@ -176,6 +177,9 @@
     .card--inventory { background: linear-gradient(145deg, #13131d 35%, rgba(240, 168, 64, 0.09) 100%); border-top: 2px solid rgba(240, 168, 64, 0.4); }
     .card--inventory .card-icon { background: rgba(240, 168, 64, 0.2); box-shadow: 0 0 18px rgba(240, 168, 64, 0.2); }
     .card--inventory .card-icon svg { fill: #f0a840; }
+    .card--trade { background: linear-gradient(145deg, #13131d 35%, rgba(74, 222, 128, 0.09) 100%); border-top: 2px solid rgba(74, 222, 128, 0.4); }
+    .card--trade .card-icon { background: rgba(74, 222, 128, 0.2); box-shadow: 0 0 18px rgba(74, 222, 128, 0.2); }
+    .card--trade .card-icon svg { fill: #4ade80; }
 
     /* ── Per-brand hover: deeper gradient, full border glow, bigger shadow ── */
     .card--twitch:hover  { background: linear-gradient(145deg, #1a1a2a 35%, rgba(145, 70, 255, 0.16) 100%); border-color: rgba(145, 70, 255, 0.55);  box-shadow: 0 14px 55px rgba(145, 70, 255, 0.24); }
@@ -186,6 +190,7 @@
     .card--wombat:hover  { background: linear-gradient(145deg, #1a1a2a 35%, rgba(162, 89, 255, 0.16) 100%); border-color: rgba(162, 89, 255, 0.55);  box-shadow: 0 14px 55px rgba(162, 89, 255, 0.24); }
     .card--explore:hover { background: linear-gradient(145deg, #1a1a2a 35%, rgba(20, 184, 166, 0.16) 100%); border-color: rgba(20, 184, 166, 0.55);  box-shadow: 0 14px 55px rgba(20, 184, 166, 0.24); }
     .card--inventory:hover { background: linear-gradient(145deg, #1a1a2a 35%, rgba(240, 168, 64, 0.16) 100%); border-color: rgba(240, 168, 64, 0.55); box-shadow: 0 14px 55px rgba(240, 168, 64, 0.24); }
+    .card--trade:hover { background: linear-gradient(145deg, #1a1a2a 35%, rgba(74, 222, 128, 0.16) 100%); border-color: rgba(74, 222, 128, 0.55); box-shadow: 0 14px 55px rgba(74, 222, 128, 0.24); }
 
     .card--twitch:hover  .card-arrow { color: var(--twitch); }
     .card--discord:hover .card-arrow { color: var(--discord); }
@@ -195,6 +200,7 @@
     .card--wombat:hover  .card-arrow { color: var(--wombat); }
     .card--explore:hover .card-arrow { color: #14b8a6; }
     .card--inventory:hover .card-arrow { color: #f0a840; }
+    .card--trade:hover .card-arrow { color: #4ade80; }
 
     /* Icon glow intensifies on hover */
     .card--twitch:hover  .card-icon { box-shadow: 0 0 30px rgba(145, 70, 255, 0.45); }
@@ -205,6 +211,7 @@
     .card--wombat:hover  .card-icon { box-shadow: 0 0 30px rgba(162, 89, 255, 0.45); }
     .card--explore:hover .card-icon { box-shadow: 0 0 30px rgba(20, 184, 166, 0.45); }
     .card--inventory:hover .card-icon { box-shadow: 0 0 30px rgba(240, 168, 64, 0.45); }
+    .card--trade:hover .card-icon { box-shadow: 0 0 30px rgba(74, 222, 128, 0.45); }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -251,6 +258,19 @@
             <div class="card-body">
               <div class="card-title">Inventory</div>
               <div class="card-desc">Browse your WAX wallet's NFTs, list them for sale, and manage active listings — all in one place.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
+
+          <a href="trade-analyzer.html" class="card card--trade">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
+              </svg>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Trade Analyzer</div>
+              <div class="card-desc">Compare wallets and spot trade opportunities across Funko, Topps, or any WAX collection.</div>
             </div>
             <div class="card-arrow">↗</div>
           </a>

@@ -1,0 +1,2542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade Analyzer — Hoardio</title>
+  <meta name="description" content="Compare the NFT inventory of up to 5 WAX wallets across Funko Digital, Topps, or any WAX collection. Instantly spot trade opportunities and find missing cards to complete your set." />
+  <link rel="canonical" href="https://www.hoardio.com/trade-analyzer.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/trade-analyzer.html" />
+  <meta property="og:title" content="Trade Analyzer — Hoardio" />
+  <meta property="og:description" content="Compare the NFT inventory of up to 5 WAX wallets across Funko Digital, Topps, or any WAX collection. Instantly spot trade opportunities and find missing cards to complete your set." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Trade Analyzer — Hoardio" />
+  <meta name="twitter:description" content="Compare the NFT inventory of up to 5 WAX wallets across Funko Digital, Topps, or any WAX collection. Instantly spot trade opportunities and find missing cards to complete your set." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    /* ── Mode switcher ── */
+    .mode-switcher { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+    .mode-switcher-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-right: 0.15rem; }
+    .mode-btn {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px;
+      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; padding: 0.4rem 0.95rem;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .mode-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text-primary); }
+    .mode-btn--active { background: rgba(240,168,64,0.14); border-color: var(--accent-light); color: var(--accent-light); }
+
+    /* ── Controls card ── */
+    .controls-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .controls-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 180px; }
+    .control-group--wide { flex: 2; min-width: 260px; }
+    .control-label {
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .control-hint { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; }
+    .control-group--filter { max-width: 280px; }
+    .input-error { color: #e05252; font-size: 0.82rem; margin-top: 0.6rem; }
+    .template-id-meta { display: none; }
+
+    /* ── Collection typeahead (Generic mode) ── */
+    .typeahead-wrap { position: relative; }
+    #genColSearch { width: 100%; box-sizing: border-box; }
+    #genColSuggestions {
+      display: none; position: absolute;
+      top: calc(100% + 4px); left: 0; right: 0;
+      background: #1a1a28; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; z-index: 400;
+      max-height: 259px; overflow-y: auto;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+    }
+    #genColSuggestions::-webkit-scrollbar { width: 4px; }
+    #genColSuggestions::-webkit-scrollbar-track { background: transparent; }
+    #genColSuggestions::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    .col-sug {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.55rem 0.85rem; cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .col-sug:hover { background: rgba(255,255,255,0.05); border-left-color: var(--accent); }
+    .col-sug + .col-sug { border-top: 1px solid rgba(255,255,255,0.05); }
+    .col-sug img { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
+    .col-sug-ph { width: 28px; height: 28px; border-radius: 5px; background: rgba(255,255,255,0.07); flex-shrink: 0; }
+    .col-sug-info { min-width: 0; flex: 1; }
+    .col-sug-name { display: block; font-size: 0.84rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .col-sug-slug { display: block; font-size: 0.71rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .col-chip {
+      display: none; align-items: center; gap: 0.45rem;
+      margin-top: 0.5rem;
+      background: rgba(192,120,40,0.1); border: 1px solid rgba(192,120,40,0.3);
+      border-radius: 6px; padding: 0.4rem 0.6rem;
+    }
+    .col-chip img { width: 22px; height: 22px; border-radius: 3px; object-fit: cover; flex-shrink: 0; }
+    .col-chip-name { flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .col-chip-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.25rem; flex-shrink: 0; }
+    .col-chip-clear:hover { color: var(--text-primary); }
+
+    /* ── Sticky first column ── */
+    .results-table th:first-child {
+      position: sticky; left: 0; z-index: 3; background: #141419;
+    }
+    .results-table .card-main-row td:first-child {
+      position: sticky; left: 0; z-index: 1; background: #0a0a0f;
+    }
+    .card-group:hover .card-main-row td:first-child { background: #101015; }
+
+    /* ── Mint filter ── */
+    .controls-filter { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .mint-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .mint-range-inputs .control-input { flex: 1; min-width: 0; }
+    .range-sep { color: var(--text-secondary); flex-shrink: 0; font-size: 0.9rem; }
+
+    /* ── Results ── */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem; padding: 0 0.25rem; gap: 1rem;
+    }
+    .results-meta { color: var(--text-secondary); font-size: 0.8rem; }
+    .results-meta strong { color: var(--text-primary); }
+    .trade-filter-btn {
+      display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text-secondary);
+      font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.75rem;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .trade-filter-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text-primary); }
+    .trade-filter-btn--active { background: rgba(74,222,128,0.1); border-color: #4ade80; color: #4ade80; }
+    .trade-filter-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .trade-filter-empty { display: none; text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .offer-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+    .offer-tag {
+      display: inline-block; padding: 0.08rem 0.38rem;
+      border-radius: 4px; font-size: 0.68rem; font-weight: 700;
+      white-space: nowrap; letter-spacing: 0.02em;
+    }
+    .table-scroll { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+    .results-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .results-table th {
+      background: rgba(255,255,255,0.04); color: var(--text-secondary);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em;
+      padding: 0.65rem 0.85rem; text-align: left; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 2;
+      border-bottom: 1px solid var(--border);
+    }
+    .results-table th.col-wallet { text-align: right; color: var(--accent-light); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+    .results-table td { border-top: 1px solid var(--border); padding: 0.5rem 0.85rem; vertical-align: top; }
+    .card-group:hover td { background: var(--bg-row-alt); }
+    .results-table td.col-num { color: var(--text-secondary); font-size: 0.9rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .results-table td.col-wallet { white-space: nowrap; padding-left: 0.6rem; padding-right: 0.6rem; }
+    .wallet-cell { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .wallet-copies { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
+    .wallet-mint { font-variant-numeric: tabular-nums; text-align: right; }
+    .wallet-next-mints { font-size: 0.8rem; color: var(--text-secondary); text-align: right; font-variant-numeric: tabular-nums; }
+    .mint-lowest .wallet-next-mints { opacity: 0.6; }
+    .results-table td.col-empty { color: var(--text-secondary); text-align: right; padding-left: 0.6rem; padding-right: 0.6rem; }
+    .mint-lowest { background: rgba(250,165,0,0.1) !important; }
+    .mint-lowest .wallet-mint { color: var(--accent-light); font-weight: 700; }
+    .mint-lowest .wallet-copies { color: var(--accent-light); opacity: 0.7; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .page-main { padding: 1.25rem 0.75rem; }
+      .controls-card { padding: 1.25rem 1rem; }
+      .search-btn { width: 100%; }
+      .control-group--filter { max-width: none; }
+      .results-table { font-size: 0.85rem; }
+      .results-table th, .results-table td { padding: 0.4rem 0.5rem; }
+      .results-table td.col-wallet, .results-table td.col-empty { padding-left: 0.35rem; padding-right: 0.35rem; }
+      .trade-sidebar { width: 100%; right: -100%; }
+
+      .template-id-name { display: none; }
+      .template-id-meta { display: inline; }
+      .card-meta-line { flex-wrap: wrap; row-gap: 0.35rem; }
+      .card-meta-line .rarity-badge { flex-basis: 100%; }
+    }
+
+    /* ── Quick Start Guide ── */
+    .qs-guide {
+      background: rgba(15,20,40,0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-left: 3px solid #3b82f6;
+      border-radius: 10px;
+      margin-top: 1rem;
+      overflow: hidden;
+    }
+    .qs-header {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.7rem 1rem 0.7rem 1.25rem;
+      cursor: pointer; user-select: none;
+    }
+    .qs-chevron {
+      width: 14px; height: 14px; flex-shrink: 0;
+      color: #3b82f6; transition: transform 0.2s;
+    }
+    .qs-guide.qs-open .qs-chevron { transform: rotate(90deg); }
+    .qs-title {
+      flex: 1;
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #3b82f6; margin: 0;
+    }
+    .qs-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-secondary); font-size: 1.2rem; line-height: 1;
+      padding: 0 0.1rem; transition: color 0.15s; flex-shrink: 0;
+    }
+    .qs-close:hover { color: var(--text-primary); }
+    .qs-body {
+      display: none;
+      padding: 0 1.25rem 0.9rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .qs-guide.qs-open .qs-body { display: block; }
+    .qs-steps {
+      margin: 0.65rem 0 0; padding-left: 1.4rem;
+      display: flex; flex-direction: column; gap: 0.55rem;
+    }
+    .qs-steps li { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.6; }
+    .qs-steps li strong { color: var(--text-primary); }
+    .qs-steps li em { color: var(--accent-light); font-style: normal; font-weight: 600; }
+
+    .pending-offers-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: rgba(250,165,0,0.08); border: 1px solid rgba(250,165,0,0.3);
+      border-radius: 12px; padding: 0.75rem 1.1rem;
+      margin-bottom: 1.25rem;
+    }
+    .pending-offers-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .pending-offers-text { flex: 1; font-size: 0.875rem; }
+    .pending-offers-text strong { color: var(--accent-light); }
+    .pending-offers-link {
+      font-size: 0.82rem; font-weight: 700;
+      color: var(--accent-light); text-decoration: none;
+      white-space: nowrap; border-bottom: 1px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .pending-offers-link:hover { border-color: var(--accent-light); }
+
+    /* ── Clickable / selected mints ── */
+    .mint-clickable {
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 0.05rem 0.35rem;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      display: inline-block;
+    }
+    .mint-clickable:hover {
+      background: rgba(74,222,128,0.15);
+      color: #4ade80;
+    }
+    .mint-selected {
+      background: rgba(74,222,128,0.18) !important;
+      color: #4ade80 !important;
+      box-shadow: 0 0 0 2px #4ade80;
+      font-weight: 700;
+    }
+
+    /* ── Side tab group (right edge) ── */
+    .side-tabs-group {
+      position: fixed;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .trade-tab, .traders-tab {
+      border: none;
+      border-radius: 10px 0 0 10px;
+      padding: 1.1rem 0.55rem;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.78rem;
+      writing-mode: vertical-lr;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: -3px 0 12px rgba(0,0,0,0.35);
+      transition: opacity 0.2s;
+    }
+    .trade-tab   { background: linear-gradient(180deg, var(--accent-light), var(--accent)); color: #fff; }
+    .traders-tab { background: linear-gradient(180deg, #60a5fa, #3b82f6); color: #fff; }
+    .trade-tab:hover, .traders-tab:hover { opacity: 0.88; }
+    .trade-count-badge {
+      background: #fff;
+      color: var(--accent);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      min-width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+    }
+
+    /* ── Trade sidebar ── */
+    .trade-sidebar {
+      position: fixed;
+      right: -380px;
+      top: 0;
+      bottom: 0;
+      width: 360px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      z-index: 300;
+      transition: right 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -6px 0 24px rgba(0,0,0,0.4);
+    }
+    .trade-sidebar.open { right: 0; }
+
+    .trade-sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .trade-sidebar-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--accent-light);
+      letter-spacing: 0.03em;
+    }
+    .trade-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .trade-close-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+
+    .trade-entries {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .trade-empty {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      text-align: center;
+      margin-top: 2rem;
+      line-height: 1.6;
+    }
+
+    .trade-wallet-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .trade-wallet-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.1rem 0.2rem;
+    }
+    .trade-wallet-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--accent-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trade-wallet-divider {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .trade-entry {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      position: relative;
+      padding-right: 2.2rem;
+    }
+    .trade-entry-main {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+    .trade-entry-mint {
+      color: #4ade80;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.92rem;
+      flex-shrink: 0;
+    }
+    .trade-entry-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trade-entry-sub {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 0.1rem;
+    }
+    /* ── Double-row card layout ── */
+    .card-sub-row td { border-top: none !important; padding-top: 0; padding-bottom: 0.45rem; }
+    .card-id-prefix { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .template-id-suffix { color: var(--text-secondary); font-size: 0.88em; opacity: 0.55; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .card-name-line { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; }
+    .card-meta-line { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+
+    .market-links { display: flex; align-items: center; gap: 1rem; }
+    .market-link--primary { display: inline-flex; align-items: center; gap: 0.4rem; opacity: 1 !important; transition: filter 0.2s; text-decoration: none; }
+    .market-link--primary img { width: 24px !important; height: 24px !important; filter: invert(1); }
+    .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); opacity: 1 !important; }
+    .buy-label { font-size: 0.82rem; font-weight: 700; color: var(--accent-light); letter-spacing: 0.03em; }
+    .market-link {
+      display: flex;
+      align-items: center;
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+    .market-link:hover { opacity: 1; }
+    .market-link img { width: 20px; height: 20px; object-fit: contain; }
+    .trade-entry-drop {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      opacity: 0.85;
+      margin-top: 0.1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trade-remove-btn {
+      position: absolute;
+      top: 50%;
+      right: 0.6rem;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.25rem;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+    .trade-remove-btn:hover { color: #e05252; background: rgba(224,82,82,0.1); }
+
+    .trade-sidebar-footer {
+      padding: 0.85rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .trade-action-btn {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .trade-action-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+    .trade-action-btn--danger:hover { background: rgba(224,82,82,0.1); border-color: #e05252; color: #e05252; }
+    .trade-action-btn--offer {
+      flex-basis: 100%; border-color: rgba(240,168,64,0.3); color: var(--accent-light);
+    }
+    .trade-action-btn--offer:not(:disabled):hover { background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.6); }
+    .trade-action-btn--offer:disabled { opacity: 0.35; cursor: not-allowed; }
+    .trade-action-btn--sent { opacity: 1 !important; cursor: default !important; color: #4caf50 !important; border-color: rgba(76,175,80,0.5) !important; background: rgba(76,175,80,0.08) !important; }
+
+    /* ── Traders sidebar ── */
+    .traders-sidebar {
+      position: fixed; right: -380px; top: 0; bottom: 0; width: 360px;
+      background: var(--bg-card); border-left: 1px solid var(--border);
+      z-index: 300; transition: right 0.3s ease; display: flex; flex-direction: column;
+      box-shadow: -6px 0 24px rgba(0,0,0,0.4);
+    }
+    .traders-sidebar.open { right: 0; }
+    .trader-entry {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.6rem 0.85rem;
+    }
+    .trader-wallet {
+      font-size: 0.88rem; font-weight: 700; color: #60a5fa;
+      cursor: pointer; display: inline-block;
+    }
+    .trader-wallet:hover { text-decoration: underline; }
+    .trader-desc   { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+    .trader-joined { font-size: 0.72rem; color: var(--text-secondary); opacity: 0.55; margin-top: 0.1rem; }
+    .traders-me-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: #4ade80; border: 1px solid rgba(74,222,128,0.3);
+      background: rgba(74,222,128,0.08); border-radius: 4px; padding: 1px 4px;
+      margin-left: 5px; vertical-align: middle;
+    }
+    .traders-footer {
+      padding: 0.85rem 1rem; border-top: 1px solid var(--border);
+      flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .traders-auth-hint {
+      font-size: 0.82rem; color: var(--text-secondary); text-align: center; padding: 0.25rem 0;
+    }
+    .trader-desc-input { width: 100%; box-sizing: border-box; }
+    .traders-action-btn {
+      width: 100%; padding: 0.5rem 0.75rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text-primary);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .traders-action-btn:not(:disabled):hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+    .traders-action-btn--join { border-color: rgba(96,165,250,0.3); color: #60a5fa; }
+    .traders-action-btn--join:not(:disabled):hover { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.6); }
+    .traders-action-btn--leave:not(:disabled):hover { background: rgba(224,82,82,0.1); border-color: #e05252; color: #e05252; }
+    .traders-action-btn:disabled { opacity: 0.55; cursor: default; }
+    .traders-section-label {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-secondary); padding: 0.2rem 0.1rem;
+    }
+    .trader-entry--featured {
+      border-color: rgba(240,168,64,0.4); background: rgba(240,168,64,0.04);
+    }
+    .trader-featured-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--accent-light);
+      border: 1px solid rgba(240,168,64,0.3); background: rgba(240,168,64,0.08);
+      border-radius: 4px; padding: 1px 4px; margin-left: 5px; vertical-align: middle;
+    }
+
+    /* ── Card image preview (icon + on-demand popover) ── */
+    .card-preview-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 23px; height: 23px; vertical-align: -5px; margin-right: 0.35rem;
+      border-radius: 6px; flex-shrink: 0; color: var(--text-secondary);
+      cursor: pointer; background: none; border: none; padding: 0;
+      transition: color 0.15s, background 0.15s;
+    }
+    .card-preview-btn svg { width: 18px; height: 18px; }
+    .card-preview-btn:hover, .card-preview-btn--active { color: var(--accent-light); background: rgba(240,168,64,0.12); }
+    .card-preview-popover {
+      position: fixed; z-index: 500; display: none;
+      width: 220px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); padding: 0.6rem;
+    }
+    .card-preview-popover.open { display: block; }
+    .card-preview-close {
+      position: absolute; top: 0.35rem; right: 0.35rem;
+      background: none; border: none; color: var(--text-secondary);
+      cursor: pointer; font-size: 0.85rem; padding: 0.25rem; border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .card-preview-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+    .card-preview-media {
+      width: 100%; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden;
+      background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center;
+    }
+    .card-preview-media img, .card-preview-media video { width: 100%; height: 100%; object-fit: contain; }
+    .card-preview-loading { color: var(--text-secondary); font-size: 0.78rem; text-align: center; padding: 0 0.5rem; }
+    .card-preview-caption { margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-primary); text-align: center; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/wax-auth.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title">Trade <span class="accent">Analyzer</span></h1>
+    <p class="page-desc">Compare the inventory of up to 5 wallets for any drop</p>
+
+    <div class="mode-switcher" id="modeSwitcher">
+      <span class="mode-switcher-label">Mode</span>
+      <button class="mode-btn" data-mode="generic" type="button">🌐 Generic</button>
+      <button class="mode-btn" data-mode="funko" type="button">Funko</button>
+      <button class="mode-btn" data-mode="topps" type="button">Topps</button>
+    </div>
+
+    <div id="quickStartGuide" class="qs-guide">
+      <div class="qs-header" onclick="this.closest('.qs-guide').classList.toggle('qs-open')">
+        <svg class="qs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <p class="qs-title">&#9889; Quick Start Guide</p>
+      </div>
+      <div class="qs-body">
+        <ol class="qs-steps">
+          <li><strong>Pick a Mode</strong> &mdash; <em>Generic</em> searches any WAX collection; <em>Funko</em> and <em>Topps</em> use their curated catalogs.</li>
+          <li><strong>Connect</strong> &mdash; Link your wallet via the button at the top of the site.</li>
+          <li><strong>Add Partners</strong> &mdash; Type target wallet addresses below, or open the blue <em>TRADERS</em> tab on the right to select partners.</li>
+          <li><strong>Build Offer</strong> &mdash; Search a drop, then click any Mint Number in the results table to add&nbsp;/&nbsp;remove it. Selected items turn green!</li>
+          <li><strong>Finalize</strong> &mdash; Close the Traders tab and click the orange <em>TRADE</em> tab on the right to review your active trade summary and send the offer.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div id="pendingOffersBar" class="pending-offers-bar" style="display:none;">
+    <span class="pending-offers-icon">&#9203;</span>
+    <span class="pending-offers-text">
+      You have <strong id="pendingOffersCount">0</strong> pending trade offer(s) waiting for your response.
+    </span>
+    <a href="trade-offers.html" class="pending-offers-link" target="_blank" rel="noopener">Review offers &#8594;</a>
+  </div>
+
+  <div class="controls-card">
+
+    <!-- Generic mode filters -->
+    <div class="controls-row" id="genericFilters" style="display:none;">
+      <div class="control-group">
+        <label class="control-label">Collection</label>
+        <div class="typeahead-wrap">
+          <input type="text" id="genColSearch" class="control-input" placeholder="Type a collection name…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+          <div id="genColSuggestions"></div>
+        </div>
+        <div class="col-chip" id="genColChip">
+          <img id="genColChipImg" src="" alt="" />
+          <span class="col-chip-name" id="genColChipName"></span>
+          <button class="col-chip-clear" id="genColChipClear" type="button" title="Clear">✕</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label class="control-label">Schema</label>
+        <div class="cb-dropdown" id="genSchemaDd">
+          <button class="cb-dropdown-btn" id="genSchemaTrigger" type="button" disabled>
+            <span class="cb-label">All schemas</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="genSchemaPanel"></div>
+        </div>
+      </div>
+      <div class="control-group">
+        <label class="control-label">Rarity</label>
+        <div class="cb-dropdown" id="genRarityDd">
+          <button class="cb-dropdown-btn" id="genRarityTrigger" type="button" disabled>
+            <span class="cb-label">All rarities</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="genRarityPanel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Funko mode filters -->
+    <div class="controls-row" id="funkoFilters" style="display:none;">
+      <div class="control-group">
+        <label class="control-label">Drop</label>
+        <div class="cb-dropdown" id="funkoDropDd">
+          <button class="cb-dropdown-btn" id="funkoDropTrigger" type="button">
+            <span class="cb-label">— Select a drop —</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel" id="funkoDropPanel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topps mode filters -->
+    <div id="toppsFilters" style="display:none;">
+      <div class="controls-row">
+        <div class="control-group">
+          <label class="control-label">Collection</label>
+          <div class="cb-dropdown" id="toppsDropDd">
+            <button class="cb-dropdown-btn" id="toppsDropTrigger" type="button">
+              <span class="cb-label">— Select a category —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="toppsDropPanel"></div>
+          </div>
+        </div>
+      </div>
+      <div class="controls-row" style="margin-top:1rem;">
+        <div class="control-group">
+          <label class="control-label">Rarity</label>
+          <div class="cb-dropdown" id="toppsRarityDd">
+            <button class="cb-dropdown-btn" id="toppsRarityTrigger" type="button" disabled>
+              <span class="cb-label">— Select a rarity —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="toppsRarityPanel"></div>
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label">Subset</label>
+          <div class="cb-dropdown" id="toppsSubsetDd">
+            <button class="cb-dropdown-btn" id="toppsSubsetTrigger" type="button" disabled>
+              <span class="cb-label">— Does not apply —</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel" id="toppsSubsetPanel"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-row" style="margin-top:1rem;">
+      <div class="control-group control-group--wide">
+        <label for="walletsInput" class="control-label">
+          Wallets <span class="control-hint">(up to 5, comma-separated)</span>
+        </label>
+        <input id="walletsInput" class="control-input" type="text"
+          placeholder="wallet1.wam, wallet2.gm, ..." autocomplete="off" spellcheck="false" />
+      </div>
+      <button id="searchBtn" class="search-btn" disabled>Search</button>
+    </div>
+    <div id="inputError" class="input-error" style="display:none;"></div>
+    <div class="controls-row controls-filter" id="filterRow" style="display:none;">
+      <div class="control-group control-group--filter">
+        <label class="control-label">Filter by Mint Range</label>
+        <div class="mint-range-inputs">
+          <input id="mintMin" class="control-input" type="number" min="1" placeholder="Min" value="1" oninput="applyFilter()" />
+          <span class="range-sep">—</span>
+          <input id="mintMax" class="control-input" type="number" min="1" placeholder="Max" value="99" oninput="applyFilter()" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusWrap" class="status-wrap" style="display:none;">
+    <div class="spinner"></div>
+    <div id="statusText" class="status-text"></div>
+  </div>
+
+  <div id="resultsWrap" style="display:none;">
+    <div class="results-header">
+      <div class="results-meta" id="resultsMeta"></div>
+      <button id="smartFilterBtn" class="trade-filter-btn" onclick="toggleSmartFilter()" style="display:none;">
+        <span class="trade-filter-dot"></span>
+        <span id="smartFilterLabel">Smart offers only</span>
+      </button>
+      <button id="tradeFilterBtn" class="trade-filter-btn" onclick="toggleTradeFilter()">
+        <span class="trade-filter-dot"></span>
+        <span id="tradeFilterLabel">Show trade only</span>
+      </button>
+    </div>
+    <div id="tradeFilterEmpty" class="trade-filter-empty">No cards from this search are in your trade summary.</div>
+    <div class="table-scroll">
+      <table class="results-table">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Side Tabs -->
+<div class="side-tabs-group">
+  <button id="tradeTab" class="trade-tab" onclick="toggleSidebar()">
+    Trade<span id="tradeCountBadge" class="trade-count-badge">0</span>
+  </button>
+  <button class="traders-tab" onclick="toggleTradersSidebar()">
+    Traders<span id="tradersCountBadge" class="trade-count-badge">0</span>
+  </button>
+</div>
+
+<!-- Trade Sidebar -->
+<div id="tradeSidebar" class="trade-sidebar">
+  <div class="trade-sidebar-header">
+    <span class="trade-sidebar-title">Trade Summary</span>
+    <button class="trade-close-btn" onclick="toggleSidebar()">✕</button>
+  </div>
+  <div id="tradeEntries" class="trade-entries">
+    <p class="trade-empty">No assets selected yet.<br>Click a mint # in the table to add it.</p>
+  </div>
+  <div class="trade-sidebar-footer" style="flex-wrap:wrap">
+    <button id="tradeOfferBtn" class="trade-action-btn trade-action-btn--offer" disabled title="Connect your WAX wallet first" onclick="sendTradeOffer()">Send Trade Offer</button>
+    <button id="tradeCopyBtn" class="trade-action-btn" onclick="copyTrade()">Copy to Clipboard</button>
+    <button class="trade-action-btn trade-action-btn--danger" onclick="clearTrade()">Clear All</button>
+  </div>
+</div>
+
+<!-- Traders Sidebar -->
+<div id="tradersSidebar" class="traders-sidebar">
+  <div class="trade-sidebar-header">
+    <div>
+      <span class="trade-sidebar-title">Traders List</span>
+      <div id="tradersScopeNote" style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.2rem">Let collectors know you're open to trade offers.</div>
+    </div>
+    <button class="trade-close-btn" onclick="toggleTradersSidebar()">✕</button>
+  </div>
+  <div id="tradersListEntries" class="trade-entries">
+    <div class="status-wrap"><div class="spinner"></div><div class="status-text">Loading…</div></div>
+  </div>
+  <div id="tradersFooter" class="traders-footer"></div>
+</div>
+
+<!-- Card image preview popover — media is only requested when this opens,
+     never preloaded for the whole results table. -->
+<div id="cardPreviewPopover" class="card-preview-popover">
+  <button class="card-preview-close" type="button" onclick="hideCardPreview()">✕</button>
+  <div id="cardPreviewMedia" class="card-preview-media"></div>
+  <div id="cardPreviewCaption" class="card-preview-caption"></div>
+</div>
+
+<script>
+  'use strict';
+
+  const MAX_WAL = 5;
+  const VALID_PROJECTS = ['generic', 'funko', 'topps'];
+
+  function readProjectFromUrl() {
+    const p = new URLSearchParams(location.search).get('project');
+    return VALID_PROJECTS.includes(p) ? p : 'generic';
+  }
+  let currentProject = readProjectFromUrl();
+
+  let API = ''; // WaxApi.aaBase() — same AtomicAssets endpoint pool regardless of mode
+
+  // ── Shared render/search state ──────────────────────────────────────────
+  let rarityRank        = {};
+  let lastSorted        = [];
+  let lastWalletMaps    = [];
+  let lastWallets       = [];
+  let currentDropLabel  = '';
+  let lastCollection    = '';
+  let lastSchema        = '';
+  let tradeFilterActive = false;
+  let smartFilterActive = false;
+
+  const WALLET_COLORS = [
+    { text: '#f0a840', bg: 'rgba(240,168,64,0.12)',  border: 'rgba(240,168,64,0.28)'  },
+    { text: '#4ade80', bg: 'rgba(74,222,128,0.10)',  border: 'rgba(74,222,128,0.25)'  },
+    { text: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.28)'  },
+    { text: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.28)' },
+    { text: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.28)' },
+  ];
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Trade Summary state — one localStorage bucket per mode ──────────────
+  let tradeSummary   = [];
+  let tradeIdCounter = 0;
+
+  function tradeStorageKey() {
+    if (currentProject === 'funko') return 'Hoardio_trade';
+    if (currentProject === 'topps') return 'Hoardio_trade_topps';
+    return 'Hoardio_trade_generic';
+  }
+  function saveTrade() {
+    localStorage.setItem(tradeStorageKey(), JSON.stringify({ items: tradeSummary, counter: tradeIdCounter }));
+  }
+  function loadTrade() {
+    try {
+      const raw = localStorage.getItem(tradeStorageKey());
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        tradeSummary   = parsed.items   ?? [];
+        tradeIdCounter = parsed.counter ?? 0;
+      } else {
+        tradeSummary = []; tradeIdCounter = 0;
+      }
+    } catch { tradeSummary = []; tradeIdCounter = 0; }
+    renderSidebar();
+    updateTradeTab();
+  }
+
+  function tradeKey(templateId, wallet, mint) { return `${templateId}:${wallet}:${mint}`; }
+  function isInTrade(templateId, wallet, mint) {
+    return tradeSummary.some(e => e.key === tradeKey(templateId, wallet, mint));
+  }
+
+  // immutable_data field names are whatever each collection's author chose —
+  // Funko/Topps happen to use lowercase "rarity", but that's a house
+  // convention, not a chain rule. Arbitrary Generic-mode collections may
+  // capitalize it ("Rarity", "RARITY", ...), so look the key up
+  // case-insensitively instead of assuming lowercase.
+  function getField(d, name) {
+    if (!d) return undefined;
+    if (d[name] !== undefined) return d[name];
+    const lower = name.toLowerCase();
+    const key = Object.keys(d).find(k => k.toLowerCase() === lower);
+    return key ? d[key] : undefined;
+  }
+
+  // Which media (if any) a template can preview — video takes priority over
+  // a still image, same convention explore.html/inventory.html use. Only
+  // the CID/hash string is kept here (already-fetched template JSON, no
+  // extra request) — the actual image/video bytes are never requested
+  // until the preview popover is opened for that specific card.
+  function pickMedia(d) {
+    const video = getField(d, 'video');
+    if (video) return { kind: 'video', hash: video };
+    const img = getField(d, 'img') ?? getField(d, 'image');
+    if (img) return { kind: 'img', hash: img };
+    return null;
+  }
+
+  // ── Data loading ──────────────────────────────────────────────────────────
+
+  async function loadJSON(path) {
+    const r = await fetch(path);
+    if (!r.ok) throw new Error(`Failed to load ${path}`);
+    return r.json();
+  }
+
+  function fmtSchema(schema) {
+    const s = schema.replace(/\.drop$/, '').replace(/([a-z])(\d)/g, '$1 $2');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // ── Generic dropdown rendering (shared by Funko drop, Topps drop/rarity/subset, Generic schema/rarity) ──
+  function renderSimpleDd(ddId, items, currentValue, disabled, onPick, placeholder) {
+    const wrap    = document.getElementById(ddId);
+    const trigger = wrap.querySelector('.cb-dropdown-btn');
+    const panel   = wrap.querySelector('.cb-panel');
+    trigger.disabled = !!disabled;
+    const active = items.find(i => i.value === currentValue);
+    wrap.querySelector('.cb-label').textContent = active ? active.label : (placeholder ?? (items[0]?.label ?? ''));
+    panel.innerHTML = items.map(i =>
+      `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${esc(i.value)}"><span>${esc(i.label)}</span></div>`
+    ).join('');
+    if (disabled) return;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => { closeAllDd(); onPick(item.dataset.val); });
+    });
+  }
+  function toggleDd(id) {
+    const wrap    = document.getElementById(id);
+    const trigger = wrap.querySelector('.cb-dropdown-btn');
+    if (trigger.disabled) return;
+    const panel   = wrap.querySelector('.cb-panel');
+    const isOpen  = panel.classList.contains('open');
+    closeAllDd();
+    if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+  }
+  function closeAllDd() {
+    document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  }
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+    if (!e.target.closest('.typeahead-wrap')) hideGenSugs();
+  });
+  ['funkoDropTrigger','toppsDropTrigger','toppsRarityTrigger','toppsSubsetTrigger','genSchemaTrigger','genRarityTrigger'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => toggleDd(id.replace('Trigger', 'Dd')));
+  });
+
+  // ── FUNKO mode ────────────────────────────────────────────────────────────
+
+  let packsCatalog       = [];
+  let funkoRarityRankFlat = {};
+  let funkoDropItems     = [];
+  let funkoDropValue     = '';
+  let funkoCatalogsLoaded = false;
+
+  async function ensureFunkoCatalogs() {
+    if (funkoCatalogsLoaded) return;
+    const [drops, packs, sortOrder] = await Promise.all([
+      loadJSON('funko/data/drops_catalog.json'),
+      loadJSON('funko/data/packs_catalog.json'),
+      loadJSON('funko/data/sort_order.json'),
+    ]);
+    packsCatalog = packs;
+    funkoRarityRankFlat = {};
+    sortOrder.rarity.forEach((r, i) => { funkoRarityRankFlat[r.toLowerCase()] = i; });
+
+    function cleanName(name) {
+      return (name || '')
+        .replace(/^Funko Presents\s+/i, '')
+        .replace(/:\s*Funko Digital Pop!$/i, '')
+        .replace(/\s+X\s+Funko$/i, '')
+        .replace(/:\s*Funko Digital$/i, '')
+        .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+    }
+    const sortedDrops = [...drops].sort((a, b) =>
+      cleanName(a.displayname ?? a.collection).localeCompare(cleanName(b.displayname ?? b.collection)) ||
+      a.schema.localeCompare(b.schema)
+    );
+    funkoDropItems = sortedDrops.map(d => ({
+      value: `${d.collection}|${d.schema}`,
+      label: `${cleanName(d.displayname ?? d.collection)}  —  ${fmtSchema(d.schema)}`,
+    }));
+    renderFunkoDropDd();
+    funkoCatalogsLoaded = true;
+  }
+  function renderFunkoDropDd() {
+    renderSimpleDd('funkoDropDd', funkoDropItems, funkoDropValue, false, val => {
+      funkoDropValue = val;
+      renderFunkoDropDd();
+      updateBtn();
+    }, '— Select a drop —');
+  }
+
+  async function fetchWhitelistedIds(templateIds) {
+    if (templateIds.length === 0) return new Set();
+    const ids = templateIds.join(',');
+    const url = `${SUPABASE_URL}/rest/v1/templates?select=template_id&template_id=in.(${ids})`;
+    const res = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Accept-Profile': 'funko',
+      }
+    });
+    if (!res.ok) return new Set(templateIds); // fail open: show all if Supabase unreachable
+    const rows = await res.json();
+    return new Set(rows.map(r => String(r.template_id)));
+  }
+
+  // ── TOPPS mode ────────────────────────────────────────────────────────────
+
+  let dropsCatalogTopps    = [];
+  let raritiesCatalogTopps = [];
+  let subsetsCatalogTopps  = [];
+  let sortOrderTopps       = {};
+  let toppsCatalogsLoaded  = false;
+
+  let toppsDropValue = '', toppsRarityValue = '', toppsSubsetValue = '';
+  let toppsDropItems   = [];
+  let toppsRarityItems = [{ value: '', label: '— Select a rarity —' }];
+  let toppsSubsetItems = [{ value: '', label: '— Does not apply —' }];
+  let toppsRarityDisabled = true, toppsSubsetDisabled = true;
+  let currentRarityModeTopps = 'optional';
+  let currentSubsetModeTopps = 'disabled';
+
+  async function ensureToppsCatalogs() {
+    if (toppsCatalogsLoaded) return;
+    const [drops, rarities, subsets, sortOrder] = await Promise.all([
+      loadJSON('topps/data/drops_catalog.json'),
+      loadJSON('topps/data/rarities_catalog.json'),
+      loadJSON('topps/data/subsets_catalog.json'),
+      loadJSON('topps/data/sort_order.json'),
+    ]);
+    dropsCatalogTopps    = drops;
+    raritiesCatalogTopps = rarities;
+    subsetsCatalogTopps  = subsets;
+    sortOrderTopps       = sortOrder;
+
+    toppsDropItems = drops.map(d => ({
+      value: `${d.collection}|${d.schema}`,
+      label: `${d.displayname ?? d.collection}  —  ${fmtSchema(d.schema)}`,
+    }));
+    const defaultDrop = drops.find(d => d.defaultvalue === 1);
+    if (defaultDrop) toppsDropValue = `${defaultDrop.collection}|${defaultDrop.schema}`;
+    renderToppsDropDd();
+    onToppsCollectionChange();
+    toppsCatalogsLoaded = true;
+  }
+
+  function onToppsCollectionChange() {
+    const val = toppsDropValue;
+    toppsRarityValue = ''; toppsSubsetValue = '';
+
+    if (!val) {
+      toppsRarityItems = [{ value: '', label: '— Select a rarity —' }]; toppsRarityDisabled = true; currentRarityModeTopps = 'optional';
+      toppsSubsetItems = [{ value: '', label: '— Does not apply —' }]; toppsSubsetDisabled = true; currentSubsetModeTopps = 'disabled';
+      renderToppsRarityDd(); renderToppsSubsetDd(); updateBtn();
+      return;
+    }
+
+    const [collection, schema] = val.split('|');
+    const dropEntry = dropsCatalogTopps.find(d => d.collection === collection && d.schema === schema);
+    currentRarityModeTopps = dropEntry?.rarity_mode ?? 'optional';
+    currentSubsetModeTopps = dropEntry?.subset_mode ?? 'disabled';
+
+    rarityRank = {};
+    (sortOrderTopps[schema]?.rarity ?? []).forEach((r, i) => { rarityRank[r.toLowerCase()] = i; });
+
+    if (currentRarityModeTopps === 'disabled') {
+      toppsRarityItems = [{ value: '', label: '— Does not apply —' }];
+      toppsRarityDisabled = true;
+    } else {
+      toppsRarityDisabled = false;
+      const rarityEntry = raritiesCatalogTopps.find(e => e.collection === collection && e.schema === schema);
+      const rarities    = rarityEntry?.rarities ?? [];
+      const placeholder = currentRarityModeTopps === 'required' ? '— Select a rarity —' : 'All rarities';
+      toppsRarityItems = [{ value: '', label: placeholder }, ...rarities.map(r => ({ value: r, label: r }))];
+    }
+    renderToppsRarityDd();
+
+    if (currentSubsetModeTopps === 'disabled') {
+      toppsSubsetItems = [{ value: '', label: '— Does not apply —' }];
+      toppsSubsetDisabled = true;
+    } else {
+      toppsSubsetDisabled = false;
+      const subsetEntry = subsetsCatalogTopps.find(e => e.collection === collection && e.schema === schema);
+      const subsetList  = subsetEntry?.subsets ?? [];
+      const placeholder = currentSubsetModeTopps === 'required' ? '— Select a subset —' : 'All subsets';
+      toppsSubsetItems = [{ value: '', label: placeholder }, ...subsetList.map(s => ({ value: s, label: s }))];
+    }
+    renderToppsSubsetDd();
+    updateBtn();
+  }
+
+  function renderToppsDropDd() {
+    renderSimpleDd('toppsDropDd', toppsDropItems, toppsDropValue, false, val => {
+      toppsDropValue = val;
+      renderToppsDropDd();
+      onToppsCollectionChange();
+    }, '— Select a category —');
+  }
+  function renderToppsRarityDd() {
+    renderSimpleDd('toppsRarityDd', toppsRarityItems, toppsRarityValue, toppsRarityDisabled, val => {
+      toppsRarityValue = val;
+      renderToppsRarityDd();
+      updateBtn();
+    });
+  }
+  function renderToppsSubsetDd() {
+    renderSimpleDd('toppsSubsetDd', toppsSubsetItems, toppsSubsetValue, toppsSubsetDisabled, val => {
+      toppsSubsetValue = val;
+      renderToppsSubsetDd();
+      updateBtn();
+    });
+  }
+
+  // ── GENERIC mode (collection typeahead ported from explore.html) ────────
+
+  const IPFS_GW = (typeof IPFS_GATEWAY !== 'undefined' && IPFS_GATEWAY) || 'https://ipfs.io/ipfs/';
+  // Public IPFS gateways don't all have the same peers/cache — a CID that's
+  // cold on one (times out fetching it fresh from the P2P network) can
+  // already be warm on another. The preview popover cycles through these
+  // instead of retrying the same gateway.
+  const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+  const _statsCache = new Map();
+
+  let genCollection = null; // { collection_name, name, img }
+  let genSchema     = '';
+  let genRarity     = '';
+  let genSchemaItems = [{ value: '', label: 'All schemas' }];
+  let genRarityItems = [{ value: '', label: 'All rarities' }];
+  let genRarityRankSorted = {};
+  let genSuggestions = [];
+  let genColGen = 0;
+  let genDebT   = null;
+
+  function matchScore(c, q) {
+    const slug = (c.collection_name || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    const segs = slug.split('.');
+    if (slug === q) return 0;
+    if (segs.includes(q)) return 1;
+    if (slug.startsWith(q)) return 2;
+    if (segs.some(s => s.startsWith(q))) return 3;
+    if (name.startsWith(q)) return 4;
+    if (slug.includes(q)) return 5;
+    return 6;
+  }
+  function raced(promise, ms) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+  }
+  async function pinnedFetch(url, attempts = 2) {
+    for (let i = 0; i < attempts; i++) {
+      let res;
+      try {
+        const ctrl  = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        res = await fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+      } catch (err) {
+        if (i === attempts - 1) throw err;
+        await new Promise(r => setTimeout(r, 500 * (i + 1)));
+        continue;
+      }
+      if (res.ok) {
+        const json = await res.json();
+        if (!json.success) throw new Error('API error');
+        return json.data;
+      }
+      if ((res.status === 429 || res.status === 503 || res.status === 408) && i < attempts - 1) {
+        await new Promise(r => setTimeout(r, 500 * (i + 1)));
+        continue;
+      }
+      throw new Error('API ' + res.status);
+    }
+  }
+  async function fetchCollectionPages(q) {
+    let base = WaxApi.aaBase();
+    const tried = new Set();
+    for (let hop = 0; hop < 3; hop++) {
+      tried.add(base);
+      const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
+      const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
+      try {
+        const [p1, p2] = await Promise.all([pinnedFetch(q1), pinnedFetch(q2)]);
+        return [...p1, ...p2];
+      } catch {
+        const next = await WaxApi.rotateAwayFrom(base);
+        if (!next || tried.has(next)) break;
+        base = next;
+      }
+    }
+    return [];
+  }
+  async function searchGenCollections(q) {
+    const myGen = ++genColGen;
+    try {
+      const results = await fetchCollectionPages(q);
+      if (myGen !== genColGen) return;
+      const ql = q.toLowerCase();
+      const candidates = results.sort((a, b) => matchScore(a, ql) - matchScore(b, ql)).slice(0, 15);
+      const uncached = candidates.filter(c => !_statsCache.has(c.collection_name));
+      const statBases = WaxApi.aaBases(3);
+      await Promise.all(uncached.map(async (c, i) => {
+        let assets = 0;
+        try {
+          const data = await raced(
+            WaxApi.apiFetch(`${statBases[i % statBases.length]}/collections/${encodeURIComponent(c.collection_name)}/stats`),
+            2500
+          );
+          assets = parseInt(data?.assets || 0);
+        } catch {}
+        _statsCache.set(c.collection_name, assets);
+      }));
+      if (myGen !== genColGen) return;
+      const withAssets = candidates.map(c => ({ c, assets: _statsCache.get(c.collection_name) || 0 }));
+      genSuggestions = withAssets
+        .sort((a, b) => b.assets - a.assets || matchScore(a.c, ql) - matchScore(b.c, ql))
+        .slice(0, 12)
+        .map(x => x.c);
+      renderGenSugs();
+    } catch { hideGenSugs(); }
+  }
+  function renderGenSugs() {
+    const $sugs = document.getElementById('genColSuggestions');
+    if (!genSuggestions.length) { hideGenSugs(); return; }
+    $sugs.innerHTML = genSuggestions.map((c, i) => {
+      const img = c.img
+        ? `<img src="${IPFS_GW}${esc(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'col-sug-ph'}))">`
+        : '<div class="col-sug-ph"></div>';
+      return `<div class="col-sug" data-i="${i}">${img}<div class="col-sug-info"><span class="col-sug-name">${esc(c.name || c.collection_name)}</span><span class="col-sug-slug">${esc(c.collection_name)}</span></div></div>`;
+    }).join('');
+    $sugs.style.display = 'block';
+  }
+  function hideGenSugs() { document.getElementById('genColSuggestions').style.display = 'none'; }
+
+  async function selectGenCollection(c) {
+    hideGenSugs();
+    document.getElementById('genColSearch').value = '';
+    genCollection = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
+
+    const $img  = document.getElementById('genColChipImg');
+    const $name = document.getElementById('genColChipName');
+    if (genCollection.img) { $img.src = IPFS_GW + genCollection.img; $img.style.display = ''; }
+    else { $img.style.display = 'none'; }
+    $name.textContent = genCollection.name;
+    document.getElementById('genColChip').style.display = 'flex';
+
+    genSchema = ''; genRarity = '';
+    genSchemaItems = [{ value: '', label: 'All schemas' }];
+    genRarityItems = [{ value: '', label: 'All rarities' }];
+    renderGenSchemaDd(); renderGenRarityDd();
+    updateBtn();
+    loadTradersList();
+
+    const [b1, b2] = WaxApi.aaBases(2);
+    loadGenSchemas(b1);
+    loadGenRarityOptions(b2);
+  }
+  function clearGenCollection() {
+    genCollection = null; genSchema = ''; genRarity = '';
+    document.getElementById('genColChip').style.display = 'none';
+    document.getElementById('genColSearch').value = '';
+    genSchemaItems = [{ value: '', label: 'All schemas' }];
+    genRarityItems = [{ value: '', label: 'All rarities' }];
+    renderGenSchemaDd(); renderGenRarityDd();
+    updateBtn();
+    loadTradersList();
+  }
+
+  async function loadGenSchemas(base) {
+    if (!genCollection) return;
+    try {
+      const data = await WaxApi.apiFetch(`${base || WaxApi.aaBase()}/schemas?collection_name=${genCollection.collection_name}&limit=100`);
+      genSchemaItems = [{ value: '', label: 'All schemas' }, ...(data || []).map(s => ({ value: s.schema_name, label: s.schema_name }))];
+    } catch {
+      genSchemaItems = [{ value: '', label: 'All schemas' }];
+    }
+    renderGenSchemaDd();
+  }
+  function renderGenSchemaDd() {
+    renderSimpleDd('genSchemaDd', genSchemaItems, genSchema, !genCollection, val => {
+      genSchema = val; genRarity = '';
+      renderGenSchemaDd();
+      genRarityItems = [{ value: '', label: 'All rarities' }];
+      renderGenRarityDd();
+      updateBtn();
+      loadGenRarityOptions();
+    });
+  }
+
+  async function loadGenRarityOptions(base) {
+    const col = genCollection?.collection_name;
+    if (!col) { genRarityItems = [{ value: '', label: 'All rarities' }]; renderGenRarityDd(); return; }
+
+    const pageUrl = (b, page) => {
+      let url = `${b}/templates?collection_name=${col}&has_assets=true&limit=1000&page=${page}`;
+      if (genSchema) url += `&schema_name=${encodeURIComponent(genSchema)}`;
+      return url;
+    };
+
+    const rarities = new Set();
+    try {
+      const first = await WaxApi.apiFetch(pageUrl(base || WaxApi.aaBase(), 1));
+      (first || []).forEach(t => { const r = getField(t.immutable_data, 'rarity'); if (r) rarities.add(r); });
+
+      if ((first || []).length === 1000) {
+        const bases = WaxApi.aaBases(3);
+        const pages = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const rest = await Promise.all(
+          pages.map((p, i) => raced(WaxApi.apiFetch(pageUrl(bases[i % bases.length], p)), 4000).catch(() => []))
+        );
+        for (const batch of rest) (batch || []).forEach(t => { const r = getField(t.immutable_data, 'rarity'); if (r) rarities.add(r); });
+      }
+    } catch {}
+
+    const sorted = [...rarities].sort((a, b) => a.localeCompare(b));
+    genRarityRankSorted = {};
+    sorted.forEach((r, i) => { genRarityRankSorted[r.toLowerCase()] = i; });
+    genRarityItems = [{ value: '', label: 'All rarities' }, ...sorted.map(r => ({ value: r, label: r }))];
+    renderGenRarityDd();
+  }
+  function renderGenRarityDd() {
+    renderSimpleDd('genRarityDd', genRarityItems, genRarity, !genCollection, val => {
+      genRarity = val;
+      renderGenRarityDd();
+      updateBtn();
+    });
+  }
+
+  function wireGenericFilters() {
+    const $search = document.getElementById('genColSearch');
+    $search.addEventListener('input', () => {
+      clearTimeout(genDebT);
+      const q = $search.value.trim();
+      if (q.length < 3) { hideGenSugs(); return; }
+      genDebT = setTimeout(() => searchGenCollections(q), 300);
+    });
+    document.getElementById('genColSuggestions').addEventListener('mousedown', e => {
+      const el = e.target.closest('.col-sug');
+      if (el) selectGenCollection(genSuggestions[+el.dataset.i]);
+    });
+    document.getElementById('genColChipClear').addEventListener('click', clearGenCollection);
+  }
+
+  // ── Mode switching ───────────────────────────────────────────────────────
+
+  function setActiveModeButtons() {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-btn--active', b.dataset.mode === currentProject));
+  }
+  function showFiltersForProject() {
+    document.getElementById('genericFilters').style.display = currentProject === 'generic' ? '' : 'none';
+    document.getElementById('funkoFilters').style.display   = currentProject === 'funko'   ? '' : 'none';
+    document.getElementById('toppsFilters').style.display   = currentProject === 'topps'   ? '' : 'none';
+  }
+  function applyMintDefaults() {
+    // Funko/Topps drops are conventionally minted 1-99, so that's a useful
+    // default filter. Generic collections have no such convention (could be
+    // a 1-of-1 or a 50,000-supply set), so default to unfiltered there.
+    const minEl = document.getElementById('mintMin');
+    const maxEl = document.getElementById('mintMax');
+    if (currentProject === 'generic') {
+      minEl.value = ''; maxEl.value = '';
+    } else {
+      minEl.value = '1'; maxEl.value = '99';
+    }
+  }
+  function resetSearchUI() {
+    hideError(); hideResults();
+    document.getElementById('filterRow').style.display = 'none';
+    lastSorted = []; lastWalletMaps = []; lastWallets = [];
+    applyMintDefaults();
+    hideCardPreview();
+  }
+  async function activateProjectData() {
+    if (currentProject === 'funko') {
+      await ensureFunkoCatalogs();
+      rarityRank = funkoRarityRankFlat;
+    } else if (currentProject === 'topps') {
+      await ensureToppsCatalogs();
+    }
+    updateBtn();
+  }
+  async function switchProject(newProject) {
+    if (!VALID_PROJECTS.includes(newProject) || newProject === currentProject) return;
+    currentProject = newProject;
+    const url = new URL(location.href);
+    if (newProject === 'generic') url.searchParams.delete('project');
+    else url.searchParams.set('project', newProject);
+    history.replaceState(null, '', url);
+
+    setActiveModeButtons();
+    showFiltersForProject();
+    resetSearchUI();
+    loadTrade();
+    await activateProjectData();
+    loadTradersList();
+  }
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.addEventListener('click', () => switchProject(b.dataset.mode));
+  });
+
+  function updateBtn() {
+    const hasWallets = document.getElementById('walletsInput').value.trim() !== '';
+    let hasSelection = false;
+    if (currentProject === 'funko') {
+      hasSelection = funkoDropValue !== '';
+    } else if (currentProject === 'topps') {
+      const hasRarity = toppsRarityValue !== '', hasSubset = toppsSubsetValue !== '';
+      const rarityOk  = currentRarityModeTopps !== 'required' || hasRarity || hasSubset;
+      hasSelection = toppsDropValue !== '' && rarityOk;
+    } else {
+      hasSelection = !!genCollection;
+    }
+    document.getElementById('searchBtn').disabled = !(hasSelection && hasWallets);
+  }
+
+  // ── API helpers ───────────────────────────────────────────────────────────
+
+  function apiFetch(url) { return WaxApi.apiFetch(url); }
+
+  async function fetchAllPages(baseUrl) {
+    const out = [];
+    let page = 1;
+    while (true) {
+      const data = await apiFetch(`${baseUrl}&page=${page}&limit=1000`);
+      out.push(...data);
+      if (data.length < 1000) break;
+      page++;
+    }
+    return out;
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+
+  async function onSearch() {
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    hideError();
+    hideResults();
+    hideCardPreview();
+
+    const wallets = [...new Set(
+      document.getElementById('walletsInput').value
+        .split(',').map(w => w.trim()).filter(Boolean)
+    )];
+
+    if (wallets.length === 0) {
+      showError('Enter at least one wallet address.');
+      btn.disabled = false; return;
+    }
+    if (wallets.length > MAX_WAL) {
+      showError(`Maximum ${MAX_WAL} wallets allowed.`);
+      btn.disabled = false; return;
+    }
+
+    let collection, schema, dropLabel;
+    if (currentProject === 'funko') {
+      [collection, schema] = funkoDropValue.split('|');
+      dropLabel = funkoDropItems.find(i => i.value === funkoDropValue)?.label ?? '';
+    } else if (currentProject === 'topps') {
+      [collection, schema] = toppsDropValue.split('|');
+      dropLabel = toppsDropItems.find(i => i.value === toppsDropValue)?.label ?? '';
+    } else {
+      collection = genCollection?.collection_name;
+      schema = genSchema;
+      dropLabel = (genCollection?.name || collection || '') + (genSchema ? ` — ${genSchema}` : '') + (genRarity ? ` · ${genRarity}` : '');
+    }
+    if (!collection) {
+      showError('Select a collection first.');
+      btn.disabled = false; return;
+    }
+
+    try {
+      setStatus('Fetching template data…');
+      const rawTemplates = await fetchAllPages(
+        `${API}/templates?collection_name=${collection}${schema ? `&schema_name=${schema}` : ''}`
+      );
+
+      let templates = new Map();
+
+      if (currentProject === 'funko') {
+        const packEntry = packsCatalog.find(e => e.collection === collection && e.schema === schema);
+        const packIds   = new Set((packEntry?.packs ?? []).map(String));
+
+        const rawMap = new Map();
+        for (const t of rawTemplates) {
+          if (parseInt(t.issued_supply, 10) === 0) continue;
+          const d = t.immutable_data ?? {};
+          rawMap.set(t.template_id, {
+            templateId : t.template_id,
+            name       : d.name   ?? t.name ?? `#${t.template_id}`,
+            cardId     : d.cardid ?? '—',
+            rarity     : packIds.has(t.template_id) ? 'Pack' : (getField(d, 'rarity') ?? ''),
+            media      : pickMedia(d),
+          });
+        }
+
+        setStatus('Validating templates…');
+        const whitelist = await fetchWhitelistedIds([...rawMap.keys()]);
+        templates = new Map([...rawMap].filter(([id]) => whitelist.has(String(id))));
+        rarityRank = funkoRarityRankFlat;
+
+      } else if (currentProject === 'topps') {
+        const selectedRarity = toppsRarityValue;
+        const selectedSubset = toppsSubsetValue;
+        for (const t of rawTemplates) {
+          if (parseInt(t.issued_supply, 10) === 0) continue;
+          const d      = t.immutable_data ?? {};
+          const rarity = getField(d, 'rarity') ?? '';
+          if (selectedRarity && rarity !== selectedRarity) continue;
+          if (selectedSubset && (getField(d, 'subset') ?? '') !== selectedSubset) continue;
+          templates.set(t.template_id, {
+            templateId : t.template_id,
+            name       : d.name   ?? t.name ?? `#${t.template_id}`,
+            cardId     : d.cardid ?? '—',
+            rarity,
+            media      : pickMedia(d),
+          });
+        }
+
+      } else { // generic
+        const selectedRarity = genRarity;
+        for (const t of rawTemplates) {
+          if (parseInt(t.issued_supply, 10) === 0) continue;
+          const d      = t.immutable_data ?? {};
+          const rarity = getField(d, 'rarity') ?? '';
+          if (selectedRarity && rarity !== selectedRarity) continue;
+          templates.set(t.template_id, {
+            templateId : t.template_id,
+            name       : d.name   ?? t.name ?? `#${t.template_id}`,
+            cardId     : d.cardid ?? '—',
+            rarity,
+            media      : pickMedia(d),
+          });
+        }
+        rarityRank = genRarityRankSorted;
+      }
+
+      setStatus(`Fetching assets for ${wallets.length} wallet${wallets.length > 1 ? 's' : ''}…`);
+      const walletMaps = await Promise.all(wallets.map(w => fetchWalletAssets(collection, schema, w)));
+
+      lastWallets = wallets;
+      lastCollection = collection;
+      lastSchema = schema;
+      currentDropLabel = dropLabel;
+
+      hideStatus();
+      renderTable(templates, wallets, walletMaps);
+      reapplyHighlights();
+      applyTradeFilter();
+
+    } catch (err) {
+      hideStatus();
+      showError(err.message);
+    }
+
+    btn.disabled = false;
+  }
+
+  async function fetchWalletAssets(collection, schema, wallet) {
+    const map = new Map(); // templateId → { mints, mintToAssetId, count }
+    try {
+      const assets = await fetchAllPages(
+        `${API}/assets?collection_name=${collection}${schema ? `&schema_name=${schema}` : ''}&owner=${wallet}&sort=template_mint&order=asc`
+      );
+      for (const a of assets) {
+        const tid  = a.template?.template_id;
+        const mint = parseInt(a.template_mint, 10);
+        if (!tid || isNaN(mint)) continue;
+        if (!map.has(tid)) {
+          map.set(tid, { mints: [mint], mintToAssetId: { [mint]: a.asset_id }, count: 1 });
+        } else {
+          const e = map.get(tid);
+          e.count++;
+          e.mints.push(mint);
+          e.mintToAssetId[mint] = a.asset_id;
+        }
+      }
+      // Sort and trim to 4 lowest per template
+      for (const e of map.values()) {
+        e.mints.sort((a, b) => a - b);
+        const kept = e.mints.slice(0, 4);
+        const trimmed = {};
+        for (const m of kept) trimmed[m] = e.mintToAssetId[m];
+        e.mints = kept;
+        e.mintToAssetId = trimmed;
+      }
+    } catch (e) {
+      console.warn(`Could not fetch assets for ${wallet}:`, e.message);
+    }
+    return map;
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  function rarityKey(r) { return r.toLowerCase().replace(/\s+/g, ''); }
+
+  function getRank(rarity) {
+    return rarityRank[rarity.toLowerCase()] ?? 999;
+  }
+
+  function abbrev(wallet) {
+    return wallet.length > 13 ? wallet.slice(0, 6) + '…' + wallet.slice(-4) : wallet;
+  }
+
+  function renderTable(templates, wallets, walletMaps) {
+    const sorted = [...templates.values()].sort((a, b) => {
+      const rd = getRank(a.rarity) - getRank(b.rarity);
+      if (rd !== 0) return rd;
+      const ca = parseInt(a.cardId, 10), cb = parseInt(b.cardId, 10);
+      if (!isNaN(ca) && !isNaN(cb)) return ca - cb;
+      return String(a.cardId).localeCompare(String(b.cardId));
+    });
+
+    // Head
+    const thead = document.getElementById('tableHead');
+    thead.innerHTML = '';
+    const hr = document.createElement('tr');
+    ['ID — Card', ...wallets.map(abbrev)].forEach((col, i) => {
+      const th = document.createElement('th');
+      if (i === 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'card-name-line';
+        const left = document.createElement('span');
+        left.textContent = 'ID — Card';
+        const right = document.createElement('span');
+        right.className = 'template-id-suffix template-id-name';
+        right.style.opacity = '0.4';
+        right.textContent = 'Template ID';
+        wrap.appendChild(left);
+        wrap.appendChild(right);
+        th.appendChild(wrap);
+      } else {
+        th.textContent = col;
+        th.className = 'col-wallet';
+        th.title = wallets[i - 1];
+        th.style.color = WALLET_COLORS[(i - 1) % WALLET_COLORS.length].text;
+      }
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+
+    // Body — one <tbody class="card-group"> per card (main row + market sub-row)
+    const tableEl = document.querySelector('.results-table');
+    tableEl.querySelectorAll('tbody').forEach(b => b.remove());
+    const frag = document.createDocumentFragment();
+
+    lastSorted     = sorted;
+    lastWalletMaps = walletMaps;
+
+    const curMin = parseInt(document.getElementById('mintMin').value, 10);
+    const curMax = parseInt(document.getElementById('mintMax').value, 10);
+    const curHasMin = !isNaN(curMin);
+    const curHasMax = !isNaN(curMax);
+
+    for (const tmpl of sorted) {
+      const cardTbody = document.createElement('tbody');
+      cardTbody.className = 'card-group';
+
+      // ── Main row ──
+      const row = document.createElement('tr');
+      row.className = 'card-main-row';
+
+      const tdName = document.createElement('td');
+      const nameLine = document.createElement('div');
+      nameLine.className = 'card-name-line';
+      const nameLeft = document.createElement('span');
+      if (tmpl.media) {
+        const previewBtn = document.createElement('button');
+        previewBtn.type = 'button';
+        previewBtn.className = 'card-preview-btn';
+        previewBtn.title = 'Preview card image';
+        previewBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+        previewBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardPreview(tmpl, previewBtn); });
+        nameLeft.appendChild(previewBtn);
+      }
+      if (tmpl.cardId !== '—') {
+        const idSpan = document.createElement('span');
+        idSpan.className = 'card-id-prefix';
+        idSpan.textContent = `${tmpl.cardId} — `;
+        nameLeft.appendChild(idSpan);
+      }
+      nameLeft.appendChild(document.createTextNode(tmpl.name));
+      const tidSpan = document.createElement('span');
+      tidSpan.className = 'template-id-suffix template-id-name';
+      tidSpan.textContent = tmpl.templateId;
+      nameLine.appendChild(nameLeft);
+      nameLine.appendChild(tidSpan);
+      tdName.appendChild(nameLine);
+      row.appendChild(tdName);
+
+      // ── Meta sub-row: rarity (left) + market links (right) ──
+      const subRow = document.createElement('tr');
+      subRow.className = 'card-sub-row';
+      const tdMeta = document.createElement('td');
+      tdMeta.className = 'card-meta-cell';
+      const metaLine = document.createElement('div');
+      metaLine.className = 'card-meta-line';
+      const rarityBadge = document.createElement('span');
+      rarityBadge.className = `rarity-badge rarity-${rarityKey(tmpl.rarity)}`;
+      rarityBadge.textContent = tmpl.rarity;
+      metaLine.appendChild(rarityBadge);
+      const tidMetaSpan = document.createElement('span');
+      tidMetaSpan.className = 'template-id-suffix template-id-meta';
+      tidMetaSpan.textContent = tmpl.templateId;
+      metaLine.appendChild(tidMetaSpan);
+      const linksWrap = document.createElement('div');
+      linksWrap.className = 'market-links';
+      const buyA = document.createElement('a');
+      buyA.href = `marketplace.html?template_id=${tmpl.templateId}&sort=mint-asc`;
+      buyA.target = '_blank';
+      buyA.rel = 'noopener noreferrer';
+      buyA.className = 'market-link market-link--primary';
+      buyA.title = 'Buy on Hoardio';
+      const buyImg = document.createElement('img');
+      buyImg.src = 'images/Hoardio_fav.png';
+      buyImg.alt = 'Hoardio';
+      const buySpan = document.createElement('span');
+      buySpan.className = 'buy-label';
+      buySpan.textContent = 'Buy';
+      buyA.appendChild(buyImg);
+      buyA.appendChild(buySpan);
+      linksWrap.appendChild(buyA);
+      metaLine.appendChild(linksWrap);
+      tdMeta.appendChild(metaLine);
+      subRow.appendChild(tdMeta);
+
+      fillWalletCells(row, subRow, tmpl, walletMaps, curHasMin, curMin, curHasMax, curMax);
+
+      if (wallets.length >= 2) {
+        applyOfferBadges(tdName, cardTbody, tmpl, curHasMin, curMin, curHasMax, curMax);
+      }
+
+      cardTbody.appendChild(row);
+      cardTbody.appendChild(subRow);
+
+      frag.appendChild(cardTbody);
+    }
+
+    tableEl.appendChild(frag);
+
+    const smartBtn = document.getElementById('smartFilterBtn');
+    smartBtn.style.display = wallets.length >= 2 ? '' : 'none';
+    smartFilterActive = false;
+    smartBtn.classList.remove('trade-filter-btn--active');
+    document.getElementById('smartFilterLabel').textContent = 'Smart offers only';
+
+    updateResultsMeta(sorted.length, sorted.length);
+
+    document.getElementById('filterRow').style.display = '';
+    showResults();
+  }
+
+  // ── Card image preview (on demand — no preloading) ──────────────────────
+  //
+  // Only the image/video CID string is carried on each template (already
+  // present in the template JSON we fetched to build the table — no extra
+  // request). The actual media file is only requested from IPFS the moment
+  // someone clicks the preview icon for that specific card, so a table of
+  // hundreds of rows costs nothing extra to render.
+
+  let _previewOpenFor = null; // template_id currently shown, or null
+
+  function retryMediaGateway(el, hash, mediaWrap) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+    } else {
+      mediaWrap.innerHTML = '<div class="card-preview-loading">Image unavailable</div>';
+    }
+  }
+
+  function toggleCardPreview(tmpl, btnEl) {
+    if (_previewOpenFor === tmpl.templateId) { hideCardPreview(); return; }
+    showCardPreview(tmpl, btnEl);
+  }
+
+  function showCardPreview(tmpl, btnEl) {
+    document.querySelectorAll('.card-preview-btn--active').forEach(b => b.classList.remove('card-preview-btn--active'));
+    btnEl.classList.add('card-preview-btn--active');
+    _previewOpenFor = tmpl.templateId;
+
+    const pop       = document.getElementById('cardPreviewPopover');
+    const mediaWrap = document.getElementById('cardPreviewMedia');
+    const caption   = document.getElementById('cardPreviewCaption');
+    caption.textContent = tmpl.name;
+
+    mediaWrap.innerHTML = '';
+    const hash = tmpl.media.hash;
+    if (tmpl.media.kind === 'video') {
+      const video = document.createElement('video');
+      video.muted = true; video.loop = true; video.playsInline = true; video.autoplay = true;
+      video.dataset.gwIdx = '0';
+      video.addEventListener('error', () => retryMediaGateway(video, hash, mediaWrap));
+      video.src = IPFS_GATEWAY_LIST[0] + hash;
+      mediaWrap.appendChild(video);
+    } else {
+      const img = document.createElement('img');
+      img.alt = tmpl.name;
+      img.dataset.gwIdx = '0';
+      img.addEventListener('error', () => retryMediaGateway(img, hash, mediaWrap));
+      img.src = IPFS_GATEWAY_LIST[0] + hash;
+      mediaWrap.appendChild(img);
+    }
+
+    positionCardPreview(btnEl, pop);
+    pop.classList.add('open');
+
+    window.addEventListener('scroll', hideCardPreview, true);
+    document.addEventListener('mousedown', _outsideClickHideCardPreview, true);
+  }
+
+  function hideCardPreview() {
+    document.getElementById('cardPreviewPopover').classList.remove('open');
+    document.querySelectorAll('.card-preview-btn--active').forEach(b => b.classList.remove('card-preview-btn--active'));
+    _previewOpenFor = null;
+    window.removeEventListener('scroll', hideCardPreview, true);
+    document.removeEventListener('mousedown', _outsideClickHideCardPreview, true);
+  }
+
+  function _outsideClickHideCardPreview(e) {
+    const pop = document.getElementById('cardPreviewPopover');
+    if (!pop.contains(e.target) && !e.target.closest('.card-preview-btn')) hideCardPreview();
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCardPreview(); });
+
+  function positionCardPreview(anchorEl, pop) {
+    const rect = anchorEl.getBoundingClientRect();
+    const popWidth = 220;
+    let left = rect.left;
+    if (left + popWidth > window.innerWidth - 10) left = window.innerWidth - popWidth - 10;
+    if (left < 10) left = 10;
+    let top = rect.bottom + 8;
+    if (top + 260 > window.innerHeight) top = Math.max(10, rect.top - 268);
+    pop.style.left = left + 'px';
+    pop.style.top  = top + 'px';
+  }
+
+  // ── Mint filter ───────────────────────────────────────────────────────────
+
+  function mintInRange(m, hasMin, min, hasMax, max) {
+    return (!hasMin || m >= min) && (!hasMax || m <= max);
+  }
+
+  function makeMintSpan(tmpl, wallet, mint) {
+    const span = document.createElement('span');
+    span.className = 'mint-clickable';
+    const key = tradeKey(tmpl.templateId, wallet, mint);
+    span.dataset.tradeKey = key;
+    span.textContent = `#${mint}`;
+    if (isInTrade(tmpl.templateId, wallet, mint)) span.classList.add('mint-selected');
+    span.addEventListener('click', () => toggleMint(tmpl, wallet, mint, span));
+    return span;
+  }
+
+  function fillWalletCells(mainRow, subRow, tmpl, walletMaps, hasMin, min, hasMax, max) {
+    while (mainRow.cells.length > 1) mainRow.deleteCell(1);
+    while (subRow.cells.length > 1) subRow.deleteCell(1);
+
+    let lowest = Infinity;
+    for (const wmap of walletMaps) {
+      const e = wmap.get(tmpl.templateId);
+      if (e) {
+        for (const m of e.mints) {
+          if (mintInRange(m, hasMin, min, hasMax, max) && m < lowest) lowest = m;
+        }
+      }
+    }
+
+    walletMaps.forEach((wmap, walletIdx) => {
+      const wallet  = lastWallets[walletIdx] ?? `wallet${walletIdx}`;
+      const tdMain  = document.createElement('td');
+      const tdSub   = document.createElement('td');
+      const entry   = wmap.get(tmpl.templateId);
+
+      if (entry) {
+        const visible  = entry.mints.filter(m => mintInRange(m, hasMin, min, hasMax, max));
+        const isLowest = visible.length > 0 && visible[0] === lowest;
+        const cls      = 'col-wallet' + (isLowest ? ' mint-lowest' : '');
+        tdMain.className = cls;
+        tdSub.className  = cls;
+
+        const cell = document.createElement('div');
+        cell.className = 'wallet-cell';
+        const spanCopies = document.createElement('span');
+        spanCopies.className = 'wallet-copies';
+        spanCopies.textContent = `${entry.count}x`;
+        const spanMint = document.createElement('span');
+        spanMint.className = 'wallet-mint';
+        if (visible.length > 0) {
+          spanMint.appendChild(makeMintSpan(tmpl, wallet, visible[0]));
+        } else {
+          spanMint.textContent = '—';
+        }
+        cell.appendChild(spanCopies);
+        cell.appendChild(spanMint);
+        tdMain.appendChild(cell);
+
+        if (visible.length > 1) {
+          const next = document.createElement('div');
+          next.className = 'wallet-next-mints';
+          visible.slice(1).forEach((m, i) => {
+            if (i > 0) next.appendChild(document.createTextNode(', '));
+            next.appendChild(makeMintSpan(tmpl, wallet, m));
+          });
+          tdSub.appendChild(next);
+        }
+      } else {
+        tdMain.className = 'col-empty';
+        tdMain.textContent = '—';
+      }
+
+      mainRow.appendChild(tdMain);
+      subRow.appendChild(tdSub);
+    });
+  }
+
+  function applyOfferBadges(tdName, cardGroup, tmpl, hasMin, min, hasMax, max) {
+    const existing = tdName.querySelector('.offer-badges');
+    if (existing) existing.remove();
+    tdName.style.borderLeft = '';
+    delete cardGroup.dataset.offer;
+
+    if (lastWallets.length < 2) return;
+
+    const offerPairs = [];
+    for (let oi = 0; oi < lastWallets.length; oi++) {
+      for (let oj = 0; oj < lastWallets.length; oj++) {
+        if (oi === oj) continue;
+        const ei   = lastWalletMaps[oi].get(tmpl.templateId);
+        const ej   = lastWalletMaps[oj].get(tmpl.templateId);
+        const visI = (ei?.mints ?? []).filter(m => mintInRange(m, hasMin, min, hasMax, max));
+        const visJ = (ej?.mints ?? []).filter(m => mintInRange(m, hasMin, min, hasMax, max));
+        const ispare = visI[1] ?? Infinity;
+        const jbest  = visJ[0] ?? Infinity;
+        if (visI.length > 1 && (visJ.length === 0 || ispare < jbest)) offerPairs.push({ from: oi, to: oj });
+      }
+    }
+
+    if (offerPairs.length > 0) {
+      cardGroup.dataset.offer = '1';
+      const badgesDiv = document.createElement('div');
+      badgesDiv.className = 'offer-badges';
+      for (const { from, to } of offerPairs) {
+        const col = WALLET_COLORS[from % WALLET_COLORS.length];
+        const badge = document.createElement('span');
+        badge.className = 'offer-tag';
+        badge.style.color = col.text;
+        badge.style.background = col.bg;
+        badge.style.border = `1px solid ${col.border}`;
+        badge.textContent = `${abbrev(lastWallets[from])} → ${abbrev(lastWallets[to])}`;
+        badgesDiv.appendChild(badge);
+      }
+      tdName.appendChild(badgesDiv);
+      tdName.style.borderLeft = `2px solid ${WALLET_COLORS[offerPairs[0].from % WALLET_COLORS.length].text}`;
+    }
+  }
+
+  function applyFilter() {
+    const minVal = parseInt(document.getElementById('mintMin').value, 10);
+    const maxVal = parseInt(document.getElementById('mintMax').value, 10);
+    const hasMin = !isNaN(minVal);
+    const hasMax = !isNaN(maxVal);
+
+    const mainRows = document.querySelectorAll('.card-main-row');
+    const subRows  = document.querySelectorAll('.card-sub-row');
+    lastSorted.forEach((tmpl, i) => {
+      fillWalletCells(mainRows[i], subRows[i], tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
+      applyOfferBadges(mainRows[i].cells[0], mainRows[i].closest('.card-group'), tmpl, hasMin, minVal, hasMax, maxVal);
+    });
+    applyTradeFilter();
+  }
+
+  // ── Trade Summary logic ───────────────────────────────────────────────────
+
+  function toggleMint(tmpl, wallet, mint, spanEl) {
+    if (isInTrade(tmpl.templateId, wallet, mint)) {
+      const entry = tradeSummary.find(e => e.key === tradeKey(tmpl.templateId, wallet, mint));
+      if (entry) removeFromTrade(entry.id);
+    } else {
+      addToTrade(tmpl, wallet, mint);
+      spanEl.classList.add('mint-selected');
+    }
+    applyTradeFilter();
+  }
+
+  function addToTrade(tmpl, wallet, mint) {
+    const key = tradeKey(tmpl.templateId, wallet, mint);
+    if (isInTrade(tmpl.templateId, wallet, mint)) return;
+    const walletIdx = lastWallets.indexOf(wallet);
+    const assetId   = walletIdx >= 0
+      ? (lastWalletMaps[walletIdx]?.get(tmpl.templateId)?.mintToAssetId?.[mint] ?? null)
+      : null;
+    tradeSummary.push({
+      id        : ++tradeIdCounter,
+      key,
+      templateId: tmpl.templateId,
+      assetId,
+      mint,
+      cardId    : tmpl.cardId,
+      cardName  : tmpl.name,
+      rarity    : tmpl.rarity,
+      wallet,
+      dropLabel : currentDropLabel,
+    });
+    saveTrade();
+    renderSidebar();
+    updateTradeTab();
+  }
+
+  function removeFromTrade(id) {
+    const entry = tradeSummary.find(e => e.id === id);
+    if (!entry) return;
+    tradeSummary = tradeSummary.filter(e => e.id !== id);
+    saveTrade();
+    const span = document.querySelector(`[data-trade-key="${entry.key}"]`);
+    if (span) span.classList.remove('mint-selected');
+    renderSidebar();
+    updateTradeTab();
+  }
+
+  function clearTrade() {
+    tradeSummary = [];
+    saveTrade();
+    document.querySelectorAll('.mint-selected').forEach(el => el.classList.remove('mint-selected'));
+    renderSidebar();
+    updateTradeTab();
+  }
+
+  function reapplyHighlights() {
+    tradeSummary.forEach(entry => {
+      const span = document.querySelector(`[data-trade-key="${entry.key}"]`);
+      if (span) span.classList.add('mint-selected');
+    });
+  }
+
+  function renderSidebar() {
+    const container = document.getElementById('tradeEntries');
+    container.innerHTML = '';
+    if (tradeSummary.length === 0) {
+      container.innerHTML = '<p class="trade-empty">No assets selected yet.<br>Click a mint # in the table to add it.</p>';
+      return;
+    }
+
+    const byWallet = new Map();
+    tradeSummary.forEach(entry => {
+      if (!byWallet.has(entry.wallet)) byWallet.set(entry.wallet, []);
+      byWallet.get(entry.wallet).push(entry);
+    });
+
+    byWallet.forEach((entries, wallet) => {
+      entries.sort((a, b) => {
+        const dd = a.dropLabel.localeCompare(b.dropLabel);
+        if (dd !== 0) return dd;
+        const ca = parseInt(a.cardId, 10), cb = parseInt(b.cardId, 10);
+        if (!isNaN(ca) && !isNaN(cb)) return ca - cb;
+        return String(a.cardId).localeCompare(String(b.cardId));
+      });
+
+      const group = document.createElement('div');
+      group.className = 'trade-wallet-group';
+
+      const header = document.createElement('div');
+      header.className = 'trade-wallet-header';
+      const label = document.createElement('span');
+      label.className = 'trade-wallet-label';
+      label.textContent = wallet;
+      label.title = wallet;
+      const divider = document.createElement('div');
+      divider.className = 'trade-wallet-divider';
+      header.appendChild(label);
+      header.appendChild(divider);
+      group.appendChild(header);
+
+      entries.forEach(entry => {
+        const el = document.createElement('div');
+        el.className = 'trade-entry';
+
+        const main = document.createElement('div');
+        main.className = 'trade-entry-main';
+        const mintSpan = document.createElement('span');
+        mintSpan.className = 'trade-entry-mint';
+        mintSpan.textContent = `#${entry.mint}`;
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'trade-entry-name';
+        nameSpan.textContent = entry.cardName;
+        nameSpan.title = entry.cardName;
+        main.appendChild(mintSpan);
+        main.appendChild(nameSpan);
+
+        const sub = document.createElement('div');
+        sub.className = 'trade-entry-sub';
+        sub.textContent = `ID: ${entry.cardId}  ·  ${entry.rarity}`;
+
+        const drop = document.createElement('div');
+        drop.className = 'trade-entry-drop';
+        drop.textContent = entry.dropLabel;
+        drop.title = entry.dropLabel;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'trade-remove-btn';
+        removeBtn.textContent = '✕';
+        removeBtn.title = 'Remove from trade';
+        removeBtn.onclick = () => removeFromTrade(entry.id);
+
+        el.appendChild(main);
+        el.appendChild(sub);
+        el.appendChild(drop);
+        el.appendChild(removeBtn);
+        group.appendChild(el);
+      });
+
+      container.appendChild(group);
+    });
+    updateOfferBtn();
+  }
+
+  function updateTradeTab() {
+    document.getElementById('tradeCountBadge').textContent = tradeSummary.length;
+  }
+
+  function toggleSidebar() {
+    document.getElementById('tradeSidebar').classList.toggle('open');
+    document.getElementById('tradersSidebar').classList.remove('open');
+  }
+
+  function copyTrade() {
+    if (tradeSummary.length === 0) return;
+    const byWallet = new Map();
+    tradeSummary.forEach(e => {
+      if (!byWallet.has(e.wallet)) byWallet.set(e.wallet, []);
+      byWallet.get(e.wallet).push(e);
+    });
+    const lines = [];
+    byWallet.forEach((entries, wallet) => {
+      entries.sort((a, b) => {
+        const dd = a.dropLabel.localeCompare(b.dropLabel);
+        if (dd !== 0) return dd;
+        const ca = parseInt(a.cardId, 10), cb = parseInt(b.cardId, 10);
+        if (!isNaN(ca) && !isNaN(cb)) return ca - cb;
+        return String(a.cardId).localeCompare(String(b.cardId));
+      });
+      lines.push(`[ ${wallet} ]`);
+      entries.forEach(e => lines.push(`  #${e.mint}  ${e.cardName} (ID: ${e.cardId})  [${e.rarity}]  —  ${e.dropLabel}`));
+      lines.push('');
+    });
+    lines.pop();
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      const btn = document.getElementById('tradeCopyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy to Clipboard', 1800);
+    }).catch(() => {
+      alert(lines.join('\n'));
+    });
+  }
+
+  // ── Trade filter ─────────────────────────────────────────────────────────
+
+  function updateResultsMeta(visible, total) {
+    const wc = lastWallets.length;
+    const meta = document.getElementById('resultsMeta');
+    if (tradeFilterActive && visible < total) {
+      meta.innerHTML = `<strong>${visible}</strong> of <strong>${total}</strong> cards &nbsp;·&nbsp; <strong>${wc}</strong> wallet${wc > 1 ? 's' : ''} &nbsp;·&nbsp; ${esc(currentDropLabel)}`;
+    } else {
+      meta.innerHTML = `<strong>${total}</strong> templates &nbsp;·&nbsp; <strong>${wc}</strong> wallet${wc > 1 ? 's' : ''} &nbsp;·&nbsp; ${esc(currentDropLabel)}`;
+    }
+  }
+
+  function toggleTradeFilter() {
+    tradeFilterActive = !tradeFilterActive;
+    const btn = document.getElementById('tradeFilterBtn');
+    btn.classList.toggle('trade-filter-btn--active', tradeFilterActive);
+    document.getElementById('tradeFilterLabel').textContent = tradeFilterActive ? 'Show all cards' : 'Show trade only';
+    applyTradeFilter();
+  }
+
+  function toggleSmartFilter() {
+    smartFilterActive = !smartFilterActive;
+    const btn = document.getElementById('smartFilterBtn');
+    btn.classList.toggle('trade-filter-btn--active', smartFilterActive);
+    document.getElementById('smartFilterLabel').textContent = smartFilterActive ? 'Show all cards' : 'Smart offers only';
+    applyTradeFilter();
+  }
+
+  function applyTradeFilter() {
+    const groups = document.querySelectorAll('.card-group');
+    const tableScroll = document.querySelector('.table-scroll');
+    const emptyEl = document.getElementById('tradeFilterEmpty');
+    let visible = 0;
+
+    groups.forEach(group => {
+      const showForTrade = !tradeFilterActive || group.querySelector('.mint-selected') !== null;
+      const showForSmart = !smartFilterActive || !!group.dataset.offer;
+      const show = showForTrade && showForSmart;
+      group.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    const isEmpty = (tradeFilterActive || smartFilterActive) && visible === 0;
+    tableScroll.style.display = isEmpty ? 'none' : '';
+    emptyEl.style.display     = isEmpty ? 'block' : 'none';
+
+    updateResultsMeta(visible, lastSorted.length);
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+
+  function setStatus(msg) {
+    document.getElementById('statusText').textContent = msg;
+    document.getElementById('statusWrap').style.display = 'flex';
+  }
+  function hideStatus()  { document.getElementById('statusWrap').style.display  = 'none'; }
+  function showResults() { document.getElementById('resultsWrap').style.display = 'block'; }
+  function hideResults() { document.getElementById('resultsWrap').style.display = 'none'; }
+  function showError(msg) {
+    const el = document.getElementById('inputError');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideError() { document.getElementById('inputError').style.display = 'none'; }
+
+  // ── WAX Trade Offer ───────────────────────────────────────────────────────
+
+  function updateOfferBtn() {
+    const btn = document.getElementById('tradeOfferBtn');
+    if (!btn) return;
+    const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+    const wallets   = [...new Set(tradeSummary.map(e => e.wallet))];
+    const partner   = wallets.find(w => w !== myAccount);
+    const ok = myAccount
+      && wallets.length === 2
+      && wallets.includes(myAccount)
+      && tradeSummary.some(e => e.wallet === myAccount && e.assetId)
+      && tradeSummary.some(e => e.wallet === partner   && e.assetId);
+    btn.disabled = !ok;
+    btn.title = ok ? 'Send trade offer on-chain via WAX wallet'
+      : !myAccount                   ? 'Connect your WAX wallet first'
+      : !wallets.includes(myAccount) ? 'Add assets from your own wallet to the trade'
+      : wallets.length !== 2         ? 'Add assets from exactly 1 trade partner'
+      : 'Run a search first so asset IDs are available';
+  }
+
+  async function sendTradeOffer() {
+    const btn       = document.getElementById('tradeOfferBtn');
+    const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!myAccount) return;
+    const wallets = [...new Set(tradeSummary.map(e => e.wallet))];
+    const partner = wallets.find(w => w !== myAccount);
+    const myAssets    = tradeSummary.filter(e => e.wallet === myAccount && e.assetId).map(e => e.assetId);
+    const theirAssets = tradeSummary.filter(e => e.wallet === partner   && e.assetId).map(e => e.assetId);
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    try {
+      await WaxAuth.transact([{
+        account: 'atomicassets',
+        name: 'createoffer',
+        authorization: [{ actor: myAccount, permission: 'active' }],
+        data: {
+          sender             : myAccount,
+          recipient          : partner,
+          sender_asset_ids   : myAssets,
+          recipient_asset_ids: theirAssets,
+          memo               : 'Trade via Hoardio',
+        },
+      }]);
+      btn.textContent = 'Offer Sent!';
+      btn.classList.add('trade-action-btn--sent');
+      setTimeout(() => { btn.classList.remove('trade-action-btn--sent'); clearTrade(); btn.textContent = 'Send Trade Offer'; }, 2200);
+    } catch (e) {
+      console.error('Trade offer failed:', e);
+      btn.textContent = 'Failed — try again';
+      setTimeout(() => { btn.textContent = 'Send Trade Offer'; updateOfferBtn(); }, 2500);
+    }
+  }
+
+  // ── Traders List ─────────────────────────────────────────────────────────
+
+  let tradersList   = [];
+  let tradersLoaded = false;
+
+  function tradersConfig() {
+    const base = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY };
+    if (currentProject === 'funko') {
+      return { url: SUPABASE_URL + '/rest/v1/traders_list', headers: { ...base, 'Accept-Profile': 'funko', 'Content-Profile': 'funko' }, scopeParam: '', scopeReady: true, insertExtra: {} };
+    }
+    if (currentProject === 'topps') {
+      return { url: SUPABASE_URL + '/rest/v1/traders_list', headers: { ...base, 'Accept-Profile': 'topps', 'Content-Profile': 'topps' }, scopeParam: '', scopeReady: true, insertExtra: {} };
+    }
+    const col = genCollection?.collection_name || '';
+    return {
+      url: SUPABASE_URL + '/rest/v1/traders_list_generic',
+      headers: base,
+      scopeParam: col ? `&collection_name=eq.${encodeURIComponent(col)}` : '',
+      scopeReady: !!col,
+      insertExtra: { collection_name: col },
+    };
+  }
+
+  function updateTradersScopeNote() {
+    const el = document.getElementById('tradersScopeNote');
+    if (currentProject === 'generic') {
+      el.textContent = genCollection ? `Traders for ${genCollection.name}` : 'Select a collection to see its traders list.';
+    } else {
+      el.textContent = "Let collectors know you're open to trade offers.";
+    }
+  }
+
+  function fmtJoined(ts) {
+    if (!ts) return '';
+    const d = Math.floor((Date.now() - new Date(ts)) / 86400000);
+    if (d < 1)   return 'Joined today';
+    if (d === 1) return 'Joined yesterday';
+    return `Joined ${d} days ago`;
+  }
+
+  async function loadTradersList() {
+    updateTradersScopeNote();
+    const cfg = tradersConfig();
+    if (!cfg.scopeReady) {
+      tradersList = []; tradersLoaded = false;
+      document.getElementById('tradersListEntries').innerHTML =
+        '<p class="trade-empty">Select a collection to see its traders list.</p>';
+      document.getElementById('tradersFooter').innerHTML = '';
+      document.getElementById('tradersCountBadge').textContent = '0';
+      return;
+    }
+    try {
+      const r = await fetch(cfg.url + '?select=*&order=featured.desc,joined_at.asc' + cfg.scopeParam, { headers: cfg.headers });
+      if (!r.ok) throw new Error('Load failed');
+      tradersList   = await r.json();
+      tradersLoaded = true;
+    } catch {
+      document.getElementById('tradersListEntries').innerHTML =
+        '<p class="trade-empty">Failed to load traders list.</p>';
+      return;
+    }
+    renderTradersContent();
+  }
+
+  function renderTradersContent() {
+    renderTradersList();
+    renderTradersFooter();
+    document.getElementById('tradersCountBadge').textContent = tradersList.length;
+  }
+
+  function renderTraderEntry(t, myAccount) {
+    const isMe      = t.wallet === myAccount;
+    const meBadge   = isMe ? '<span class="traders-me-badge">You</span>' : '';
+    const featBadge = t.featured ? '<span class="trader-featured-badge">Featured</span>' : '';
+    const cls       = t.featured ? 'trader-entry trader-entry--featured' : 'trader-entry';
+    return `<div class="${cls}">
+      <div class="trader-wallet" onclick="addWalletToInput('${esc(t.wallet)}')" title="Add to wallet filter">${esc(t.wallet)}${meBadge}${featBadge}</div>
+      ${t.description ? `<div class="trader-desc">${esc(t.description)}</div>` : ''}
+      <div class="trader-joined">${fmtJoined(t.joined_at)}</div>
+    </div>`;
+  }
+
+  function renderTradersList() {
+    const container = document.getElementById('tradersListEntries');
+    const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!tradersList.length) {
+      container.innerHTML = '<p class="trade-empty">No traders yet.<br>Be the first to join!</p>';
+      return;
+    }
+    const featured = tradersList.filter(t => t.featured);
+    const regular  = tradersList.filter(t => !t.featured);
+    let h = '';
+    if (featured.length) {
+      h += `<div class="traders-section-label">⭐ Featured</div>`;
+      for (const t of featured) h += renderTraderEntry(t, myAccount);
+    }
+    if (regular.length) {
+      if (featured.length) h += `<div class="traders-section-label" style="margin-top:0.5rem">Traders</div>`;
+      for (const t of regular) h += renderTraderEntry(t, myAccount);
+    }
+    container.innerHTML = h;
+  }
+
+  function renderTradersFooter() {
+    const footer    = document.getElementById('tradersFooter');
+    const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!myAccount) {
+      footer.innerHTML = `<p class="traders-auth-hint">Connect your WAX wallet to join the list.</p>`;
+      return;
+    }
+    const myEntry = tradersList.find(t => t.wallet === myAccount);
+    if (myEntry) {
+      footer.innerHTML = `
+        <p class="traders-auth-hint" style="text-align:left">You're on the list. To change your description, leave and rejoin.</p>
+        <button class="traders-action-btn traders-action-btn--leave" onclick="leaveTradersList()">Leave the List</button>`;
+    } else {
+      footer.innerHTML = `
+        <input id="traderDescInput" class="control-input trader-desc-input" type="text" maxlength="80"
+          placeholder="Discord, X handle, or a name (optional)" />
+        <button class="traders-action-btn traders-action-btn--join" onclick="joinTradersList()">Join the List</button>`;
+    }
+  }
+
+  function addWalletToInput(wallet) {
+    const input   = document.getElementById('walletsInput');
+    const current = input.value.split(',').map(w => w.trim()).filter(Boolean);
+    if (current.includes(wallet) || current.length >= MAX_WAL) return;
+    input.value = [...current, wallet].join(', ');
+    updateBtn();
+    input.style.boxShadow = '0 0 0 2px rgba(96,165,250,0.5)';
+    setTimeout(() => { input.style.boxShadow = ''; }, 600);
+  }
+
+  function toggleTradersSidebar() {
+    const sidebar   = document.getElementById('tradersSidebar');
+    const isOpening = !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open');
+    if (isOpening) {
+      document.getElementById('tradeSidebar').classList.remove('open');
+    }
+  }
+
+  async function joinTradersList() {
+    const cfg = tradersConfig();
+    if (!cfg.scopeReady) return;
+    const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!myAccount) return;
+    const desc = (document.getElementById('traderDescInput')?.value || '').trim();
+    const btn  = document.querySelector('.traders-action-btn--join');
+    if (btn) { btn.disabled = true; btn.textContent = 'Joining…'; }
+    try {
+      const r = await fetch(cfg.url, {
+        method: 'POST',
+        headers: { ...cfg.headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ wallet: myAccount, description: desc || null, ...cfg.insertExtra }),
+      });
+      if (r.status === 409) {
+        alert('This wallet is already on the list.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Join the List'; }
+        await loadTradersList();
+        return;
+      }
+      if (!r.ok) throw new Error('Request failed');
+      await loadTradersList();
+    } catch (e) {
+      console.error('Join failed:', e);
+      if (btn) { btn.disabled = false; btn.textContent = 'Join the List'; }
+    }
+  }
+
+  async function leaveTradersList() {
+    const cfg = tradersConfig();
+    if (!cfg.scopeReady) return;
+    const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!myAccount) return;
+    const btn = document.querySelector('.traders-action-btn--leave');
+    if (btn) { btn.disabled = true; btn.textContent = 'Leaving…'; }
+    try {
+      const url = cfg.url + '?wallet=eq.' + encodeURIComponent(myAccount) + cfg.scopeParam;
+      const r = await fetch(url, { method: 'DELETE', headers: cfg.headers });
+      if (!r.ok) throw new Error('Request failed');
+      await loadTradersList();
+    } catch (e) {
+      console.error('Leave failed:', e);
+      if (btn) { btn.disabled = false; btn.textContent = 'Leave the List'; }
+    }
+  }
+
+  // ── Pending offers banner ─────────────────────────────────────────────────
+  async function checkPendingOffers() {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    const bar = document.getElementById('pendingOffersBar');
+    if (!wallet || !API) { bar.style.display = 'none'; return; }
+    try {
+      const res = await WaxApi.rawFetch(`${WaxApi.aaBase()}/offers?recipient=${encodeURIComponent(wallet)}&state=0&limit=100`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const count = Array.isArray(json.data) ? json.data.length : 0;
+      if (count > 0) {
+        document.getElementById('pendingOffersCount').textContent = count;
+        bar.style.display = '';
+      } else {
+        bar.style.display = 'none';
+      }
+    } catch { bar.style.display = 'none'; }
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+
+  async function init() {
+    API = WaxApi.aaBase();
+
+    setActiveModeButtons();
+    showFiltersForProject();
+    applyMintDefaults();
+    wireGenericFilters();
+    await activateProjectData();
+
+    const walletsInput = document.getElementById('walletsInput');
+    walletsInput.addEventListener('input', () => {
+      const { selectionStart, selectionEnd } = walletsInput;
+      walletsInput.value = walletsInput.value.toLowerCase();
+      walletsInput.setSelectionRange(selectionStart, selectionEnd);
+      updateBtn();
+    });
+
+    function prefillWallet() {
+      const acc = window.getWaxAccount ? window.getWaxAccount() : null;
+      if (!acc || walletsInput.value.trim()) return;
+      walletsInput.value = acc;
+      updateBtn();
+    }
+    prefillWallet();
+    window.addEventListener('wax-auth-change', prefillWallet);
+    document.getElementById('searchBtn').addEventListener('click', onSearch);
+
+    loadTrade();
+    updateBtn();
+  }
+
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: 'shared/wax-auth.js',
+    menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
+  });
+  window.addEventListener('wax-auth-change', () => {
+    updateOfferBtn();
+    if (tradersLoaded) renderTradersContent();
+    checkPendingOffers();
+  });
+  loadTradersList();
+  init().then(() => checkPendingOffers()).catch(err => showError(`Init failed: ${err.message}`));
+</script>
+
+</body>
+</html>

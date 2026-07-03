@@ -439,6 +439,31 @@ function fmtWax(n) {
 }
 function rcls(r) { return RARITY_CSS[(r || '').toLowerCase()] || ''; }
 
+// Public IPFS gateways don't all have the same peers/cache — a CID that's
+// cold on one (times out fetching it fresh from the P2P network) can
+// already be warm on another. Cycle through a few gateways instead of
+// retrying the same one, before giving up on the "?" placeholder.
+const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+
+function onCardImgError(el) {
+  const hash = el.dataset.ipfsHash;
+  if (hash) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+      return;
+    }
+  } else if (!el.dataset.retried) {
+    // Not a bare CID (already an absolute, non-gateway URL) — nothing to
+    // swap gateways on, so just retry the same URL once.
+    el.dataset.retried = '1';
+    setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
+    return;
+  }
+  el.parentElement.innerHTML = '<div class="ex-card-img-ph">?</div>';
+}
+
 /* ── WAX/USD ── */
 async function fetchWaxUsd() {
   try {
@@ -1135,7 +1160,8 @@ function buildCardHtml(sale, asset) {
   if (media?.kind === 'video') {
     mediaHtml = `<video data-src="${esc(media.url)}" muted loop playsinline preload="none"></video>`;
   } else if (media?.kind === 'img') {
-    mediaHtml = `<img src="${esc(media.url)}" alt="${name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=ex-card-img-ph>?</div>'">`;
+    const ipfsHash = media.url.startsWith(IPFS_GW) ? media.url.slice(IPFS_GW.length) : '';
+    mediaHtml = `<img src="${esc(media.url)}" alt="${name}" loading="lazy" data-ipfs-hash="${esc(ipfsHash)}" data-gw-idx="0" onerror="onCardImgError(this)">`;
   } else {
     mediaHtml = '<div class="ex-card-img-ph">?</div>';
   }
