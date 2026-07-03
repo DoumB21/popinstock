@@ -265,7 +265,7 @@
     <div class="filter-section" id="secCollection">
       <span class="filter-label">Collection</span>
       <div class="typeahead-wrap">
-        <input type="text" id="colSearch" class="search-input" placeholder="Type to search…" autocomplete="off" spellcheck="false" />
+        <input type="text" id="colSearch" class="search-input" placeholder="Type to search…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
         <div id="colSuggestions"></div>
       </div>
       <div class="col-chip" id="colChip">
@@ -569,6 +569,9 @@ async function pinnedFetch(url, attempts = 2) {
       await new Promise(r => setTimeout(r, 500 * (i + 1)));
       continue;
     }
+    if (window._dbg && res.status === 400) {
+      try { _dbg('API 400 body: ' + (await res.clone().text())); } catch {}
+    }
     throw new Error('API ' + res.status);
   }
 }
@@ -588,7 +591,7 @@ async function fetchCollectionPages(q) {
     tried.add(base);
     const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
     const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
-    if (window._dbg) _dbg('fetchCollectionPages hop ' + hop + ' base=' + base);
+    if (window._dbg) _dbg('fetchCollectionPages hop ' + hop + ' q="' + q + '" url=' + q1);
     try {
       const [p1, p2] = await Promise.all([pinnedFetch(q1), pinnedFetch(q2)]);
       if (window._dbg) _dbg('fetchCollectionPages hop ' + hop + ' OK, ' + p1.length + '+' + p2.length + ' rows');
