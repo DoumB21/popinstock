@@ -516,11 +516,21 @@ function raced(promise, ms) {
 // caller fetching sequential pages of one paginated result set can pin
 // them all to one node (see fetchCollectionPages below) without risking
 // a later page silently landing on a different, possibly out-of-sync node.
+//
+// The fetch is bounded by an AbortController timeout (unlike a bare
+// fetch(), which can hang indefinitely on a flaky connection instead of
+// ever rejecting). Without this, a stalled mobile connection left the
+// collection typeahead waiting on a promise that never settled — no
+// suggestions and no error, since nothing ever threw. Desktop wifi rarely
+// hits this because a dead connection there usually fails fast instead of
+// hanging.
 async function pinnedFetch(url, attempts = 2) {
   for (let i = 0; i < attempts; i++) {
     let res;
     try {
-      res = await fetch(url);
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      res = await fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
     } catch (err) {
       if (i === attempts - 1) throw err;
       await new Promise(r => setTimeout(r, 500 * (i + 1)));
