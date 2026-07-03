@@ -386,29 +386,6 @@
   <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
 </footer>
 
-<script>
-// Temporary on-page debug console — only active with ?debug=1 in the URL.
-// Lets us see errors/logs on a phone with no devtools attached. Remove once
-// the mobile collection-search bug is diagnosed.
-(function () {
-  if (!/[?&]debug=1\b/.test(location.search)) return;
-  const panel = document.createElement('div');
-  panel.id = '_dbgPanel';
-  panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:45vh;overflow-y:auto;' +
-    'background:rgba(0,0,0,0.94);color:#5f5;font:11px/1.45 monospace;padding:8px;z-index:999999;' +
-    'white-space:pre-wrap;word-break:break-word;border-top:2px solid #0f0;';
-  document.body.appendChild(panel);
-  window._dbg = function (msg) {
-    const line = document.createElement('div');
-    line.textContent = '[' + new Date().toISOString().slice(11, 19) + '] ' + msg;
-    panel.appendChild(line);
-    panel.scrollTop = panel.scrollHeight;
-  };
-  window.addEventListener('error', e => _dbg('JS ERROR: ' + e.message + '  (' + e.filename + ':' + e.lineno + ')'));
-  window.addEventListener('unhandledrejection', e => _dbg('UNHANDLED REJECTION: ' + (e.reason && e.reason.message || e.reason)));
-  _dbg('debug console ready');
-})();
-</script>
 <script src="shared/supabase-config.js"></script>
 <script src="shared/moved.js"></script>
 <script src="shared/wax-api.js"></script>
@@ -482,7 +459,6 @@ let _debT = null;
 $colSearch.addEventListener('input', () => {
   clearTimeout(_debT);
   const q = $colSearch.value.trim();
-  if (window._dbg) _dbg('input event, q="' + q + '", WaxApi defined=' + (typeof WaxApi !== 'undefined'));
   if (q.length < 3) { hideSugs(); return; }
   _debT = setTimeout(() => searchCollections(q), 300);
 });
@@ -569,9 +545,6 @@ async function pinnedFetch(url, attempts = 2) {
       await new Promise(r => setTimeout(r, 500 * (i + 1)));
       continue;
     }
-    if (window._dbg && res.status === 400) {
-      try { _dbg('API 400 body: ' + (await res.clone().text())); } catch {}
-    }
     throw new Error('API ' + res.status);
   }
 }
@@ -591,19 +564,15 @@ async function fetchCollectionPages(q) {
     tried.add(base);
     const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
     const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
-    if (window._dbg) _dbg('fetchCollectionPages hop ' + hop + ' q="' + q + '" url=' + q1);
     try {
       const [p1, p2] = await Promise.all([pinnedFetch(q1), pinnedFetch(q2)]);
-      if (window._dbg) _dbg('fetchCollectionPages hop ' + hop + ' OK, ' + p1.length + '+' + p2.length + ' rows');
       return [...p1, ...p2];
-    } catch (err) {
-      if (window._dbg) _dbg('fetchCollectionPages hop ' + hop + ' FAILED: ' + (err && err.message || err));
+    } catch {
       const next = await WaxApi.rotateAwayFrom(base);
       if (!next || tried.has(next)) break;
       base = next;
     }
   }
-  if (window._dbg) _dbg('fetchCollectionPages: all hops exhausted, returning []');
   return [];
 }
 
@@ -616,7 +585,6 @@ const _statsCache = new Map();
 let _colGen = 0;
 async function searchCollections(q) {
   const myGen = ++_colGen;
-  if (window._dbg) _dbg('searchCollections start, q="' + q + '"');
   try {
     // Pull as much of the match pool as practical — a popular query can have
     // 100+ hits, and the real collection (often years old) sorts far behind
@@ -628,8 +596,7 @@ async function searchCollections(q) {
     // pages of this one ordered result set can't land on out-of-sync nodes
     // — see fetchCollectionPages for the node-rotation-on-failure logic.
     const results = await fetchCollectionPages(q);
-    if (window._dbg) _dbg('searchCollections: fetchCollectionPages returned ' + results.length + ' rows');
-    if (myGen !== _colGen) { if (window._dbg) _dbg('searchCollections: stale, dropping'); return; }
+    if (myGen !== _colGen) return; // stale — a newer keystroke superseded this
 
     const ql = q.toLowerCase();
     // Only pre-rank the top 15 by text relevance before spending a network
@@ -671,12 +638,8 @@ async function searchCollections(q) {
       .sort((a, b) => b.assets - a.assets || matchScore(a.c, ql) - matchScore(b.c, ql))
       .slice(0, 12)
       .map(x => x.c);
-    if (window._dbg) _dbg('searchCollections: rendering ' + _suggestions.length + ' suggestions');
     renderSugs();
-  } catch (err) {
-    if (window._dbg) _dbg('searchCollections FAILED: ' + (err && err.message || err));
-    hideSugs();
-  }
+  } catch { hideSugs(); }
 }
 
 function renderSugs() {
