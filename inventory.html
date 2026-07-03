@@ -51,10 +51,14 @@
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
     .empty-state strong { display: block; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.4rem; }
 
-    /* ── Inventory grid ── */
+    /* ── Inventory grid ──
+       180px keeps this at a clean 6-wide (matching PAGE_SIZE=18 = 3 full
+       rows) at every desktop width >=1280px, since .page-main caps at
+       1280px regardless of screen size. 160px used to yield 7-wide instead,
+       leaving an awkward partial last row (18 doesn't divide evenly by 7). */
     .inv-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
       gap: 0.75rem;
     }
     .inv-card {

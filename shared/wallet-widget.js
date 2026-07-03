@@ -33,6 +33,9 @@
 
   window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
 
+  // Simple card/wallet glyph — stroke=currentColor so it always matches the button's text color.
+  const _WALLET_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/><circle cx="17" cy="14.5" r="1.3" fill="currentColor" stroke="none"/></svg>`;
+
   function mount(navInner, opts) {
     opts = opts || {};
     const authScript   = opts.authScript || 'shared/wax-auth.js';
@@ -42,21 +45,23 @@
     const onLogout     = opts.onLogout || (() => {});
     const onUpdate      = opts.onUpdate || (() => {});
 
-    const menuHtml = menuItems.map(m => `<a href="${m.href}" class="nav-wax-menu-item">${m.label}</a>`).join('');
+    const menuHtml = menuItems.map(m => `<a href="${m.href}" class="nav-wax-menu-item">${m.icon ? `<span class="nav-wax-menu-icon">${m.icon}</span>` : ''}${m.label}</a>`).join('');
 
     const wrap = document.createElement('div');
     wrap.innerHTML = `
-      <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">Connect Wallet</button>
+      <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">${_WALLET_ICON}<span id="navWaxBtnLabel">Connect Wallet</span></button>
       <div id="navWaxConnected" class="nav-wax-connected-widget">
+        <span class="nav-wax-dot"></span>
         <button id="navWaxName" class="nav-wax-name" type="button"></button>
         <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
           ${menuHtml}
           <div class="nav-wax-menu-divider"></div>
-          <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button">Logout</button>
+          <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button"><span class="nav-wax-menu-icon">↪</span>Logout</button>
         </div>
       </div>
     `;
     const connectBtn  = wrap.querySelector('#navWaxBtn');
+    const connectBtnLabel = wrap.querySelector('#navWaxBtnLabel');
     const connectedEl = wrap.querySelector('#navWaxConnected');
     const nameEl      = wrap.querySelector('#navWaxName');
     const menuEl      = wrap.querySelector('#navWaxMenu');
@@ -91,7 +96,7 @@
         }
       } else {
         connectBtn.style.display = '';
-        connectBtn.textContent = 'Connect Wallet';
+        connectBtnLabel.textContent = 'Connect Wallet';
         connectBtn.disabled = false;
         connectedEl.style.display = 'none';
         menuEl.style.display = 'none';
@@ -103,7 +108,7 @@
     let _connectTimeout = null;
     async function connect() {
       connectBtn.disabled = true;
-      connectBtn.textContent = 'Connecting…';
+      connectBtnLabel.textContent = 'Connecting…';
       clearTimeout(_connectTimeout);
       // Failsafe: reset after 5 minutes if the wallet promise never settles
       _connectTimeout = setTimeout(render, 300000);

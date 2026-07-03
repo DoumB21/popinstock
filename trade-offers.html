@@ -212,7 +212,7 @@
 /* ── Nav auth ──────────────────────────────────────────────────────────────── */
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
-  menuItems: [{ href: 'inventory.html', label: 'Inventory' }],
+  menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
 });
 window.addEventListener('wax-auth-change', onWalletChange);
 

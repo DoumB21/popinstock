@@ -170,8 +170,8 @@ async function _initWallet() {
   window._walletWidget = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
     menuItems: [
-      { href: 'profile.html', label: 'Collector Profile' },
-      { href: '../inventory.html', label: 'Inventory' },
+      { href: 'profile.html', label: 'Collector Profile', icon: '👤' },
+      { href: '../inventory.html', label: 'Inventory', icon: '📦' },
     ],
     // Reads the cached tier synchronously so the icon appears instantly —
     // onAccount below refreshes it in the background, never blocking paint.
