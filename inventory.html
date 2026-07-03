@@ -555,7 +555,7 @@ function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.l
 const MARKET_API = 'https://wax.api.atomicassets.io';
 
 const PAGE_SIZE  = 18;
-const MAKER      = 'Hoardiogo';
+const MAKER      = 'popinstockgo';
 
 const SORT_OPTIONS = [
   { value: 'transferred_desc', label: 'Transferred (Newest)', sort: 'transferred',   order: 'desc' },
@@ -2061,7 +2061,7 @@ async function handleAcceptOffer() {
           buyoffer_id:       offer.buyoffer_id,
           asset_id:          asset.asset_id,
           expected_price:    waxPrice,
-          taker_marketplace: 'Hoardiogo',
+          taker_marketplace: 'popinstockgo',
         },
       },
     ]);
