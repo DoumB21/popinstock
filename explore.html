@@ -607,6 +607,22 @@ async function fetchCollectionPages(q) {
 // lookups below to zero network calls after the first search or two.
 const _statsCache = new Map();
 
+// AtomicAssets' /collections?match= only ever searches collection_name (the
+// on-chain slug), never the human-readable display name — so a search for
+// "consumerbreak" never returns cbreakgaming ("ConsumerBreak") no matter how
+// many pages we pull. collection_search_index is a site-built cache (see
+// cacheCollectionName) of display names for collections real users have
+// actually picked before; querying it here is what lets a later search by
+// display name find what a slug-only search cannot.
+async function searchNameIndex(q) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/collection_search_index?name=ilike.*${encodeURIComponent(q)}*&select=collection_name,name,img&limit=12`;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
 let _colGen = 0;
 async function searchCollections(q) {
   const myGen = ++_colGen;
@@ -620,8 +636,15 @@ async function searchCollections(q) {
     // higher with a 400), pinned to the same node per attempt so the two
     // pages of this one ordered result set can't land on out-of-sync nodes
     // — see fetchCollectionPages for the node-rotation-on-failure logic.
-    const results = await fetchCollectionPages(q);
+    const [results, indexed] = await Promise.all([fetchCollectionPages(q), searchNameIndex(q)]);
     if (myGen !== _colGen) return; // stale — a newer keystroke superseded this
+
+    // Merge in name-index hits the slug search missed, deduping by
+    // collection_name (blockchain copy wins — it's always current).
+    const seen = new Set(results.map(c => c.collection_name));
+    for (const c of indexed) {
+      if (!seen.has(c.collection_name)) { results.push(c); seen.add(c.collection_name); }
+    }
 
     const ql = q.toLowerCase();
     // Only pre-rank the top 15 by text relevance before spending a network
@@ -689,10 +712,30 @@ $colSugs.addEventListener('mousedown', e => {
 
 function hideSugs() { $colSugs.style.display = 'none'; }
 
+// Best-effort cache write: whenever a user actually picks a collection (not
+// just sees it in the dropdown), remember its display name so a future
+// search for that name — which the AtomicAssets API can't match, since its
+// `match` param only indexes collection_name, never the display name —
+// finds it via collection_search_index instead. Never awaited/blocking;
+// a failed write just means this collection isn't cached yet, same as now.
+function cacheCollectionName(c) {
+  fetch(`${SUPABASE_URL}/rest/v1/collection_search_index`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates',
+    },
+    body: JSON.stringify({ collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || null }),
+  }).catch(() => {});
+}
+
 async function selectCollection(c) {
   hideSugs();
   $colSearch.value = '';
   _col = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
+  cacheCollectionName(_col);
 
   // Show chip
   const $img  = document.getElementById('colChipImg');
