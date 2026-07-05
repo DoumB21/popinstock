@@ -1200,11 +1200,36 @@
     }
     return [];
   }
+  // AtomicAssets' /collections?match= only ever searches collection_name
+  // (the on-chain slug), never the human-readable display name — so a
+  // search for "consumerbreak" never returns cbreakgaming ("ConsumerBreak")
+  // no matter how many pages we pull. collection_search_index is a
+  // Supabase cache of display names built organically from collections
+  // real users pick in Explore/here (see selectGenCollection below);
+  // querying it here is what lets a display-name search find what a
+  // slug-only search cannot. Same table/logic as explore.html.
+  async function searchNameIndex(q) {
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/collection_search_index?name=ilike.*${encodeURIComponent(q)}*&select=collection_name,name,img&limit=12`;
+      const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+      if (!res.ok) return [];
+      return await res.json();
+    } catch { return []; }
+  }
+
   async function searchGenCollections(q) {
     const myGen = ++genColGen;
     try {
-      const results = await fetchCollectionPages(q);
+      const [results, indexed] = await Promise.all([fetchCollectionPages(q), searchNameIndex(q)]);
       if (myGen !== genColGen) return;
+
+      // Merge in name-index hits the slug search missed, deduping by
+      // collection_name (blockchain copy wins — it's always current).
+      const seen = new Set(results.map(c => c.collection_name));
+      for (const c of indexed) {
+        if (!seen.has(c.collection_name)) { results.push(c); seen.add(c.collection_name); }
+      }
+
       const ql = q.toLowerCase();
       const candidates = results.sort((a, b) => matchScore(a, ql) - matchScore(b, ql)).slice(0, 15);
       const uncached = candidates.filter(c => !_statsCache.has(c.collection_name));
@@ -1242,10 +1267,28 @@
   }
   function hideGenSugs() { document.getElementById('genColSuggestions').style.display = 'none'; }
 
+  // Best-effort cache write: whenever a user actually picks a collection
+  // (not just sees it in the dropdown), remember its display name — see
+  // searchNameIndex above. Never awaited/blocking; a failed write just
+  // means this collection isn't cached yet, same as now.
+  function cacheCollectionName(c) {
+    fetch(`${SUPABASE_URL}/rest/v1/collection_search_index`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({ collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || null }),
+    }).catch(() => {});
+  }
+
   async function selectGenCollection(c) {
     hideGenSugs();
     document.getElementById('genColSearch').value = '';
     genCollection = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
+    cacheCollectionName(genCollection);
 
     const $img  = document.getElementById('genColChipImg');
     const $name = document.getElementById('genColChipName');
