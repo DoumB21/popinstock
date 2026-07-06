@@ -404,6 +404,7 @@
     <div class="nav-links"></div>
   </div>
 </nav>
+<script src="shared/generic-nav.js"></script>
 
 <main class="page-main">
   <div class="page-header">
@@ -2663,7 +2664,10 @@ document.querySelectorAll('.cb-dropdown').forEach(container => {
 fetchWaxPrice();
 window.addEventListener('wax-auth-change', onWalletChange);
 document.addEventListener('DOMContentLoaded', () => {
-  WalletWidget.mount(document.querySelector('.nav-inner'), { authScript: 'shared/wax-auth.js' });
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: 'shared/wax-auth.js',
+    menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
+  });
   onWalletChange();
 });
 
