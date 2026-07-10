@@ -83,7 +83,7 @@
     /* ── Filter bar ── */
     .filter-bar { display: flex; flex-direction: column; gap: 0.6rem; }
     .filter-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-    .filter-row .cb-dropdown { min-width: 180px; flex: 1; max-width: 320px; }
+    .filter-row .cb-combo { min-width: 180px; flex: 1; max-width: 320px; }
     .filter-row .name-search   { min-width: 160px; flex: 1; max-width: 260px; }
     .supply-filter { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
     .supply-label  { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
@@ -180,7 +180,7 @@
     .load-more-wrap { text-align: center; padding-top: 0.5rem; }
 
     @media (max-width: 600px) {
-      .filter-row .cb-dropdown,
+      .filter-row .cb-combo,
       .filter-row .name-search { max-width: none; }
     }
   </style>
@@ -201,11 +201,9 @@
 
     <div class="filter-bar">
       <div class="filter-row">
-        <div class="cb-dropdown" id="collectionDd">
-          <button class="cb-dropdown-btn" id="collectionTrigger" type="button">
-            <span class="cb-label">All drops</span>
-            <span class="cb-arrow">▾</span>
-          </button>
+        <div class="cb-combo" id="collectionCombo">
+          <input type="text" class="cb-combo-input" id="collectionComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="collectionComboClear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel" id="collectionPanel"></div>
         </div>
         <input class="name-search search-input" id="nameSearch" type="search" placeholder="Search cards…" autocomplete="off" />
@@ -456,43 +454,99 @@ function cleanName(name) {
     .replace(/\s+x\s+Funko Digital Pop!$/i, '');
 }
 
-function toggleDd(id) {
-  const wrap    = document.getElementById(id);
-  const panel   = wrap.querySelector('.cb-panel');
-  const trigger = wrap.querySelector('.cb-dropdown-btn');
-  const isOpen  = panel.classList.contains('open');
-  closeAllDd();
-  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
-}
 function closeAllDd() {
   document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
   document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  const combo = document.getElementById('collectionCombo');
+  combo.classList.remove('open');
+  if (combo._items) syncCollectionComboDisplay();
 }
 document.addEventListener('mousedown', e => {
-  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+  if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllDd();
 });
-document.getElementById('collectionTrigger').addEventListener('click', () => toggleDd('collectionDd'));
+
+// Long list (every Funko drop) — searchable combobox, same component as
+// trade-analyzer.html's Funko "Drop" filter. items[0] is always the "All
+// drops" sentinel: reflected as the input's placeholder/clear-button state,
+// never a row in the list.
+function syncCollectionComboDisplay() {
+  const combo   = document.getElementById('collectionCombo');
+  const input   = document.getElementById('collectionComboInput');
+  const clear   = document.getElementById('collectionComboClear');
+  const allItem = combo._items[0];
+  const active  = combo._items.find(i => i.value === state.collection) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
 
 function populateCollections(rows) {
-  const panel = document.getElementById('collectionPanel');
+  const combo = document.getElementById('collectionCombo');
   const sorted = [...rows]
     .map(d => ({ ...d, _name: cleanName(d.drop_displayname || d.collection_name) }))
     .sort((a, b) => a._name.localeCompare(b._name) || a.schema_name.localeCompare(b.schema_name));
   const items = [{ value: '', label: 'All drops' },
     ...sorted.map(d => ({ value: d.collection_name + '|' + d.schema_name, label: `${d._name}  —  ${schemaLabel(d.schema_name)}` }))];
-  const cur = items.some(i => i.value === state.collection) ? state.collection : '';
-  panel.innerHTML = items.map(i =>
-    `<div class="cb-item${i.value === cur ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
-  ).join('');
-  document.querySelector('#collectionDd .cb-label').textContent = (items.find(i => i.value === cur) || items[0]).label;
-  panel.querySelectorAll('.cb-item').forEach(item => {
-    item.addEventListener('click', () => {
-      closeAllDd();
-      state.collection = item.dataset.val;
-      state.offset = 0; tableRows = [];
-      populateCollections(rows);
-      loadData();
+  state.collection = items.some(i => i.value === state.collection) ? state.collection : '';
+
+  combo._items = items;
+  syncCollectionComboDisplay();
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const input = document.getElementById('collectionComboInput');
+  const clear = document.getElementById('collectionComboClear');
+  const panel = document.getElementById('collectionPanel');
+
+  const pick = val => {
+    closeAllDd();
+    state.collection = val;
+    state.offset = 0; tableRows = [];
+    syncCollectionComboDisplay();
+    loadData();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._items.slice(1); // exclude the "All drops" sentinel
+    const filtered = q
+      ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
+      : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === state.collection ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
     });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllDd();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllDd();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => {
+    pick('');
+    input.blur();
   });
 }
 

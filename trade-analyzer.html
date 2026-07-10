@@ -663,11 +663,9 @@
     <div class="controls-row" id="funkoFilters" style="display:none;">
       <div class="control-group">
         <label class="control-label">Drop</label>
-        <div class="cb-dropdown" id="funkoDropDd">
-          <button class="cb-dropdown-btn" id="funkoDropTrigger" type="button">
-            <span class="cb-label">— Select a drop —</span>
-            <span class="cb-arrow">▾</span>
-          </button>
+        <div class="cb-combo" id="funkoDropCombo">
+          <input type="text" class="cb-combo-input" id="funkoDropComboInput" autocomplete="off" spellcheck="false" placeholder="Search drops…">
+          <button type="button" class="cb-combo-clear" id="funkoDropComboClear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel" id="funkoDropPanel"></div>
         </div>
       </div>
@@ -946,12 +944,15 @@
   function closeAllDd() {
     document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
     document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+    const funkoCombo = document.getElementById('funkoDropCombo');
+    funkoCombo.classList.remove('open');
+    if (funkoCombo._wired) syncFunkoDropComboDisplay();
   }
   document.addEventListener('mousedown', e => {
-    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+    if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllDd();
     if (!e.target.closest('.typeahead-wrap')) hideGenSugs();
   });
-  ['funkoDropTrigger','toppsDropTrigger','toppsRarityTrigger','toppsSubsetTrigger','genSchemaTrigger','genRarityTrigger'].forEach(id => {
+  ['toppsDropTrigger','toppsRarityTrigger','toppsSubsetTrigger','genSchemaTrigger','genRarityTrigger'].forEach(id => {
     document.getElementById(id).addEventListener('click', () => toggleDd(id.replace('Trigger', 'Dd')));
   });
 
@@ -993,12 +994,72 @@
     renderFunkoDropDd();
     funkoCatalogsLoaded = true;
   }
+  // Drop list is long (every Funko collection × schema) — searchable combobox
+  // instead of a plain dropdown, same component as inventory.html/inventory-bulk.html's
+  // Collection filter. No "All ..." sentinel here (a drop must be picked to search),
+  // so the empty/cleared state is just "no selection" rather than an "All" choice.
+  function syncFunkoDropComboDisplay() {
+    const input  = document.getElementById('funkoDropComboInput');
+    const clear  = document.getElementById('funkoDropComboClear');
+    const active = funkoDropItems.find(i => i.value === funkoDropValue);
+    input.value = active ? active.label : '';
+    clear.style.display = active ? '' : 'none';
+    document.getElementById('funkoDropCombo').classList.toggle('has-selection', !!active);
+  }
+
   function renderFunkoDropDd() {
-    renderSimpleDd('funkoDropDd', funkoDropItems, funkoDropValue, false, val => {
+    const combo = document.getElementById('funkoDropCombo');
+    syncFunkoDropComboDisplay();
+    if (combo._wired) return;
+    combo._wired = true;
+
+    const input = document.getElementById('funkoDropComboInput');
+    const clear = document.getElementById('funkoDropComboClear');
+    const panel = document.getElementById('funkoDropPanel');
+
+    const pick = val => {
       funkoDropValue = val;
-      renderFunkoDropDd();
+      closeAllDd();
       updateBtn();
-    }, '— Select a drop —');
+    };
+
+    const renderList = filterText => {
+      const q = filterText.trim().toLowerCase();
+      const filtered = q ? funkoDropItems.filter(i => i.label.toLowerCase().includes(q)) : funkoDropItems;
+      panel.innerHTML = filtered.length
+        ? filtered.map(i => `<div class="cb-item${i.value === funkoDropValue ? ' active' : ''}" data-val="${esc(i.value)}"><span>${esc(i.label)}</span></div>`).join('')
+        : `<div class="cb-empty">No matches</div>`;
+      panel.querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('click', () => pick(item.dataset.val));
+      });
+    };
+
+    input.addEventListener('focus', () => {
+      closeAllDd();
+      combo.classList.add('open');
+      panel.classList.add('open');
+      renderList('');
+      input.select();
+    });
+    input.addEventListener('input', () => renderList(input.value));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        input.blur();
+        closeAllDd();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        panel.querySelector('.cb-item')?.click();
+      }
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+    });
+    clear.addEventListener('mousedown', e => e.preventDefault());
+    clear.addEventListener('click', () => {
+      pick('');
+      input.blur();
+    });
   }
 
   async function fetchWhitelistedIds(templateIds) {
@@ -2571,7 +2632,10 @@
 
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: 'shared/wax-auth.js',
-    menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
+    menuItems: [
+      { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+      { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+    ],
   });
   window.addEventListener('wax-auth-change', () => {
     updateOfferBtn();

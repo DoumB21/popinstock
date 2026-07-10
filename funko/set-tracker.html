@@ -28,7 +28,7 @@
     .wallet-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
     .wallet-hint  { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; }
     .wallet-input { flex: 1; }
-    .drop-select  { flex: 1; cursor: pointer; }
+    .drop-combo   { flex: 1; }
 
     /* ── Royalty / Mastery toggle ── */
     .set-toggle {
@@ -307,11 +307,9 @@
         </div>
       </div>
       <div class="controls-row">
-        <div class="cb-dropdown drop-select" id="dropDd">
-          <button class="cb-dropdown-btn" id="dropTrigger" type="button">
-            <span class="cb-label">Loading drops…</span>
-            <span class="cb-arrow">▾</span>
-          </button>
+        <div class="cb-combo drop-combo" id="dropCombo">
+          <input type="text" class="cb-combo-input" id="dropComboInput" autocomplete="off" spellcheck="false" placeholder="Loading drops…">
+          <button type="button" class="cb-combo-clear" id="dropComboClear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel" id="dropPanel"></div>
         </div>
         <button class="lookup-btn" id="trackBtn" onclick="lookupWallet()" disabled>Track</button>
@@ -482,39 +480,92 @@
 
   let _dropValue = '';
   let _dropItems = [];
-  function renderDropDd() {
-    const panel = document.getElementById('dropPanel');
-    panel.innerHTML = _dropItems.map(i =>
-      `<div class="cb-item${i.value === _dropValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`
-    ).join('');
-    const active = _dropItems.find(i => i.value === _dropValue) || _dropItems[0];
-    document.querySelector('#dropDd .cb-label').textContent = active ? active.label : '';
-    panel.querySelectorAll('.cb-item').forEach(item => {
-      item.addEventListener('click', () => {
-        _dropValue = item.dataset.val;
-        closeAllDd();
-        renderDropDd();
-        syncUrl();
-        updateTrackBtn();
-      });
-    });
+  let _dropComboWired = false;
+
+  // Long list (every Funko drop) — searchable combobox, same component as
+  // trade-analyzer.html's Funko "Drop" filter. _dropItems[0] is always the
+  // "— Select a Drop —" sentinel: reflected as the input's placeholder/
+  // clear-button state, never a row in the list.
+  function syncDropComboDisplay() {
+    const input   = document.getElementById('dropComboInput');
+    const clear   = document.getElementById('dropComboClear');
+    const allItem = _dropItems[0];
+    const active  = _dropItems.find(i => i.value === _dropValue) || allItem;
+    const hasSelection = !!allItem && active.value !== allItem.value;
+    input.placeholder = allItem ? allItem.label : 'Loading drops…';
+    input.value = hasSelection ? active.label : '';
+    clear.style.display = hasSelection ? '' : 'none';
+    document.getElementById('dropCombo').classList.toggle('has-selection', hasSelection);
   }
-  function toggleDd(id) {
-    const wrap    = document.getElementById(id);
-    const panel   = wrap.querySelector('.cb-panel');
-    const trigger = wrap.querySelector('.cb-dropdown-btn');
-    const isOpen  = panel.classList.contains('open');
-    closeAllDd();
-    if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+
+  function renderDropDd() {
+    syncDropComboDisplay();
+    if (_dropComboWired) return;
+    _dropComboWired = true;
+
+    const combo = document.getElementById('dropCombo');
+    const input = document.getElementById('dropComboInput');
+    const clear = document.getElementById('dropComboClear');
+    const panel = document.getElementById('dropPanel');
+
+    const pick = val => {
+      _dropValue = val;
+      closeAllDd();
+      syncUrl();
+      updateTrackBtn();
+    };
+
+    const renderList = filterText => {
+      const q = filterText.trim().toLowerCase();
+      const options = _dropItems.slice(1); // exclude the "— Select a Drop —" sentinel
+      const filtered = q
+        ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
+        : options;
+      panel.innerHTML = filtered.length
+        ? filtered.map(i => `<div class="cb-item${i.value === _dropValue ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+        : `<div class="cb-empty">No matches</div>`;
+      panel.querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('click', () => pick(item.dataset.val));
+      });
+    };
+
+    input.addEventListener('focus', () => {
+      closeAllDd();
+      combo.classList.add('open');
+      panel.classList.add('open');
+      renderList('');
+      input.select();
+    });
+    input.addEventListener('input', () => renderList(input.value));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        input.blur();
+        closeAllDd();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        panel.querySelector('.cb-item')?.click();
+      }
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+    });
+    clear.addEventListener('mousedown', e => e.preventDefault());
+    clear.addEventListener('click', () => {
+      pick(_dropItems[0].value);
+      input.blur();
+    });
   }
   function closeAllDd() {
     document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
     document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+    const combo = document.getElementById('dropCombo');
+    combo.classList.remove('open');
+    if (_dropComboWired) syncDropComboDisplay();
   }
   document.addEventListener('mousedown', e => {
-    if (!e.target.closest('.cb-dropdown')) closeAllDd();
+    if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllDd();
   });
-  document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
 
   /* ── Toggle ── */
   function setActiveType(type) {
