@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bulk Actions — Hoardio</title>
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    /* ── Mode switcher ── */
+    .mode-switcher { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+    .mode-switcher-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-right: 0.15rem; }
+    .mode-btn {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px;
+      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; padding: 0.4rem 0.95rem;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .mode-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text-primary); }
+    .mode-btn--active { background: rgba(240,168,64,0.14); border-color: var(--accent-light); color: var(--accent-light); }
+
+    /* ── Auth gate ── */
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 3rem 2rem; text-align: center;
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+    /* ── Filters ── */
+    .controls-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .controls-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 140px; }
+    .control-group--wide { flex: 2; min-width: 200px; }
+    .control-group--narrow { flex: 0 0 auto; }
+    .control-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .filter-row { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .mint-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .mint-range-inputs .control-input { flex: 1; min-width: 0; }
+    .range-sep { color: var(--text-secondary); flex-shrink: 0; }
+
+    /* ── Layout ── */
+    .bl-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+    .bl-content { flex: 1; min-width: 0; }
+
+    /* ── Toolbar ── */
+    .bl-toolbar {
+      display: flex; align-items: center; gap: 0.75rem;
+      flex-wrap: wrap; margin-bottom: 0.9rem;
+    }
+    .bl-toolbar-count  { font-size: 0.82rem; color: var(--text-secondary); }
+    .bl-toolbar-selcount { font-size: 0.82rem; font-weight: 600; color: var(--accent-light); }
+    .bl-toolbar-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 0.38rem 0.75rem;
+      color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
+    .bl-toolbar-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+    .bl-toolbar-btn--active {
+      background: rgba(240,168,64,0.14); border-color: var(--accent-light); color: var(--accent-light);
+    }
+    .bl-toolbar-btn--active:hover { background: rgba(240,168,64,0.2); color: var(--accent-light); }
+
+    /* ── Grid ── */
+    .bl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.75rem;
+    }
+
+    /* ── Card ── */
+    .bl-card {
+      position: relative;
+      background: var(--bg-card); border: 2px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      cursor: pointer; user-select: none;
+      transition: border-color 0.15s;
+    }
+    .bl-card:hover:not(.bl-card--listed) { border-color: rgba(192,120,40,0.45); }
+    .bl-card.selected { border-color: var(--accent-light); }
+    .bl-card--listed  { opacity: 0.5; cursor: default; }
+
+    .bl-card-img { position: relative; aspect-ratio: 1; background: var(--bg); }
+    .bl-card-img img,
+    .bl-card-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    .bl-card-check {
+      position: absolute; top: 6px; left: 6px;
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.62rem; color: transparent;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .bl-card.selected .bl-card-check {
+      background: var(--accent-light); border-color: var(--accent-light); color: #fff;
+    }
+    .bl-card-mint {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      color: var(--accent-light); font-size: 0.6rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.3);
+      pointer-events: none;
+    }
+
+    .bl-card-body { padding: 0.45rem 0.5rem 0.5rem; }
+    .bl-card-name {
+      font-size: 0.7rem; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bl-card-meta  { font-size: 0.62rem; color: #9999bb; margin-top: 0.1rem; }
+    .bl-card-floor { font-size: 0.62rem; font-weight: 600; color: #c8903a; margin-top: 0.15rem; }
+    .bl-card-listed-note { font-size: 0.64rem; font-weight: 700; color: #4ade80; margin-top: 0.2rem; }
+
+    /* ── Load more ── */
+    .bl-loadmore-wrap { text-align: center; padding: 1.5rem 0 0.5rem; }
+    /* .bl-loadmore-btn's look lives in shared/global.css alongside .load-more-btn */
+
+    /* ── Tray ── */
+    .bl-tray {
+      width: 290px; flex-shrink: 0;
+      position: sticky; top: 80px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.25rem;
+      max-height: calc(100vh - 100px); overflow-y: auto;
+      display: flex; flex-direction: column; gap: 0.8rem;
+    }
+    .bl-tray-mode {
+      text-align: center; font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 0.55rem 1.25rem; margin: -1.25rem -1.25rem 0;
+      border-radius: 18px 18px 0 0; border-bottom: 2px solid transparent;
+    }
+    .bl-tray-mode--sell {
+      color: var(--accent-light); background: rgba(240,168,64,0.1);
+      border-bottom-color: rgba(240,168,64,0.4);
+    }
+    .bl-tray-mode--transfer {
+      color: #ff6b6b; background: rgba(255,107,107,0.1);
+      border-bottom-color: rgba(255,107,107,0.4);
+    }
+    .bl-tray-head {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .bl-tray-title {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-secondary);
+    }
+    .bl-tray-count { color: var(--accent-light); margin-left: 0.3rem; }
+    .bl-tray-clearall {
+      background: none; border: none; color: var(--text-secondary);
+      font-size: 0.75rem; cursor: pointer; padding: 0;
+      font-family: inherit; text-decoration: underline;
+    }
+    .bl-tray-clearall:hover { color: var(--text-primary); }
+    .bl-tray-empty {
+      color: var(--text-secondary); font-size: 0.85rem;
+      text-align: center; padding: 0.75rem 0; line-height: 1.6;
+    }
+
+    /* Sell: fixed price + below-floor price blocks */
+    .bl-price-panel {
+      display: flex; flex-direction: column; gap: 0.9rem;
+      padding-bottom: 0.9rem; border-bottom: 1px solid var(--border);
+    }
+    .bl-price-block { display: flex; flex-direction: column; gap: 0.4rem; }
+    .bl-price-block-label {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-secondary);
+    }
+    .bl-price-row { display: flex; gap: 0.5rem; align-items: center; }
+    .bl-price-row .control-input { flex: 1; min-width: 0; font-size: 0.85rem; }
+    .bl-price-unit { font-size: 0.75rem; color: var(--text-secondary); flex-shrink: 0; }
+    .bl-set-all-btn {
+      background: rgba(255,255,255,0.07); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.45rem 0.6rem;
+      color: var(--text-primary); font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    .bl-set-all-btn:hover { background: rgba(255,255,255,0.13); }
+    .bl-price-note { font-size: 0.68rem; color: var(--accent-light); min-height: 1em; }
+
+    /* Transfer: recipient panel */
+    .bl-transfer-panel {
+      display: flex; flex-direction: column; gap: 0.5rem;
+      padding-bottom: 0.8rem; border-bottom: 1px solid var(--border);
+    }
+    .bl-transfer-panel .control-input { width: 100%; box-sizing: border-box; }
+    .bl-transfer-warning { font-size: 0.72rem; color: var(--accent-light); line-height: 1.5; }
+
+    /* Tray items */
+    .bl-tray-items { display: flex; flex-direction: column; gap: 0.65rem; }
+    .bl-tray-item  { display: flex; gap: 0.6rem; align-items: flex-start; }
+    /* Flags rows with no price set yet — easy to spot in a long selection so
+       you can either type a price or remove the item. */
+    .bl-tray-item--missing-price {
+      margin: -0.4rem; padding: 0.4rem;
+      border: 1px solid rgba(255,107,107,0.35); border-radius: 10px;
+      background: rgba(255,107,107,0.08);
+    }
+    .bl-tray-price .control-input.bl-tray-price-input--missing { border-color: rgba(255,107,107,0.5); }
+    .bl-tray-thumb {
+      width: 38px; height: 38px; flex-shrink: 0;
+      border-radius: 6px; overflow: hidden;
+      background: var(--bg); border: 1px solid var(--border);
+    }
+    .bl-tray-thumb img,
+    .bl-tray-thumb video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .bl-tray-info { flex: 1; min-width: 0; }
+    .bl-tray-name {
+      font-size: 0.7rem; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bl-tray-mint { font-size: 0.62rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+    .bl-tray-price { display: flex; align-items: center; gap: 0.3rem; }
+    .bl-tray-price .control-input {
+      width: 68px; padding: 0.28rem 0.4rem; font-size: 0.78rem;
+    }
+    .bl-tray-wax { font-size: 0.68rem; color: var(--text-secondary); }
+    .bl-tray-remove {
+      background: none; border: none; color: var(--text-secondary);
+      font-size: 0.8rem; cursor: pointer; padding: 0.15rem;
+      line-height: 1; flex-shrink: 0; margin-top: 0.1rem;
+    }
+    .bl-tray-remove:hover { color: var(--text-primary); }
+
+    /* trayBody's children (price/transfer panel, item list, total, action button,
+       progress) get consistent rhythm — without this they were only separated
+       by whatever padding/border each piece happened to carry on its own,
+       which left the total and the action button squeezed together. */
+    #trayBody { display: flex; flex-direction: column; gap: 0.8rem; }
+
+    /* Total + button */
+    .bl-tray-total {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--text-secondary);
+      padding-top: 0.5rem; border-top: 1px solid var(--border);
+    }
+    .bl-tray-total-val { color: var(--text-primary); font-weight: 700; }
+    /* .bl-list-btn's base look (gold gradient) lives in shared/global.css
+       alongside .search-btn/.lookup-btn — only the tray-specific layout is here. */
+    .bl-list-btn { width: 100%; white-space: normal; padding: 0.8rem; }
+    .bl-progress { font-size: 0.75rem; color: var(--text-secondary); text-align: center; min-height: 1rem; }
+    .bl-progress.is-error   { color: #e05050; }
+    .bl-progress.is-success { color: #50c878; }
+
+    /* ── Responsive ── */
+    @media (max-width: 760px) {
+      .bl-layout { flex-direction: column; }
+      .bl-tray { width: 100%; position: static; max-height: none; }
+    }
+    @media (max-width: 480px) {
+      .bl-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">Bulk <span class="accent">Actions</span></div>
+      <div class="page-subtitle">Select multiple NFTs from your wallet to list for sale or transfer to another wallet, all at once.</div>
+
+      <div class="mode-switcher" id="modeSwitcher">
+        <span class="mode-switcher-label">Mode</span>
+        <button class="mode-btn" data-mode="sell" type="button">Sell</button>
+        <button class="mode-btn" data-mode="transfer" type="button">Transfer</button>
+      </div>
+    </div>
+
+    <div id="authGate" class="auth-gate">
+      <div class="auth-gate-title">Connect your WAX wallet to get started</div>
+      <div class="auth-gate-hint">Your NFTs will load automatically once connected.</div>
+      <button class="lookup-btn" onclick="connectWallet()">Connect Wallet</button>
+    </div>
+
+    <div id="blMain" style="display:none">
+
+      <div class="controls-card">
+        <div class="controls-row">
+          <div class="control-group control-group--wide">
+            <label class="control-label" for="blSearch">Search</label>
+            <input class="control-input" id="blSearch" type="search" placeholder="Search by name…" oninput="onSearchChange()" autocomplete="off" />
+          </div>
+          <div class="control-group">
+            <label class="control-label">Collection</label>
+            <div class="cb-combo" id="blColCombo">
+              <input type="text" class="cb-combo-input" id="blColComboInput" autocomplete="off" spellcheck="false">
+              <button type="button" class="cb-combo-clear" id="blColComboClear" style="display:none" title="Clear">✕</button>
+              <div class="cb-panel" id="blColPanel"></div>
+            </div>
+          </div>
+        </div>
+        <div class="controls-row filter-row">
+          <div class="control-group" id="blSchemaGroup" style="display:none">
+            <label class="control-label">Schema</label>
+            <div class="cb-dropdown" id="blSchemaDd">
+              <button class="cb-dropdown-btn" id="blSchemaTrigger" type="button">
+                <span class="cb-label">All schemas</span>
+                <span class="cb-arrow">▼</span>
+              </button>
+              <div class="cb-panel" id="blSchemaPanel"></div>
+            </div>
+          </div>
+          <div class="control-group" id="blRarityGroup" style="display:none">
+            <label class="control-label">Rarity</label>
+            <div class="cb-dropdown" id="blRarityDd">
+              <button class="cb-dropdown-btn" id="blRarityTrigger" type="button">
+                <span class="cb-label">All rarities</span>
+                <span class="cb-arrow">▼</span>
+              </button>
+              <div class="cb-panel" id="blRarityPanel"></div>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">Mint range</label>
+            <div class="mint-range-inputs">
+              <input id="blMintMin" type="number" class="control-input" placeholder="Min" min="1" />
+              <span class="range-sep">—</span>
+              <input id="blMintMax" type="number" class="control-input" placeholder="Max" min="1" />
+            </div>
+          </div>
+          <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end;">
+            <button id="blClearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bl-layout">
+
+        <div class="bl-content">
+          <div class="bl-toolbar">
+            <span class="bl-toolbar-count" id="blCount"></span>
+            <span class="bl-toolbar-selcount" id="blSelCount" style="display:none"></span>
+            <button class="bl-toolbar-btn" onclick="selectAllVisible()">Select all visible</button>
+            <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
+            <button class="bl-toolbar-btn" id="hideListedBtn" onclick="toggleHideListed()">Hide listed</button>
+          </div>
+
+          <div id="blLoadWrap" class="status-wrap" style="display:none">
+            <div class="spinner"></div>
+            <div class="status-text">Loading inventory…</div>
+          </div>
+          <div id="blGrid"     class="bl-grid" style="display:none"></div>
+          <div id="blEmpty"    class="no-results" style="display:none">No NFTs found.</div>
+
+          <div id="blLoadMoreWrap" class="bl-loadmore-wrap" style="display:none">
+            <button class="bl-loadmore-btn" id="blLoadMoreBtn" onclick="onLoadMoreClick()">Load more</button>
+          </div>
+        </div>
+
+        <div class="bl-tray">
+          <div class="bl-tray-mode" id="trayModeLabel"></div>
+          <div class="bl-tray-head">
+            <span class="bl-tray-title">Selected<span class="bl-tray-count" id="trayCount"> 0</span></span>
+            <button class="bl-tray-clearall" onclick="clearSelection()">Clear all</button>
+          </div>
+
+          <div id="trayEmpty" class="bl-tray-empty">No items selected.<br>Click cards to add them.</div>
+
+          <div id="trayBody" style="display:none">
+
+            <div class="bl-price-panel" id="sellPanel">
+              <div class="bl-price-block">
+                <div class="bl-price-block-label">Fixed price</div>
+                <div class="bl-price-row">
+                  <input class="control-input" id="setAllInput" type="number" min="0.01" max="10000000" step="0.01" placeholder="0.00" oninput="onSetAllPriceInput(this)" />
+                  <span class="bl-price-unit">WAX</span>
+                  <button class="bl-set-all-btn" onclick="applyFixedPriceToAll()">Apply to all</button>
+                </div>
+              </div>
+              <div class="bl-price-block">
+                <div class="bl-price-block-label">Below floor</div>
+                <div class="bl-price-row">
+                  <input class="control-input" id="belowFloorWaxInput" type="number" min="0" step="0.01" value="0.01" />
+                  <span class="bl-price-unit">WAX</span>
+                  <button class="bl-set-all-btn" onclick="applyBelowFloorWax()">Apply to all</button>
+                </div>
+                <div class="bl-price-row">
+                  <input class="control-input" id="belowFloorPctInput" type="number" min="0" max="100" step="0.1" value="1" />
+                  <span class="bl-price-unit">%</span>
+                  <button class="bl-set-all-btn" onclick="applyBelowFloorPercent()">Apply to all</button>
+                </div>
+                <div class="bl-price-note" id="floorApplyNote"></div>
+              </div>
+            </div>
+
+            <div class="bl-transfer-panel" id="transferPanel" style="display:none">
+              <label class="control-label" for="recipientInput">Recipient wallet</label>
+              <input class="control-input" id="recipientInput" type="text" placeholder="e.g. player1.wam" oninput="onRecipientInput(this.value)" autocomplete="off" spellcheck="false" />
+              <div class="bl-transfer-warning">⚠️ Transfers are permanent and cannot be undone — double-check the recipient.</div>
+            </div>
+
+            <div class="bl-tray-items" id="trayItems"></div>
+
+            <div class="bl-tray-total" id="sellTotal">
+              <span>Total</span>
+              <span class="bl-tray-total-val" id="trayTotal">0.00 WAX</span>
+            </div>
+
+            <button class="bl-list-btn" id="blActionBtn" disabled onclick="runAction()">List for sale</button>
+            <div class="bl-progress" id="blProgress"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+const MAKER              = 'popinstockgo';
+const BATCH_SIZE_SELL     = 10; // 2 actions/asset (announcesale+createoffer) — proven value from the single-item listing flow
+const BATCH_SIZE_TRANSFER = 50; // 1 action carries the whole chunk's asset_ids — no precedent in this codebase yet, tune after real-world testing
+const PAGE_SIZE           = 36;
+const MAX_PRICE_WAX       = 10_000_000; // matches inventory.html's listing cap
+
+let _mode       = new URLSearchParams(location.search).get('mode') === 'transfer' ? 'transfer' : 'sell';
+let _assets     = [];
+let _listings   = new Map();  // asset_id → { sale_id, price_wax }
+let _selected   = new Map();  // asset_id → price string (sell) | '' (transfer, value unused)
+let _hideListed = false;
+let _recipient  = '';
+let _page       = 1;
+let _hasMore    = false;
+let _loading    = false;
+let _autoLoadArmed = false; // true once the user has manually clicked "Load more" once — see initInfiniteScroll
+let _busy       = false;
+
+let _filterCol      = 'all';
+let _filterSchema   = 'all';
+let _filterText     = '';
+let _filterMintMin  = '';
+let _filterMintMax  = '';
+const _selectedRarities = new Set();
+
+let _collections      = new Set();
+let _collectionNames  = new Map();
+let _collectionCounts = new Map(); // collection_name → asset count
+let _totalAssets      = null;
+let _schemaCache     = {};
+let _lastSchemas     = [];
+const _templateCache = {}; // collection_name → [{template_id, schema_name, rarity}] — used to compute a template_whitelist for rarity filtering
+let _floorCache = {}; // template_id → { loaded, price }
+
+/* ── Helpers ── */
+window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
+
+const enc = s => encodeURIComponent(s);
+
+function imgUrl(hash) {
+  if (!hash) return '';
+  if (hash.startsWith('http')) return hash;
+  const gw = typeof IPFS_GATEWAY !== 'undefined' ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/';
+  return gw + hash;
+}
+
+// Public IPFS gateways don't all have the same peers/cache — a CID that's
+// cold on one (times out fetching it fresh from the P2P network) can
+// already be warm on another. Cycle through a few gateways instead of
+// retrying the same one, before giving up and hiding the image. Same
+// pattern as explore.html/inventory.html.
+const IPFS_GATEWAY_LIST = [
+  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function onCardImgError(el) {
+  const hash = el.dataset.ipfsHash;
+  if (hash) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+      return;
+    }
+  } else if (!el.dataset.retried) {
+    el.dataset.retried = '1';
+    setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
+    return;
+  }
+  el.style.display = 'none';
+}
+
+function mediaHtml(a, thumb = false) {
+  const d     = a.data || {};
+  const t     = a.template?.immutable_data || {};
+  const video = d.video || t.video || '';
+  const img   = d.img || d.image || t.img || t.image || '';
+  const style = 'width:100%;height:100%;object-fit:contain;display:block';
+  if (video) {
+    if (thumb) return `<video src="${imgUrl(video)}" muted playsinline loop autoplay style="${style}"></video>`;
+    return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="${style}"></video>`;
+  }
+  if (img) {
+    const hash = img.startsWith('http') ? '' : img;
+    return `<img src="${imgUrl(img)}" alt="${a.name || ''}" loading="lazy" data-ipfs-hash="${hash}" data-gw-idx="0" onerror="onCardImgError(this)" style="${style}">`;
+  }
+  return '';
+}
+
+/* ── Lazy video ── plays while a card is actually in view, freezes otherwise
+   — matches inventory.html's approach. */
+let _videoObs = null;
+function initLazyVideos() {
+  if (_videoObs) _videoObs.disconnect();
+  _videoObs = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const v = e.target;
+      if (e.isIntersecting) {
+        if (v.dataset.src && !v.src) { v.src = v.dataset.src; v.load(); }
+        v.play().catch(() => {});
+      } else {
+        v.pause();
+        if (v.src) { v.removeAttribute('src'); v.load(); }
+      }
+    }
+  }, { rootMargin: '300px' }); // pre-load 300px ahead, matching explore.html/inventory.html
+  document.querySelectorAll('.bl-card-img video[data-src]').forEach(v => _videoObs.observe(v));
+}
+
+/* ── Nav / wallet ── */
+const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: [
+    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+  ],
+  onUpdate: async (acc) => {
+    document.getElementById('authGate').style.display = acc ? 'none' : '';
+    document.getElementById('blMain').style.display   = acc ? '' : 'none';
+    if (acc) {
+      // Fire listings/collections in the background — don't block the initial
+      // spinner+asset fetch on them (matches inventory.html's onWalletChange).
+      fetchCollections(acc);
+      fetchListings(acc).then(() => {
+        _assets.forEach(a => patchCard(a.asset_id));
+        if (_assets.length) updateCountText();
+      });
+      loadAssets(true);
+    } else {
+      _assets = []; _listings = new Map(); _selected = new Map(); _recipient = '';
+      _filterCol = 'all'; _filterSchema = 'all'; _filterText = '';
+      _filterMintMin = ''; _filterMintMax = ''; _selectedRarities.clear();
+      _collections = new Set(); _collectionNames = new Map(); _collectionCounts = new Map(); _totalAssets = null; _schemaCache = {};
+      _lastSchemas = []; document.getElementById('blMintMin').value = ''; document.getElementById('blMintMax').value = '';
+      renderGrid(); renderTray();
+    }
+  },
+});
+
+function connectWallet() {
+  return _wallet.connect();
+}
+
+/* ── Mode switch ── */
+function switchMode(mode, { push = true } = {}) {
+  _mode = mode;
+
+  if (push) {
+    const url = new URL(location.href);
+    if (mode === 'sell') url.searchParams.delete('mode');
+    else url.searchParams.set('mode', mode);
+    history.replaceState(null, '', url);
+  }
+
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-btn--active', b.dataset.mode === mode));
+  document.getElementById('sellPanel').style.display     = mode === 'sell' ? '' : 'none';
+  document.getElementById('transferPanel').style.display = mode === 'transfer' ? '' : 'none';
+  document.getElementById('sellTotal').style.display     = mode === 'sell' ? '' : 'none';
+
+  const modeLabel = document.getElementById('trayModeLabel');
+  modeLabel.textContent = mode === 'sell' ? 'Sell Mode' : 'Transfer Mode';
+  modeLabel.className   = `bl-tray-mode bl-tray-mode--${mode}`;
+
+  clearSelection();
+  setProgress('');
+  updateListedTooltips(); // surgical patch — avoids a full grid rebuild just to update tooltip text
+  updateActionBtn();
+}
+
+function updateListedTooltips() {
+  const title = _mode === 'transfer'
+    ? 'Currently listed — cancel the listing before transferring'
+    : 'Currently listed for sale';
+  document.querySelectorAll('.bl-card--listed').forEach(card => { card.title = title; });
+}
+
+// Listings resolve after the grid is already showing (see onUpdate above) —
+// this patches one already-rendered card in place once its listing is known,
+// same as inventory.html's patchCard().
+function patchCard(assetId) {
+  const id      = String(assetId);
+  const listing = _listings.get(id);
+  if (!listing) return;
+  const card = document.querySelector(`.bl-card[data-id="${id}"]`);
+  if (!card) return;
+
+  const wasSelected = _selected.has(id);
+  if (wasSelected) { _selected.delete(id); updateSelCount(); renderTray(); }
+
+  card.classList.add('bl-card--listed');
+  card.classList.remove('selected');
+  card.title = _mode === 'transfer' ? 'Currently listed — cancel the listing before transferring' : 'Currently listed for sale';
+  card.querySelector('.bl-card-check')?.remove();
+
+  let note = card.querySelector('.bl-card-listed-note');
+  if (!note) {
+    note = document.createElement('div');
+    note.className = 'bl-card-listed-note';
+    card.querySelector('.bl-card-body').appendChild(note);
+  }
+  note.textContent = `Listed: ${listing.price_wax.toFixed(2)} WAX`;
+}
+document.querySelectorAll('.mode-btn').forEach(b => {
+  b.addEventListener('click', () => switchMode(b.dataset.mode));
+});
+
+/* ── Dropdowns ── */
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllDd();
+});
+function toggleDd(id) {
+  const wrap    = document.getElementById(id);
+  const panel   = wrap.querySelector('.cb-panel');
+  const trigger = wrap.querySelector('.cb-dropdown-btn');
+  const isOpen  = panel.classList.contains('open');
+  closeAllDd();
+  if (!isOpen) {
+    panel.classList.add('open');
+    trigger.classList.add('open');
+  }
+}
+function closeAllDd() {
+  document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  const combo = document.getElementById('blColCombo');
+  combo.classList.remove('open');
+  if (combo._cbItems) syncColComboDisplay();
+}
+document.getElementById('blSchemaTrigger').addEventListener('click', () => toggleDd('blSchemaDd'));
+document.getElementById('blRarityTrigger').addEventListener('click', () => toggleDd('blRarityDd'));
+
+/* ── Collections ── */
+async function fetchCollections(wallet) {
+  try {
+    const r    = await WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${enc(wallet)}`);
+    const json = await r.json();
+    if (!json.success) return;
+    if (json.data?.assets != null) _totalAssets = json.data.assets;
+    for (const entry of (json.data?.collections || [])) {
+      const col = entry.collection;
+      if (!col?.collection_name) continue;
+      _collections.add(col.collection_name);
+      if (col.name) _collectionNames.set(col.collection_name, col.name);
+      if (entry.assets != null) _collectionCounts.set(col.collection_name, entry.assets);
+    }
+    buildColDropdown();
+  } catch {}
+}
+
+function colItemHtml(o) {
+  return `<div class="cb-item${o.value === _filterCol ? ' active' : ''}" data-val="${o.value}"><span>${o.label}</span></div>`;
+}
+
+function renderColItemsInto(listEl, items) {
+  listEl.innerHTML = items.length
+    ? items.map(colItemHtml).join('')
+    : `<div class="cb-empty">No matches</div>`;
+  listEl.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllDd();
+      onColChange(item.dataset.val);
+    });
+  });
+}
+
+/* ── Collection combobox — type-to-search input that doubles as the trigger.
+   combo._cbItems[0] is always the "All collections" sentinel: reflected as
+   the input's placeholder/clear-button state, never a row in the list. */
+function syncColComboDisplay() {
+  const combo   = document.getElementById('blColCombo');
+  const input   = document.getElementById('blColComboInput');
+  const clear   = document.getElementById('blColComboClear');
+  const allItem = combo._cbItems[0];
+  const active  = combo._cbItems.find(o => o.value === _filterCol) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function buildColDropdown() {
+  const combo = document.getElementById('blColCombo');
+  const panel = document.getElementById('blColPanel');
+  const cols  = [..._collections].sort((a, b) => {
+    const na = (_collectionNames.get(a) || a).toLowerCase();
+    const nb = (_collectionNames.get(b) || b).toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  });
+  const totalLabel = _totalAssets != null ? Number(_totalAssets).toLocaleString() : _collections.size;
+  combo._cbItems = [
+    { value: 'all', label: `All collections (${totalLabel})` },
+    ...cols.map(c => {
+      const name  = _collectionNames.get(c) || c;
+      const count = _collectionCounts.get(c);
+      const label = count != null ? `${name} (${Number(count).toLocaleString()})` : name;
+      return { value: c, label };
+    }),
+  ];
+  syncColComboDisplay();
+  if (combo._cbWired) return;
+  combo._cbWired = true;
+
+  const input = document.getElementById('blColComboInput');
+  const clear = document.getElementById('blColComboClear');
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._cbItems.slice(1); // exclude the "All collections" sentinel
+    const filtered = q
+      ? options.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+      : options;
+    renderColItemsInto(panel, filtered);
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllDd();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllDd();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => {
+    closeAllDd();
+    onColChange(combo._cbItems[0].value);
+    input.blur();
+  });
+}
+
+async function fetchSchemasForCollection(col) {
+  if (_schemaCache[col]) return _schemaCache[col];
+  try {
+    const r    = await WaxApi.rawFetch(`${WaxApi.aaBase()}/schemas?collection_name=${enc(col)}&limit=100`);
+    const json = await r.json();
+    const schemas = json.success ? json.data.map(s => s.schema_name).sort() : [];
+    _schemaCache[col] = schemas;
+    return schemas;
+  } catch {
+    _schemaCache[col] = [];
+    return [];
+  }
+}
+
+function buildSchemaDropdown(schemas) {
+  _lastSchemas = schemas;
+  const panel = document.getElementById('blSchemaPanel');
+  panel.innerHTML = [
+    `<div class="cb-item${_filterSchema === 'all' ? ' active' : ''}" data-val="all"><span>All schemas</span></div>`,
+    ...schemas.map(s => `<div class="cb-item${_filterSchema === s ? ' active' : ''}" data-val="${s}"><span>${s}</span></div>`)
+  ].join('');
+  document.querySelector('#blSchemaDd .cb-label').textContent = _filterSchema !== 'all' ? _filterSchema : 'All schemas';
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      _filterSchema = item.dataset.val;
+      closeAllDd();
+      document.querySelector('#blSchemaDd .cb-label').textContent = _filterSchema !== 'all' ? _filterSchema : 'All schemas';
+      panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _filterSchema));
+      // Drop rarities that don't exist under the newly-selected schema
+      const avail = new Set(getAvailableRarities(_filterCol, _filterSchema !== 'all' ? _filterSchema : null));
+      for (const r of [..._selectedRarities]) if (!avail.has(r)) _selectedRarities.delete(r);
+      buildRarityDropdown();
+      loadAssets(true);
+    });
+  });
+}
+
+/* ── Rarity (multi-select, computed from a per-collection template cache —
+   rarity lives in template immutable_data, not a queryable /assets param) ── */
+async function fetchTemplatesForCollection(collection) {
+  if (_templateCache[collection]) return _templateCache[collection];
+  const all = [];
+  let page = 1;
+  while (true) {
+    try {
+      const url  = `${WaxApi.aaBase()}/templates?collection_name=${enc(collection)}&limit=1000&page=${page}`;
+      const r    = await WaxApi.rawFetch(url);
+      const json = await r.json();
+      if (!json.success || !json.data.length) break;
+      for (const t of json.data) {
+        all.push({
+          template_id: t.template_id,
+          schema_name: t.schema?.schema_name || '',
+          rarity:      t.immutable_data?.rarity || '',
+        });
+      }
+      if (json.data.length < 1000) break;
+      page++;
+    } catch { break; }
+  }
+  _templateCache[collection] = all;
+  return all;
+}
+
+function getAvailableRarities(collection, schema) {
+  const templates = _templateCache[collection] || [];
+  const pool = schema ? templates.filter(t => t.schema_name === schema) : templates;
+  const vals = new Set(pool.map(t => t.rarity).filter(Boolean));
+  const ORDER = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Grail', 'Ultra', 'Series', 'Royalty', '1 of 1'];
+  return [...vals].sort((a, b) => {
+    const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    return ai !== -1 ? -1 : bi !== -1 ? 1 : a.localeCompare(b);
+  });
+}
+
+function buildRarityDropdown() {
+  const group = document.getElementById('blRarityGroup');
+  const panel = document.getElementById('blRarityPanel');
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const items  = getAvailableRarities(_filterCol, schema);
+  if (!items.length) { group.style.display = 'none'; return; }
+  group.style.display = '';
+  panel.innerHTML = items.map(v =>
+    `<label class="cb-item"><input type="checkbox" value="${v}"${_selectedRarities.has(v) ? ' checked' : ''}><span>${v}</span></label>`
+  ).join('');
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) _selectedRarities.add(cb.value); else _selectedRarities.delete(cb.value);
+      refreshRarityLabel();
+      loadAssets(true);
+    });
+  });
+  refreshRarityLabel();
+}
+
+function refreshRarityLabel() {
+  const label = _selectedRarities.size === 0 ? 'All rarities'
+    : _selectedRarities.size === 1 ? [..._selectedRarities][0]
+    : `${_selectedRarities.size} selected`;
+  document.querySelector('#blRarityDd .cb-label').textContent = label;
+  document.getElementById('blRarityTrigger').classList.toggle('has-selection', _selectedRarities.size > 0);
+}
+
+// Rarity isn't a queryable /assets param, so a selection is resolved to the
+// matching template_ids client-side and passed as template_whitelist. The
+// 'EMPTY' sentinel lets loadAssets() short-circuit without a network call
+// when a rarity+schema combination has no matching templates at all.
+function computeTemplateWhitelist() {
+  if (_filterCol === 'all' || !_selectedRarities.size) return null;
+  const templates = _templateCache[_filterCol];
+  if (!templates) return null;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const ids = templates
+    .filter(t => !schema || t.schema_name === schema)
+    .filter(t => _selectedRarities.has(t.rarity))
+    .map(t => t.template_id);
+  return ids.length > 0 ? ids.join(',') : 'EMPTY';
+}
+
+function clearFilters() {
+  _filterSchema = 'all';
+  _selectedRarities.clear();
+  _filterMintMin = '';
+  _filterMintMax = '';
+  document.getElementById('blMintMin').value = '';
+  document.getElementById('blMintMax').value = '';
+  buildSchemaDropdown(_lastSchemas);
+  buildRarityDropdown();
+  loadAssets(true);
+}
+document.getElementById('blClearFiltersBtn').addEventListener('click', clearFilters);
+
+let _mintDebounceTimer = null;
+function onMintInput() {
+  _filterMintMin = document.getElementById('blMintMin').value;
+  _filterMintMax = document.getElementById('blMintMax').value;
+  clearTimeout(_mintDebounceTimer);
+  _mintDebounceTimer = setTimeout(() => loadAssets(true), 500);
+}
+document.getElementById('blMintMin').addEventListener('input', onMintInput);
+document.getElementById('blMintMax').addEventListener('input', onMintInput);
+
+async function onColChange(val) {
+  _filterCol    = val;
+  _filterSchema = 'all';
+  _selectedRarities.clear();
+  document.getElementById('blSchemaGroup').style.display = 'none';
+  document.getElementById('blRarityGroup').style.display = 'none';
+  document.getElementById('blSchemaPanel').innerHTML = '';
+  document.querySelector('#blSchemaDd .cb-label').textContent = 'All schemas';
+  buildColDropdown();
+  loadAssets(true);
+  if (_filterCol !== 'all') {
+    fetchSchemasForCollection(_filterCol).then(schemas => {
+      if (_filterCol !== val) return; // stale — user changed collection again before this resolved
+      buildSchemaDropdown(schemas);
+      document.getElementById('blSchemaGroup').style.display = schemas.length ? '' : 'none';
+    });
+    fetchTemplatesForCollection(_filterCol).then(() => {
+      if (_filterCol !== val) return;
+      buildRarityDropdown();
+    });
+  }
+}
+
+/* ── Listings ── */
+async function fetchListings(wallet) {
+  const fresh = new Map();
+  try {
+    let page = 1;
+    while (true) {
+      const data = await WaxApi.apiFetch(`${WaxApi.marketBase()}/sales?state=1&seller=${enc(wallet)}&limit=100&page=${page}`);
+      if (!data || !data.length) break;
+      for (const sale of data) {
+        const precision = sale.price?.token_precision ?? 8;
+        const price_wax = Number(sale.price?.amount ?? sale.listing_price) / Math.pow(10, precision);
+        for (const asset of (sale.assets || [])) {
+          fresh.set(String(asset.asset_id), { sale_id: sale.sale_id, price_wax });
+        }
+      }
+      if (data.length < 100) break;
+      page++;
+    }
+  } catch {}
+  _listings = fresh;
+}
+
+/* ── Floor price ── */
+async function fetchFloorPrice(templateId, collection) {
+  if (!templateId) return null;
+  const cached = _floorCache[templateId];
+  if (cached?.loaded) return cached.price;
+
+  _floorCache[templateId] = { loaded: false, price: null };
+  try {
+    const url  = `${WaxApi.marketBase()}/sales?state=1&template_id=${templateId}&collection_name=${enc(collection)}&symbol=WAX&sort=price&order=asc&limit=1`;
+    const data = await WaxApi.apiFetch(url);
+    let price  = null;
+    if (data && data.length > 0) {
+      const sale      = data[0];
+      const precision = sale.price?.token_precision ?? sale.token?.token_precision ?? 8;
+      const rawPrice  = sale.price?.amount ?? sale.listing_price;
+      price = Number(rawPrice) / Math.pow(10, precision);
+    }
+    _floorCache[templateId] = { loaded: true, price };
+    return price;
+  } catch {
+    _floorCache[templateId] = { loaded: true, price: null };
+    return null;
+  }
+}
+
+async function loadFloorPricesForCards(assets) {
+  const seen = new Set();
+  const todos = assets.filter(a => {
+    const tid = a.template?.template_id;
+    if (!tid || seen.has(tid)) return false;
+    seen.add(tid);
+    return true;
+  });
+
+  const BATCH = 3;
+  for (let i = 0; i < todos.length; i += BATCH) {
+    await Promise.all(todos.slice(i, i + BATCH).map(async a => {
+      const tid   = a.template.template_id;
+      const col   = a.collection?.collection_name || '';
+      const price = await fetchFloorPrice(tid, col);
+      const text  = price != null ? `Floor: ${price.toFixed(2)} WAX` : '';
+      document.querySelectorAll(`[data-floor-tid="${tid}"]`).forEach(el => {
+        el.textContent = text;
+      });
+    }));
+    if (i + BATCH < todos.length) await new Promise(r => setTimeout(r, 120));
+  }
+}
+
+/* ── Asset loading ── */
+async function loadAssets(reset = false) {
+  const wallet = window.getWaxAccount();
+  if (!wallet || _loading) return;
+  if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; }
+
+  // Rarity has no matching template at all under the current collection/schema
+  // — no point hitting the network for a result we already know is empty.
+  const whitelist = computeTemplateWhitelist();
+  if (reset && whitelist === 'EMPTY') {
+    document.getElementById('blLoadWrap').style.display      = 'none';
+    document.getElementById('blGrid').style.display          = 'none';
+    document.getElementById('blLoadMoreWrap').style.display  = 'none';
+    document.getElementById('blEmpty').style.display         = '';
+    document.getElementById('blCount').textContent            = '';
+    return;
+  }
+
+  _loading = true;
+
+  const lmBtn = document.getElementById('blLoadMoreBtn');
+  if (lmBtn) { lmBtn.disabled = true; lmBtn.textContent = 'Loading…'; }
+
+  if (reset) {
+    document.getElementById('blLoadWrap').style.display  = '';
+    document.getElementById('blGrid').style.display      = 'none';
+    document.getElementById('blEmpty').style.display     = 'none';
+    document.getElementById('blLoadMoreWrap').style.display = 'none';
+  }
+
+  let batch = [];
+  try {
+    const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${enc(_filterCol)}` : '';
+    const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${enc(_filterSchema)}`        : '';
+    const matchParam     = _filterText              ? `&match=${enc(_filterText)}`                : '';
+    const whitelistParam = whitelist              ? `&template_whitelist=${whitelist}`             : '';
+    const mintMinParam   = _filterMintMin          ? `&min_template_mint=${enc(_filterMintMin)}`   : '';
+    const mintMaxParam   = _filterMintMax          ? `&max_template_mint=${enc(_filterMintMax)}`   : '';
+    const url = `${WaxApi.aaBase()}/assets?owner=${enc(wallet)}&limit=${PAGE_SIZE}&page=${_page}&sort=transferred&order=desc${colParam}${schemaParam}${matchParam}${whitelistParam}${mintMinParam}${mintMaxParam}`;
+
+    const r    = await WaxApi.rawFetch(url);
+    const json = await r.json();
+    if (!json.success) throw new Error('API error');
+
+    batch = json.data || [];
+    _assets.push(...batch);
+    _hasMore = batch.length === PAGE_SIZE;
+    _page++;
+  } catch (err) {
+    console.error('loadAssets:', err);
+  } finally {
+    _loading = false;
+  }
+
+  document.getElementById('blLoadWrap').style.display = 'none';
+  // Full rebuild only on reset (fresh load / filter change) — a "Load more"
+  // click just appends the new batch, so the cost of clicking it doesn't
+  // grow with how much has already been loaded (see appendCards below).
+  if (reset) renderGrid();
+  else if (batch.length) appendCards(batch);
+  loadFloorPricesForCards(batch); // background — doesn't block render
+
+  const lmw = document.getElementById('blLoadMoreWrap');
+  lmw.style.display = _hasMore ? '' : 'none';
+  if (lmBtn) { lmBtn.disabled = false; lmBtn.textContent = 'Load more'; }
+}
+
+/* Clicking "Load more" once arms infinite scroll for the rest of this filter
+   set — after that, reaching the button again auto-loads the next chunk
+   (like AtomicHub), no more clicking required. A fresh filter/search disarms
+   it (see the reset branch in loadAssets), so a first click is always
+   required again on a new result set — avoids silently fetching pages of
+   data nobody asked to see yet. */
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadAssets(false);
+}
+
+let _loadMoreObs = null;
+function initInfiniteScroll() {
+  _loadMoreObs = new IntersectionObserver(entries => {
+    if (!_autoLoadArmed || _loading || !_hasMore) return;
+    if (entries[0].isIntersecting) loadAssets(false);
+  }, { rootMargin: '600px' });
+  _loadMoreObs.observe(document.getElementById('blLoadMoreWrap'));
+}
+
+/* ── Grid ──
+   renderGrid() rebuilds everything (used for a fresh load or a filter
+   change, where the whole grid is being replaced anyway). appendCards()
+   only builds and wires up the newly-fetched batch, reusing the existing
+   DOM and video observer for everything already on screen — matches the
+   pattern in explore.html/inventory.html. */
+function sortBatch(batch) {
+  const unlisted = batch.filter(a => !_listings.has(String(a.asset_id)));
+  const listed   = _hideListed ? [] : batch.filter(a => _listings.has(String(a.asset_id)));
+  return [...unlisted, ...listed];
+}
+
+function toggleHideListed() {
+  _hideListed = !_hideListed;
+  const btn = document.getElementById('hideListedBtn');
+  btn.classList.toggle('bl-toolbar-btn--active', _hideListed);
+  btn.textContent = _hideListed ? 'Show listed' : 'Hide listed';
+  renderGrid();
+}
+
+function updateCountText() {
+  const unlisted = _assets.filter(a => !_listings.has(String(a.asset_id))).length;
+  document.getElementById('blCount').textContent =
+    `${_assets.length.toLocaleString()} NFTs loaded — ${unlisted.toLocaleString()} unlisted`;
+}
+
+function attachCardEvents(card, asset) {
+  if (card.classList.contains('bl-card--listed')) return;
+  card.addEventListener('click', () => toggleSelect(asset, card));
+}
+
+function renderGrid() {
+  const grid  = document.getElementById('blGrid');
+  const empty = document.getElementById('blEmpty');
+
+  if (!_assets.length) {
+    grid.style.display  = 'none';
+    empty.style.display = _loading ? 'none' : '';
+    empty.textContent   = 'No NFTs found.';
+    document.getElementById('blCount').textContent = '';
+    return;
+  }
+
+  updateCountText();
+  const visible = sortBatch(_assets);
+
+  if (!visible.length) {
+    grid.style.display  = 'none';
+    empty.style.display = '';
+    empty.textContent   = 'All loaded NFTs are already listed for sale.';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.style.display  = '';
+
+  grid.innerHTML = visible.map(cardHtml).join('');
+  grid.querySelectorAll('.bl-card').forEach(card => {
+    const asset = _assets.find(a => String(a.asset_id) === card.dataset.id);
+    if (asset) attachCardEvents(card, asset);
+  });
+
+  initLazyVideos();
+}
+
+function appendCards(newAssets) {
+  const grid = document.getElementById('blGrid');
+  grid.style.display = '';
+
+  const frag = document.createDocumentFragment();
+  for (const a of sortBatch(newAssets)) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml(a).trim();
+    const card = wrap.firstElementChild;
+    attachCardEvents(card, a);
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+
+  // Observe only the newly added video elements — the existing observer
+  // instance and everything already on screen is left untouched.
+  grid.querySelectorAll('.bl-card-img video[data-src]:not([data-obs])').forEach(v => {
+    v.dataset.obs = '1';
+    _videoObs?.observe(v);
+  });
+
+  updateCountText();
+}
+
+function cardHtml(a) {
+  const id      = String(a.asset_id);
+  const listing = _listings.get(id);
+  const isSel   = _selected.has(id);
+  const mint    = a.template_mint ? `#${a.template_mint}` : '';
+  const colName = a.collection?.collection_name ? (_collectionNames.get(a.collection.collection_name) || a.collection.collection_name) : '';
+  const listedNote = listing
+    ? `<div class="bl-card-listed-note">Listed: ${listing.price_wax.toFixed(2)} WAX</div>`
+    : '';
+  const listedTitle = listing
+    ? (_mode === 'transfer' ? 'Currently listed — cancel the listing before transferring' : 'Currently listed for sale')
+    : '';
+
+  return `
+    <div class="bl-card${listing ? ' bl-card--listed' : ''}${isSel ? ' selected' : ''}" data-id="${id}"${listedTitle ? ` title="${listedTitle}"` : ''}>
+      <div class="bl-card-img">
+        ${mediaHtml(a)}
+        ${mint ? `<span class="bl-card-mint">${mint}</span>` : ''}
+        ${!listing ? `<div class="bl-card-check">${isSel ? '✓' : ''}</div>` : ''}
+      </div>
+      <div class="bl-card-body">
+        <div class="bl-card-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
+        <div class="bl-card-meta">${colName}</div>
+        ${a.template?.template_id ? `<div class="bl-card-floor" data-floor-tid="${a.template.template_id}"></div>` : ''}
+        ${listedNote}
+      </div>
+    </div>`;
+}
+
+/* ── Selection ── */
+function toggleSelect(asset, cardEl) {
+  const id = String(asset.asset_id);
+  if (_selected.has(id)) {
+    _selected.delete(id);
+    cardEl.classList.remove('selected');
+    const chk = cardEl.querySelector('.bl-card-check');
+    if (chk) chk.textContent = '';
+  } else {
+    _selected.set(id, '');
+    cardEl.classList.add('selected');
+    const chk = cardEl.querySelector('.bl-card-check');
+    if (chk) chk.textContent = '✓';
+  }
+  updateSelCount();
+  renderTray();
+}
+
+function selectAllVisible() {
+  document.querySelectorAll('.bl-card:not(.bl-card--listed)').forEach(card => {
+    const id = card.dataset.id;
+    if (!_selected.has(id)) {
+      _selected.set(id, '');
+      card.classList.add('selected');
+      const chk = card.querySelector('.bl-card-check');
+      if (chk) chk.textContent = '✓';
+    }
+  });
+  updateSelCount();
+  renderTray();
+}
+
+function clearSelection() {
+  _selected.clear();
+  document.querySelectorAll('.bl-card.selected').forEach(card => {
+    card.classList.remove('selected');
+    const chk = card.querySelector('.bl-card-check');
+    if (chk) chk.textContent = '';
+  });
+  updateSelCount();
+  renderTray();
+}
+
+function removeFromSelection(id) {
+  _selected.delete(id);
+  const card = document.querySelector(`.bl-card[data-id="${id}"]`);
+  if (card) {
+    card.classList.remove('selected');
+    const chk = card.querySelector('.bl-card-check');
+    if (chk) chk.textContent = '';
+  }
+  updateSelCount();
+  renderTray();
+}
+
+function updateSelCount() {
+  const el = document.getElementById('blSelCount');
+  if (_selected.size) {
+    el.textContent = `${_selected.size} selected`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+/* ── Tray ── */
+function renderTray() {
+  const countEl = document.getElementById('trayCount');
+  const emptyEl = document.getElementById('trayEmpty');
+  const bodyEl  = document.getElementById('trayBody');
+  const itemsEl = document.getElementById('trayItems');
+
+  countEl.textContent = ` ${_selected.size}`;
+
+  if (!_selected.size) {
+    emptyEl.style.display = '';
+    bodyEl.style.display  = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  bodyEl.style.display  = '';
+
+  itemsEl.innerHTML = [..._selected.keys()].map(id => {
+    const a = _assets.find(a => String(a.asset_id) === id);
+    if (!a) return '';
+    const mint  = a.template_mint ? `#${a.template_mint}` : '';
+    const price = _selected.get(id) || '';
+    const missingPrice = _mode === 'sell' && !price;
+    const priceRow = _mode === 'sell' ? `
+          <div class="bl-tray-price">
+            <input class="control-input${missingPrice ? ' bl-tray-price-input--missing' : ''}" type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01"
+              placeholder="0.00" value="${price}" data-id="${id}"
+              oninput="onPriceInput(this)"
+            />
+            <span class="bl-tray-wax">WAX</span>
+          </div>` : '';
+    return `
+      <div class="bl-tray-item${missingPrice ? ' bl-tray-item--missing-price' : ''}">
+        <div class="bl-tray-thumb">${mediaHtml(a, true)}</div>
+        <div class="bl-tray-info">
+          <div class="bl-tray-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
+          ${mint ? `<div class="bl-tray-mint">${mint}</div>` : ''}
+          ${priceRow}
+        </div>
+        <button class="bl-tray-remove" onclick="removeFromSelection('${id}')" title="Remove">✕</button>
+      </div>`;
+  }).join('');
+
+  if (_mode === 'sell') updateTotal();
+  updateActionBtn();
+}
+
+// Hard-caps a price input to 2 decimal places as you type — matches
+// inventory.html's listing modal (onPriceInput there).
+function clampPriceInput(el) {
+  const d = el.value.indexOf('.');
+  if (d !== -1 && el.value.length - d > 3) el.value = el.value.slice(0, d + 3);
+  return el.value;
+}
+
+function onSetAllPriceInput(el) {
+  clampPriceInput(el);
+}
+
+function onPriceInput(el) {
+  const val = clampPriceInput(el);
+  _selected.set(el.dataset.id, val);
+  updateTotal();
+  updateActionBtn();
+  // Re-render is needed so the missing-price highlight (row + input border)
+  // clears the moment a price is typed, not just after the tray is rebuilt
+  // for some other reason.
+  const item = el.closest('.bl-tray-item');
+  if (item) item.classList.toggle('bl-tray-item--missing-price', !val);
+  el.classList.toggle('bl-tray-price-input--missing', !val);
+}
+
+function onRecipientInput(val) {
+  _recipient = val;
+  updateActionBtn();
+}
+
+function applyFixedPriceToAll() {
+  const val = document.getElementById('setAllInput').value.trim();
+  if (!val) return;
+  for (const id of _selected.keys()) _selected.set(id, val);
+  renderTray();
+}
+
+/* ── Below-floor pricing ── */
+function applyBelowFloor(offsetFn) {
+  let noListings = 0;
+  let stillLoading = 0;
+  for (const id of _selected.keys()) {
+    const a      = _assets.find(a => String(a.asset_id) === id);
+    const tid    = a?.template?.template_id;
+    const cached = tid != null ? _floorCache[tid] : null;
+    if (!cached?.loaded) { stillLoading++; continue; }
+    if (cached.price == null) { noListings++; continue; }
+    const price = Math.max(0.01, Math.min(MAX_PRICE_WAX, offsetFn(cached.price)));
+    _selected.set(id, price.toFixed(2));
+  }
+  renderTray();
+  const note = document.getElementById('floorApplyNote');
+  if (note) {
+    const parts = [];
+    // Most of the time this is the real reason — no one has this template
+    // listed right now, so there's no floor to discount from — not a slow
+    // fetch, which is what the old wording implied.
+    if (noListings)   parts.push(`no active listings to base a floor on for ${noListings} item${noListings !== 1 ? 's' : ''}`);
+    if (stillLoading) parts.push(`floor price still loading for ${stillLoading} item${stillLoading !== 1 ? 's' : ''} — try again shortly`);
+    note.textContent = parts.length ? `Skipped (left unchanged): ${parts.join('; ')}.` : '';
+  }
+}
+
+function applyBelowFloorWax() {
+  const offset = parseFloat(document.getElementById('belowFloorWaxInput').value);
+  if (!isFinite(offset) || offset < 0) return;
+  applyBelowFloor(floor => floor - offset);
+}
+
+function applyBelowFloorPercent() {
+  const pct = parseFloat(document.getElementById('belowFloorPctInput').value);
+  if (!isFinite(pct) || pct < 0) return;
+  applyBelowFloor(floor => floor * (1 - pct / 100));
+}
+
+function updateTotal() {
+  let total = 0;
+  for (const p of _selected.values()) {
+    const n = parseFloat(p);
+    if (isFinite(n) && n > 0) total += n;
+  }
+  const el = document.getElementById('trayTotal');
+  if (el) el.textContent = `${total.toFixed(2)} WAX`;
+}
+
+function updateActionBtn() {
+  const btn = document.getElementById('blActionBtn');
+  if (!btn) return;
+  const n = _selected.size;
+
+  if (_mode === 'sell') {
+    const allValid = n > 0 && [..._selected.values()].every(p => {
+      const v = parseFloat(p);
+      return isFinite(v) && v >= 0.01 && v <= MAX_PRICE_WAX;
+    });
+    btn.disabled    = _busy || !allValid;
+    btn.textContent = n ? `List ${n} item${n !== 1 ? 's' : ''} for sale` : 'List for sale';
+  } else {
+    const recipient = _recipient.trim();
+    const valid = n > 0 && !!recipient && recipient !== window.getWaxAccount();
+    btn.disabled    = _busy || !valid;
+    btn.textContent = n && recipient ? `Transfer ${n} item${n !== 1 ? 's' : ''} to ${recipient}` : 'Transfer';
+  }
+}
+
+function setProgress(msg, type = '') {
+  const el = document.getElementById('blProgress');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'bl-progress' + (type ? ` is-${type}` : '');
+}
+
+function runAction() {
+  if (_mode === 'sell') return bulkList();
+  return bulkTransfer();
+}
+
+/* ── Shared chunked-transact skeleton (used by both Sell and Transfer) ── */
+async function runBulkAction(items, batchSize, buildActions, onChunkSuccess) {
+  if (_busy || !items.length) return 0;
+  const wallet = window.getWaxAccount();
+  if (!wallet) return 0;
+
+  _busy = true;
+  updateActionBtn();
+  setProgress('');
+
+  const chunks = [];
+  for (let i = 0; i < items.length; i += batchSize) chunks.push(items.slice(i, i + batchSize));
+
+  let done = 0;
+  for (let ci = 0; ci < chunks.length; ci++) {
+    setProgress(`Waiting for wallet — batch ${ci + 1} of ${chunks.length}…`);
+    const chunk   = chunks[ci];
+    const actions = buildActions(chunk, wallet);
+
+    try {
+      await WaxAuth.transact(actions);
+      onChunkSuccess(chunk);
+      done += chunk.length;
+      renderTray();
+      updateSelCount();
+    } catch (err) {
+      _busy = false;
+      updateActionBtn();
+      const msg  = (err?.message || '').toLowerCase();
+      const text = msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`;
+      setProgress(text, 'error');
+      return done;
+    }
+  }
+
+  _busy = false;
+  updateActionBtn();
+  return done;
+}
+
+/* ── Sell ── */
+async function bulkList() {
+  const items = [..._selected.entries()].filter(([, p]) => {
+    const n = parseFloat(p);
+    return isFinite(n) && n >= 0.01 && n <= MAX_PRICE_WAX;
+  });
+  if (!items.length) return;
+
+  const listed = await runBulkAction(items, BATCH_SIZE_SELL, (chunk, wallet) => {
+    const actions = [];
+    for (const [assetId, priceStr] of chunk) {
+      const asset = _assets.find(a => String(a.asset_id) === assetId);
+      if (!asset) continue;
+      const priceWax     = Math.round(parseFloat(priceStr) * 100) / 100;
+      const listingPrice = `${priceWax.toFixed(8)} WAX`;
+      actions.push(
+        {
+          account: 'atomicmarket',
+          name: 'announcesale',
+          authorization: [{ actor: wallet, permission: 'active' }],
+          data: {
+            seller:            wallet,
+            asset_ids:         [asset.asset_id],
+            listing_price:     listingPrice,
+            settlement_symbol: '8,WAX',
+            maker_marketplace: MAKER,
+          },
+        },
+        {
+          account: 'atomicassets',
+          name: 'createoffer',
+          authorization: [{ actor: wallet, permission: 'active' }],
+          data: {
+            sender:              wallet,
+            recipient:           'atomicmarket',
+            sender_asset_ids:    [asset.asset_id],
+            recipient_asset_ids: [],
+            memo:                'sale',
+          },
+        }
+      );
+    }
+    return actions;
+  }, (chunk) => {
+    for (const [assetId, priceStr] of chunk) {
+      const priceWax = Math.round(parseFloat(priceStr) * 100) / 100;
+      _selected.delete(assetId);
+      _listings.set(assetId, { sale_id: null, price_wax: priceWax });
+      const card = document.querySelector(`.bl-card[data-id="${assetId}"]`);
+      if (card) {
+        card.classList.remove('selected');
+        card.classList.add('bl-card--listed');
+        card.querySelector('.bl-card-check')?.remove();
+        let note = card.querySelector('.bl-card-listed-note');
+        if (!note) {
+          note = document.createElement('div');
+          note.className = 'bl-card-listed-note';
+          card.querySelector('.bl-card-body').appendChild(note);
+        }
+        note.textContent = `Listed: ${priceWax.toFixed(2)} WAX`;
+      }
+    }
+  });
+
+  if (listed) {
+    setProgress(`${listed} item${listed !== 1 ? 's' : ''} listed successfully!`, 'success');
+    setTimeout(() => setProgress(''), 6000);
+  }
+}
+
+/* ── Transfer ── */
+async function bulkTransfer() {
+  const recipient = _recipient.trim();
+  const items     = [..._selected.keys()];
+  if (!recipient || !items.length || recipient === window.getWaxAccount()) return;
+
+  const moved = await runBulkAction(items, BATCH_SIZE_TRANSFER, (chunk, wallet) => [{
+    account: 'atomicassets',
+    name: 'transfer',
+    authorization: [{ actor: wallet, permission: 'active' }],
+    data: {
+      from:      wallet,
+      to:        recipient,
+      asset_ids: chunk,
+      memo:      'Bulk transfer via Hoardio',
+    },
+  }], (chunk) => {
+    for (const assetId of chunk) {
+      _selected.delete(assetId);
+      _assets = _assets.filter(a => String(a.asset_id) !== assetId);
+      const card = document.querySelector(`.bl-card[data-id="${assetId}"]`);
+      if (card) card.remove();
+    }
+  });
+
+  if (moved) {
+    setProgress(`${moved} item${moved !== 1 ? 's' : ''} transferred successfully!`, 'success');
+    setTimeout(() => setProgress(''), 6000);
+  }
+}
+
+/* ── Filter handlers ── */
+let _searchTimer = null;
+function onSearchChange() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    _filterText = document.getElementById('blSearch').value.trim();
+    loadAssets(true);
+  }, 350);
+}
+
+/* ── Init ── */
+switchMode(_mode, { push: false });
+initInfiniteScroll();
+
+</script>
+
+</body>
+</html>
