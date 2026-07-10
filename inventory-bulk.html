@@ -159,8 +159,7 @@
       display: flex; flex-direction: column; gap: 0.8rem;
     }
     .bl-tray-mode {
-      text-align: center; font-size: 0.72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.08em;
+      text-align: center;
       padding: 0.55rem 1.25rem; margin: -1.25rem -1.25rem 0;
       border-radius: 18px 18px 0 0; border-bottom: 2px solid transparent;
     }
@@ -171,6 +170,13 @@
     .bl-tray-mode--transfer {
       color: #ff6b6b; background: rgba(255,107,107,0.1);
       border-bottom-color: rgba(255,107,107,0.4);
+    }
+    .bl-tray-mode-title {
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .bl-tray-batch-note {
+      font-size: 0.7rem; font-weight: 600; opacity: 0.9; margin-top: 0.25rem;
     }
     .bl-tray-head {
       display: flex; align-items: center; justify-content: space-between;
@@ -428,7 +434,10 @@
         </div>
 
         <div class="bl-tray">
-          <div class="bl-tray-mode" id="trayModeLabel"></div>
+          <div class="bl-tray-mode" id="trayModeLabel">
+            <div class="bl-tray-mode-title" id="trayModeTitle"></div>
+            <div class="bl-tray-batch-note" id="trayBatchNote"></div>
+          </div>
           <div class="bl-tray-head">
             <span class="bl-tray-title">Selected<span class="bl-tray-count" id="trayCount"> 0</span></span>
             <button class="bl-tray-clearall" onclick="clearSelection()">Clear all</button>
@@ -732,9 +741,11 @@ function switchMode(mode, { push = true } = {}) {
   document.getElementById('transferPanel').style.display = mode === 'transfer' ? '' : 'none';
   document.getElementById('sellTotal').style.display     = mode === 'sell' ? '' : 'none';
 
-  const modeLabel = document.getElementById('trayModeLabel');
-  modeLabel.textContent = mode === 'sell' ? 'Sell Mode' : 'Transfer Mode';
-  modeLabel.className   = `bl-tray-mode bl-tray-mode--${mode}`;
+  document.getElementById('trayModeLabel').className = `bl-tray-mode bl-tray-mode--${mode}`;
+  document.getElementById('trayModeTitle').textContent = mode === 'sell' ? 'Sell Mode' : 'Transfer Mode';
+
+  const batchSize = mode === 'sell' ? BATCH_SIZE_SELL : BATCH_SIZE_TRANSFER;
+  document.getElementById('trayBatchNote').textContent = `1 wallet signature per ${batchSize} items`;
 
   clearSelection();
   setProgress('');
