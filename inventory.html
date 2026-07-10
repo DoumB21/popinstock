@@ -131,15 +131,7 @@
       color: var(--text-secondary); opacity: 0.5; cursor: default; pointer-events: none;
     }
 
-    /* ── Load more ── */
-    .load-more-btn {
-      background: rgba(240,168,64,0.08); border: 1px solid rgba(240,168,64,0.3);
-      color: var(--accent-light); border-radius: 8px; padding: 0.55rem 1.75rem;
-      font-size: 0.88rem; font-weight: 600; cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .load-more-btn:hover:not(:disabled) { background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.55); }
-    .load-more-btn:disabled { opacity: 0.45; cursor: default; }
+    /* .load-more-btn's look lives in shared/global.css alongside .bl-loadmore-btn */
 
     /* ── Modal overlay ── */
     .panel-overlay {
@@ -440,11 +432,9 @@
       </div>
       <div class="control-group control-group--wide">
         <label class="control-label">Collection</label>
-        <div class="cb-dropdown" id="colDropdown">
-          <button class="cb-dropdown-btn" type="button">
-            <span class="cb-label">All collections</span>
-            <span class="cb-arrow">▾</span>
-          </button>
+        <div class="cb-combo" id="colCombo">
+          <input type="text" class="cb-combo-input" id="colComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="colComboClear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel"></div>
         </div>
       </div>
@@ -572,6 +562,7 @@ let _listings        = new Map();   // asset_id → { sale_id, price_wax }
 let _page            = 1;
 let _hasMore         = false;
 let _loading         = false;
+let _autoLoadArmed   = false; // true once the user has manually clicked "Load more" once — see initInfiniteScroll
 let _filterText          = '';
 let _filterCol           = 'all';
 let _filterSchema        = 'all';
@@ -1154,6 +1145,23 @@ function closeAllCbDropdowns() {
     d.querySelector('.cb-panel').classList.remove('open');
     d.querySelector('.cb-dropdown-btn').classList.remove('open');
   });
+  closeAllCbCombos();
+}
+
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}${i.disabled ? ' disabled' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+
+function renderCbItemsInto(listEl, items, currentValue, onSelect) {
+  listEl.innerHTML = items.length
+    ? items.map(i => cbItemHtml(i, currentValue)).join('')
+    : `<div class="cb-empty">No matches</div>`;
+  listEl.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
 }
 
 function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
@@ -1162,14 +1170,92 @@ function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
   const panel   = container.querySelector('.cb-panel');
   const active  = items.find(i => i.value === currentValue);
   labelEl.textContent = active ? active.label : (items[0]?.label || '');
-  panel.innerHTML = items.map(i =>
-    `<div class="cb-item${i.value === currentValue ? ' active' : ''}${i.disabled ? ' disabled' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`
-  ).join('');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
   panel.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
     item.addEventListener('click', () => {
       closeAllCbDropdowns();
       onSelect(item.dataset.val);
     });
+  });
+}
+
+/* ── Combobox — a type-to-search input that doubles as the trigger. `items[0]`
+   is always the "All ..." sentinel: reflected as the input's placeholder /
+   clear-button state, never rendered as a row in the list. */
+function syncCbComboDisplay(combo) {
+  const input   = combo.querySelector('.cb-combo-input');
+  const clear   = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._cbItems[0];
+  const active  = combo._cbItems.find(i => i.value === combo._cbCurrentValue) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function closeAllCbCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    combo.classList.remove('open');
+    if (combo._cbItems) syncCbComboDisplay(combo);
+  });
+}
+
+function buildCbCombo(comboId, items, currentValue, onSelect) {
+  const combo = document.getElementById(comboId);
+  combo._cbItems        = items;
+  combo._cbCurrentValue = currentValue;
+  combo._cbOnSelect     = onSelect;
+  syncCbComboDisplay(combo);
+  if (combo._cbWired) return;
+  combo._cbWired = true;
+
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._cbItems.slice(1); // exclude the "All ..." sentinel — it's the placeholder/clear, not a row
+    const filtered = q
+      ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
+      : options;
+    renderCbItemsInto(panel, filtered, combo._cbCurrentValue, val => {
+      combo._cbCurrentValue = val;
+      closeAllCbDropdowns();
+      combo._cbOnSelect(val);
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCbDropdowns();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllCbDropdowns();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item:not(.disabled)')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    // Delayed so a click on a list item (which blurs the input first) still registers before we close.
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllCbDropdowns(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault()); // don't steal focus away from the input
+  clear.addEventListener('click', () => {
+    combo._cbCurrentValue = combo._cbItems[0].value;
+    syncCbComboDisplay(combo);
+    combo._cbOnSelect(combo._cbCurrentValue);
+    input.blur();
   });
 }
 
@@ -1322,7 +1408,7 @@ function updateColFilter() {
       return { value: c, label };
     })];
   const cur = _colItemsCache.some(i => i.value === _filterCol) ? _filterCol : 'all';
-  buildSingleCbDropdown('colDropdown', _colItemsCache, cur, onColFilterChange);
+  buildCbCombo('colCombo', _colItemsCache, cur, onColFilterChange);
 }
 
 function onColFilterChange(val) {
@@ -1333,7 +1419,7 @@ function onColFilterChange(val) {
   document.getElementById('schemaGroup').style.display = 'none';
   document.getElementById('rarityGroup').style.display = 'none';
   document.getElementById('cardIdGroup').style.display = 'none';
-  buildSingleCbDropdown('colDropdown', _colItemsCache, _filterCol, onColFilterChange);
+  buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
 
   const col = _filterCol;
   if (col !== 'all') {
@@ -1457,7 +1543,7 @@ async function readUrlParams() {
 async function loadAssets(reset = false, walletChange = false) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet || _loading) return;
-  if (reset) { _assets = []; _page = 1; _hasMore = false; syncUrl(); }
+  if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; syncUrl(); }
 
   if (computeTemplateWhitelist() === 'EMPTY') {
     document.getElementById('invGrid').style.display      = 'none';
@@ -1734,6 +1820,7 @@ async function sortByBuyOffer() {
   _buyOfferBuffer   = [];
   _buyOfferChunkIdx = 0;
   _clientPage       = PAGE_SIZE;
+  _autoLoadArmed    = false;
 
   // Cancel in-flight image loads and release old video observer references
   // so the browser isn't fetching thousands of old IPFS assets in the background.
@@ -2617,7 +2704,8 @@ function renderSortDropdown() {
   });
 }
 renderSortDropdown();
-document.getElementById('loadMoreBtn').addEventListener('click', async () => {
+
+async function loadNextChunk() {
   if (_sortOrder === 'buyoffer_desc') {
     const btn = document.getElementById('loadMoreBtn');
     const prev = _clientPage;
@@ -2644,7 +2732,30 @@ document.getElementById('loadMoreBtn').addEventListener('click', async () => {
   } else {
     loadAssets(false);
   }
-});
+}
+
+/* Clicking "Load more" once arms infinite scroll for the rest of this filter
+   set — after that, reaching the button again auto-loads the next chunk
+   (like AtomicHub), no more clicking required. A fresh filter/search/sort
+   change disarms it again (see the reset branches above), so a first click
+   is always required again on a new result set. */
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadNextChunk();
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+let _loadMoreObs = null;
+function initInfiniteScroll() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn  = document.getElementById('loadMoreBtn');
+  _loadMoreObs = new IntersectionObserver(entries => {
+    if (!_autoLoadArmed || btn.disabled || wrap.style.display === 'none') return;
+    if (entries[0].isIntersecting) loadNextChunk();
+  }, { rootMargin: '600px' });
+  _loadMoreObs.observe(wrap);
+}
+initInfiniteScroll();
 document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
 
 // Checkbox / single-select dropdown toggle
@@ -2666,7 +2777,10 @@ window.addEventListener('wax-auth-change', onWalletChange);
 document.addEventListener('DOMContentLoaded', () => {
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: 'shared/wax-auth.js',
-    menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
+    menuItems: [
+      { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+      { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+    ],
   });
   onWalletChange();
 });
@@ -2676,7 +2790,7 @@ document.addEventListener('click', e => {
   if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.inv-card')) {
     closeInfoPopup();
   }
-  if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
+  if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllCbDropdowns();
 });
 </script>
 </body>
