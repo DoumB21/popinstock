@@ -162,14 +162,7 @@
 
     /* ── Load more ── */
     #loadMoreWrap { display: none; text-align: center; padding: 2rem 0 1rem; }
-    #loadMoreBtn {
-      padding: 0.6rem 2rem; background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text-primary); font-size: 0.88rem; font-weight: 600;
-      cursor: pointer; transition: background 0.15s, border-color 0.15s;
-    }
-    #loadMoreBtn:hover:not(:disabled) { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
-    #loadMoreBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* #loadMoreBtn's look lives in shared/global.css (.load-more-btn, shared with inventory.html/inventory-bulk.html) */
 
     /* ── Retry / error states ── */
     .retry-btn {
@@ -383,7 +376,7 @@
     <div class="results-status" id="resultsStatus" style="display:none"></div>
     <div class="cards-grid" id="cardsGrid"></div>
     <div id="loadMoreWrap">
-      <button id="loadMoreBtn">Load more</button>
+      <button id="loadMoreBtn" class="load-more-btn">Load more</button>
     </div>
   </main>
 
@@ -439,6 +432,7 @@ let _shownN  = 0;
 let _apiPage = 1;
 let _apiDone = false;
 let _busy    = false;
+let _autoLoadArmed = false; // true once the user has manually clicked "Load more" once — see initInfiniteScroll
 
 /* ── Utils ── */
 function esc(s) {
@@ -1024,7 +1018,7 @@ document.getElementById('clearFiltersBtn').addEventListener('click', clearFilter
 function resetResults() {
   _gen++;
   _seen.clear(); _queue = [];
-  _shownN = 0; _apiPage = 1; _apiDone = false; _busy = false;
+  _shownN = 0; _apiPage = 1; _apiDone = false; _busy = false; _autoLoadArmed = false;
   _videoObserver?.disconnect(); // grid is about to be wiped — drop refs to the old (soon-detached) video elements
   document.getElementById('cardsGrid').innerHTML    = '';
   document.getElementById('loadMoreWrap').style.display  = 'none';
@@ -1248,7 +1242,27 @@ function buildCardHtml(sale, asset) {
   </div>`;
 }
 
-document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
+/* Clicking "Load more" once arms infinite scroll for the rest of this filter
+   set — after that, reaching the button again auto-loads the next chunk
+   (like AtomicHub), no more clicking required. Any filter/search/sort change
+   disarms it again (see resetResults), so a first click is always required
+   on a new result set. */
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadMore();
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+let _loadMoreObs = null;
+function initInfiniteScroll() {
+  const wrap = document.getElementById('loadMoreWrap');
+  _loadMoreObs = new IntersectionObserver(entries => {
+    if (!_autoLoadArmed || _busy || wrap.style.display === 'none') return;
+    if (entries[0].isIntersecting) loadMore();
+  }, { rootMargin: '600px' });
+  _loadMoreObs.observe(wrap);
+}
+initInfiniteScroll();
 
 /* ── URL sync ── */
 function pushUrl() {
@@ -1329,7 +1343,10 @@ async function restoreFromUrl() {
 /* ── Init ── */
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
-  menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
+  menuItems: [
+    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+  ],
 });
 fetchWaxUsd();
 restoreFromUrl();
