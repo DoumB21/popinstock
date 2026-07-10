@@ -657,7 +657,8 @@ body::before {
 
 /* Primary — gold gradient */
 .search-btn,
-.lookup-btn {
+.lookup-btn,
+.bl-list-btn {
   background: linear-gradient(135deg, var(--accent-light), var(--accent));
   color: #fff;
   border: none;
@@ -672,10 +673,12 @@ body::before {
 }
 
 .search-btn:hover:not(:disabled),
-.lookup-btn:hover:not(:disabled) { opacity: 0.85; }
+.lookup-btn:hover:not(:disabled),
+.bl-list-btn:hover:not(:disabled) { opacity: 0.85; }
 
 .search-btn:disabled,
-.lookup-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.lookup-btn:disabled,
+.bl-list-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Secondary — subtle */
 .ctrl-btn,
@@ -693,6 +696,25 @@ body::before {
   white-space: nowrap;
   font-family: inherit;
 }
+
+/* Tertiary — amber outline (Load more) */
+.load-more-btn,
+.bl-loadmore-btn {
+  background: rgba(240,168,64,0.08);
+  border: 1px solid rgba(240,168,64,0.3);
+  color: var(--accent-light);
+  border-radius: 8px;
+  padding: 0.55rem 1.75rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.load-more-btn:hover:not(:disabled),
+.bl-loadmore-btn:hover:not(:disabled) { background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.55); }
+.load-more-btn:disabled,
+.bl-loadmore-btn:disabled { opacity: 0.45; cursor: default; }
 
 .ctrl-btn:hover,
 .clear-btn:hover,
@@ -807,6 +829,48 @@ body::before {
   accent-color: var(--accent-light); width: 14px; height: 14px;
   flex-shrink: 0; cursor: pointer;
 }
+
+/* ── Combobox — a type-to-search input that doubles as the trigger (no
+   separate button + nested search box). The "All ..." choice is the input's
+   placeholder/empty state, not a row in the list — matches AtomicHub's
+   collection picker. Reuses .cb-panel/.cb-item for the dropdown list. ── */
+.cb-combo { position: relative; }
+.cb-combo-input {
+  width: 100%;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.6rem 2.1rem 0.6rem 0.9rem;
+  color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
+  text-overflow: ellipsis;
+  transition: border-color 0.2s;
+}
+.controls-card .cb-combo-input,
+.ex-sidebar .cb-combo-input { background: var(--bg); }
+.cb-combo-input::placeholder { color: var(--text-secondary); opacity: 1; }
+.cb-combo-input:focus { outline: none; border-color: rgba(192,120,40,0.5); }
+.cb-combo.has-selection .cb-combo-input { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
+.cb-combo-clear {
+  position: absolute; right: 0.55rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 0.8rem; cursor: pointer; padding: 0.25rem; line-height: 1;
+  border-radius: 4px; transition: color 0.15s;
+}
+.cb-combo-clear:hover { color: var(--text-primary); }
+
+/* Searchable variant (long lists, e.g. Collection) — search box pinned above a scrolling item list */
+.cb-panel--searchable { padding: 0; }
+.cb-panel--searchable.open { display: flex; flex-direction: column; }
+.cb-search-wrap { padding: 0.5rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+.cb-search-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem;
+  color: var(--text-primary); font-size: 0.82rem; font-family: inherit;
+}
+.cb-search-input:focus { outline: none; border-color: rgba(192,120,40,0.5); }
+.cb-items { overflow-y: auto; max-height: 240px; }
+.cb-items::-webkit-scrollbar { width: 4px; }
+.cb-items::-webkit-scrollbar-track { background: transparent; }
+.cb-items::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+.cb-empty { padding: 0.55rem 0.85rem; font-size: 0.82rem; color: var(--text-secondary); }
 
 /* ── Clear filters button ── */
 .clear-filters-btn {
