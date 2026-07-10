@@ -219,6 +219,8 @@
     }
     .bl-set-all-btn:hover { background: rgba(255,255,255,0.13); }
     .bl-price-note { font-size: 0.68rem; color: var(--accent-light); min-height: 1em; }
+    .bl-price-note-link { color: inherit; text-decoration: underline; font-weight: 600; }
+    .bl-price-note-link:hover { color: var(--text-primary); }
 
     /* Transfer: recipient panel */
     .bl-transfer-panel {
@@ -516,7 +518,7 @@ const BATCH_SIZE_TRANSFER = 50; // 1 action carries the whole chunk's asset_ids 
 // volume by lowering this number in the first place.
 const PAGE_SIZE           = 20;
 const MAX_PRICE_WAX       = 10_000_000; // matches inventory.html's listing cap
-const MAX_SELECTED        = 350; // tray rendering (thumbnails incl. autoplay video, price inputs) got unusably slow well past this on a 749-item selection — cap until the tray itself is optimized
+const MAX_SELECTED        = 350; // tray rendering (thumbnails, price inputs) got unusably slow well past this on a 749-item selection — cap until the tray itself is optimized. Thumbs are lazy-loaded (see mediaHtml/initLazyVideos), so this is no longer about autoplaying video all at once.
 
 // Same list as inventory.html's SORT_OPTIONS, minus "Buy Offer (Highest)" —
 // that option depends on inventory.html's buy-offer fetch machinery, which
@@ -626,14 +628,16 @@ function onCardImgError(el) {
   el.style.display = 'none';
 }
 
-function mediaHtml(a, thumb = false) {
+function mediaHtml(a) {
   const d     = a.data || {};
   const t     = a.template?.immutable_data || {};
   const video = d.video || t.video || '';
   const img   = d.img || d.image || t.img || t.image || '';
   const style = 'width:100%;height:100%;object-fit:contain;display:block';
   if (video) {
-    if (thumb) return `<video src="${imgUrl(video)}" muted playsinline loop autoplay style="${style}"></video>`;
+    // Always lazy — the tray can hold up to MAX_SELECTED (350) items, and
+    // eagerly autoplaying that many raw (untranscoded, sometimes 10s of MB)
+    // video files at once used to crash the tab. See initLazyVideos().
     return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="${style}"></video>`;
   }
   if (img) {
@@ -660,7 +664,7 @@ function initLazyVideos() {
       }
     }
   }, { rootMargin: '300px' }); // pre-load 300px ahead, matching explore.html/inventory.html
-  document.querySelectorAll('.bl-card-img video[data-src]').forEach(v => _videoObs.observe(v));
+  document.querySelectorAll('.bl-card-img video[data-src], .bl-tray-thumb video[data-src]').forEach(v => _videoObs.observe(v));
 }
 
 /* ── Nav / wallet ── */
@@ -1839,7 +1843,7 @@ function renderTray() {
           </div>` : '';
     return `
       <div class="bl-tray-item${missingPrice ? ' bl-tray-item--missing-price' : ''}">
-        <div class="bl-tray-thumb">${mediaHtml(a, true)}</div>
+        <div class="bl-tray-thumb">${mediaHtml(a)}</div>
         <div class="bl-tray-info">
           <div class="bl-tray-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
           ${mint ? `<div class="bl-tray-mint">${mint}</div>` : ''}
@@ -1848,6 +1852,8 @@ function renderTray() {
         <button class="bl-tray-remove" onclick="removeFromSelection('${id}')" title="Remove">✕</button>
       </div>`;
   }).join('');
+
+  initLazyVideos();
 
   if (_mode === 'sell') updateTotal();
   updateActionBtn();
@@ -1891,16 +1897,30 @@ function applyFixedPriceToAll() {
 }
 
 /* ── Below-floor pricing ── */
+// Items with no active listing to compare against get their price cleared
+// (not left unchanged) so the tray's missing-price highlight forces a manual
+// decision — otherwise a stale/leftover price could slip into a listing that
+// was never actually checked against a floor. _floorNoListingIds backs the
+// "Remove skipped items" link so those can be dropped from the tray in bulk
+// instead of one at a time.
+let _floorNoListingIds = [];
+
 function applyBelowFloor(offsetFn) {
-  let noListings = 0;
+  let cleared = 0;
   let stillLoading = 0;
+  _floorNoListingIds = [];
   const assetsById = assetsIndex();
   for (const id of _selected.keys()) {
     const a      = assetsById.get(id);
     const tid    = a?.template?.template_id;
     const cached = tid != null ? _floorCache[tid] : null;
     if (!cached?.loaded) { stillLoading++; continue; }
-    if (cached.price == null) { noListings++; continue; }
+    if (cached.price == null) {
+      _selected.set(id, '');
+      _floorNoListingIds.push(id);
+      cleared++;
+      continue;
+    }
     const price = Math.max(0.01, Math.min(MAX_PRICE_WAX, offsetFn(cached.price)));
     _selected.set(id, price.toFixed(2));
   }
@@ -1911,10 +1931,31 @@ function applyBelowFloor(offsetFn) {
     // Most of the time this is the real reason — no one has this template
     // listed right now, so there's no floor to discount from — not a slow
     // fetch, which is what the old wording implied.
-    if (noListings)   parts.push(`no active listings to base a floor on for ${noListings} item${noListings !== 1 ? 's' : ''}`);
+    if (cleared)      parts.push(`no active listings to base a floor on for ${cleared} item${cleared !== 1 ? 's' : ''} — price cleared, enter one manually or remove ${cleared !== 1 ? 'them' : 'it'}`);
     if (stillLoading) parts.push(`floor price still loading for ${stillLoading} item${stillLoading !== 1 ? 's' : ''} — try again shortly`);
-    note.textContent = parts.length ? `Skipped (left unchanged): ${parts.join('; ')}.` : '';
+    const removeLink = cleared ? ` <a href="#" class="bl-price-note-link" onclick="removeFloorSkipped(); return false;">Remove skipped items</a>` : '';
+    note.innerHTML = parts.length ? `${parts.join('; ')}.${removeLink}` : '';
   }
+}
+
+function removeFloorSkipped() {
+  for (const id of _floorNoListingIds) {
+    // Skip anything the user already gave a manual price to since the
+    // clear-and-flag happened — only sweep away ones still actually empty.
+    if (_selected.get(id)) continue;
+    _selected.delete(id);
+    const card = document.querySelector(`.bl-card[data-id="${id}"]`);
+    if (card) {
+      card.classList.remove('selected');
+      const chk = card.querySelector('.bl-card-check');
+      if (chk) chk.textContent = '';
+    }
+  }
+  _floorNoListingIds = [];
+  updateSelCount();
+  renderTray();
+  const note = document.getElementById('floorApplyNote');
+  if (note) note.innerHTML = '';
 }
 
 function applyBelowFloorWax() {
