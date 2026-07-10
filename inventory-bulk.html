@@ -45,14 +45,32 @@
     .mint-range-inputs .control-input { flex: 1; min-width: 0; }
     .range-sep { color: var(--text-secondary); flex-shrink: 0; }
 
+    .bl-checkbox-label {
+      display: flex; align-items: center; gap: 0.45rem;
+      font-size: 0.82rem; color: var(--text-primary);
+      cursor: pointer; user-select: none; white-space: nowrap;
+      padding: 0.55rem 0;
+    }
+    .bl-checkbox-label input[type="checkbox"] {
+      accent-color: var(--accent-light); width: 15px; height: 15px;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .bl-checkbox-label:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+    .bl-checkbox-label input:disabled { cursor: not-allowed; }
+
     /* ── Layout ── */
     .bl-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
     .bl-content { flex: 1; min-width: 0; }
 
     /* ── Toolbar ── */
-    .bl-toolbar {
+    .bl-toolbar { margin-bottom: 0.9rem; }
+    .bl-toolbar-counts {
       display: flex; align-items: center; gap: 0.75rem;
-      flex-wrap: wrap; margin-bottom: 0.9rem;
+      flex-wrap: wrap; margin-bottom: 0.6rem;
+    }
+    .bl-toolbar-btns {
+      display: flex; align-items: center; gap: 0.75rem;
+      flex-wrap: wrap;
     }
     .bl-toolbar-count  { font-size: 0.82rem; color: var(--text-secondary); }
     .bl-toolbar-selcount { font-size: 0.82rem; font-weight: 600; color: var(--accent-light); }
@@ -70,10 +88,15 @@
     .bl-toolbar-btn--active:hover { background: rgba(240,168,64,0.2); color: var(--accent-light); }
 
     /* ── Grid ── */
+    /* Matches explore.html's card width (168px) rather than inventory.html's
+       tighter one (130px) — inventory can afford a denser 6-wide grid since
+       it has no side tray; the tray here already eats ~290px, so packing
+       cards just as tight left too little room for the USD tag and mint
+       badge, landing around 5-wide instead of 6 at the same content width. */
     .bl-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 1rem;
     }
 
     /* ── Card ── */
@@ -113,14 +136,14 @@
       pointer-events: none;
     }
 
-    .bl-card-body { padding: 0.45rem 0.5rem 0.5rem; }
+    .bl-card-body { padding: 0.7rem; }
     .bl-card-name {
-      font-size: 0.7rem; font-weight: 600; color: var(--text-primary);
+      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .bl-card-meta  { font-size: 0.62rem; color: #9999bb; margin-top: 0.1rem; }
-    .bl-card-floor { font-size: 0.62rem; font-weight: 600; color: #c8903a; margin-top: 0.15rem; }
-    .bl-card-listed-note { font-size: 0.64rem; font-weight: 700; color: #4ade80; margin-top: 0.2rem; }
+    .bl-card-meta  { font-size: 0.72rem; color: #9999bb; margin-top: 0.15rem; }
+    .bl-card-floor { font-size: 0.72rem; font-weight: 600; color: #c8903a; margin-top: 0.2rem; }
+    .bl-card-listed-note { font-size: 0.74rem; font-weight: 700; color: #4ade80; margin-top: 0.25rem; }
 
     /* ── Load more ── */
     .bl-loadmore-wrap { text-align: center; padding: 1.5rem 0 0.5rem; }
@@ -266,6 +289,7 @@
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
 </head>
@@ -318,6 +342,16 @@
               <div class="cb-panel" id="blColPanel"></div>
             </div>
           </div>
+          <div class="control-group control-group--narrow">
+            <label class="control-label">Sort by</label>
+            <div class="cb-dropdown" id="blSortDd">
+              <button class="cb-dropdown-btn" id="blSortTrigger" type="button">
+                <span class="cb-label">Transferred (Newest)</span>
+                <span class="cb-arrow">▼</span>
+              </button>
+              <div class="cb-panel" id="blSortPanel"></div>
+            </div>
+          </div>
         </div>
         <div class="controls-row filter-row">
           <div class="control-group" id="blSchemaGroup" style="display:none">
@@ -348,6 +382,17 @@
               <input id="blMintMax" type="number" class="control-input" placeholder="Max" min="1" />
             </div>
           </div>
+          <div class="control-group control-group--narrow">
+            <label class="control-label">Duplicates</label>
+            <label class="bl-checkbox-label" id="blExcludeLowestLabel" title="Select a collection to enable this filter">
+              <input type="checkbox" id="blExcludeLowestMint" disabled />
+              Exclude lowest mint
+            </label>
+            <label class="bl-checkbox-label" id="blOnlyHighestLabel" title="Select a collection to enable this filter">
+              <input type="checkbox" id="blOnlyHighestMint" disabled />
+              Only highest mint
+            </label>
+          </div>
           <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end;">
             <button id="blClearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
           </div>
@@ -358,11 +403,16 @@
 
         <div class="bl-content">
           <div class="bl-toolbar">
-            <span class="bl-toolbar-count" id="blCount"></span>
-            <span class="bl-toolbar-selcount" id="blSelCount" style="display:none"></span>
-            <button class="bl-toolbar-btn" onclick="selectAllVisible()">Select all visible</button>
-            <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
-            <button class="bl-toolbar-btn" id="hideListedBtn" onclick="toggleHideListed()">Hide listed</button>
+            <div class="bl-toolbar-counts">
+              <span class="bl-toolbar-count" id="blCount"></span>
+              <span class="bl-toolbar-selcount" id="blSelCount" style="display:none"></span>
+            </div>
+            <div class="bl-toolbar-btns">
+              <button class="bl-toolbar-btn" onclick="selectAllVisible()">Select all visible</button>
+              <button class="bl-toolbar-btn" id="selectAllMatchBtn" style="display:none" onclick="selectAllMatchingFilters()">Select all matching filters</button>
+              <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
+              <button class="bl-toolbar-btn" id="hideListedBtn" onclick="toggleHideListed()">Hide listed</button>
+            </div>
           </div>
 
           <div id="blLoadWrap" class="status-wrap" style="display:none">
@@ -448,8 +498,27 @@
 const MAKER              = 'popinstockgo';
 const BATCH_SIZE_SELL     = 10; // 2 actions/asset (announcesale+createoffer) — proven value from the single-item listing flow
 const BATCH_SIZE_TRANSFER = 50; // 1 action carries the whole chunk's asset_ids — no precedent in this codebase yet, tune after real-world testing
-const PAGE_SIZE           = 36;
+// 5 columns × 4 full rows. 5 is the true ceiling here, not a guess: shared/global.css
+// caps .content at 1280px site-wide; after the 290px tray + 1.5rem gap, .bl-content
+// tops out around 918px, where 5 cards at 168px+1rem gap (904px) fit but 6 (1088px)
+// never can, at any viewport width. Narrower tablet widths (~590-760px) can drop to
+// 3 columns, where 20 leaves a partial row — accepted, since a page size divisible by
+// 3/4/5 alike (the LCM is 60) would undo the earlier fix that cut floor-price call
+// volume by lowering this number in the first place.
+const PAGE_SIZE           = 20;
 const MAX_PRICE_WAX       = 10_000_000; // matches inventory.html's listing cap
+const MAX_SELECTED        = 350; // tray rendering (thumbnails incl. autoplay video, price inputs) got unusably slow well past this on a 749-item selection — cap until the tray itself is optimized
+
+// Same list as inventory.html's SORT_OPTIONS, minus "Buy Offer (Highest)" —
+// that option depends on inventory.html's buy-offer fetch machinery, which
+// this page doesn't have.
+const SORT_OPTIONS = [
+  { value: 'transferred_desc', label: 'Transferred (Newest)', sort: 'transferred',   order: 'desc' },
+  { value: 'transferred_asc',  label: 'Transferred (Oldest)', sort: 'transferred',   order: 'asc'  },
+  { value: 'mint_desc',        label: 'Mint (Highest)',       sort: 'template_mint', order: 'desc' },
+  { value: 'mint_asc',         label: 'Mint (Lowest)',        sort: 'template_mint', order: 'asc'  },
+  { value: 'name_asc',         label: 'Alphabetical (A-Z)',   sort: 'name',          order: 'asc'  },
+];
 
 let _mode       = new URLSearchParams(location.search).get('mode') === 'transfer' ? 'transfer' : 'sell';
 let _assets     = [];
@@ -460,6 +529,7 @@ let _recipient  = '';
 let _page       = 1;
 let _hasMore    = false;
 let _loading    = false;
+let _pendingReload = false; // a filter changed while _loading was already true — see finishLoading()
 let _autoLoadArmed = false; // true once the user has manually clicked "Load more" once — see initInfiniteScroll
 let _busy       = false;
 
@@ -469,6 +539,11 @@ let _filterText     = '';
 let _filterMintMin  = '';
 let _filterMintMax  = '';
 const _selectedRarities = new Set();
+let _excludeLowestMint   = false; // only selectable once a single collection is chosen — see loadAssetsFullScan
+let _excludedLowestCount = 0;
+let _onlyHighestMint     = false; // mutually exclusive with _excludeLowestMint — see loadAssetsOnlyHighest
+let _onlyHighestCount    = 0; // number of duplicate templates contributing an asset to the current view
+let _sortOrder           = SORT_OPTIONS[0].value;
 
 let _collections      = new Set();
 let _collectionNames  = new Map();
@@ -478,11 +553,34 @@ let _schemaCache     = {};
 let _lastSchemas     = [];
 const _templateCache = {}; // collection_name → [{template_id, schema_name, rarity}] — used to compute a template_whitelist for rarity filtering
 let _floorCache = {}; // template_id → { loaded, price }
+let _activeWallet = null; // tracks last connected wallet; null = fresh page load (vs. a mid-session wallet switch)
 
 /* ── Helpers ── */
 window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
 
 const enc = s => encodeURIComponent(s);
+
+// O(1) asset_id → asset lookup, built fresh from the current _assets each
+// time it's needed. Shared by renderTray/applyBelowFloor/bulkList — with a
+// few hundred selected, an _assets.find() per item inside their loops is an
+// O(n²) scan and was the main reason a large "select all" used to freeze the tab.
+function assetsIndex() {
+  return new Map(_assets.map(a => [String(a.asset_id), a]));
+}
+
+let _waxUsdRate = null;
+async function fetchWaxPrice() {
+  try {
+    const r    = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    const json = await r.json();
+    _waxUsdRate = json?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+function usdTag(wax) {
+  if (!_waxUsdRate || wax == null) return '';
+  return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>`;
+}
 
 function imgUrl(hash) {
   if (!hash) return '';
@@ -567,20 +665,48 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     document.getElementById('authGate').style.display = acc ? 'none' : '';
     document.getElementById('blMain').style.display   = acc ? '' : 'none';
     if (acc) {
+      // wallet-widget.js calls onUpdate twice on a fresh page load for a
+      // returning user: once synchronously from a cached localStorage read
+      // (flash prevention), then again once WaxAuth.restore() actually
+      // finishes validating the session. If it's the same account we've
+      // already loaded, the second call is just that confirmation re-render
+      // — not a real change — so skip re-running the whole fetch sequence.
+      if (_activeWallet === acc) return;
+
+      if (_activeWallet !== null) {
+        // Different wallet connected mid-session — drop filters/URL (mode=
+        // is preserved by syncUrl(), which never touches it) and the
+        // previous wallet's collection list so nothing carries over: the
+        // Collection dropdown must show only the new wallet's collections,
+        // not a union of both wallets'.
+        resetFiltersState();
+        syncUrl();
+        _collections = new Set(); _collectionNames = new Map(); _collectionCounts = new Map();
+        _totalAssets = null; _schemaCache = {}; _lastSchemas = [];
+      } else {
+        await readUrlParams();
+        // A competing onUpdate for a *different* account may have already
+        // finished while this was awaited (e.g. a rapid disconnect+reconnect
+        // to another wallet before this one's async work settled) — if so,
+        // let that call own the page instead of this now-stale one.
+        if (_activeWallet !== null && _activeWallet !== acc) return;
+      }
+      _activeWallet = acc;
       // Fire listings/collections in the background — don't block the initial
       // spinner+asset fetch on them (matches inventory.html's onWalletChange).
       fetchCollections(acc);
       fetchListings(acc).then(() => {
+        if (acc !== _activeWallet) return; // a newer wallet session took over while this was in flight
         _assets.forEach(a => patchCard(a.asset_id));
         if (_assets.length) updateCountText();
       });
       loadAssets(true);
     } else {
+      _activeWallet = null; // allow a future connect (even to the same account) to reload
       _assets = []; _listings = new Map(); _selected = new Map(); _recipient = '';
-      _filterCol = 'all'; _filterSchema = 'all'; _filterText = '';
-      _filterMintMin = ''; _filterMintMax = ''; _selectedRarities.clear();
+      resetFiltersState();
       _collections = new Set(); _collectionNames = new Map(); _collectionCounts = new Map(); _totalAssets = null; _schemaCache = {};
-      _lastSchemas = []; document.getElementById('blMintMin').value = ''; document.getElementById('blMintMax').value = '';
+      _lastSchemas = [];
       renderGrid(); renderTray();
     }
   },
@@ -647,7 +773,7 @@ function patchCard(assetId) {
     note.className = 'bl-card-listed-note';
     card.querySelector('.bl-card-body').appendChild(note);
   }
-  note.textContent = `Listed: ${listing.price_wax.toFixed(2)} WAX`;
+  note.innerHTML = `Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}`;
 }
 document.querySelectorAll('.mode-btn').forEach(b => {
   b.addEventListener('click', () => switchMode(b.dataset.mode));
@@ -677,13 +803,39 @@ function closeAllDd() {
 }
 document.getElementById('blSchemaTrigger').addEventListener('click', () => toggleDd('blSchemaDd'));
 document.getElementById('blRarityTrigger').addEventListener('click', () => toggleDd('blRarityDd'));
+document.getElementById('blSortTrigger').addEventListener('click', () => toggleDd('blSortDd'));
+
+function renderSortDropdown() {
+  const panel = document.getElementById('blSortPanel');
+  panel.innerHTML = SORT_OPTIONS.map(o =>
+    `<div class="cb-item${o.value === _sortOrder ? ' active' : ''}" data-val="${o.value}"><span>${o.label}</span></div>`
+  ).join('');
+  document.querySelector('#blSortDd .cb-label').textContent = (SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0]).label;
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      _sortOrder = item.dataset.val;
+      closeAllDd();
+      renderSortDropdown();
+      loadAssets(true);
+    });
+  });
+}
+renderSortDropdown();
 
 /* ── Collections ── */
 async function fetchCollections(wallet) {
   try {
-    const r    = await WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${enc(wallet)}`);
+    // Deliberately NOT WaxApi.aaBase() — that's the same node the grid's
+    // /assets calls (and often /sales, if it happens to also be the current
+    // preferred node) are about to hammer. This is one small, independent
+    // request, so give it its own origin via aaBases() rather than letting
+    // it queue behind the heavier traffic on a shared per-host connection cap.
+    const bases = WaxApi.aaBases(2);
+    const base  = bases[1] || bases[0];
+    const r    = await WaxApi.rawFetch(`${base}/accounts/${enc(wallet)}`);
     const json = await r.json();
     if (!json.success) return;
+    if (wallet !== _activeWallet) return; // a newer wallet session took over while this was in flight — don't merge stale data into it
     if (json.data?.assets != null) _totalAssets = json.data.assets;
     for (const entry of (json.data?.collections || [])) {
       const col = entry.collection;
@@ -934,6 +1086,54 @@ function onMintInput() {
 document.getElementById('blMintMin').addEventListener('input', onMintInput);
 document.getElementById('blMintMax').addEventListener('input', onMintInput);
 
+document.getElementById('blExcludeLowestMint').addEventListener('change', function () {
+  _excludeLowestMint = this.checked;
+  if (_excludeLowestMint) {
+    // Mutually exclusive with "Only highest mint" — only one dupes mode active at a time.
+    _onlyHighestMint = false;
+    document.getElementById('blOnlyHighestMint').checked = false;
+  }
+  loadAssets(true);
+});
+
+document.getElementById('blOnlyHighestMint').addEventListener('change', function () {
+  _onlyHighestMint = this.checked;
+  if (_onlyHighestMint) {
+    _excludeLowestMint = false;
+    document.getElementById('blExcludeLowestMint').checked = false;
+  }
+  loadAssets(true);
+});
+
+// "Exclude lowest mint" and "Select all matching filters" both need to scan
+// every asset the wallet holds under the current filters (the former to find
+// the lowest template_mint per template, the latter to select past whatever
+// happens to be paginated in) — only tractable once the user has narrowed
+// things down to one collection, so both are gated on the same condition.
+function setDupesFiltersAvailability(enabled) {
+  const cbLow    = document.getElementById('blExcludeLowestMint');
+  const labelLow = document.getElementById('blExcludeLowestLabel');
+  const cbHigh   = document.getElementById('blOnlyHighestMint');
+  const labelHigh = document.getElementById('blOnlyHighestLabel');
+  const selBtn   = document.getElementById('selectAllMatchBtn');
+  const hint     = enabled ? '' : 'Select a collection to enable this filter';
+
+  cbLow.disabled    = !enabled;
+  cbHigh.disabled   = !enabled;
+  labelLow.title    = hint;
+  labelHigh.title   = hint;
+  if (selBtn) selBtn.style.display = enabled ? '' : 'none';
+
+  if (!enabled) {
+    cbLow.checked  = false;
+    cbHigh.checked = false;
+    _excludeLowestMint = false;
+    _excludedLowestCount = 0;
+    _onlyHighestMint = false;
+    _onlyHighestCount = 0;
+  }
+}
+
 async function onColChange(val) {
   _filterCol    = val;
   _filterSchema = 'all';
@@ -942,6 +1142,7 @@ async function onColChange(val) {
   document.getElementById('blRarityGroup').style.display = 'none';
   document.getElementById('blSchemaPanel').innerHTML = '';
   document.querySelector('#blSchemaDd .cb-label').textContent = 'All schemas';
+  setDupesFiltersAvailability(val !== 'all');
   buildColDropdown();
   loadAssets(true);
   if (_filterCol !== 'all') {
@@ -954,6 +1155,81 @@ async function onColChange(val) {
       if (_filterCol !== val) return;
       buildRarityDropdown();
     });
+  }
+}
+
+function resetFiltersState() {
+  _filterCol = 'all'; _filterSchema = 'all'; _filterText = '';
+  _filterMintMin = ''; _filterMintMax = ''; _selectedRarities.clear();
+  _sortOrder = SORT_OPTIONS[0].value;
+  document.getElementById('blSearch').value  = '';
+  document.getElementById('blMintMin').value = '';
+  document.getElementById('blMintMax').value = '';
+  document.getElementById('blSchemaGroup').style.display  = 'none';
+  document.getElementById('blRarityGroup').style.display  = 'none';
+  setDupesFiltersAvailability(false); // also clears both dupes checkboxes + their state
+  renderSortDropdown();
+}
+
+/* ── URL state — mirrors inventory.html's syncUrl/readUrlParams so filters
+   survive a refresh instead of silently resetting. Shares the querystring
+   with the mode= param switchMode() already manages, touching only the
+   filter-related keys. ── */
+function syncUrl() {
+  const url = new URL(location.href);
+  const p   = url.searchParams;
+  _filterCol    !== 'all' ? p.set('col', _filterCol)       : p.delete('col');
+  _filterSchema !== 'all' ? p.set('schema', _filterSchema) : p.delete('schema');
+  _selectedRarities.size  ? p.set('rarity', [..._selectedRarities].join(',')) : p.delete('rarity');
+  _filterMintMin          ? p.set('mintMin', _filterMintMin) : p.delete('mintMin');
+  _filterMintMax          ? p.set('mintMax', _filterMintMax) : p.delete('mintMax');
+  _filterText             ? p.set('q', _filterText)          : p.delete('q');
+  const dupesMode = _excludeLowestMint ? 'lowest' : _onlyHighestMint ? 'highest' : '';
+  dupesMode ? p.set('dupes', dupesMode) : p.delete('dupes');
+  _sortOrder !== SORT_OPTIONS[0].value ? p.set('sort', _sortOrder) : p.delete('sort');
+  history.replaceState(null, '', url);
+}
+
+async function readUrlParams() {
+  const p = new URLSearchParams(location.search);
+  if (!p.toString()) return;
+  _filterCol    = p.get('col')    || 'all';
+  _filterSchema = p.get('schema') || 'all';
+  _selectedRarities.clear();
+  (p.get('rarity') || '').split(',').filter(Boolean).forEach(r => _selectedRarities.add(r));
+  _filterMintMin = p.get('mintMin') || '';
+  _filterMintMax = p.get('mintMax') || '';
+  _filterText    = p.get('q') || '';
+  const dupesMode    = p.get('dupes');
+  _excludeLowestMint = dupesMode === 'lowest' && _filterCol !== 'all';
+  _onlyHighestMint   = dupesMode === 'highest' && _filterCol !== 'all';
+  _sortOrder = SORT_OPTIONS.some(o => o.value === p.get('sort')) ? p.get('sort') : SORT_OPTIONS[0].value;
+
+  document.getElementById('blSearch').value  = _filterText;
+  document.getElementById('blMintMin').value = _filterMintMin;
+  document.getElementById('blMintMax').value = _filterMintMax;
+  document.getElementById('blExcludeLowestMint').checked = _excludeLowestMint;
+  document.getElementById('blOnlyHighestMint').checked   = _onlyHighestMint;
+  renderSortDropdown();
+
+  if (_filterCol !== 'all') {
+    setDupesFiltersAvailability(true);
+    const col = _filterCol;
+    fetchSchemasForCollection(col).then(schemas => {
+      if (_filterCol !== col) return;
+      buildSchemaDropdown(schemas);
+      document.getElementById('blSchemaGroup').style.display = schemas.length ? '' : 'none';
+    });
+    // Template cache must be ready before loadAssets if a rarity filter is active
+    if (_selectedRarities.size > 0) {
+      await fetchTemplatesForCollection(col);
+      if (_filterCol === col) buildRarityDropdown();
+    } else {
+      fetchTemplatesForCollection(col).then(() => {
+        if (_filterCol !== col) return;
+        buildRarityDropdown();
+      });
+    }
   }
 }
 
@@ -1019,24 +1295,43 @@ async function loadFloorPricesForCards(assets) {
       const tid   = a.template.template_id;
       const col   = a.collection?.collection_name || '';
       const price = await fetchFloorPrice(tid, col);
-      const text  = price != null ? `Floor: ${price.toFixed(2)} WAX` : '';
+      const text  = price != null ? `Floor: ${price.toFixed(2)} WAX${usdTag(price)}` : '';
       document.querySelectorAll(`[data-floor-tid="${tid}"]`).forEach(el => {
-        el.textContent = text;
+        el.innerHTML = text;
       });
     }));
     if (i + BATCH < todos.length) await new Promise(r => setTimeout(r, 120));
   }
 }
 
-/* ── Asset loading ── */
+/* ── Asset loading ──
+   _loading is a simple mutex shared by every async load path on this page
+   (plain pagination here, plus loadAssetsFullScan/loadAssetsOnlyHighest/
+   selectAllMatchingFilters below) — only one can run at a time. A filter
+   change that arrives while one is already in flight doesn't get silently
+   dropped: it's recorded in _pendingReload and re-run via finishLoading()
+   the moment the in-flight one finishes, instead of leaving the grid
+   showing results for whatever the filters *used* to be. */
+function finishLoading() {
+  _loading = false;
+  if (_pendingReload) {
+    _pendingReload = false;
+    loadAssets(true);
+    return true; // a fresh reload just started — caller should skip rendering its own (now-stale) result
+  }
+  return false;
+}
+
 async function loadAssets(reset = false) {
   const wallet = window.getWaxAccount();
-  if (!wallet || _loading) return;
-  if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; }
+  if (!wallet) return;
+  if (_loading) { if (reset) _pendingReload = true; return; }
+  if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; syncUrl(); }
 
   // Rarity has no matching template at all under the current collection/schema
   // — no point hitting the network for a result we already know is empty.
   const whitelist = computeTemplateWhitelist();
+  if (reset) { _excludedLowestCount = 0; _onlyHighestCount = 0; }
   if (reset && whitelist === 'EMPTY') {
     document.getElementById('blLoadWrap').style.display      = 'none';
     document.getElementById('blGrid').style.display          = 'none';
@@ -1044,6 +1339,13 @@ async function loadAssets(reset = false) {
     document.getElementById('blEmpty').style.display         = '';
     document.getElementById('blCount').textContent            = '';
     return;
+  }
+
+  if (reset && _excludeLowestMint && _filterCol !== 'all') {
+    return loadAssetsFullScan(whitelist);
+  }
+  if (reset && _onlyHighestMint && _filterCol !== 'all') {
+    return loadAssetsOnlyHighest(whitelist);
   }
 
   _loading = true;
@@ -1066,7 +1368,8 @@ async function loadAssets(reset = false) {
     const whitelistParam = whitelist              ? `&template_whitelist=${whitelist}`             : '';
     const mintMinParam   = _filterMintMin          ? `&min_template_mint=${enc(_filterMintMin)}`   : '';
     const mintMaxParam   = _filterMintMax          ? `&max_template_mint=${enc(_filterMintMax)}`   : '';
-    const url = `${WaxApi.aaBase()}/assets?owner=${enc(wallet)}&limit=${PAGE_SIZE}&page=${_page}&sort=transferred&order=desc${colParam}${schemaParam}${matchParam}${whitelistParam}${mintMinParam}${mintMaxParam}`;
+    const sortOpt        = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
+    const url = `${WaxApi.aaBase()}/assets?owner=${enc(wallet)}&limit=${PAGE_SIZE}&page=${_page}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${matchParam}${whitelistParam}${mintMinParam}${mintMaxParam}`;
 
     const r    = await WaxApi.rawFetch(url);
     const json = await r.json();
@@ -1078,9 +1381,9 @@ async function loadAssets(reset = false) {
     _page++;
   } catch (err) {
     console.error('loadAssets:', err);
-  } finally {
-    _loading = false;
   }
+
+  if (finishLoading()) return; // a newer filter change queued while this was in flight — let that reload render instead
 
   document.getElementById('blLoadWrap').style.display = 'none';
   // Full rebuild only on reset (fresh load / filter change) — a "Load more"
@@ -1093,6 +1396,186 @@ async function loadAssets(reset = false) {
   const lmw = document.getElementById('blLoadMoreWrap');
   lmw.style.display = _hasMore ? '' : 'none';
   if (lmBtn) { lmBtn.disabled = false; lmBtn.textContent = 'Load more'; }
+}
+
+// "Exclude lowest mint" — the lowest template_mint owned per template can be
+// on any page of the normal transferred-desc feed, so there's no way to know
+// it's really the lowest without loading every matching asset first. Only
+// reachable with a collection selected (see setDupesFiltersAvailability),
+// which keeps this bounded to one collection's holdings instead of the whole
+// wallet (up to tens of thousands of assets across hundreds of collections).
+// Shared with selectAllMatchingFilters() below, which needs the same
+// complete result set for the same reason: "select all" can't stop at
+// whatever's been paginated in via Load More so far.
+async function fetchAllMatchingAssets(whitelist, onProgress) {
+  const wallet = window.getWaxAccount();
+  if (!wallet) return [];
+
+  const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${enc(_filterCol)}` : '';
+  const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${enc(_filterSchema)}`        : '';
+  const matchParam     = _filterText              ? `&match=${enc(_filterText)}`                : '';
+  const whitelistParam = whitelist              ? `&template_whitelist=${whitelist}`             : '';
+  // Deliberately NOT passing mint range here — callers that need "the true
+  // lowest mint owned" (loadAssetsFullScan) can't restrict by mint range
+  // up front, or a range like "min 500" would treat the lowest mint *within
+  // that range* as the keeper instead of the template's true lowest. Mint
+  // range is applied client-side afterward instead — see filterByMintRange.
+
+  const sortOpt = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
+  const all = [];
+  let page = 1;
+  while (true) {
+    const url  = `${WaxApi.aaBase()}/assets?owner=${enc(wallet)}&limit=1000&page=${page}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${matchParam}${whitelistParam}`;
+    const r    = await WaxApi.rawFetch(url);
+    const json = await r.json();
+    if (!json.success) throw new Error('API error');
+    const batch = json.data || [];
+    all.push(...batch);
+    if (onProgress) onProgress(all.length);
+    if (batch.length < 1000) break;
+    page++;
+  }
+  return all;
+}
+
+function filterByMintRange(assets) {
+  const min = _filterMintMin ? Number(_filterMintMin) : null;
+  const max = _filterMintMax ? Number(_filterMintMax) : null;
+  if (min == null && max == null) return assets;
+  return assets.filter(a => {
+    const mint = Number(a.template_mint);
+    if (min != null && (!isFinite(mint) || mint < min)) return false;
+    if (max != null && (!isFinite(mint) || mint > max)) return false;
+    return true;
+  });
+}
+
+// Shared by loadAssetsFullScan and loadAssetsOnlyHighest — both need the
+// identical fetch-everything/show-progress/render sequence and differ only
+// in which asset_ids the scan keeps. `computeResult(all)` returns
+// { assets, count }; this returns `count` (or undefined if a newer filter
+// change queued mid-scan and took over — see finishLoading).
+async function runDupesScan(whitelist, computeResult) {
+  _loading = true;
+  document.getElementById('blLoadWrap').style.display      = '';
+  document.getElementById('blGrid').style.display          = 'none';
+  document.getElementById('blEmpty').style.display         = 'none';
+  document.getElementById('blLoadMoreWrap').style.display  = 'none';
+  const statusEl = document.querySelector('#blLoadWrap .status-text');
+
+  let all = [];
+  try {
+    all = await fetchAllMatchingAssets(whitelist, n => {
+      if (statusEl) statusEl.textContent = `Scanning ${n.toLocaleString()} asset${n !== 1 ? 's' : ''} for duplicates…`;
+    });
+  } catch (err) {
+    console.error('runDupesScan:', err);
+  }
+
+  const { assets, count } = computeResult(all);
+  _assets  = assets;
+  _hasMore = false;
+
+  if (finishLoading()) return undefined; // a newer filter change queued mid-scan — let that reload render instead
+
+  document.getElementById('blLoadWrap').style.display = 'none';
+  renderGrid();
+  loadFloorPricesForCards(_assets);
+  return count;
+}
+
+// Lowest mint owned per template is always excluded, regardless of whether
+// that copy happens to be listed for sale, and even when it's the only copy
+// owned — the point is "never surface this as sellable," so a single-copy
+// template still needs its one asset treated as the keeper.
+async function loadAssetsFullScan(whitelist) {
+  const count = await runDupesScan(whitelist, all => {
+    const lowestByTemplate = new Map(); // template_id → { mint, asset_id }
+    for (const a of all) {
+      const tid = a.template?.template_id;
+      if (!tid) continue;
+      const mint = Number(a.template_mint);
+      if (!isFinite(mint)) continue;
+      const cur = lowestByTemplate.get(tid);
+      if (!cur || mint < cur.mint) lowestByTemplate.set(tid, { mint, asset_id: a.asset_id });
+    }
+    const excludeIds = new Set([...lowestByTemplate.values()].map(v => String(v.asset_id)));
+    return { assets: filterByMintRange(all).filter(a => !excludeIds.has(String(a.asset_id))), count: excludeIds.size };
+  });
+  if (count !== undefined) _excludedLowestCount = count;
+}
+
+// "Only highest mint" — the mirror image of loadAssetsFullScan. A template
+// with just one copy owned isn't a duplicate scenario this filter cares
+// about, so it's dropped entirely rather than kept as if it were
+// automatically "the highest" — only templates with 2+ owned copies
+// contribute their highest-mint copy to the result.
+async function loadAssetsOnlyHighest(whitelist) {
+  const count = await runDupesScan(whitelist, all => {
+    const groupsByTemplate = new Map(); // template_id → [{ mint, asset_id }]
+    for (const a of all) {
+      const tid = a.template?.template_id;
+      if (!tid) continue;
+      const mint = Number(a.template_mint);
+      if (!isFinite(mint)) continue;
+      if (!groupsByTemplate.has(tid)) groupsByTemplate.set(tid, []);
+      groupsByTemplate.get(tid).push({ mint, asset_id: a.asset_id });
+    }
+    const keepIds = new Set();
+    for (const group of groupsByTemplate.values()) {
+      if (group.length < 2) continue; // no duplicate here — nothing to consolidate down to "the highest"
+      let highest = group[0];
+      for (const item of group) if (item.mint > highest.mint) highest = item;
+      keepIds.add(String(highest.asset_id));
+    }
+    return { assets: filterByMintRange(all).filter(a => keepIds.has(String(a.asset_id))), count: keepIds.size };
+  });
+  if (count !== undefined) _onlyHighestCount = count;
+}
+
+// "Select all visible" only selects what's actually in the DOM right now —
+// fine once everything matching the filters is already loaded (e.g. after
+// a dupes-mode full scan), but with plain pagination _assets may only hold
+// whatever's been paginated in via Load More so far. This fetches the rest
+// first (when needed) so "select all" really means all of it.
+async function selectAllMatchingFilters() {
+  // _loading is the same shared mutex loadAssets()/the dupes scans use — if
+  // one of those is currently mid-scan, _assets is incomplete/stale, so this
+  // waits rather than selecting whatever happens to be rendered right now.
+  if (_filterCol === 'all' || _loading) return;
+
+  // _hasMore already false means _assets is already the complete matching
+  // set (either a dupes-mode scan already ran, or this button already
+  // fetched everything on a previous click) — nothing left to fetch.
+  if (!_excludeLowestMint && !_onlyHighestMint && _hasMore) {
+    const whitelist = computeTemplateWhitelist();
+    if (whitelist === 'EMPTY') return;
+
+    _loading = true;
+    const btn = document.getElementById('selectAllMatchBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+
+    try {
+      const all = await fetchAllMatchingAssets(whitelist, n => {
+        if (btn) btn.textContent = `Loading ${n.toLocaleString()}…`;
+      });
+      _assets  = filterByMintRange(all);
+      _hasMore = false;
+    } catch (err) {
+      console.error('selectAllMatchingFilters:', err);
+    }
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Select all matching filters'; }
+
+    // A filter changed while this fetch was in flight — that reload has
+    // already taken over (or just started); selecting against this stale
+    // result would fight it, so stop here instead of also rendering/selecting.
+    if (finishLoading()) return;
+    renderGrid();
+    loadFloorPricesForCards(_assets);
+  }
+
+  selectAllVisible();
 }
 
 /* Clicking "Load more" once arms infinite scroll for the rest of this filter
@@ -1137,8 +1620,13 @@ function toggleHideListed() {
 
 function updateCountText() {
   const unlisted = _assets.filter(a => !_listings.has(String(a.asset_id))).length;
-  document.getElementById('blCount').textContent =
-    `${_assets.length.toLocaleString()} NFTs loaded — ${unlisted.toLocaleString()} unlisted`;
+  let text = `${_assets.length.toLocaleString()} NFTs loaded — ${unlisted.toLocaleString()} unlisted`;
+  if (_excludeLowestMint && _excludedLowestCount) {
+    text += ` — ${_excludedLowestCount.toLocaleString()} lowest-mint hidden`;
+  } else if (_onlyHighestMint && _onlyHighestCount) {
+    text += ` — showing highest mint of ${_onlyHighestCount.toLocaleString()} duplicate template${_onlyHighestCount !== 1 ? 's' : ''}`;
+  }
+  document.getElementById('blCount').textContent = text;
 }
 
 function attachCardEvents(card, asset) {
@@ -1172,10 +1660,12 @@ function renderGrid() {
   grid.style.display  = '';
 
   grid.innerHTML = visible.map(cardHtml).join('');
-  grid.querySelectorAll('.bl-card').forEach(card => {
-    const asset = _assets.find(a => String(a.asset_id) === card.dataset.id);
-    if (asset) attachCardEvents(card, asset);
-  });
+  // Zip by index rather than _assets.find()-per-card — grid.innerHTML was
+  // just built from this exact `visible` array in this exact order, so the
+  // Nth card always corresponds to visible[N]. At a few hundred selected
+  // assets, a find() per card turns this into an O(n²) scan that visibly
+  // freezes the page; this is O(n).
+  grid.querySelectorAll('.bl-card').forEach((card, i) => attachCardEvents(card, visible[i]));
 
   initLazyVideos();
 }
@@ -1211,7 +1701,7 @@ function cardHtml(a) {
   const mint    = a.template_mint ? `#${a.template_mint}` : '';
   const colName = a.collection?.collection_name ? (_collectionNames.get(a.collection.collection_name) || a.collection.collection_name) : '';
   const listedNote = listing
-    ? `<div class="bl-card-listed-note">Listed: ${listing.price_wax.toFixed(2)} WAX</div>`
+    ? `<div class="bl-card-listed-note">Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</div>`
     : '';
   const listedTitle = listing
     ? (_mode === 'transfer' ? 'Currently listed — cancel the listing before transferring' : 'Currently listed for sale')
@@ -1242,6 +1732,10 @@ function toggleSelect(asset, cardEl) {
     const chk = cardEl.querySelector('.bl-card-check');
     if (chk) chk.textContent = '';
   } else {
+    if (_selected.size >= MAX_SELECTED) {
+      setProgress(`You can select up to ${MAX_SELECTED} items at once — deselect some before adding more.`);
+      return;
+    }
     _selected.set(id, '');
     cardEl.classList.add('selected');
     const chk = cardEl.querySelector('.bl-card-check');
@@ -1252,17 +1746,19 @@ function toggleSelect(asset, cardEl) {
 }
 
 function selectAllVisible() {
+  let capped = false;
   document.querySelectorAll('.bl-card:not(.bl-card--listed)').forEach(card => {
     const id = card.dataset.id;
-    if (!_selected.has(id)) {
-      _selected.set(id, '');
-      card.classList.add('selected');
-      const chk = card.querySelector('.bl-card-check');
-      if (chk) chk.textContent = '✓';
-    }
+    if (_selected.has(id)) return;
+    if (_selected.size >= MAX_SELECTED) { capped = true; return; }
+    _selected.set(id, '');
+    card.classList.add('selected');
+    const chk = card.querySelector('.bl-card-check');
+    if (chk) chk.textContent = '✓';
   });
   updateSelCount();
   renderTray();
+  if (capped) setProgress(`Selected the maximum of ${MAX_SELECTED} items at once — deselect some before adding more.`);
 }
 
 function clearSelection() {
@@ -1315,8 +1811,9 @@ function renderTray() {
   emptyEl.style.display = 'none';
   bodyEl.style.display  = '';
 
+  const assetsById = assetsIndex();
   itemsEl.innerHTML = [..._selected.keys()].map(id => {
-    const a = _assets.find(a => String(a.asset_id) === id);
+    const a = assetsById.get(id);
     if (!a) return '';
     const mint  = a.template_mint ? `#${a.template_mint}` : '';
     const price = _selected.get(id) || '';
@@ -1386,8 +1883,9 @@ function applyFixedPriceToAll() {
 function applyBelowFloor(offsetFn) {
   let noListings = 0;
   let stillLoading = 0;
+  const assetsById = assetsIndex();
   for (const id of _selected.keys()) {
-    const a      = _assets.find(a => String(a.asset_id) === id);
+    const a      = assetsById.get(id);
     const tid    = a?.template?.template_id;
     const cached = tid != null ? _floorCache[tid] : null;
     if (!cached?.loaded) { stillLoading++; continue; }
@@ -1427,7 +1925,10 @@ function updateTotal() {
     if (isFinite(n) && n > 0) total += n;
   }
   const el = document.getElementById('trayTotal');
-  if (el) el.textContent = `${total.toFixed(2)} WAX`;
+  if (el) {
+    const usd = _waxUsdRate && total > 0 ? ` ≈ $${(total * _waxUsdRate).toFixed(2)}` : '';
+    el.textContent = `${total.toFixed(2)} WAX${usd}`;
+  }
 }
 
 function updateActionBtn() {
@@ -1510,10 +2011,16 @@ async function bulkList() {
   });
   if (!items.length) return;
 
+  // Built once, outside the per-chunk loop below — the chunk loop calls this
+  // builder once per batch of BATCH_SIZE_SELL, so re-deriving a fresh lookup
+  // each time would repeat the same O(n) work dozens of times over a large
+  // selection instead of once.
+  const assetsById = assetsIndex();
+
   const listed = await runBulkAction(items, BATCH_SIZE_SELL, (chunk, wallet) => {
     const actions = [];
     for (const [assetId, priceStr] of chunk) {
-      const asset = _assets.find(a => String(a.asset_id) === assetId);
+      const asset = assetsById.get(assetId);
       if (!asset) continue;
       const priceWax     = Math.round(parseFloat(priceStr) * 100) / 100;
       const listingPrice = `${priceWax.toFixed(8)} WAX`;
@@ -1561,7 +2068,7 @@ async function bulkList() {
           note.className = 'bl-card-listed-note';
           card.querySelector('.bl-card-body').appendChild(note);
         }
-        note.textContent = `Listed: ${priceWax.toFixed(2)} WAX`;
+        note.innerHTML = `Listed: ${priceWax.toFixed(2)} WAX${usdTag(priceWax)}`;
       }
     }
   });
@@ -1589,12 +2096,16 @@ async function bulkTransfer() {
       memo:      'Bulk transfer via Hoardio',
     },
   }], (chunk) => {
+    // One filter pass over the whole array per chunk, not one per removed
+    // asset — re-filtering _assets inside the per-item loop turned a large
+    // transfer into the same O(n²) freeze as the pricing/selection hotspots.
+    const removedIds = new Set(chunk);
     for (const assetId of chunk) {
       _selected.delete(assetId);
-      _assets = _assets.filter(a => String(a.asset_id) !== assetId);
       const card = document.querySelector(`.bl-card[data-id="${assetId}"]`);
       if (card) card.remove();
     }
+    _assets = _assets.filter(a => !removedIds.has(String(a.asset_id)));
   });
 
   if (moved) {
@@ -1614,6 +2125,7 @@ function onSearchChange() {
 }
 
 /* ── Init ── */
+fetchWaxPrice();
 switchMode(_mode, { push: false });
 initInfiniteScroll();
 
