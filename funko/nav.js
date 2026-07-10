@@ -10,7 +10,6 @@ const SITE_BANNER = null;
 window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
 
 const NAV_LINKS = [
-  { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
   { label: 'Mint Rankings', href: 'mint-rankings.html' },
   { label: 'Wallet Look Up', href: 'wallet.html' },
   { label: 'Market Overview', href: 'market-overview.html' },
