@@ -348,7 +348,9 @@
       gap: 1.25rem; margin-top: 1.25rem; padding: 1.1rem 1.4rem;
       background: linear-gradient(135deg, rgba(240,168,64,0.10) 0%, rgba(240,168,64,0.04) 100%);
       border: 1px solid rgba(240,168,64,0.35); border-radius: 12px; flex-wrap: wrap;
+      position: relative;
     }
+    .buyoffer-banner.is-hidden { display: none; }
     .buyoffer-banner-left { display: flex; align-items: center; gap: 0.9rem; }
     .buyoffer-banner-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
     .buyoffer-banner-label {
@@ -357,6 +359,24 @@
     }
     .buyoffer-banner-desc { font-size: 0.88rem; color: var(--text-primary); font-weight: 500; line-height: 1.35; }
     .buyoffer-banner-sub { font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.25rem; }
+    .buyoffer-banner-close {
+      position: absolute; top: 0.6rem; right: 0.7rem; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; color: var(--text-secondary);
+      font-size: 1rem; line-height: 1; cursor: pointer; border-radius: 5px;
+    }
+    .buyoffer-banner-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+
+    /* ── Buy offer unlock link (collapsed entry point) ── */
+    .buyoffer-unlock-link {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.8rem; font-weight: 600; color: var(--accent-light);
+      cursor: pointer; opacity: 0.85; transition: opacity 0.15s;
+      user-select: none;
+    }
+    .buyoffer-unlock-link:hover { opacity: 1; text-decoration: underline; }
+    .buyoffer-unlock-row { display: flex; justify-content: flex-end; margin-top: 0.6rem; }
+    .buyoffer-unlock-row.is-hidden { display: none; }
     .buyoffer-fetch-btn {
       padding: 0.55rem 1.25rem;
       background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
@@ -402,7 +422,8 @@
   <div class="page-header">
     <h1 class="page-title">My <span class="accent">Inventory</span></h1>
     <p class="page-desc">List your NFTs for sale through Hoardio and help support the site and its future development.</p>
-    <div class="buyoffer-banner" id="buyofferBanner">
+    <div class="buyoffer-banner is-hidden" id="buyofferBanner">
+      <button type="button" class="buyoffer-banner-close" id="buyofferBannerClose" onclick="toggleBuyOfferBanner(false)" title="Hide">✕</button>
       <div class="buyoffer-banner-left">
         <div class="buyoffer-banner-icon">💎</div>
         <div>
@@ -448,6 +469,9 @@
           <div class="cb-panel"></div>
         </div>
       </div>
+    </div>
+    <div class="buyoffer-unlock-row" id="buyofferUnlockRow">
+      <div class="buyoffer-unlock-link" onclick="toggleBuyOfferBanner(true)">🔒 Unlock <strong>Buy Offer (Highest)</strong> →</div>
     </div>
     <div class="controls-row filter-row">
       <div class="control-group" id="schemaGroup" style="display:none;">
@@ -1717,10 +1741,21 @@ function updateBuyOfferCards() {
   });
 }
 
+function toggleBuyOfferBanner(show) {
+  const banner = document.getElementById('buyofferBanner');
+  const row    = document.getElementById('buyofferUnlockRow');
+  if (!banner) return;
+  banner.classList.toggle('is-hidden', !show);
+  if (row) row.classList.toggle('is-hidden', show || _buyOffersFetched);
+  if (show) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 function updateBuyOfferBanner() {
-  const btn = document.getElementById('buyofferFetchBtn');
-  const sub = document.getElementById('buyofferBannerSub');
+  const btn  = document.getElementById('buyofferFetchBtn');
+  const sub  = document.getElementById('buyofferBannerSub');
+  const row  = document.getElementById('buyofferUnlockRow');
   if (!btn) return;
+  if (row) row.classList.toggle('is-hidden', _buyOffersFetched);
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) {
     btn.disabled = true;
