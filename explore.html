@@ -174,13 +174,21 @@
     .ex-listings { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem; display: block; }
 
     .ex-buy-btn {
-      display: block; text-align: center; margin-top: 0.5rem;
+      display: block; width: 100%; text-align: center; margin-top: 0.5rem;
       padding: 0.38rem; border-radius: 5px; font-size: 0.79rem; font-weight: 700;
       background: rgba(192,120,40,0.14); border: 1px solid rgba(192,120,40,0.28);
       color: var(--accent-light); text-decoration: none;
       transition: background 0.15s, border-color 0.15s;
+      font-family: inherit; cursor: pointer; box-sizing: border-box;
     }
-    .ex-buy-btn:hover { background: rgba(192,120,40,0.26); border-color: rgba(192,120,40,0.5); }
+    .ex-buy-btn:hover:not(:disabled) { background: rgba(192,120,40,0.26); border-color: rgba(192,120,40,0.5); }
+    .ex-buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ex-buy-btn--bought {
+      background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.3);
+      color: #3fb950; cursor: default;
+    }
+    .ex-buy-btn--error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
+    .ex-card--bought { opacity: 0.55; pointer-events: none; }
 
     /* ── Load more ── */
     #loadMoreWrap { display: none; text-align: center; padding: 2rem 0 1rem; }
@@ -449,6 +457,7 @@
 /* ── Config ── */
 const PAGE_SIZE = 20;
 const IPFS_GW   = 'https://ipfs.io/ipfs/';
+const TAKER_MARKETPLACE = 'popinstockgo'; // same account as marketplace.html — 1% commission on purchases made through the site
 
 const RARITY_ORDER = [
   '1 of 1','Mythic','Grail','Royalty','Legendary','Epic',
@@ -485,6 +494,11 @@ let _gen     = 0;                // incremented on reset to invalidate in-flight
 let _seen    = new Set();        // template IDs already in grid
 let _queue   = [];               // fetched templates not yet rendered
 let _shownN  = 0;
+// sale_id -> listing_price (WAX, raw integer string), only populated in
+// "No grouping" mode — lets refreshBuyButtons() rebuild a button's
+// text/onclick after a wallet connect/disconnect without needing to refetch
+// or keep the full sale objects around.
+let _saleAmountById = new Map();
 let _apiPage = 1;
 let _apiDone = false;
 let _busy    = false;
@@ -1196,7 +1210,7 @@ document.getElementById('clearFiltersBtn').addEventListener('click', clearFilter
 /* ── Results ── */
 function resetResults() {
   _gen++;
-  _seen.clear(); _queue = [];
+  _seen.clear(); _queue = []; _saleAmountById.clear();
   _shownN = 0; _apiPage = 1; _apiDone = false; _busy = false; _autoLoadArmed = false;
   _videoObserver?.disconnect(); // grid is about to be wiped — drop refs to the old (soon-detached) video elements
   document.getElementById('cardsGrid').innerHTML    = '';
@@ -1290,6 +1304,7 @@ async function loadMore() {
         const key = _groupBy === 'none' ? `s${sale.sale_id}` : tid;
         if (_seen.has(key)) continue;
         _seen.add(key);
+        if (_groupBy === 'none') _saleAmountById.set(String(sale.sale_id), sale.price?.amount || '0');
         _queue.push(buildCardHtml(sale, asset));
       }
     }
@@ -1442,6 +1457,22 @@ function buildCardHtml(sale, asset) {
   // a precision the grouping doesn't actually have.
   const mint   = _groupBy === 'none' && asset.template_mint ? `#${asset.template_mint}` : '';
 
+  // In "No grouping", each card is exactly one listing — buy it directly
+  // instead of sending the visitor to marketplace.html to pick one among
+  // several. Grouped ("By template") cards still need "View listings" since
+  // they represent the best-sorted listing among possibly several for that
+  // template, not a single purchasable one.
+  let actionHtml;
+  if (_groupBy === 'none') {
+    const saleId = String(sale.sale_id);
+    const amount = String(sale.price?.amount || '0');
+    actionHtml = window.getWaxAccount()
+      ? `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="buyListing(this,'${saleId}','${amount}')">Buy Now</button>`
+      : `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="connectWallet()">Connect to Buy</button>`;
+  } else {
+    actionHtml = `<a class="ex-buy-btn" href="${href}" target="_blank" rel="noopener noreferrer">View listings</a>`;
+  }
+
   let mediaHtml;
   if (media?.kind === 'video') {
     mediaHtml = `<video data-src="${esc(media.url)}" muted loop playsinline preload="none"></video>`;
@@ -1463,7 +1494,7 @@ function buildCardHtml(sale, asset) {
         <span class="ex-price-wax">${fmtWax(price)}</span>
         ${usd ? `<span class="ex-price-usd">${usd}</span>` : ''}
       </div>
-      <a class="ex-buy-btn" href="${href}" target="_blank" rel="noopener noreferrer">View listings</a>
+      ${actionHtml}
     </div>
   </div>`;
 }
@@ -1596,8 +1627,83 @@ async function restoreFromUrl() {
   }
 }
 
+/* ── Buy (No grouping only — see buildCardHtml) ── */
+function toWaxQty(amount) {
+  return (parseInt(amount) / 1e8).toFixed(8) + ' WAX';
+}
+
+function connectWallet() {
+  return _wallet.connect();
+}
+
+async function buyListing(btn, saleId, amount) {
+  const buyer = window.getWaxAccount();
+  if (!buyer) { connectWallet(); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Buying…';
+  btn.className = 'ex-buy-btn';
+
+  try {
+    await WaxAuth.transact([
+      {
+        account: 'eosio.token',
+        name: 'transfer',
+        authorization: [{ actor: buyer, permission: 'active' }],
+        data: { from: buyer, to: 'atomicmarket', quantity: toWaxQty(amount), memo: 'deposit' },
+      },
+      {
+        account: 'atomicmarket',
+        name: 'purchasesale',
+        authorization: [{ actor: buyer, permission: 'active' }],
+        data: { buyer, sale_id: saleId, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE },
+      },
+    ]);
+
+    btn.textContent = '✓ Purchased!';
+    btn.className   = 'ex-buy-btn ex-buy-btn--bought';
+    btn.closest('.ex-card')?.classList.add('ex-card--bought');
+  } catch (e) {
+    const msg       = String(e?.message || e).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    btn.disabled    = false;
+    if (cancelled) {
+      btn.textContent = 'Buy Now';
+      btn.className   = 'ex-buy-btn';
+    } else {
+      btn.textContent = 'Failed — retry';
+      btn.className   = 'ex-buy-btn ex-buy-btn--error';
+      setTimeout(() => {
+        btn.textContent = 'Buy Now';
+        btn.className   = 'ex-buy-btn';
+      }, 3000);
+    }
+  }
+}
+
+// Cards render with a snapshot of the wallet state at fetch time (see
+// buildCardHtml) — if the visitor connects/disconnects afterward via the nav
+// widget, already-rendered "No grouping" cards need to catch up without a
+// full re-render of the grid.
+function refreshBuyButtons() {
+  document.querySelectorAll('#cardsGrid .ex-buy-btn[data-sale-id]').forEach(btn => {
+    if (btn.classList.contains('ex-buy-btn--bought')) return; // already purchased — leave as-is
+    const saleId = btn.dataset.saleId;
+    const amount = _saleAmountById.get(saleId);
+    if (amount == null) return;
+    if (window.getWaxAccount()) {
+      btn.textContent = 'Buy Now';
+      btn.onclick     = () => buyListing(btn, saleId, amount);
+    } else {
+      btn.textContent = 'Connect to Buy';
+      btn.onclick     = () => connectWallet();
+    }
+  });
+}
+window.addEventListener('wax-auth-change', refreshBuyButtons);
+
 /* ── Init ── */
-WalletWidget.mount(document.querySelector('.nav-inner'), {
+const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
     { href: 'inventory.html', label: 'Inventory', icon: '📦' },
