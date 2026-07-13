@@ -146,9 +146,18 @@
     .ex-card-img {
       aspect-ratio: 1; background: rgba(0,0,0,0.25);
       overflow: hidden; display: flex; align-items: center; justify-content: center;
+      position: relative;
     }
     .ex-card-img img, .ex-card-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .ex-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
+    .ex-card-mint {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      color: var(--accent-light); font-size: 0.65rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.3);
+      pointer-events: none;
+    }
 
     .ex-card-body { padding: 0.7rem; display: flex; flex-direction: column; gap: 0.3rem; flex: 1; }
 
@@ -1427,6 +1436,11 @@ function buildCardHtml(sale, asset) {
   const rc     = rcls(rarity);
   const href   = `marketplace.html?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
   const usd    = _waxUsd ? `≈ $${(price * _waxUsd).toFixed(2)}` : '';
+  // Only meaningful in "No grouping" — a grouped (By template) card is just
+  // the first best-sorted listing among possibly many different mints of
+  // that template, so tagging it with one specific mint number would imply
+  // a precision the grouping doesn't actually have.
+  const mint   = _groupBy === 'none' && asset.template_mint ? `#${asset.template_mint}` : '';
 
   let mediaHtml;
   if (media?.kind === 'video') {
@@ -1441,6 +1455,7 @@ function buildCardHtml(sale, asset) {
   return `<div class="ex-card">
     <div class="ex-card-img">
       ${mediaHtml}
+      ${mint ? `<span class="ex-card-mint">${mint}</span>` : ''}
     </div>
     <div class="ex-card-body">
       <div class="ex-card-name">${name}</div>
