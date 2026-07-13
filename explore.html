@@ -71,6 +71,19 @@
     .col-chip-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.25rem; flex-shrink: 0; }
     .col-chip-clear:hover { color: var(--text-primary); }
 
+    /* ── Funko catalog entry point ── */
+    .catalog-mode-btn {
+      display: flex; align-items: center; gap: 0.5rem;
+      width: 100%; margin-top: 0.6rem; box-sizing: border-box;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.5rem 0.7rem;
+      color: var(--text-primary); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: border-color 0.1s;
+    }
+    .catalog-mode-btn:hover { border-color: rgba(192,120,40,0.5); }
+    .catalog-mode-btn img { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; }
+    .catalog-mode-btn.hidden { display: none; }
+
     /* ── Filter inputs ──
        Base look (padding/radius/font/colors) lives in shared/global.css
        (.filter-select, .control-input, .cb-dropdown*, .clear-filters-btn) —
@@ -267,6 +280,10 @@
         <span class="col-chip-name" id="colChipName"></span>
         <button class="col-chip-clear" id="colChipClear" title="Clear">✕</button>
       </div>
+      <button type="button" class="catalog-mode-btn" id="funkoCatalogBtn">
+        <img src="images/funko-icon.png" alt="" />
+        <span>Browse the Funko catalog</span>
+      </button>
     </div>
 
     <!-- Mobile-only: the rest of the filters are collapsed behind this
@@ -278,6 +295,18 @@
     </button>
 
     <div class="ex-filters-content" id="exFiltersContent">
+
+      <!-- Drop (Funko catalog mode only) -->
+      <div class="filter-section hidden" id="secDrop">
+        <span class="filter-label">Drop</span>
+        <div class="cb-dropdown" id="dropDd">
+          <button class="cb-dropdown-btn" id="dropTrigger" type="button">
+            <span class="cb-label">All drops</span>
+            <span class="cb-arrow">▼</span>
+          </button>
+          <div class="cb-panel" id="dropPanel"></div>
+        </div>
+      </div>
 
       <!-- Schema -->
       <div class="filter-section hidden" id="secSchema">
@@ -310,6 +339,16 @@
           <input type="number" class="price-inp control-input" id="minPrice" placeholder="Min" min="0" step="1" />
           <span class="price-sep">—</span>
           <input type="number" class="price-inp control-input" id="maxPrice" placeholder="Max" min="0" step="1" />
+        </div>
+      </div>
+
+      <!-- Mint -->
+      <div class="filter-section hidden" id="secMint">
+        <span class="filter-label">Mint #</span>
+        <div class="price-row">
+          <input type="number" class="price-inp control-input" id="minMint" placeholder="Min" min="1" step="1" />
+          <span class="price-sep">—</span>
+          <input type="number" class="price-inp control-input" id="maxMint" placeholder="Max" min="1" step="1" />
         </div>
       </div>
 
@@ -410,11 +449,15 @@ const RARITY_CSS = {
 };
 
 /* ── State ── */
-let _col        = null;          // {collection_name, name, img}
+let _col        = null;          // {collection_name, name, img} or {isCatalog:true, collection_name:<joined list>, name, img} for Funko catalog mode
+let _drop       = '';            // '' or 'collection|schema' — only meaningful when _col.isCatalog
+let _funkoCatalogData = null;    // lazy cache: { allCollections, dropOptions, rarities }
 let _schema     = '';
 let _rarity     = '';            // single value — the sales API only matches data:text.rarity exactly, no OR
 let _minP       = '';
 let _maxP       = '';
+let _minMint    = '';
+let _maxMint    = '';
 let _bundle     = 'single'; // 'all'/'bundle' disabled in the UI until bundle display + buy flow exist
 let _sortBy     = 'price';
 let _sortOrd    = 'asc';
@@ -773,7 +816,7 @@ async function selectCollection(c) {
 
 document.getElementById('colChipClear').addEventListener('click', clearCollection);
 function clearCollection() {
-  _col = null; _schema = ''; _rarity = ''; _nameFilter = '';
+  _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = '';
   $colChip.style.display = 'none';
   $colSearch.value = '';
   document.getElementById('nameSearch').value = '';
@@ -788,19 +831,129 @@ function clearCollection() {
 }
 
 /* ── Filter sections visibility ── */
-const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secBundle','secClear'];
+const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secClear'];
 function showFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
   document.getElementById('exploreToolbar').classList.add('visible');
   document.getElementById('filtersToggle').classList.remove('hidden');
+  // Schema is collection-specific and doesn't generalize across the merged
+  // Funko catalog list — kept visible (not hidden) per product decision, just
+  // disabled, while the catalog-only Drop section takes its place.
+  document.getElementById('secDrop').classList.toggle('hidden', !_col?.isCatalog);
+  document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
+  // Redundant with the chip already shown while in catalog mode — hide the
+  // entry point button so it doesn't look like a second, still-selectable
+  // option sitting right next to the one that's active. Reappears once the
+  // visitor picks a normal single collection (or clears back to empty).
+  document.getElementById('funkoCatalogBtn').classList.toggle('hidden', !!_col?.isCatalog);
   collapseFiltersOnMobile();
 }
 function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('exploreToolbar').classList.remove('visible');
   document.getElementById('filtersToggle').classList.add('hidden');
+  document.getElementById('secDrop').classList.add('hidden');
+  document.getElementById('schemaTrigger').disabled = false;
+  document.getElementById('funkoCatalogBtn').classList.remove('hidden');
   collapseFiltersOnMobile();
 }
+
+/* ── Funko catalog mode ──
+   A Funko-only shortcut that browses listings across every Funko collection
+   at once instead of one at a time. Feasible because the AtomicMarket sales
+   endpoint accepts a comma-separated collection_name list and returns mixed
+   results across all of them — so the "multi-collection" query is really
+   just one normal request whose collection_name happens to be a joined
+   string (see fetchSalesPage / effectiveScope below). ── */
+
+// Cosmetic label cleanup ported from funko/market-overview.html — Funko drop
+// display names often redundantly repeat "Funko" (e.g. "Alien x Funko"),
+// which is already obvious from context on this page.
+function cleanName(name) {
+  return (name || '')
+    .replace(/^Funko Presents\s+/i, '')
+    .replace(/:\s*Funko Digital Pop!$/i, '')
+    .replace(/\s+[xX]\s+Funko$/i, '')
+    .replace(/:\s*Funko Digital$/i, '')
+    .replace(/\s+x\s+Funko Digital Pop!$/i, '');
+}
+
+// Raw schema values are internal slugs (e.g. "series1.drop") — turn them into
+// the "Series 1" labels already used site-wide for the same data.
+function schemaLabel(sn) {
+  const b = (sn || '').replace('.drop', '');
+  const m = b.match(/^series(\d+)$/);
+  return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
+}
+
+// Lazy + cached: drops_catalog.json (collection list + drop display names)
+// and sort_order.json (canonical rarity tier order) are static site assets,
+// not blockchain data, so this never needs to hit the WAX API or Supabase.
+async function ensureFunkoCatalog() {
+  if (_funkoCatalogData) return _funkoCatalogData;
+  const [drops, sortOrder] = await Promise.all([
+    fetch('funko/data/drops_catalog.json').then(r => r.json()),
+    fetch('funko/data/sort_order.json').then(r => r.json()),
+  ]);
+  const allCollections = [...new Set(drops.map(d => d.collection))].join(',');
+  const dropOptions = drops
+    .map(d => ({ value: `${d.collection}|${d.schema}`, label: `${cleanName(d.displayname)} — ${schemaLabel(d.schema)}` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  _funkoCatalogData = { allCollections, dropOptions, rarities: sortOrder.rarity || [] };
+  return _funkoCatalogData;
+}
+
+function buildDropDropdown(options) {
+  const panel = document.getElementById('dropPanel');
+  panel.innerHTML = [
+    `<div class="cb-item${!_drop ? ' active' : ''}" data-val=""><span>All drops</span></div>`,
+    ...options.map(o => `<div class="cb-item${_drop === o.value ? ' active' : ''}" data-val="${esc(o.value)}"><span>${esc(o.label)}</span></div>`)
+  ].join('');
+  const curLabel = (options.find(o => o.value === _drop) || { label: 'All drops' }).label;
+  document.querySelector('#dropDd .cb-label').textContent = curLabel;
+
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      _drop = item.dataset.val;
+      closeAllDd();
+      const label = (options.find(o => o.value === _drop) || { label: 'All drops' }).label;
+      document.querySelector('#dropDd .cb-label').textContent = label;
+      panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _drop));
+      pushUrl(); resetResults(); loadMore();
+    });
+  });
+}
+document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
+
+async function selectFunkoCatalog({ restoring = false } = {}) {
+  hideSugs();
+  $colSearch.value = '';
+  const cat = await ensureFunkoCatalog();
+  _col = { isCatalog: true, collection_name: cat.allCollections, name: 'Funko Catalog', img: '' };
+
+  if (!restoring) {
+    _rarity = ''; _schema = ''; _drop = ''; _nameFilter = '';
+    document.getElementById('nameSearch').value = '';
+  }
+
+  const $img  = document.getElementById('colChipImg');
+  const $name = document.getElementById('colChipName');
+  $img.src = 'images/funko-icon.png';
+  $img.style.display = '';
+  $name.textContent = 'Funko Catalog · All collections';
+  $colChip.style.display = 'flex';
+
+  document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  document.getElementById('schemaPanel').innerHTML = '';
+  buildDropDropdown(cat.dropOptions);
+  buildRarityDropdown(cat.rarities); // static list from sort_order.json — no live template scan
+
+  showFilters();
+  pushUrl();
+  resetResults();
+  loadMore();
+}
+document.getElementById('funkoCatalogBtn').addEventListener('click', () => selectFunkoCatalog());
 
 // Collapsed by default on mobile every time a collection is (re)selected —
 // desktop ignores .open entirely (CSS only hides/shows via that class
@@ -917,6 +1070,15 @@ function onPriceChange() {
 document.getElementById('minPrice').addEventListener('input', function () { _minP = this.value.trim(); onPriceChange(); });
 document.getElementById('maxPrice').addEventListener('input', function () { _maxP = this.value.trim(); onPriceChange(); });
 
+/* ── Mint ── */
+let _mintT = null;
+function onMintChange() {
+  clearTimeout(_mintT);
+  _mintT = setTimeout(() => { pushUrl(); resetResults(); loadMore(); }, 600);
+}
+document.getElementById('minMint').addEventListener('input', function () { _minMint = this.value.trim(); onMintChange(); });
+document.getElementById('maxMint').addEventListener('input', function () { _maxMint = this.value.trim(); onMintChange(); });
+
 /* ── Bundle / Sort ── */
 function initStaticDropdown(ddId, options, getValue, onSelect) {
   const root  = document.getElementById(ddId);
@@ -964,8 +1126,9 @@ const renderGroupByDd = initStaticDropdown('groupByDd', [
 ], () => _groupBy, v => { _groupBy = v; pushUrl(); resetResults(); loadMore(); });
 
 const renderSortByDd = initStaticDropdown('sortByDd', [
-  { value: 'price',   label: 'Price' },
-  { value: 'created', label: 'Date listed' },
+  { value: 'price',         label: 'Price' },
+  { value: 'created',       label: 'Date listed' },
+  { value: 'template_mint', label: 'Mint #' },
 ], () => _sortBy, v => { _sortBy = v; pushUrl(); resetResults(); loadMore(); });
 
 const renderSortOrderDd = initStaticDropdown('sortOrderDd', [
@@ -986,6 +1149,7 @@ function clearFilters() {
   _schema = '';
   _rarity = '';
   _minP = ''; _maxP = '';
+  _minMint = ''; _maxMint = '';
   _bundle = 'all';
   _sortBy = 'price'; _sortOrd = 'asc';
   _nameFilter = '';
@@ -993,6 +1157,8 @@ function clearFilters() {
 
   document.getElementById('minPrice').value = '';
   document.getElementById('maxPrice').value = '';
+  document.getElementById('minMint').value = '';
+  document.getElementById('maxMint').value = '';
   renderBundleDd();
   renderSortByDd();
   renderSortOrderDd();
@@ -1108,6 +1274,12 @@ async function loadMore() {
 
   const batch = _queue.splice(0, PAGE_SIZE);
   if (batch.length) {
+    // _shownN === 0 means the grid currently holds nothing but a stale
+    // placeholder (the "Couldn't load listings" error, or nothing at all on
+    // a fresh load) — never real cards, since those always bump _shownN.
+    // Clear it before appending so a successful retry after a failed
+    // attempt doesn't leave the old error message sitting above the cards.
+    if (_shownN === 0) $grid.innerHTML = '';
     $grid.insertAdjacentHTML('beforeend', batch.join(''));
     _shownN += batch.length;
     observeNewVideos($grid);
@@ -1137,15 +1309,33 @@ async function loadMore() {
   _busy = false;
 }
 
+// In normal mode, scope is just the picked collection + Schema filter. In
+// Funko catalog mode, scope is either every Funko collection at once (no
+// specific Drop picked) or one exact collection+schema pair (a Drop picked) —
+// see selectFunkoCatalog/buildDropDropdown.
+function effectiveScope() {
+  if (_col.isCatalog) {
+    if (_drop) {
+      const [col, schema] = _drop.split('|');
+      return { col, schema };
+    }
+    return { col: _col.collection_name, schema: '' };
+  }
+  return { col: _col.collection_name, schema: _schema };
+}
+
 function fetchSalesPage(page) {
+  const { col, schema } = effectiveScope();
   const base = WaxApi.marketBase().replace('/v1', '/v2');
   let url = `${base}/sales?state=1&symbol=WAX`;
-  url += `&collection_name=${encodeURIComponent(_col.collection_name)}`;
+  url += `&collection_name=${encodeURIComponent(col)}`;
   url += `&sort=${_sortBy}&order=${_sortOrd}&limit=100&page=${page}`;
-  if (_schema)     url += `&schema_name=${encodeURIComponent(_schema)}`;
+  if (schema)      url += `&schema_name=${encodeURIComponent(schema)}`;
   if (_nameFilter) url += `&name=${encodeURIComponent(_nameFilter)}`;
   if (_minP)       url += `&min_price=${parseFloat(_minP)}`;
   if (_maxP)       url += `&max_price=${parseFloat(_maxP)}`;
+  if (_minMint)    url += `&min_template_mint=${parseInt(_minMint, 10)}`;
+  if (_maxMint)    url += `&max_template_mint=${parseInt(_maxMint, 10)}`;
   // Hardcoded, not `if (_bundle === 'single')` — bundles have no card
   // display or working buy flow yet, so single-only is enforced at the
   // fetch itself. Even if someone forces _bundle to 'all'/'bundle' via
@@ -1267,11 +1457,18 @@ initInfiniteScroll();
 /* ── URL sync ── */
 function pushUrl() {
   const p = new URLSearchParams();
-  if (_col)               p.set('col',    _col.collection_name);
+  if (_col?.isCatalog) {
+    p.set('col', '__funko__');
+    if (_drop) p.set('drop', _drop);
+  } else if (_col) {
+    p.set('col', _col.collection_name);
+  }
   if (_schema)            p.set('schema', _schema);
   if (_rarity)            p.set('rarity', _rarity);
   if (_minP)              p.set('minP',   _minP);
   if (_maxP)              p.set('maxP',   _maxP);
+  if (_minMint)           p.set('minMint', _minMint);
+  if (_maxMint)           p.set('maxMint', _maxMint);
   // _bundle intentionally not persisted — see restoreFromUrl and
   // fetchSalesPage; it's pinned to 'single' regardless of URL content.
   if (_sortBy !== 'price')  p.set('sort',  _sortBy);
@@ -1292,6 +1489,8 @@ async function restoreFromUrl() {
   _rarity     = p.get('rarity')  || '';
   _minP       = p.get('minP')    || '';
   _maxP       = p.get('maxP')    || '';
+  _minMint    = p.get('minMint') || '';
+  _maxMint    = p.get('maxMint') || '';
   // _bundle is never read from the URL — always 'single' until bundles
   // are actually supported, no matter what a hand-edited URL contains.
   _sortBy     = p.get('sort')    || 'price';
@@ -1306,7 +1505,28 @@ async function restoreFromUrl() {
   renderBundleDd();
   if (_minP) document.getElementById('minPrice').value = _minP;
   if (_maxP) document.getElementById('maxPrice').value = _maxP;
+  if (_minMint) document.getElementById('minMint').value = _minMint;
+  if (_maxMint) document.getElementById('maxMint').value = _maxMint;
   if (_nameFilter) document.getElementById('nameSearch').value = _nameFilter;
+
+  if (colName === '__funko__') {
+    _drop = p.get('drop') || '';
+    try {
+      await selectFunkoCatalog({ restoring: true });
+    } catch {
+      // Same failure UI as a broken single-collection deep link — here it'd
+      // mean drops_catalog.json/sort_order.json failed to fetch.
+      const $empty = document.getElementById('emptyState');
+      $empty.innerHTML = `
+        <div class="empty-state-icon">⚠️</div>
+        <h2>Couldn't load this collection</h2>
+        <p>The link may be broken, or the WAX API is temporarily unreachable.</p>
+        <button type="button" class="retry-btn" id="retryRestoreBtn" style="margin-top:1rem">Try again</button>`;
+      $empty.style.display = '';
+      document.getElementById('retryRestoreBtn').addEventListener('click', restoreFromUrl);
+    }
+    return;
+  }
 
   try {
     const c = await WaxApi.apiFetch(`${WaxApi.aaBase()}/collections/${encodeURIComponent(colName)}`);
