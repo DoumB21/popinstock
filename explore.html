@@ -413,6 +413,10 @@
     </div>
 
     <div class="results-status" id="resultsStatus" style="display:none"></div>
+    <div class="status-wrap" id="exLoadWrap" style="display:none">
+      <div class="spinner"></div>
+      <div class="status-text">Loading cards…</div>
+    </div>
     <div class="cards-grid" id="cardsGrid"></div>
     <div id="loadMoreWrap">
       <button id="loadMoreBtn" class="load-more-btn">Load more</button>
@@ -1190,6 +1194,12 @@ function resetResults() {
   document.getElementById('loadMoreWrap').style.display  = 'none';
   document.getElementById('resultsStatus').style.display = 'none';
   document.getElementById('emptyState').style.display    = 'none';
+  // _gen++ above means any loadMore() already in flight will bail out at its
+  // next generation check without ever reaching the code that hides this —
+  // hide it unconditionally here so it can't get stuck visible (e.g.
+  // clearing the collection mid-fetch). loadMore() re-shows it immediately
+  // after, if this reset is actually about to be followed by a fresh fetch.
+  document.getElementById('exLoadWrap').style.display = 'none';
 }
 
 /* ── Lazy video loading — cards render off-screen too (up to PAGE_SIZE per
@@ -1224,12 +1234,22 @@ async function loadMore() {
   _busy = true;
   const myGen = _gen;
 
-  const $btn    = document.getElementById('loadMoreBtn');
-  const $grid   = document.getElementById('cardsGrid');
-  const $status = document.getElementById('resultsStatus');
+  const $btn      = document.getElementById('loadMoreBtn');
+  const $grid     = document.getElementById('cardsGrid');
+  const $status   = document.getElementById('resultsStatus');
+  const $loadWrap = document.getElementById('exLoadWrap');
 
   $btn.disabled = true;
   $btn.innerHTML = '<span class="spin"></span>Loading…';
+  // _shownN === 0 means this is a fresh round (initial load or right after a
+  // filter change reset the grid), not a "Load more"/infinite-scroll
+  // continuation onto cards that are already visible. The button's own tiny
+  // spinner above is invisible here too — #loadMoreWrap stays hidden until
+  // there's something to show — so without this, a slow or retried fetch
+  // (WaxApi.apiFetch backs off and retries 429/503/408 under the hood) left
+  // the page looking dead for several seconds with no sign anything was
+  // happening.
+  if (_shownN === 0) $loadWrap.style.display = '';
 
   const MAX_PAGES_PER_CALL = 10;
   const BATCH_SIZE         = 3; // sales pages fetched in parallel per round, within the browser's per-origin connection limit
@@ -1285,6 +1305,7 @@ async function loadMore() {
     observeNewVideos($grid);
   }
 
+  $loadWrap.style.display = 'none';
   $status.style.display = '';
   if (_shownN === 0 && hadError) {
     $status.textContent = '';
