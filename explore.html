@@ -190,9 +190,25 @@
     .ex-buy-btn--error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
     .ex-card--bought { opacity: 0.55; pointer-events: none; }
 
+    .ex-card-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+    .ex-card-actions .ex-buy-btn { margin-top: 0; flex: 1; }
+    .ex-view-btn {
+      display: flex; align-items: center; justify-content: center;
+      flex: 0 0 auto; padding: 0.38rem 0.65rem; border-radius: 5px;
+      font-size: 0.79rem; font-weight: 700;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text-secondary); text-decoration: none;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .ex-view-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); color: var(--text-primary); }
+
     /* ── Load more ── */
     #loadMoreWrap { display: none; text-align: center; padding: 2rem 0 1rem; }
     /* #loadMoreBtn's look lives in shared/global.css (.load-more-btn, shared with inventory.html/inventory-bulk.html) */
+    .load-more-hint {
+      max-width: 380px; margin: 0.6rem auto 0;
+      font-size: 0.78rem; color: var(--accent-light); line-height: 1.4;
+    }
 
     /* ── Retry / error states ── */
     .retry-btn {
@@ -257,6 +273,59 @@
       .ex-filters-content { display: none; margin-top: 1rem; }
       .ex-filters-content.open { display: block; }
     }
+
+    /* ── Hover tooltip (ported from inventory.html) ── */
+    .hover-tooltip {
+      position: fixed; z-index: 300; width: 200px;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 0.85rem 1rem;
+      pointer-events: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      font-size: 0.78rem;
+    }
+    .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
+    .tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+    .tt-label { color: var(--text-secondary); }
+    .tt-val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.6rem 0; }
+    .tt-heading {
+      font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem;
+    }
+    .tt-red    { color: #f87171; }
+    .tt-purple { color: #a78bfa; }
+    .tt-orange { color: var(--accent-light); }
+    .tt-val-copiable { display: inline-flex; align-items: center; gap: 4px; }
+    .copy-btn {
+      background: none; border: none; padding: 0 1px; cursor: pointer;
+      color: var(--text-secondary); font-size: 0.72rem; line-height: 1;
+      opacity: 0.55; transition: opacity 0.15s, color 0.15s; flex-shrink: 0; vertical-align: middle;
+    }
+    .copy-btn:hover { opacity: 1; color: var(--accent-light); }
+    .copy-btn.copied { color: #4ade80; opacity: 1; }
+
+    /* No hover on touch devices — a 350ms-delayed panel that never
+       dismisses on its own (no mouseleave) would just sit there stuck.
+       Click-to-open (.info-popup below) is the touch equivalent instead. */
+    @media (hover: none) {
+      .hover-tooltip { display: none !important; }
+    }
+
+    /* ── Info popup (click — persists until dismissed, unlike the hover
+       tooltip above) ── */
+    .info-popup {
+      position: fixed; z-index: 301; width: 240px;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 0.9rem 1rem 0.85rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.65);
+      font-size: 0.78rem;
+    }
+    .info-popup-close {
+      background: none; border: none; color: var(--text-secondary);
+      cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
+      flex-shrink: 0; transition: color 0.15s;
+    }
+    .info-popup-close:hover { color: var(--text-primary); }
   </style>
 </head>
 <body>
@@ -437,12 +506,16 @@
     <div class="cards-grid" id="cardsGrid"></div>
     <div id="loadMoreWrap">
       <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+      <div id="loadMoreHint" class="load-more-hint" style="display:none">Many of the next listings repeat templates already shown — try adding a filter (schema, rarity, price) for more varied results.</div>
     </div>
   </main>
 
 </div><!-- .explore-layout -->
 </div><!-- .content -->
 </div><!-- .page -->
+
+<div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
+<div id="cardInfoPopup" class="info-popup" style="display:none;"></div>
 
 <footer>
   &copy; 2026 Hoardio &mdash; All rights reserved.
@@ -1215,8 +1288,11 @@ function resetResults() {
   _videoObserver?.disconnect(); // grid is about to be wiped — drop refs to the old (soon-detached) video elements
   document.getElementById('cardsGrid').innerHTML    = '';
   document.getElementById('loadMoreWrap').style.display  = 'none';
+  document.getElementById('loadMoreHint').style.display  = 'none';
   document.getElementById('resultsStatus').style.display = 'none';
   document.getElementById('emptyState').style.display    = 'none';
+  cancelTooltip(); // grid is about to be wiped — don't leave a tooltip pointing at a now-detached card
+  closeInfoPopup(); // same, for the click-persisted popup
   // _gen++ above means any loadMore() already in flight will bail out at its
   // next generation check without ever reaching the code that hides this —
   // hide it unconditionally here so it can't get stuck visible (e.g.
@@ -1316,6 +1392,15 @@ async function loadMore() {
 
   if (myGen !== _gen) return;
 
+  // Grouping dedups by template_id — a collection where a handful of
+  // templates carry most of the listings (e.g. a common card with dozens of
+  // copies for sale) can burn through the whole per-click page-scan budget
+  // (MAX_PAGES_PER_CALL) without turning up much that's actually new, since
+  // every listing for an already-shown template gets silently skipped. That
+  // looks like "Load more" is broken rather than just filtered out — surface
+  // it explicitly instead.
+  const starved = pagesLoaded >= MAX_PAGES_PER_CALL && _queue.length < PAGE_SIZE && !_apiDone && !hadError && _groupBy !== 'none';
+
   const batch = _queue.splice(0, PAGE_SIZE);
   if (batch.length) {
     // _shownN === 0 means the grid currently holds nothing but a stale
@@ -1327,6 +1412,7 @@ async function loadMore() {
     $grid.insertAdjacentHTML('beforeend', batch.join(''));
     _shownN += batch.length;
     observeNewVideos($grid);
+    wireTooltips($grid);
   }
 
   $loadWrap.style.display = 'none';
@@ -1348,6 +1434,7 @@ async function loadMore() {
 
   const hasMore = !_apiDone || _queue.length > 0 || hadError;
   document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
+  document.getElementById('loadMoreHint').style.display = hasMore && starved ? '' : 'none';
   $btn.disabled    = false;
   $btn.textContent = hadError ? 'Try again' : 'Load more';
 
@@ -1451,6 +1538,26 @@ function buildCardHtml(sale, asset) {
   const rc     = rcls(rarity);
   const href   = `marketplace.html?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
   const usd    = _waxUsd ? `≈ $${(price * _waxUsd).toFixed(2)}` : '';
+
+  // Hover-tooltip data, read off the card element by wireTooltips/showTooltip
+  // (see the Tooltip section below) rather than kept in a parallel JS array —
+  // cards here are plain HTML strings batch-inserted via insertAdjacentHTML,
+  // so there's nothing else to look the asset back up from once rendered.
+  const schemaName = asset.schema?.schema_name || '';
+  const cardid     = data.cardid || asset.template?.immutable_data?.cardid || '';
+  const colDisplay = asset.collection?.name || col;
+  const ttData = {
+    'data-asset-id':         asset.asset_id || '',
+    'data-template-id':      tid || '',
+    'data-collection':       col,
+    'data-collection-name':  colDisplay,
+    'data-schema':           schemaName,
+    'data-rarity':           rarity,
+    'data-cardid':           cardid,
+    'data-name':             asset.name || data.name || '',
+  };
+  const ttAttrs = Object.entries(ttData).map(([k, v]) => `${k}="${esc(String(v))}"`).join(' ');
+
   // Only meaningful in "No grouping" — a grouped (By template) card is just
   // the first best-sorted listing among possibly many different mints of
   // that template, so tagging it with one specific mint number would imply
@@ -1466,9 +1573,15 @@ function buildCardHtml(sale, asset) {
   if (_groupBy === 'none') {
     const saleId = String(sale.sale_id);
     const amount = String(sale.price?.amount || '0');
-    actionHtml = window.getWaxAccount()
+    const buyBtn = window.getWaxAccount()
       ? `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="buyListing(this,'${saleId}','${amount}')">Buy Now</button>`
       : `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="connectWallet()">Connect to Buy</button>`;
+    // Buying is direct here, but the visitor may still want to compare this
+    // template's other listings (different mints/prices/sellers) before
+    // committing — "View" keeps that escape hatch without giving up the
+    // one-click buy that grouping normally trades away.
+    const viewBtn = `<a class="ex-view-btn" href="${href}" target="_blank" rel="noopener noreferrer" title="View all listings of this card">View</a>`;
+    actionHtml = `<div class="ex-card-actions">${buyBtn}${viewBtn}</div>`;
   } else {
     actionHtml = `<a class="ex-buy-btn" href="${href}" target="_blank" rel="noopener noreferrer">View listings</a>`;
   }
@@ -1483,7 +1596,7 @@ function buildCardHtml(sale, asset) {
     mediaHtml = '<div class="ex-card-img-ph">?</div>';
   }
 
-  return `<div class="ex-card">
+  return `<div class="ex-card" ${ttAttrs}>
     <div class="ex-card-img">
       ${mediaHtml}
       ${mint ? `<span class="ex-card-mint">${mint}</span>` : ''}
@@ -1497,6 +1610,253 @@ function buildCardHtml(sale, asset) {
       ${actionHtml}
     </div>
   </div>`;
+}
+
+/* ── Hover tooltip (ported from inventory.html's card hover panel) ──
+   Cards here are plain HTML strings, not JS objects kept around after
+   render, so unlike inventory.html this reads everything it needs back off
+   the hovered card's data-* attributes (see ttData/ttAttrs in buildCardHtml)
+   instead of a closure over the original asset. */
+const _supplyCache = {};
+const _ownedCache  = {};
+let _tooltipTimer    = null;
+let _tooltipAssetId  = null;
+let _infoAssetId     = null; // click-opened popup — persists until dismissed, unlike the hover tooltip
+
+function cardDataFromEl(cardEl) {
+  return {
+    assetId:        cardEl.dataset.assetId,
+    templateId:     cardEl.dataset.templateId,
+    collection:     cardEl.dataset.collection,
+    collectionName: cardEl.dataset.collectionName,
+    schema:         cardEl.dataset.schema,
+    rarity:         cardEl.dataset.rarity,
+    cardid:         cardEl.dataset.cardid,
+    name:           cardEl.dataset.name,
+  };
+}
+
+// Click toggles a persistent info popup for that card (matches
+// inventory.html); ignored when the click actually landed on one of the
+// card's own buttons/links (Buy Now, View, etc.) so those keep working
+// normally instead of also opening/closing the popup underneath them.
+function wireTooltips(root) {
+  root.querySelectorAll('.ex-card:not([data-tt-wired])').forEach(card => {
+    card.dataset.ttWired = '1';
+    card.addEventListener('mouseenter', () => {
+      if (document.getElementById('cardInfoPopup').style.display !== 'none') return; // an info popup is pinned open — don't also show the hover panel
+      scheduleTooltip(card);
+    });
+    card.addEventListener('mouseleave', cancelTooltip);
+    card.addEventListener('click', e => {
+      if (e.target.closest('a, button')) return;
+      if (_infoAssetId === card.dataset.assetId && document.getElementById('cardInfoPopup').style.display !== 'none') {
+        closeInfoPopup();
+      } else {
+        openInfoPopup(card);
+      }
+    });
+  });
+}
+
+function scheduleTooltip(cardEl) {
+  cancelTooltip();
+  _tooltipTimer = setTimeout(() => showTooltip(cardEl), 350);
+}
+
+function cancelTooltip() {
+  clearTimeout(_tooltipTimer);
+  _tooltipTimer   = null;
+  _tooltipAssetId = null;
+  document.getElementById('hoverTooltip').style.display = 'none';
+}
+
+function positionTooltip(cardEl) {
+  const tip  = document.getElementById('hoverTooltip');
+  const rect = cardEl.getBoundingClientRect();
+  const TW   = 216;
+  const TH   = tip.offsetHeight || 170;
+  let left = rect.right + 10;
+  if (left + TW > window.innerWidth - 8) left = rect.left - TW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + TH > window.innerHeight - 8) top = window.innerHeight - TH - 8;
+  if (top < 8) top = 8;
+  tip.style.left = left + 'px';
+  tip.style.top  = top  + 'px';
+}
+
+function copyVal(btn, text) {
+  navigator.clipboard.writeText(String(text)).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1200);
+  }).catch(() => {});
+}
+
+const _copyIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+
+// Shared by both the hover tooltip and the click-persisted popup — they only
+// differ in the header (see renderTooltip/renderInfoPopup below). The copy
+// buttons/AtomicHub link are inert during hover (.hover-tooltip is
+// pointer-events:none) and only actually clickable once pinned via a click.
+function renderTooltipBody(d, supply, owned) {
+  const loading = !supply && !owned;
+  const dash    = loading ? '…' : '—';
+  const fmt     = n => n != null ? Number(n).toLocaleString() : dash;
+
+  const issued = supply?.issued ?? null;
+  const circ   = supply?.circ   ?? null;
+  const locked = supply?.locked ?? 0;
+  const burned = issued != null && circ != null ? issued - circ : null;
+  const rClass = rcls(d.rarity);
+
+  return `
+    <div class="tt-heading">Attributes</div>
+    <div class="tt-section" style="margin-bottom:0.5rem">
+      ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.collectionName)}</span></div>` : ''}
+      ${d.schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${esc(d.schema)}</span></div>` : ''}
+      ${d.rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${esc(d.rarity)}</span></span></div>` : ''}
+      ${d.cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${esc(d.cardid)}</span></div>` : ''}
+      ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${esc(d.assetId)}<button class="copy-btn" onclick="copyVal(this,'${esc(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
+      ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${esc(d.templateId)}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${esc(d.templateId)}<button class="copy-btn" onclick="copyVal(this,'${esc(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
+    </div>
+    <div class="tt-divider"></div>
+    <div class="tt-heading">Supply</div>
+    <div class="tt-section">
+      <div class="tt-row"><span class="tt-label">Issued</span><span class="tt-val">${fmt(issued)}</span></div>
+      ${burned > 0 || supply?.showBurned || supply?.funko || loading ? `<div class="tt-row"><span class="tt-label">Burned</span><span class="tt-val tt-red">${fmt(burned)}</span></div>` : ''}
+      ${locked > 0 || supply?.funko ? `<div class="tt-row"><span class="tt-label">Locked (Droppp)</span><span class="tt-val tt-purple">${fmt(locked)}</span></div>` : ''}
+      <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
+    </div>
+    <div class="tt-divider"></div>
+    <div class="tt-heading">You</div>
+    <div class="tt-section">
+      <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
+      ${owned?.count > 0 ? `<div class="tt-row"><span class="tt-label">Lowest mint</span><span class="tt-val tt-orange">#${Number(owned.lowestMint).toLocaleString()}</span></div>` : ''}
+    </div>`;
+}
+
+function renderTooltip(d, supply, owned) {
+  return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${esc(d.name || 'Unknown')}</div>${renderTooltipBody(d, supply, owned)}`;
+}
+
+function renderInfoPopup(d, supply, owned) {
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
+    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${esc(d.name || 'Unknown')}</div>
+    <button class="info-popup-close" onclick="closeInfoPopup()">✕</button>
+  </div>${renderTooltipBody(d, supply, owned)}`;
+}
+
+async function showTooltip(cardEl) {
+  const d = cardDataFromEl(cardEl);
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  _tooltipAssetId = d.assetId;
+
+  const tip = document.getElementById('hoverTooltip');
+  tip.innerHTML = renderTooltip(d, null, null);
+  tip.style.display = '';
+  positionTooltip(cardEl);
+
+  const [supply, owned] = await Promise.all([
+    d.templateId ? fetchSupply(d.templateId, d.collection) : Promise.resolve(null),
+    d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
+  ]);
+
+  if (_tooltipAssetId !== d.assetId) return; // moved on to a different card (or dismissed) since this fetch started
+  tip.innerHTML = renderTooltip(d, supply, owned);
+  positionTooltip(cardEl);
+}
+
+function closeInfoPopup() {
+  _infoAssetId = null;
+  document.getElementById('cardInfoPopup').style.display = 'none';
+}
+
+function positionInfoPopup(cardEl) {
+  const popup = document.getElementById('cardInfoPopup');
+  const rect  = cardEl.getBoundingClientRect();
+  const PW    = 256;
+  const PH    = popup.offsetHeight || 320;
+  let left = rect.right + 10;
+  if (left + PW > window.innerWidth - 8) left = rect.left - PW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + PH > window.innerHeight - 8) top = window.innerHeight - PH - 8;
+  if (top < 8) top = 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+async function openInfoPopup(cardEl) {
+  cancelTooltip(); // don't show both at once
+  const d = cardDataFromEl(cardEl);
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  _infoAssetId = d.assetId;
+
+  const popup = document.getElementById('cardInfoPopup');
+  popup.innerHTML = renderInfoPopup(d, null, null);
+  popup.style.display = '';
+  positionInfoPopup(cardEl);
+
+  const [supply, owned] = await Promise.all([
+    d.templateId ? fetchSupply(d.templateId, d.collection) : Promise.resolve(null),
+    d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
+  ]);
+
+  if (_infoAssetId !== d.assetId) return;
+  popup.innerHTML = renderInfoPopup(d, supply, owned);
+  positionInfoPopup(cardEl);
+}
+
+document.addEventListener('click', e => {
+  const popup = document.getElementById('cardInfoPopup');
+  if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.ex-card')) {
+    closeInfoPopup();
+  }
+});
+
+// Funko templates get the richer Supabase-backed numbers (matches
+// inventory.html); any other collection falls through to the generic
+// on-chain stats endpoint, which works for every WAX collection.
+function fetchSupply(templateId, collectionName) {
+  if (_supplyCache[templateId]) return _supplyCache[templateId];
+  _supplyCache[templateId] = (async () => {
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/templates?select=issued_supply,in_circulation,dp_locked_count&template_id=eq.${templateId}`;
+      const res = await fetch(url, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Accept-Profile': 'funko' },
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        const r = Array.isArray(rows) ? rows[0] : null;
+        if (r) return { issued: r.issued_supply ?? null, circ: r.in_circulation ?? null, locked: r.dp_locked_count ?? 0, funko: true };
+      }
+    } catch { /* fall through */ }
+    try {
+      if (!collectionName) return null;
+      const s      = await WaxApi.apiFetch(`${WaxApi.aaBase()}/templates/${encodeURIComponent(collectionName)}/${templateId}/stats`);
+      const issued = s?.assets != null ? Number(s.assets) : null;
+      const burned = s?.burned != null ? Number(s.burned) : 0;
+      const circ   = issued != null ? issued - burned : null;
+      return issued != null ? { issued, circ, locked: 0, showBurned: true } : null;
+    } catch { return null; }
+  })();
+  return _supplyCache[templateId];
+}
+
+function fetchOwned(wallet, templateId) {
+  const key = `${wallet}:${templateId}`;
+  if (_ownedCache[key]) return _ownedCache[key];
+  _ownedCache[key] = (async () => {
+    try {
+      const rows = await WaxApi.apiFetch(`${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_id=${templateId}&sort=template_mint&order=asc&limit=500`);
+      const data = rows || [];
+      return { count: data.length, lowestMint: data[0]?.template_mint ?? null };
+    } catch { return { count: 0, lowestMint: null }; }
+  })();
+  return _ownedCache[key];
 }
 
 /* Clicking "Load more" once arms infinite scroll for the rest of this filter
