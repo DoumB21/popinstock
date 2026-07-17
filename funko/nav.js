@@ -171,6 +171,8 @@ async function _initWallet() {
     menuItems: [
       { href: 'profile.html', label: 'Collector Profile', icon: '👤' },
       { href: '../inventory.html', label: 'Inventory', icon: '📦' },
+      { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
+      { href: '../inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
     ],
     // Reads the cached tier synchronously so the icon appears instantly —
     // onAccount below refreshes it in the background, never blocking paint.
