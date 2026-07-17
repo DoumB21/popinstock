@@ -39,6 +39,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
     .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
+    .empty-state a { color: var(--accent-light); text-decoration: underline; }
+    .empty-state a:hover { opacity: 0.8; }
 
     .offers-list { display: flex; flex-direction: column; gap: 0.7rem; }
 
@@ -69,16 +71,6 @@
     .offer-age     { flex-shrink: 0; width: 5rem; font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; text-align: right; }
     .offer-body    { display: none; border-top: 1px solid var(--border); }
     .offer-item.open .offer-body { display: block; }
-
-    /* ── Notice (unknown/mixed) ── */
-    .offer-notice {
-      display: flex; align-items: flex-start; gap: 0.75rem;
-      padding: 1.25rem 1.25rem 1.1rem;
-      color: var(--text-secondary); font-size: 0.85rem; line-height: 1.55;
-    }
-    .offer-notice svg { flex-shrink: 0; margin-top: 1px; color: var(--text-secondary); opacity: 0.6; }
-    .offer-notice a { color: var(--accent-light); text-decoration: underline; }
-    .offer-notice a:hover { opacity: 0.8; }
 
     /* ── Two-column sides ── */
     .offer-sides { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.5rem; border-bottom: 1px solid var(--border); }
@@ -181,6 +173,7 @@
     <div class="nav-links"></div>
   </div>
 </nav>
+<script src="shared/generic-nav.js"></script>
 
 <main class="page-main">
   <div class="page-header">
@@ -200,7 +193,7 @@
 
   <div id="emptyWrap" class="empty-state" style="display:none;">
     <strong>No pending offers</strong>
-    You have no incoming trade offers at this time. You can close this tab and return to the Trade Analyzer.
+    You have no incoming trade offers at this time. Head back to the <a href="trade-analyzer.html">Trade Analyzer</a>.
   </div>
 
   <div id="offersList" class="offers-list" style="display:none;"></div>
@@ -212,7 +205,11 @@
 /* ── Nav auth ──────────────────────────────────────────────────────────────── */
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
-  menuItems: [{ href: 'inventory.html', label: 'Inventory', icon: '📦' }],
+  menuItems: [
+    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
+    { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+  ],
 });
 window.addEventListener('wax-auth-change', onWalletChange);
 
@@ -360,22 +357,31 @@ function rarityRank(r, project, schemaKey) {
     const idx = FUNKO_RARITY_ORDER.indexOf((r || '').toLowerCase());
     return idx === -1 ? 999 : idx;
   }
-  const order = TOPPS_RARITY_ORDER[schemaKey] || Object.values(TOPPS_RARITY_ORDER)[0] || [];
-  const idx = order.indexOf((r || '').toLowerCase());
-  return idx === -1 ? 999 : idx;
+  if (project === 'topps') {
+    const order = TOPPS_RARITY_ORDER[schemaKey] || Object.values(TOPPS_RARITY_ORDER)[0] || [];
+    const idx = order.indexOf((r || '').toLowerCase());
+    return idx === -1 ? 999 : idx;
+  }
+  return 999; // generic collection — no curated rarity order to rank by
 }
 
-function sortAssets(assets, project) {
-  const dropOrderMap = project === 'funko' ? FUNKO_DROP_ORDER : TOPPS_DROP_ORDER;
+// Project is resolved per-asset (not once for the whole array) — an offer
+// can freely mix Funko/Topps/generic assets on one side now that unknown
+// collections render instead of being blocked, so a single blanket project
+// no longer holds for the whole side.
+function sortAssets(assets) {
   return [...assets].sort((a, b) => {
+    const pa = assetProject(a), pb = assetProject(b);
     const schA = (a.schema?.schema_name || '').replace('.drop', '');
     const schB = (b.schema?.schema_name || '').replace('.drop', '');
-    const ra = rarityRank(a.template?.immutable_data?.rarity, project, schA);
-    const rb = rarityRank(b.template?.immutable_data?.rarity, project, schB);
+    const ra = rarityRank(a.template?.immutable_data?.rarity, pa, schA);
+    const rb = rarityRank(b.template?.immutable_data?.rarity, pb, schB);
     if (ra !== rb) return ra - rb;
+    const dropOrderMapA = pa === 'funko' ? FUNKO_DROP_ORDER : pa === 'topps' ? TOPPS_DROP_ORDER : null;
+    const dropOrderMapB = pb === 'funko' ? FUNKO_DROP_ORDER : pb === 'topps' ? TOPPS_DROP_ORDER : null;
     const ka = `${a.collection?.collection_name || ''}|${a.schema?.schema_name || ''}`;
     const kb = `${b.collection?.collection_name || ''}|${b.schema?.schema_name || ''}`;
-    return (dropOrderMap.get(ka) ?? 9999) - (dropOrderMap.get(kb) ?? 9999);
+    return (dropOrderMapA?.get(ka) ?? 9999) - (dropOrderMapB?.get(kb) ?? 9999);
   });
 }
 
@@ -424,9 +430,10 @@ async function fetchLowestMints(wallet, templateIds) {
 }
 
 /* ── Asset card rendering ──────────────────────────────────────────────────── */
-function buildAssetCards(assets, tplMap, lowestMints, side, project) {
+function buildAssetCards(assets, tplMap, lowestMints, side) {
   if (!assets || assets.length === 0) return '<div class="asset-empty">No assets</div>';
-  return sortAssets(assets, project).map(asset => {
+  return sortAssets(assets).map(asset => {
+    const project = assetProject(asset);
     const data    = asset.template?.immutable_data ?? {};
     const rarity  = data.rarity || '';
     const name    = escHtml(asset.name || data.name || '—');
@@ -452,8 +459,12 @@ function buildAssetCards(assets, tplMap, lowestMints, side, project) {
     let dropDisplay;
     if (project === 'funko') {
       dropDisplay = escHtml(cleanFunkoName(tpl.dropDisplay || asset.collection?.name || ''));
-    } else {
+    } else if (project === 'topps') {
       dropDisplay = escHtml(tpl.dropDisplay || TOPPS_DROP_DISPLAY.get(`${col}|${sch}`) || asset.collection?.name || '');
+    } else {
+      // Generic collection — no curated drop-name catalog, so just show
+      // whatever AtomicAssets itself calls the collection.
+      dropDisplay = escHtml(asset.collection?.name || col || '');
     }
     const schema = escHtml(schemaLabel(sch));
 
@@ -478,8 +489,6 @@ function buildAssetCards(assets, tplMap, lowestMints, side, project) {
 }
 
 /* ── Offer item ────────────────────────────────────────────────────────────── */
-const NOTICE_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
-
 function buildOfferItem(offer, tplMap, lowestMints, type) {
   const offerId    = offer.offer_id;
   const sender     = escHtml(offer.sender_name);
@@ -488,24 +497,23 @@ function buildOfferItem(offer, tplMap, lowestMints, type) {
   const senderN    = offer.sender_assets?.length ?? 0;
   const recipientN = offer.recipient_assets?.length ?? 0;
 
-  let bodyHtml;
-  if (type === 'unknown') {
-    bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets not tracked by Hoardio. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
-  } else if (type === 'mixed') {
-    bodyHtml = `<div class="offer-notice">${NOTICE_ICON}<p>This offer contains assets from multiple projects. Use <a href="https://wax.atomichub.io" target="_blank" rel="noopener">wax.atomichub.io</a> or another platform to manage it.</p></div>`;
-  } else {
-    const assetHeaderHtml = `<div class="asset-header"><span>Name</span><span>Drop</span><span>Supply</span><span>Mint #<br><span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);letter-spacing:0.04em;">Own #</span></span></div>`;
-    bodyHtml = `
+  // Every offer gets full asset details now — Funko/Topps assets get their
+  // curated drop names/rarity order/circulating supply from Supabase (see
+  // fetchTemplateData), anything else falls back to whatever AtomicAssets
+  // itself reports (name, collection, schema, mint, supply), which is always
+  // present regardless of collection. See buildAssetCards/sortAssets.
+  const assetHeaderHtml = `<div class="asset-header"><span>Name</span><span>Drop</span><span>Supply</span><span>Mint #<br><span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);letter-spacing:0.04em;">Own #</span></span></div>`;
+  const bodyHtml = `
       <div class="offer-sides">
         <div class="offer-side">
           <div class="offer-side-label">You receive (${senderN})</div>
           ${assetHeaderHtml}
-          <div class="asset-cards">${buildAssetCards(offer.sender_assets, tplMap, lowestMints, 'sender', type)}</div>
+          <div class="asset-cards">${buildAssetCards(offer.sender_assets, tplMap, lowestMints, 'sender')}</div>
         </div>
         <div class="offer-side">
           <div class="offer-side-label label-give">You give (${recipientN})</div>
           ${assetHeaderHtml}
-          <div class="asset-cards">${buildAssetCards(offer.recipient_assets, tplMap, lowestMints, 'recipient', type)}</div>
+          <div class="asset-cards">${buildAssetCards(offer.recipient_assets, tplMap, lowestMints, 'recipient')}</div>
         </div>
       </div>
       <div class="offer-actions">
@@ -513,7 +521,6 @@ function buildOfferItem(offer, tplMap, lowestMints, type) {
         <button class="offer-btn offer-btn--decline" data-action="decline" data-offer="${offerId}">Decline</button>
         <button class="offer-btn offer-btn--accept"  data-action="accept"  data-offer="${offerId}">Accept Trade</button>
       </div>`;
-  }
 
   const item = document.createElement('div');
   item.className = 'offer-item';
@@ -540,10 +547,8 @@ function buildOfferItem(offer, tplMap, lowestMints, type) {
     if (!isOpen) item.classList.add('open');
   });
 
-  if (type !== 'unknown' && type !== 'mixed') {
-    item.querySelector('[data-action="accept"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'accept', item); });
-    item.querySelector('[data-action="decline"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'decline', item); });
-  }
+  item.querySelector('[data-action="accept"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'accept', item); });
+  item.querySelector('[data-action="decline"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'decline', item); });
 
   return item;
 }
