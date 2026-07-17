@@ -19,6 +19,17 @@
     .mode-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text-primary); }
     .mode-btn--active { background: rgba(240,168,64,0.14); border-color: var(--accent-light); color: var(--accent-light); }
 
+    /* Cancel mode browses active listings straight from AtomicMarket, not
+       the /assets endpoint — rarity/duplicate filters need per-template
+       data that path doesn't have, and "Hide listed"/"Select all matching
+       filters" are meaningless when every card here already IS a listing. */
+    body.bl-mode-cancel #blRarityGroup,
+    body.bl-mode-cancel #blDupesGroup,
+    body.bl-mode-cancel #hideListedBtn,
+    body.bl-mode-cancel #selectAllMatchBtn {
+      display: none !important;
+    }
+
     /* ── Auth gate ── */
     .auth-gate {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -110,6 +121,7 @@
     .bl-card:hover:not(.bl-card--listed) { border-color: rgba(192,120,40,0.45); }
     .bl-card.selected { border-color: var(--accent-light); }
     .bl-card--listed  { opacity: 0.5; cursor: default; }
+    .bl-card--hidden  { display: none; }
 
     .bl-card-img { position: relative; aspect-ratio: 1; background: var(--bg); }
     .bl-card-img img,
@@ -129,6 +141,18 @@
     }
     .bl-card-mint {
       position: absolute; top: 6px; right: 6px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      color: var(--accent-light); font-size: 0.6rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.3);
+      pointer-events: none;
+    }
+    /* Bundle-listing count badge (Cancel mode only — a single AtomicMarket
+       sale_id can bundle several assets into one listing) — same visual
+       language as .bl-card-mint, bottom-right since mint already owns the
+       top-right corner and the selection check owns top-left. */
+    .bl-card-count {
+      position: absolute; bottom: 6px; right: 6px;
       background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
       color: var(--accent-light); font-size: 0.6rem; font-weight: 700;
       padding: 2px 6px; border-radius: 999px;
@@ -170,6 +194,10 @@
     .bl-tray-mode--transfer {
       color: #ff6b6b; background: rgba(255,107,107,0.1);
       border-bottom-color: rgba(255,107,107,0.4);
+    }
+    .bl-tray-mode--cancel {
+      color: #c084fc; background: rgba(192,132,252,0.1);
+      border-bottom-color: rgba(192,132,252,0.4);
     }
     .bl-tray-mode-title {
       font-size: 0.72rem; font-weight: 700;
@@ -319,12 +347,13 @@
 
     <div class="page-header">
       <div class="page-title">Bulk <span class="accent">Actions</span></div>
-      <div class="page-subtitle">Select multiple NFTs from your wallet to list for sale or transfer to another wallet, all at once.</div>
+      <div class="page-subtitle">Select multiple NFTs from your wallet to list for sale, transfer to another wallet, or cancel active listings, all at once.</div>
 
       <div class="mode-switcher" id="modeSwitcher">
         <span class="mode-switcher-label">Mode</span>
         <button class="mode-btn" data-mode="sell" type="button">Sell</button>
         <button class="mode-btn" data-mode="transfer" type="button">Transfer</button>
+        <button class="mode-btn" data-mode="cancel" type="button">Cancel</button>
       </div>
     </div>
 
@@ -390,7 +419,7 @@
               <input id="blMintMax" type="number" class="control-input" placeholder="Max" min="1" />
             </div>
           </div>
-          <div class="control-group control-group--narrow">
+          <div class="control-group control-group--narrow" id="blDupesGroup">
             <label class="control-label">Duplicates</label>
             <label class="bl-checkbox-label" id="blExcludeLowestLabel" title="Select a collection to enable this filter">
               <input type="checkbox" id="blExcludeLowestMint" disabled />
@@ -420,6 +449,7 @@
               <button class="bl-toolbar-btn" id="selectAllMatchBtn" style="display:none" onclick="selectAllMatchingFilters()">Select all matching filters</button>
               <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
               <button class="bl-toolbar-btn" id="hideListedBtn" onclick="toggleHideListed()">Hide listed</button>
+              <button class="bl-toolbar-btn" id="overFloorBtn" style="display:none" onclick="toggleOverFloorFilter()">Only over floor</button>
             </div>
           </div>
 
@@ -509,6 +539,7 @@
 const MAKER              = 'popinstockgo';
 const BATCH_SIZE_SELL     = 10; // 2 actions/asset (announcesale+createoffer) — proven value from the single-item listing flow
 const BATCH_SIZE_TRANSFER = 50; // 1 action carries the whole chunk's asset_ids — no precedent in this codebase yet, tune after real-world testing
+const BATCH_SIZE_CANCEL   = 20; // 1 action/listing (cancelsale only) — double BATCH_SIZE_SELL since each item costs half the actions
 // 5 columns × 4 full rows. 5 is the true ceiling here, not a guess: shared/global.css
 // caps .content at 1280px site-wide; after the 290px tray + 1.5rem gap, .bl-content
 // tops out around 918px, where 5 cards at 168px+1rem gap (904px) fit but 6 (1088px)
@@ -530,12 +561,25 @@ const SORT_OPTIONS = [
   { value: 'mint_asc',         label: 'Mint (Lowest)',        sort: 'template_mint', order: 'asc'  },
   { value: 'name_asc',         label: 'Alphabetical (A-Z)',   sort: 'name',          order: 'asc'  },
 ];
+// Cancel mode reads AtomicMarket /sales directly (not /assets), which sorts
+// by created/updated/price instead of transferred/template_mint/name — a
+// separate option set, same shape as SORT_OPTIONS so currentSortOptions()
+// can swap between them transparently.
+const SORT_OPTIONS_CANCEL = [
+  { value: 'date_desc',  label: 'Date listed (Newest)', sort: 'created', order: 'desc' },
+  { value: 'date_asc',   label: 'Date listed (Oldest)', sort: 'created', order: 'asc'  },
+  { value: 'price_desc', label: 'Price (Highest)',      sort: 'price',   order: 'desc' },
+  { value: 'price_asc',  label: 'Price (Lowest)',       sort: 'price',   order: 'asc'  },
+];
 
-let _mode       = new URLSearchParams(location.search).get('mode') === 'transfer' ? 'transfer' : 'sell';
+const _urlMode = new URLSearchParams(location.search).get('mode');
+let _mode       = (_urlMode === 'transfer' || _urlMode === 'cancel') ? _urlMode : 'sell';
 let _assets     = [];
+let _cancelItems = []; // active listings loaded in Cancel mode — one entry per sale_id, may bundle multiple assets
 let _listings   = new Map();  // asset_id → { sale_id, price_wax }
 let _selected   = new Map();  // asset_id → price string (sell) | '' (transfer, value unused)
 let _hideListed = false;
+let _onlyOverFloor = false; // Cancel mode only — show just listings priced above the current market floor for their template
 let _recipient  = '';
 let _page       = 1;
 let _hasMore    = false;
@@ -591,6 +635,10 @@ async function fetchWaxPrice() {
 function usdTag(wax) {
   if (!_waxUsdRate || wax == null) return '';
   return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function imgUrl(hash) {
@@ -672,6 +720,7 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
     { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
     { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
   ],
   onUpdate: async (acc) => {
@@ -710,13 +759,14 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
       fetchCollections(acc);
       fetchListings(acc).then(() => {
         if (acc !== _activeWallet) return; // a newer wallet session took over while this was in flight
+        if (_mode === 'cancel') return; // Cancel mode's grid/count aren't driven by _listings/_assets at all
         _assets.forEach(a => patchCard(a.asset_id));
         if (_assets.length) updateCountText();
       });
-      loadAssets(true);
+      loadForMode(true);
     } else {
       _activeWallet = null; // allow a future connect (even to the same account) to reload
-      _assets = []; _listings = new Map(); _selected = new Map(); _recipient = '';
+      _assets = []; _cancelItems = []; _listings = new Map(); _selected = new Map(); _recipient = '';
       resetFiltersState();
       _collections = new Set(); _collectionNames = new Map(); _collectionCounts = new Map(); _totalAssets = null; _schemaCache = {};
       _lastSchemas = [];
@@ -731,6 +781,7 @@ function connectWallet() {
 
 /* ── Mode switch ── */
 function switchMode(mode, { push = true } = {}) {
+  const prevMode = _mode;
   _mode = mode;
 
   if (push) {
@@ -741,19 +792,34 @@ function switchMode(mode, { push = true } = {}) {
   }
 
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-btn--active', b.dataset.mode === mode));
-  document.getElementById('sellPanel').style.display     = mode === 'sell' ? '' : 'none';
-  document.getElementById('transferPanel').style.display = mode === 'transfer' ? '' : 'none';
-  document.getElementById('sellTotal').style.display     = mode === 'sell' ? '' : 'none';
+  document.getElementById('sellPanel').style.display      = mode === 'sell' ? '' : 'none';
+  document.getElementById('transferPanel').style.display  = mode === 'transfer' ? '' : 'none';
+  document.getElementById('sellTotal').style.display      = mode !== 'transfer' ? '' : 'none'; // Cancel shows a running total too, same row as Sell
+  document.getElementById('overFloorBtn').style.display   = mode === 'cancel' ? '' : 'none';
+  document.body.classList.toggle('bl-mode-cancel', mode === 'cancel');
 
   document.getElementById('trayModeLabel').className = `bl-tray-mode bl-tray-mode--${mode}`;
-  document.getElementById('trayModeTitle').textContent = mode === 'sell' ? 'Sell Mode' : 'Transfer Mode';
+  document.getElementById('trayModeTitle').textContent =
+    mode === 'sell' ? 'Sell Mode' : mode === 'cancel' ? 'Cancel Mode' : 'Transfer Mode';
 
-  const batchSize = mode === 'sell' ? BATCH_SIZE_SELL : BATCH_SIZE_TRANSFER;
+  const batchSize = mode === 'sell' ? BATCH_SIZE_SELL : mode === 'cancel' ? BATCH_SIZE_CANCEL : BATCH_SIZE_TRANSFER;
   document.getElementById('trayBatchNote').textContent = `1 wallet signature per ${batchSize} items`;
 
   clearSelection();
   setProgress('');
-  updateListedTooltips(); // surgical patch — avoids a full grid rebuild just to update tooltip text
+  renderSortDropdown(); // sort options differ for Cancel (AtomicMarket /sales) vs Sell/Transfer (/assets)
+
+  // Cancel reads a completely different endpoint (active listings, not owned
+  // assets) — switching into or out of it needs a real reload. Sell↔Transfer
+  // share the same asset grid and only differ in what's selectable/editable,
+  // so that transition keeps browsing where it left off.
+  const wasCancel = prevMode === 'cancel';
+  const isCancel  = mode === 'cancel';
+  if (wasCancel !== isCancel) {
+    loadForMode(true);
+  } else {
+    updateListedTooltips(); // surgical patch — avoids a full grid rebuild just to update tooltip text
+  }
   updateActionBtn();
 }
 
@@ -820,18 +886,30 @@ document.getElementById('blSchemaTrigger').addEventListener('click', () => toggl
 document.getElementById('blRarityTrigger').addEventListener('click', () => toggleDd('blRarityDd'));
 document.getElementById('blSortTrigger').addEventListener('click', () => toggleDd('blSortDd'));
 
+// Cancel mode's sort options (date/price, from AtomicMarket /sales) are a
+// different set of values than Sell/Transfer's (transferred/mint/name, from
+// /assets) — reusing one shared _sortOrder and revalidating it against
+// whichever set applies right now (resetting to that set's default if the
+// current value doesn't belong to it) avoids needing a second variable,
+// mirroring the same pattern inventory-activity.html uses per-tab.
+function currentSortOptions() {
+  return _mode === 'cancel' ? SORT_OPTIONS_CANCEL : SORT_OPTIONS;
+}
+
 function renderSortDropdown() {
+  const options = currentSortOptions();
+  if (!options.some(o => o.value === _sortOrder)) _sortOrder = options[0].value;
   const panel = document.getElementById('blSortPanel');
-  panel.innerHTML = SORT_OPTIONS.map(o =>
+  panel.innerHTML = options.map(o =>
     `<div class="cb-item${o.value === _sortOrder ? ' active' : ''}" data-val="${o.value}"><span>${o.label}</span></div>`
   ).join('');
-  document.querySelector('#blSortDd .cb-label').textContent = (SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0]).label;
+  document.querySelector('#blSortDd .cb-label').textContent = (options.find(o => o.value === _sortOrder) || options[0]).label;
   panel.querySelectorAll('.cb-item').forEach(item => {
     item.addEventListener('click', () => {
       _sortOrder = item.dataset.val;
       closeAllDd();
       renderSortDropdown();
-      loadAssets(true);
+      loadForMode(true);
     });
   });
 }
@@ -990,7 +1068,7 @@ function buildSchemaDropdown(schemas) {
       const avail = new Set(getAvailableRarities(_filterCol, _filterSchema !== 'all' ? _filterSchema : null));
       for (const r of [..._selectedRarities]) if (!avail.has(r)) _selectedRarities.delete(r);
       buildRarityDropdown();
-      loadAssets(true);
+      loadForMode(true);
     });
   });
 }
@@ -1087,7 +1165,7 @@ function clearFilters() {
   document.getElementById('blMintMax').value = '';
   buildSchemaDropdown(_lastSchemas);
   buildRarityDropdown();
-  loadAssets(true);
+  loadForMode(true);
 }
 document.getElementById('blClearFiltersBtn').addEventListener('click', clearFilters);
 
@@ -1096,7 +1174,7 @@ function onMintInput() {
   _filterMintMin = document.getElementById('blMintMin').value;
   _filterMintMax = document.getElementById('blMintMax').value;
   clearTimeout(_mintDebounceTimer);
-  _mintDebounceTimer = setTimeout(() => loadAssets(true), 500);
+  _mintDebounceTimer = setTimeout(() => loadForMode(true), 500);
 }
 document.getElementById('blMintMin').addEventListener('input', onMintInput);
 document.getElementById('blMintMax').addEventListener('input', onMintInput);
@@ -1159,24 +1237,29 @@ async function onColChange(val) {
   document.querySelector('#blSchemaDd .cb-label').textContent = 'All schemas';
   setDupesFiltersAvailability(val !== 'all');
   buildColDropdown();
-  loadAssets(true);
+  loadForMode(true);
   if (_filterCol !== 'all') {
     fetchSchemasForCollection(_filterCol).then(schemas => {
       if (_filterCol !== val) return; // stale — user changed collection again before this resolved
       buildSchemaDropdown(schemas);
       document.getElementById('blSchemaGroup').style.display = schemas.length ? '' : 'none';
     });
-    fetchTemplatesForCollection(_filterCol).then(() => {
-      if (_filterCol !== val) return;
-      buildRarityDropdown();
-    });
+    // Rarity has no meaning in Cancel mode (AtomicMarket /sales doesn't
+    // support template_whitelist — confirmed live, silently ignored) and
+    // the group is hidden there anyway, so skip the fetch entirely.
+    if (_mode !== 'cancel') {
+      fetchTemplatesForCollection(_filterCol).then(() => {
+        if (_filterCol !== val) return;
+        buildRarityDropdown();
+      });
+    }
   }
 }
 
 function resetFiltersState() {
   _filterCol = 'all'; _filterSchema = 'all'; _filterText = '';
   _filterMintMin = ''; _filterMintMax = ''; _selectedRarities.clear();
-  _sortOrder = SORT_OPTIONS[0].value;
+  _sortOrder = currentSortOptions()[0].value;
   document.getElementById('blSearch').value  = '';
   document.getElementById('blMintMin').value = '';
   document.getElementById('blMintMax').value = '';
@@ -1201,7 +1284,7 @@ function syncUrl() {
   _filterText             ? p.set('q', _filterText)          : p.delete('q');
   const dupesMode = _excludeLowestMint ? 'lowest' : _onlyHighestMint ? 'highest' : '';
   dupesMode ? p.set('dupes', dupesMode) : p.delete('dupes');
-  _sortOrder !== SORT_OPTIONS[0].value ? p.set('sort', _sortOrder) : p.delete('sort');
+  _sortOrder !== currentSortOptions()[0].value ? p.set('sort', _sortOrder) : p.delete('sort');
   history.replaceState(null, '', url);
 }
 
@@ -1218,7 +1301,7 @@ async function readUrlParams() {
   const dupesMode    = p.get('dupes');
   _excludeLowestMint = dupesMode === 'lowest' && _filterCol !== 'all';
   _onlyHighestMint   = dupesMode === 'highest' && _filterCol !== 'all';
-  _sortOrder = SORT_OPTIONS.some(o => o.value === p.get('sort')) ? p.get('sort') : SORT_OPTIONS[0].value;
+  _sortOrder = currentSortOptions().some(o => o.value === p.get('sort')) ? p.get('sort') : currentSortOptions()[0].value;
 
   document.getElementById('blSearch').value  = _filterText;
   document.getElementById('blMintMin').value = _filterMintMin;
@@ -1235,15 +1318,18 @@ async function readUrlParams() {
       buildSchemaDropdown(schemas);
       document.getElementById('blSchemaGroup').style.display = schemas.length ? '' : 'none';
     });
-    // Template cache must be ready before loadAssets if a rarity filter is active
-    if (_selectedRarities.size > 0) {
-      await fetchTemplatesForCollection(col);
-      if (_filterCol === col) buildRarityDropdown();
-    } else {
-      fetchTemplatesForCollection(col).then(() => {
-        if (_filterCol !== col) return;
-        buildRarityDropdown();
-      });
+    // Template cache must be ready before loadAssets if a rarity filter is
+    // active — moot in Cancel mode (no rarity filtering there, see onColChange).
+    if (_mode !== 'cancel') {
+      if (_selectedRarities.size > 0) {
+        await fetchTemplatesForCollection(col);
+        if (_filterCol === col) buildRarityDropdown();
+      } else {
+        fetchTemplatesForCollection(col).then(() => {
+          if (_filterCol !== col) return;
+          buildRarityDropdown();
+        });
+      }
     }
   }
 }
@@ -1315,6 +1401,11 @@ async function loadFloorPricesForCards(assets) {
         el.innerHTML = text;
       });
     }));
+    // Cancel mode's "Only over floor" filter depends on these same floor
+    // prices as they stream in — reapply per batch so matching cards reveal
+    // themselves progressively instead of waiting for every template on the
+    // page to resolve before any of them show up.
+    if (_mode === 'cancel' && _onlyOverFloor) applyOverFloorFilter();
     if (i + BATCH < todos.length) await new Promise(r => setTimeout(r, 120));
   }
 }
@@ -1322,16 +1413,18 @@ async function loadFloorPricesForCards(assets) {
 /* ── Asset loading ──
    _loading is a simple mutex shared by every async load path on this page
    (plain pagination here, plus loadAssetsFullScan/loadAssetsOnlyHighest/
-   selectAllMatchingFilters below) — only one can run at a time. A filter
-   change that arrives while one is already in flight doesn't get silently
-   dropped: it's recorded in _pendingReload and re-run via finishLoading()
-   the moment the in-flight one finishes, instead of leaving the grid
-   showing results for whatever the filters *used* to be. */
+   selectAllMatchingFilters/loadCancelListings below) — only one can run at a
+   time. A filter change that arrives while one is already in flight doesn't
+   get silently dropped: it's recorded in _pendingReload and re-run via
+   finishLoading() the moment the in-flight one finishes, instead of leaving
+   the grid showing results for whatever the filters *used* to be. Routed
+   through loadForMode() rather than loadAssets() directly since this same
+   mutex now also guards Cancel mode's listing loader. */
 function finishLoading() {
   _loading = false;
   if (_pendingReload) {
     _pendingReload = false;
-    loadAssets(true);
+    loadForMode(true);
     return true; // a fresh reload just started — caller should skip rendering its own (now-stale) result
   }
   return false;
@@ -1411,6 +1504,156 @@ async function loadAssets(reset = false) {
   const lmw = document.getElementById('blLoadMoreWrap');
   lmw.style.display = _hasMore ? '' : 'none';
   if (lmBtn) { lmBtn.disabled = false; lmBtn.textContent = 'Load more'; }
+}
+
+// Single dispatch point for every filter/pagination trigger on the page —
+// Cancel mode browses a different dataset (AtomicMarket /sales, one card per
+// active listing) than Sell/Transfer (AtomicAssets /assets, one card per
+// owned NFT), so whichever one is current decides which loader actually runs.
+function loadForMode(reset) {
+  return _mode === 'cancel' ? loadCancelListings(reset) : loadAssets(reset);
+}
+
+/* ── Cancel mode — reads active listings directly from AtomicMarket, not
+   /assets. A "card" here is one sale_id (a listing), which can bundle
+   several assets — cancelsale acts on the whole listing at once, so the
+   unit of selection is the listing, not an individual asset. Rarity/dupes
+   filtering doesn't apply (no template_whitelist support on /sales,
+   confirmed live — silently ignored rather than erroring, which is exactly
+   the kind of thing that would have looked like it "worked" without a real
+   check), so those controls stay hidden in this mode (see .bl-mode-cancel
+   CSS) and this loader only wires up collection/schema/mint-range/search/sort. */
+async function loadCancelListings(reset = false) {
+  const wallet = window.getWaxAccount();
+  if (!wallet) return;
+  if (_loading) { if (reset) _pendingReload = true; return; }
+  if (reset) { _cancelItems = []; _page = 1; _hasMore = false; _autoLoadArmed = false; syncUrl(); }
+
+  _loading = true;
+  const lmBtn = document.getElementById('blLoadMoreBtn');
+  if (lmBtn) { lmBtn.disabled = true; lmBtn.textContent = 'Loading…'; }
+
+  if (reset) {
+    document.getElementById('blLoadWrap').style.display  = '';
+    document.getElementById('blGrid').style.display      = 'none';
+    document.getElementById('blEmpty').style.display     = 'none';
+    document.getElementById('blLoadMoreWrap').style.display = 'none';
+  }
+
+  let batch = [];
+  try {
+    const colParam     = _filterCol    !== 'all' ? `&collection_name=${enc(_filterCol)}` : '';
+    const schemaParam  = _filterSchema !== 'all' ? `&schema_name=${enc(_filterSchema)}`   : '';
+    const matchParam   = _filterText              ? `&match=${enc(_filterText)}`           : '';
+    const mintMinParam = _filterMintMin          ? `&min_template_mint=${enc(_filterMintMin)}` : '';
+    const mintMaxParam = _filterMintMax          ? `&max_template_mint=${enc(_filterMintMax)}` : '';
+    const sortOpt = SORT_OPTIONS_CANCEL.find(o => o.value === _sortOrder) || SORT_OPTIONS_CANCEL[0];
+    // v2, not marketBase()'s default v1 — v1's /sales list route doesn't
+    // support these filter/sort params reliably (see inventory-activity.html,
+    // verified live against the real API there).
+    const url = `${WaxApi.marketBase().replace('/v1', '/v2')}/sales?state=1&seller=${enc(wallet)}&symbol=WAX&limit=${PAGE_SIZE}&page=${_page}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${matchParam}${mintMinParam}${mintMaxParam}`;
+
+    batch = (await WaxApi.apiFetch(url)) || [];
+    _cancelItems.push(...batch);
+    _hasMore = batch.length === PAGE_SIZE;
+    _page++;
+  } catch (err) {
+    console.error('loadCancelListings:', err);
+  }
+
+  if (finishLoading()) return; // a newer filter change queued while this was in flight — let that reload render instead
+
+  document.getElementById('blLoadWrap').style.display = 'none';
+  if (reset) renderCancelGrid();
+  else if (batch.length) appendCancelListings(batch);
+  // Same floor-price lookup Sell/Transfer cards use, fed the first asset of
+  // each listing — background, doesn't block render (see loadFloorPricesForCards).
+  loadFloorPricesForCards(batch.map(item => item.assets?.[0]).filter(Boolean));
+
+  const lmw = document.getElementById('blLoadMoreWrap');
+  lmw.style.display = _hasMore ? '' : 'none';
+  if (lmBtn) { lmBtn.disabled = false; lmBtn.textContent = 'Load more'; }
+}
+
+function updateCancelCountText() {
+  const n = _cancelItems.length;
+  document.getElementById('blCount').textContent = `${n.toLocaleString()} active listing${n !== 1 ? 's' : ''} loaded`;
+}
+
+function cancelCardHtml(item) {
+  const id          = String(item.sale_id);
+  const isSel       = _selected.has(id);
+  const assets      = item.assets || [];
+  const first       = assets[0] || {};
+  const bundleCount = assets.length;
+  const mint        = (bundleCount === 1 && first.template_mint) ? `#${first.template_mint}` : '';
+  const name        = bundleCount > 1 ? `${bundleCount} items` : (first.name || first.data?.name || 'Unknown');
+  const colName     = first.collection?.name || first.collection?.collection_name || '';
+  const precision   = item.price?.token_precision ?? 8;
+  const priceWax    = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
+
+  return `
+    <div class="bl-card${isSel ? ' selected' : ''}" data-id="${id}">
+      <div class="bl-card-img">
+        ${mediaHtml(first)}
+        ${mint ? `<span class="bl-card-mint">${mint}</span>` : ''}
+        ${bundleCount > 1 ? `<span class="bl-card-count">×${bundleCount}</span>` : ''}
+        <div class="bl-card-check">${isSel ? '✓' : ''}</div>
+      </div>
+      <div class="bl-card-body">
+        <div class="bl-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
+        <div class="bl-card-meta">${escHtml(colName)}</div>
+        ${first.template?.template_id ? `<div class="bl-card-floor" data-floor-tid="${first.template.template_id}"></div>` : ''}
+        <div class="bl-card-listed-note">Listed: ${priceWax.toFixed(2)} WAX${usdTag(priceWax)}</div>
+      </div>
+    </div>`;
+}
+
+function renderCancelGrid() {
+  const grid  = document.getElementById('blGrid');
+  const empty = document.getElementById('blEmpty');
+
+  if (!_cancelItems.length) {
+    grid.style.display  = 'none';
+    empty.style.display = _loading ? 'none' : '';
+    empty.textContent   = 'No active listings found.';
+    document.getElementById('blCount').textContent = '';
+    return;
+  }
+
+  updateCancelCountText();
+  empty.style.display = 'none';
+  grid.style.display  = '';
+  grid.innerHTML = _cancelItems.map(cancelCardHtml).join('');
+  grid.querySelectorAll('.bl-card').forEach((card, i) => {
+    const item = _cancelItems[i];
+    card.addEventListener('click', () => toggleSelect(item.sale_id, card));
+  });
+  initLazyVideos();
+  applyOverFloorFilter(); // reapply against whatever's already in _floorCache from a previous pass
+}
+
+function appendCancelListings(batch) {
+  const grid = document.getElementById('blGrid');
+  grid.style.display = '';
+
+  const frag = document.createDocumentFragment();
+  for (const item of batch) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cancelCardHtml(item).trim();
+    const card = wrap.firstElementChild;
+    card.addEventListener('click', () => toggleSelect(item.sale_id, card));
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+
+  grid.querySelectorAll('.bl-card-img video[data-src]:not([data-obs])').forEach(v => {
+    v.dataset.obs = '1';
+    _videoObs?.observe(v);
+  });
+
+  applyOverFloorFilter(); // reapply against whatever's already in _floorCache from a previous pass
+  updateCancelCountText();
 }
 
 // "Exclude lowest mint" — the lowest template_mint owned per template can be
@@ -1601,14 +1844,14 @@ async function selectAllMatchingFilters() {
    data nobody asked to see yet. */
 function onLoadMoreClick() {
   _autoLoadArmed = true;
-  loadAssets(false);
+  loadForMode(false);
 }
 
 let _loadMoreObs = null;
 function initInfiniteScroll() {
   _loadMoreObs = new IntersectionObserver(entries => {
     if (!_autoLoadArmed || _loading || !_hasMore) return;
-    if (entries[0].isIntersecting) loadAssets(false);
+    if (entries[0].isIntersecting) loadForMode(false);
   }, { rootMargin: '600px' });
   _loadMoreObs.observe(document.getElementById('blLoadMoreWrap'));
 }
@@ -1633,6 +1876,49 @@ function toggleHideListed() {
   renderGrid();
 }
 
+/* ── "Only over floor" (Cancel mode) — flags listings priced above the
+   current market floor for their template: the ones likely to be sitting
+   unsold, worth cancelling and relisting closer to the floor. Floor prices
+   load asynchronously per-template in the background (see
+   loadFloorPricesForCards), so this can't just filter the array once at
+   render time — cards are always rendered, then individually shown/hidden
+   as their template's floor price actually resolves (immediately from
+   _floorCache for anything already known, progressively for the rest). */
+function isOverFloor(item) {
+  if (!item) return false;
+  const tid    = item.assets?.[0]?.template?.template_id;
+  const cached = tid != null ? _floorCache[tid] : null;
+  if (!cached?.loaded || cached.price == null) return false; // no known floor yet — nothing to compare against
+  const precision = item.price?.token_precision ?? 8;
+  const priceWax  = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
+  return priceWax > cached.price;
+}
+
+function applyOverFloorFilter() {
+  if (_mode !== 'cancel' || !_cancelItems.length) return;
+  const grid  = document.getElementById('blGrid');
+  const empty = document.getElementById('blEmpty');
+  const itemsById = cancelIndex();
+  let visibleCount = 0;
+  grid.querySelectorAll('.bl-card').forEach(card => {
+    const show = !_onlyOverFloor || isOverFloor(itemsById.get(card.dataset.id));
+    card.classList.toggle('bl-card--hidden', !show);
+    if (show) visibleCount++;
+  });
+  const noneVisible = visibleCount === 0;
+  grid.style.display  = noneVisible ? 'none' : '';
+  empty.style.display = noneVisible ? '' : 'none';
+  if (noneVisible) empty.textContent = 'No loaded listings are currently priced over their floor yet — try Load more, or clear the filter.';
+}
+
+function toggleOverFloorFilter() {
+  _onlyOverFloor = !_onlyOverFloor;
+  const btn = document.getElementById('overFloorBtn');
+  btn.classList.toggle('bl-toolbar-btn--active', _onlyOverFloor);
+  btn.textContent = _onlyOverFloor ? 'Show all' : 'Only over floor';
+  applyOverFloorFilter();
+}
+
 function updateCountText() {
   const unlisted = _assets.filter(a => !_listings.has(String(a.asset_id))).length;
   let text = `${_assets.length.toLocaleString()} NFTs loaded — ${unlisted.toLocaleString()} unlisted`;
@@ -1646,7 +1932,7 @@ function updateCountText() {
 
 function attachCardEvents(card, asset) {
   if (card.classList.contains('bl-card--listed')) return;
-  card.addEventListener('click', () => toggleSelect(asset, card));
+  card.addEventListener('click', () => toggleSelect(asset.asset_id, card));
 }
 
 function renderGrid() {
@@ -1739,8 +2025,8 @@ function cardHtml(a) {
 }
 
 /* ── Selection ── */
-function toggleSelect(asset, cardEl) {
-  const id = String(asset.asset_id);
+function toggleSelect(assetOrSaleId, cardEl) {
+  const id = String(assetOrSaleId);
   if (_selected.has(id)) {
     _selected.delete(id);
     cardEl.classList.remove('selected');
@@ -1762,7 +2048,7 @@ function toggleSelect(asset, cardEl) {
 
 function selectAllVisible() {
   let capped = false;
-  document.querySelectorAll('.bl-card:not(.bl-card--listed)').forEach(card => {
+  document.querySelectorAll('.bl-card:not(.bl-card--listed):not(.bl-card--hidden)').forEach(card => {
     const id = card.dataset.id;
     if (_selected.has(id)) return;
     if (_selected.size >= MAX_SELECTED) { capped = true; return; }
@@ -1811,6 +2097,8 @@ function updateSelCount() {
 
 /* ── Tray ── */
 function renderTray() {
+  if (_mode === 'cancel') return renderCancelTray();
+
   const countEl = document.getElementById('trayCount');
   const emptyEl = document.getElementById('trayEmpty');
   const bodyEl  = document.getElementById('trayBody');
@@ -1856,6 +2144,65 @@ function renderTray() {
   initLazyVideos();
 
   if (_mode === 'sell') updateTotal();
+  updateActionBtn();
+}
+
+function cancelIndex() {
+  return new Map(_cancelItems.map(item => [String(item.sale_id), item]));
+}
+
+// Cancel mode's tray shows what's about to be cancelled — thumbnail, name,
+// and the price it's currently listed at (read-only; there's no price to
+// set for a cancel) — plus a running total of the value being pulled, same
+// "Total" row Sell mode uses.
+function renderCancelTray() {
+  const countEl = document.getElementById('trayCount');
+  const emptyEl = document.getElementById('trayEmpty');
+  const bodyEl  = document.getElementById('trayBody');
+  const itemsEl = document.getElementById('trayItems');
+
+  countEl.textContent = ` ${_selected.size}`;
+
+  if (!_selected.size) {
+    emptyEl.style.display = '';
+    bodyEl.style.display  = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  bodyEl.style.display  = '';
+
+  const itemsById = cancelIndex();
+  let total = 0;
+  itemsEl.innerHTML = [..._selected.keys()].map(id => {
+    const item = itemsById.get(id);
+    if (!item) return '';
+    const assets      = item.assets || [];
+    const first       = assets[0] || {};
+    const bundleCount = assets.length;
+    const mint        = (bundleCount === 1 && first.template_mint) ? `#${first.template_mint}` : '';
+    const name        = bundleCount > 1 ? `${bundleCount} items` : (first.name || first.data?.name || 'Unknown');
+    const precision   = item.price?.token_precision ?? 8;
+    const priceWax    = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
+    total += priceWax;
+    return `
+      <div class="bl-tray-item">
+        <div class="bl-tray-thumb">${mediaHtml(first)}</div>
+        <div class="bl-tray-info">
+          <div class="bl-tray-name" title="${escHtml(name)}">${escHtml(name)}</div>
+          ${mint ? `<div class="bl-tray-mint">${mint}</div>` : ''}
+          <div class="bl-tray-mint">${priceWax.toFixed(2)} WAX${usdTag(priceWax)}</div>
+        </div>
+        <button class="bl-tray-remove" onclick="removeFromSelection('${id}')" title="Remove">✕</button>
+      </div>`;
+  }).join('');
+
+  initLazyVideos();
+
+  const totalEl = document.getElementById('trayTotal');
+  if (totalEl) {
+    const usd = _waxUsdRate && total > 0 ? ` ≈ $${(total * _waxUsdRate).toFixed(2)}` : '';
+    totalEl.textContent = `${total.toFixed(2)} WAX${usd}`;
+  }
   updateActionBtn();
 }
 
@@ -1995,6 +2342,9 @@ function updateActionBtn() {
     });
     btn.disabled    = _busy || !allValid;
     btn.textContent = n ? `List ${n} item${n !== 1 ? 's' : ''} for sale` : 'List for sale';
+  } else if (_mode === 'cancel') {
+    btn.disabled    = _busy || n === 0;
+    btn.textContent = n ? `Cancel ${n} listing${n !== 1 ? 's' : ''}` : 'Cancel listings';
   } else {
     const recipient = _recipient.trim();
     const valid = n > 0 && !!recipient && recipient !== window.getWaxAccount();
@@ -2011,7 +2361,8 @@ function setProgress(msg, type = '') {
 }
 
 function runAction() {
-  if (_mode === 'sell') return bulkList();
+  if (_mode === 'sell')   return bulkList();
+  if (_mode === 'cancel') return bulkCancel();
   return bulkTransfer();
 }
 
@@ -2166,13 +2517,40 @@ async function bulkTransfer() {
   }
 }
 
+/* ── Cancel ── */
+async function bulkCancel() {
+  const items = [..._selected.keys()]; // sale_ids
+  if (!items.length) return;
+
+  const cancelled = await runBulkAction(items, BATCH_SIZE_CANCEL, (chunk, wallet) => chunk.map(saleId => ({
+    account: 'atomicmarket',
+    name: 'cancelsale',
+    authorization: [{ actor: wallet, permission: 'active' }],
+    data: { sale_id: saleId },
+  })), (chunk) => {
+    const removedIds = new Set(chunk);
+    for (const saleId of chunk) {
+      _selected.delete(saleId);
+      const card = document.querySelector(`.bl-card[data-id="${saleId}"]`);
+      if (card) card.remove();
+    }
+    _cancelItems = _cancelItems.filter(item => !removedIds.has(String(item.sale_id)));
+    updateCancelCountText();
+  });
+
+  if (cancelled) {
+    setProgress(`${cancelled} listing${cancelled !== 1 ? 's' : ''} cancelled successfully!`, 'success');
+    setTimeout(() => setProgress(''), 6000);
+  }
+}
+
 /* ── Filter handlers ── */
 let _searchTimer = null;
 function onSearchChange() {
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(() => {
     _filterText = document.getElementById('blSearch').value.trim();
-    loadAssets(true);
+    loadForMode(true);
   }, 350);
 }
 

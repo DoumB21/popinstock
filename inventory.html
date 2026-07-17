@@ -19,7 +19,7 @@
     /* ── Controls card (filter panel) ── */
     .controls-card {
       background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 18px; padding: 1.5rem; margin-bottom: 1.5rem;
+      border-radius: 18px; padding: 1.5rem; margin-bottom: 0.5rem;
     }
     .controls-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
     .control-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 140px; }
@@ -37,6 +37,23 @@
     /* .clear-filters-btn and the checkbox-dropdown component (.cb-dropdown,
        .cb-dropdown-btn, .cb-label, .cb-arrow, .cb-panel, .cb-item) live in
        shared/global.css now — no page-specific overrides needed here. */
+
+
+    /* ── Activity links row (Listings/Purchases/Sales/Transfers) — each
+       navigates to inventory-activity.html?tab=<tab>, which owns its own
+       tab UI. This row is just navigation, not stateful tabs. ── */
+    .activity-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .activity-tab-btn {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
+      border-radius: 8px; padding: 0.4rem 1.1rem;
+      font-size: 0.82rem; font-weight: 700; color: var(--accent-light);
+      text-decoration: none; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .activity-tab-btn:hover {
+      background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7);
+    }
 
     /* ── Spinner ── */
     .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
@@ -512,10 +529,26 @@
           <input id="mintMax" type="number" class="control-input" placeholder="Max" min="1" />
         </div>
       </div>
+      <div class="control-group control-group--narrow">
+        <label class="control-label">Assets</label>
+        <div class="cb-dropdown" id="listingsFilterDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">Show all</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
       <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end;">
         <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
       </div>
     </div>
+  </div>
+
+  <div id="activityTabs" class="activity-tabs" style="display:none;">
+    <a class="activity-tab-btn" href="inventory-activity.html?tab=purchases">🛒 Purchases</a>
+    <a class="activity-tab-btn" href="inventory-activity.html?tab=sales">💰 Sales</a>
+    <a class="activity-tab-btn" href="inventory-activity.html?tab=transfers">↔️ Transfers</a>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
@@ -581,6 +614,12 @@ const SORT_OPTIONS = [
   { value: 'buyoffer_desc',    label: 'Buy Offer (Highest)',  sort: 'transferred',   order: 'desc' },
 ];
 
+const LISTINGS_FILTER_OPTIONS = [
+  { value: 'all',  label: 'Show all' },
+  { value: 'only', label: 'Only listings' },
+  { value: 'hide', label: 'Hide listings' },
+];
+
 let _assets          = [];
 let _listings        = new Map();   // asset_id → { sale_id, price_wax }
 let _page            = 1;
@@ -594,6 +633,7 @@ const _selectedRarities  = new Set();
 const _selectedCardIds   = new Set();
 let _filterMintMin       = '';
 let _filterMintMax       = '';
+let _listingsFilter      = 'all'; // 'all' | 'only' | 'hide'
 let _debounceTimer       = null;
 const _schemaCache       = {};  // collection_name → [schema_name, ...]
 const _templateCache     = {};  // collection_name → [{template_id, schema_name, rarity, cardid}]
@@ -726,6 +766,7 @@ function assetMediaHtml(a, extraAttr = '', eager = false) {
 }
 
 function filtered() {
+  if (_listingsFilter === 'hide') return _assets.filter(a => !_listings.has(String(a.asset_id)));
   return _assets;
 }
 
@@ -1397,8 +1438,16 @@ function appendCards(newAssets) {
   const grid = document.getElementById('invGrid');
   grid.style.display = '';
 
+  // "Load more" appends a fetched batch straight to the DOM (no full
+  // re-render through filtered()) — Hide-listings mode needs the same
+  // client-side filter applied here too, or newly-paginated-in listed items
+  // would slip through unfiltered.
+  const toRender = _listingsFilter === 'hide'
+    ? newAssets.filter(a => !_listings.has(String(a.asset_id)))
+    : newAssets;
+
   const frag = document.createDocumentFragment();
-  for (const a of newAssets) {
+  for (const a of toRender) {
     const wrap = document.createElement('div');
     wrap.innerHTML = cardHtml(a).trim();
     const card = wrap.firstElementChild;
@@ -1521,6 +1570,7 @@ function syncUrl() {
   if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
   if (_filterMintMin)          p.set('mintMin', _filterMintMin);
   if (_filterMintMax)          p.set('mintMax', _filterMintMax);
+  if (_listingsFilter !== 'all') p.set('listed', _listingsFilter);
   if (_sortOrder !== SORT_OPTIONS[0].value) p.set('sort', _sortOrder);
   if (_filterText)             p.set('q',      _filterText);
   const qs = p.toString();
@@ -1538,10 +1588,13 @@ async function readUrlParams() {
   (p.get('cardid') || '').split(',').filter(Boolean).forEach(c => _selectedCardIds.add(c));
   _filterMintMin = p.get('mintMin') || '';
   _filterMintMax = p.get('mintMax') || '';
+  const listedParam = p.get('listed');
+  _listingsFilter = (listedParam === 'only' || listedParam === 'hide') ? listedParam : 'all';
   _sortOrder     = p.get('sort')   || SORT_OPTIONS[0].value;
   _filterText    = p.get('q')     || '';
   document.getElementById('mintMin').value     = _filterMintMin;
   document.getElementById('mintMax').value     = _filterMintMax;
+  buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
   renderSortDropdown();
   document.getElementById('searchInput').value = _filterText;
   if (_filterCol !== 'all') {
@@ -1592,6 +1645,26 @@ async function loadAssets(reset = false, walletChange = false) {
   }
 
   try {
+    if (reset && walletChange) {
+      // Fire listings and collections in background — don't block card
+      // rendering on them, UNLESS a listings filter ("Only listings"/"Hide
+      // listings") is already active (e.g. restored from a bookmarked URL
+      // right as the wallet connects) — both need a real _listings snapshot
+      // before the very first fetch/filter, not an empty one still in flight.
+      fetchAllCollections(wallet);
+      const listingsFetch = fetchListings(wallet).then(() => _assets.forEach(a => patchCard(a.asset_id)));
+      if (_listingsFilter !== 'all') await listingsFetch;
+    }
+
+    if (_listingsFilter === 'only' && _listings.size === 0) {
+      document.getElementById('invGrid').style.display      = 'none';
+      document.getElementById('loadMoreWrap').style.display = 'none';
+      const ew = document.getElementById('emptyWrap');
+      ew.innerHTML = '<strong>No active listings</strong>You don\'t currently have any NFTs listed for sale.';
+      ew.style.display = '';
+      return; // finally below still resets _loading / spinner / button state
+    }
+
     const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
     const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${encodeURIComponent(_filterSchema)}`       : '';
     const whitelist      = computeTemplateWhitelist(); // 'EMPTY' already handled above
@@ -1599,18 +1672,17 @@ async function loadAssets(reset = false, walletChange = false) {
     const mintMinParam   = _filterMintMin ? `&min_template_mint=${_filterMintMin}` : '';
     const mintMaxParam   = _filterMintMax ? `&max_template_mint=${_filterMintMax}` : '';
     const matchParam     = _filterText    ? `&match=${encodeURIComponent(_filterText)}` : '';
+    // Combining with owner= is a safety net, not redundancy — guards against
+    // a stale _listings entry for an asset that's no longer actually owned
+    // by this wallet (e.g. transferred away without the listing being
+    // cancelled first).
+    const idsParam       = _listingsFilter === 'only' ? `&ids=${[..._listings.keys()].join(',')}` : '';
     const sortOpt        = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
-    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}`;
+    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}${idsParam}`;
 
     let batch = [];
 
     if (reset) {
-      if (walletChange) {
-        // Fire listings and collections in background — don't block card rendering on them
-        fetchAllCollections(wallet);
-        fetchListings(wallet).then(() => _assets.forEach(a => patchCard(a.asset_id)));
-      }
-
       const r1 = await fetchWithRetry(`${baseUrl}&page=1`);
       if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
       const j1 = await r1.json();
@@ -2656,11 +2728,12 @@ async function onWalletChange() {
   if (!wallet) {
     document.getElementById('authGate').style.display      = '';
     document.getElementById('toolbar').style.display       = 'none';
+    document.getElementById('activityTabs').style.display  = 'none';
     document.getElementById('invGrid').style.display       = 'none';
     document.getElementById('emptyWrap').style.display     = 'none';
     document.getElementById('loadMoreWrap').style.display  = 'none';
     _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
-    _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _filterText = ''; _sortOrder = 'transferred_desc';
+    _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _listingsFilter = 'all'; _filterText = ''; _sortOrder = 'transferred_desc';
     _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _soldAssets.clear(); _collectionsReady = false;
     renderSortDropdown();
     updateBuyOfferBanner();
@@ -2669,15 +2742,22 @@ async function onWalletChange() {
     document.getElementById('cardIdGroup').style.display  = 'none';
     document.getElementById('mintMin').value = '';
     document.getElementById('mintMax').value = '';
+    buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
     Object.keys(_ownedCache).forEach(k => delete _ownedCache[k]);
     return;
   }
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('toolbar').style.display  = '';
+  document.getElementById('activityTabs').style.display = '';
   if (_activeWallet !== null && _activeWallet !== wallet) {
-    // Different wallet connected mid-session — drop URL filters so stale collection doesn't confuse
+    // Different wallet connected mid-session — drop URL filters so stale collection doesn't confuse.
+    // _listingsFilter especially can't carry over: _listings is about to be
+    // rebuilt for the new wallet, so leaving "only"/"hide" active would
+    // filter against an empty/stale set until the fetch below resolves.
     history.replaceState(null, '', location.pathname);
     document.getElementById('searchInput').value = '';
+    _listingsFilter = 'all';
+    buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
     _sortOrder = SORT_OPTIONS[0].value;
     renderSortDropdown();
   } else {
@@ -2702,9 +2782,11 @@ function clearFilters() {
   _selectedCardIds.clear();
   _filterMintMin = '';
   _filterMintMax = '';
+  _listingsFilter = 'all';
   buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, 'all', onSchemaFilterChange);
   document.getElementById('mintMin').value = '';
   document.getElementById('mintMax').value = '';
+  buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
   document.querySelectorAll('#rarityDropdown input[type=checkbox], #cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
   refreshCbLabel(document.getElementById('rarityDropdown'), _selectedRarities, 'All rarities');
   refreshCbLabel(document.getElementById('cardIdDropdown'), _selectedCardIds, 'All card IDs');
@@ -2724,6 +2806,18 @@ document.getElementById('mintMax').addEventListener('input', e => {
   _filterMintMax = e.target.value;
   debounceLoad();
 });
+async function onListingsFilterChange(val) {
+  _listingsFilter = val;
+  buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
+  if (_listingsFilter !== 'all') {
+    // Listings can go stale between toggles (listed/cancelled from another
+    // tab or session) — always refresh when turning "Only"/"Hide" on, not
+    // just once per wallet connect.
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (wallet) await fetchListings(wallet);
+  }
+  loadAssets(true);
+}
 function renderSortDropdown() {
   const items = SORT_OPTIONS.map(o => ({
     value: o.value, label: o.label, disabled: o.value === 'buyoffer_desc' && !_buyOffersFetched,
@@ -2739,6 +2833,7 @@ function renderSortDropdown() {
   });
 }
 renderSortDropdown();
+buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
 
 async function loadNextChunk() {
   if (_sortOrder === 'buyoffer_desc') {
@@ -2814,6 +2909,7 @@ document.addEventListener('DOMContentLoaded', () => {
     authScript: 'shared/wax-auth.js',
     menuItems: [
       { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+      { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
       { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
     ],
   });

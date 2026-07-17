@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity — Hoardio</title>
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
+  <style>
+    /* ── Auth gate ── */
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 3rem 2rem; text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint { font-size: 0.88rem; }
+
+    /* ── Tab switcher — same visual language as the launch buttons on
+       inventory.html (.activity-tab-btn), but stateful: whichever tab is
+       active gets the site's primary gold-gradient treatment. ── */
+    .act-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .act-tab-btn {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
+      border-radius: 8px; padding: 0.55rem 1.1rem;
+      font-size: 0.85rem; font-weight: 700; color: var(--accent-light);
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .act-tab-btn:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .act-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+
+    /* ── Controls card (filter panel) ── */
+    .controls-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .controls-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 140px; }
+    .control-group--wide { flex: 2; min-width: 200px; }
+    .control-group--narrow { flex: 0 0 auto; }
+    .control-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .filter-row { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .mint-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .mint-range-inputs .control-input { flex: 1; min-width: 0; }
+    .range-sep { color: var(--text-secondary); flex-shrink: 0; }
+    /* Price/Mint don't apply to Transfers — the AtomicAssets transfers API
+       has no price or mint-range params, so rather than silently ignore
+       whatever's typed there, the fields are visibly disabled instead. */
+    .control-group.is-disabled { opacity: 0.4; }
+    .control-group.is-disabled .control-input { cursor: not-allowed; }
+    .cb-combo-input[readonly] { cursor: pointer; }
+
+    /* ── Flatpickr theming — the CDN default is a light theme; override it
+       to match the site's dark palette instead of pulling in a prebuilt
+       theme file with its own fixed colors. ── */
+    .flatpickr-calendar {
+      background: var(--bg-card); border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5); border-radius: 12px;
+      font-family: inherit;
+    }
+    .flatpickr-calendar.arrowTop:before { border-bottom-color: var(--border); }
+    .flatpickr-calendar.arrowTop:after { border-bottom-color: var(--bg-card); }
+    /* flatpickr's own rule is `.flatpickr-months .flatpickr-month{overflow:hidden}`
+       (two classes) — a bare `.flatpickr-month{overflow:visible}` (one class)
+       loses that specificity fight regardless of source order, which is why
+       the dropdown panels below stayed invisible even while "open". Matching
+       selector shape here so ours actually wins.
+       Separately: .flatpickr-current-month has `transform:translate3d(...)`
+       in flatpickr's base CSS, which creates its own stacking context — so
+       our panel's z-index is only compared *within* that context, and the
+       whole thing paints behind .dayContainer's stacking context (same
+       transform trick) regardless, since DOM order puts the header first.
+       Giving .flatpickr-months itself a real position+z-index makes it (and
+       everything nested inside, including our panel) out-rank the day grid
+       as a whole instead of losing that DOM-order tiebreak. */
+    .flatpickr-months { padding: 0.6rem 0.4rem 0; position: relative; z-index: 20; }
+    .flatpickr-month { color: var(--text-primary); fill: var(--text-primary); height: 2.25rem; }
+    .flatpickr-months .flatpickr-month { overflow: visible; }
+    .flatpickr-current-month { font-size: 0.9rem; padding: 0; }
+    .flatpickr-prev-month svg, .flatpickr-next-month svg { fill: var(--text-secondary); }
+    .flatpickr-prev-month:hover svg, .flatpickr-next-month:hover svg { fill: var(--accent-light); }
+
+    /* ── Custom month/year nav — replaces flatpickr's native <select> and
+       numeric year input. Both rely on the browser's own OS-native popup
+       styling, which routinely ignores dark-theme CSS (esp. on Windows) —
+       the month list rendered near-invisible light-gray-on-white. A
+       .cb-dropdown-style pair sidesteps that entirely and, as a bonus,
+       lets the year become a short pick-list (WAX launched in 2019, so
+       there's only ever a handful of years to show) instead of a spinner
+       whose up/down arrows had no room and visually collided with the
+       digits. See initDateRangePicker/buildFpMonthYearNav. ── */
+    .flatpickr-current-month { display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+    .fp-nav-wrap { position: relative; }
+    .fp-nav-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-primary); font-size: 0.85rem; font-weight: 600; font-family: inherit;
+      padding: 0.25rem 0.55rem; cursor: pointer; white-space: nowrap;
+    }
+    .fp-nav-btn:hover { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
+    .fp-nav-panel {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 10;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+      max-height: 220px; overflow-y: auto; min-width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+    .fp-nav-panel.open { display: block; }
+    .fp-nav-item { padding: 0.4rem 0.75rem; font-size: 0.85rem; color: var(--text-primary); cursor: pointer; white-space: nowrap; }
+    .fp-nav-item:hover { background: rgba(240,168,64,0.12); }
+    .fp-nav-item.active { color: var(--accent-light); font-weight: 700; }
+    .flatpickr-weekdays { background: transparent; }
+    span.flatpickr-weekday {
+      background: transparent; color: var(--text-secondary);
+      font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+    }
+    .flatpickr-days { border: none; }
+    .flatpickr-day { color: var(--text-primary); border-radius: 6px; }
+    .flatpickr-day.today { border-color: var(--accent); }
+    .flatpickr-day:hover { background: rgba(240,168,64,0.15); border-color: transparent; }
+    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+      background: var(--accent-light); border-color: var(--accent-light); color: #fff;
+    }
+    .flatpickr-day.selected:hover, .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover {
+      background: var(--accent); border-color: var(--accent);
+    }
+    .flatpickr-day.inRange {
+      background: rgba(240,168,64,0.18); border-color: transparent;
+      box-shadow: -5px 0 0 rgba(240,168,64,0.18), 5px 0 0 rgba(240,168,64,0.18);
+    }
+    .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color: var(--text-secondary); opacity: 0.4; }
+    .flatpickr-day.flatpickr-disabled { color: var(--text-secondary); opacity: 0.25; }
+
+    /* ── Spinner / empty state ── */
+    .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
+
+    /* ── Activity list — one card per sale/transfer record. Visual language
+       borrowed from trade-offers.html's offer-item/asset-cards so a
+       wallet's list pages stay consistent. ── */
+    .act-list { display: flex; flex-direction: column; gap: 0.7rem; }
+    .act-wallet { color: var(--accent-light); }
+
+    /* ── Activity cards (Purchases/Sales/Transfers) — AtomicHub-style:
+       thumbnail + labeled fields on the left, record-level fields (listing
+       or transfer id, date, counterparties) on the right. One card per
+       asset — a bundle record repeats its shared right-side fields across
+       each asset's card, same as AtomicHub does. ── */
+    .act-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1rem 1.25rem;
+      display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+      transition: border-color 0.2s;
+    }
+    .act-card:hover { border-color: var(--border-hover); }
+    .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+    .act-card-thumb {
+      width: 72px; height: 72px; flex-shrink: 0; border-radius: 10px;
+      background: rgba(255,255,255,0.03); overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .act-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .act-card-thumb-ph { color: var(--text-secondary); font-size: 1.3rem; opacity: 0.3; }
+    .act-card-txlink {
+      font-size: 0.68rem; font-weight: 600; color: var(--accent-light);
+      text-decoration: none; white-space: nowrap;
+    }
+    .act-card-txlink:hover { text-decoration: underline; }
+    .act-card-txlink.is-unavailable { color: var(--text-secondary); cursor: default; pointer-events: none; text-decoration: none; }
+    .act-card-cols { flex: 1; display: flex; gap: 2.5rem; flex-wrap: wrap; min-width: 0; }
+    .sc-fields {
+      display: grid; grid-template-columns: max-content max-content;
+      column-gap: 0.75rem; row-gap: 0.3rem; align-items: baseline;
+    }
+    .sc-fields--meta { margin-left: auto; }
+    .sc-label { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-secondary); }
+    .sc-value {
+      font-size: 0.86rem; font-weight: 600; color: var(--text-primary);
+      max-width: 16rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sc-name { font-weight: 700; }
+    .sc-price { color: var(--accent-light); }
+    .sc-wallet { color: var(--accent-light); }
+    .sc-mint-range { color: #60a5fa; font-weight: 700; }
+    .sc-value--wrap { white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
+    /* A grid track sized `max-content` uses the unwrapped intrinsic width of
+       its widest cell, ignoring the container — that's what let a long mint
+       list blow out past the card edge. `minmax(0, 1fr)` on the value
+       column, plus `min-width: 0` down the flex chain (flex items default
+       to min-width:auto, which resists shrinking below content size), lets
+       it actually wrap within the available width instead. */
+    .sc-fields--wrap { grid-template-columns: max-content minmax(0, 1fr); min-width: 0; }
+    .act-card-memo {
+      flex-basis: 100%; margin-top: 0.25rem; padding-top: 0.6rem;
+      border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-secondary);
+    }
+    .act-card-memo span { color: var(--text-primary); }
+
+    /* ── Bundle transfer card — multiple assets that moved in the SAME
+       blockchain transfer (same transfer_id/date/from/to) get one card,
+       with the shared right-side fields shown once instead of repeated
+       per asset. ── */
+    .act-card--bundle { align-items: flex-start; }
+    .act-card-assets { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
+    .act-card-asset { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+    .act-card-asset > .sc-fields { flex: 1; min-width: 0; }
+    .act-card-asset:not(:last-child) { padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .act-card-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0; margin-left: auto; }
+    .act-card-count {
+      flex-shrink: 0; font-size: 0.68rem; font-weight: 700; color: var(--text-secondary);
+      background: rgba(255,255,255,0.06); border-radius: 6px; padding: 0.15rem 0.45rem;
+    }
+
+    @media (max-width: 700px) {
+      .page-main { padding: 1.25rem 0.75rem 3rem; }
+      .act-card { padding: 0.9rem; gap: 0.85rem; }
+      .act-card-cols { gap: 1.25rem; }
+      .sc-fields--meta { margin-left: 0; }
+      .sc-value { max-width: 11rem; }
+      .act-card-meta { align-items: flex-start; margin-left: 0; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title">My <span class="accent">Activity</span></h1>
+    <p class="page-desc">Review your purchases, sales, and transfers.</p>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to view your activity.</p>
+  </div>
+
+  <div id="mainWrap" style="display:none;">
+    <div class="act-tabs" id="actTabs">
+      <button type="button" class="act-tab-btn" data-tab="purchases">🛒 Purchases</button>
+      <button type="button" class="act-tab-btn" data-tab="sales">💰 Sales</button>
+      <button type="button" class="act-tab-btn" data-tab="transfers">↔️ Transfers</button>
+    </div>
+
+    <div id="toolbar" class="controls-card">
+      <div class="controls-row">
+        <div class="control-group control-group--wide">
+          <label class="control-label">Collection</label>
+          <div class="cb-combo" id="colCombo">
+            <input type="text" class="cb-combo-input" id="colComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="colComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel"></div>
+          </div>
+        </div>
+        <div class="control-group" id="schemaGroup" style="display:none;">
+          <label class="control-label">Schema</label>
+          <div class="cb-dropdown" id="schemaDropdown">
+            <button class="cb-dropdown-btn" type="button">
+              <span class="cb-label">All schemas</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel"></div>
+          </div>
+        </div>
+        <div class="control-group" id="buyerGroup" style="display:none;">
+          <label class="control-label">Buyer</label>
+          <input id="buyerFilter" type="text" class="control-input" placeholder="Wallet name" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="control-group control-group--narrow">
+          <label class="control-label">Sort by</label>
+          <div class="cb-dropdown" id="sortDropdown">
+            <button class="cb-dropdown-btn" type="button">
+              <span class="cb-label">Date (Newest)</span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel"></div>
+          </div>
+        </div>
+      </div>
+      <div class="controls-row filter-row">
+        <div class="control-group">
+          <label class="control-label">Date range</label>
+          <div class="cb-combo" id="dateRangeCombo">
+            <input type="text" id="dateRangeInput" class="cb-combo-input" placeholder="All time" readonly autocomplete="off">
+            <button type="button" class="cb-combo-clear" id="dateRangeClear" style="display:none" title="Clear">✕</button>
+          </div>
+        </div>
+        <div class="control-group" id="priceGroup">
+          <label class="control-label">Price (WAX)</label>
+          <div class="mint-range-inputs">
+            <input id="priceMin" type="number" class="control-input" placeholder="Min" min="0" step="0.0001" />
+            <span class="range-sep">—</span>
+            <input id="priceMax" type="number" class="control-input" placeholder="Max" min="0" step="0.0001" />
+          </div>
+        </div>
+        <div class="control-group" id="mintGroup">
+          <label class="control-label">Mint number</label>
+          <div class="mint-range-inputs">
+            <input id="mintMin" type="number" class="control-input" placeholder="Min" min="1" />
+            <span class="range-sep">—</span>
+            <input id="mintMax" type="number" class="control-input" placeholder="Max" min="1" />
+          </div>
+        </div>
+        <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end;">
+          <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loadWrap" class="status-wrap" style="display:none;">
+      <div class="spinner"></div>
+      <div>Loading activity…</div>
+    </div>
+
+    <div id="emptyWrap" class="empty-state" style="display:none;">
+      <strong>Nothing here yet</strong>
+      No items match the current filters.
+    </div>
+
+    <div id="actList" class="act-list"></div>
+
+    <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
+      <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+const PAGE_SIZE = 20;
+
+/* Purchases/Sales read from AtomicMarket's sales endpoint (v2 — v1 doesn't
+   expose the list route, only /v1/sales/{id}); Transfers reads from
+   AtomicAssets. dateField picks which sale-record timestamp "date" means
+   for that tab (listed vs. actually sold), and doubles as both the `sort`
+   column and — per this API family's convention — the column that
+   `before`/`after` filter against. */
+const TAB_META = {
+  purchases: { kind: 'sale',     dateField: 'updated', extra: w => `buyer=${encodeURIComponent(w)}&state=3`  },
+  sales:     { kind: 'sale',     dateField: 'updated', extra: w => `seller=${encodeURIComponent(w)}&state=3` },
+  transfers: { kind: 'transfer', dateField: 'created', extra: w => `account=${encodeURIComponent(w)}`        },
+};
+/* Sort dropdown options are tab-dependent: sale-kind tabs (Purchases/Sales)
+   can sort by price since AtomicMarket's /sales endpoint supports
+   sort=price; Transfers only has a date to sort by. Composite "by_dir"
+   values keep this to a single dropdown/state var. */
+const SORT_OPTIONS_DATE = [
+  { value: 'date_desc', label: 'Date (Newest first)' },
+  { value: 'date_asc',  label: 'Date (Oldest first)' },
+];
+const SORT_OPTIONS_SALE = [
+  ...SORT_OPTIONS_DATE,
+  { value: 'price_desc', label: 'Price (Highest first)' },
+  { value: 'price_asc',  label: 'Price (Lowest first)' },
+];
+function sortOptionsForTab(tab) {
+  return TAB_META[tab].kind === 'sale' ? SORT_OPTIONS_SALE : SORT_OPTIONS_DATE;
+}
+function parseSortValue(v) {
+  const idx = v.indexOf('_');
+  return { by: v.slice(0, idx), dir: v.slice(idx + 1) };
+}
+
+let _tab            = 'purchases';
+let _filterCol       = 'all';
+let _filterSchema    = 'all';
+let _filterBuyer     = '';
+let _dateStart       = '';
+let _dateEnd         = '';
+let _priceMin        = '';
+let _priceMax        = '';
+let _mintMin         = '';
+let _mintMax         = '';
+let _sortValue       = 'date_desc';
+let _page            = 1;
+let _hasMore         = false;
+let _loadGen         = 0;
+let _autoLoadArmed   = false;
+let _activeWallet    = null;
+let _waxUsdRate      = null;
+let _debounceTimer   = null;
+const _collections     = new Set();
+const _collectionNames = new Map();
+const _schemaCache      = {};
+let _colItemsCache    = [{ value: 'all', label: 'All collections' }];
+let _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
+const _txidCache = new Map();
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Helpers                                                                    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchWaxPrice() {
+  try {
+    const r    = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    const json = await r.json();
+    _waxUsdRate = json?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+function usdTag(wax) {
+  if (!_waxUsdRate || wax == null) return '';
+  return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(ms) {
+  if (!ms) return '';
+  return new Date(Number(ms)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function imgUrl(hash) {
+  if (!hash) return '';
+  if (hash.startsWith('http')) return hash;
+  const gw = (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/';
+  return gw + hash;
+}
+
+// Public IPFS gateways don't all have the same peers/cache — a CID that's
+// cold on one can already be warm on another. Cycle through a few instead
+// of retrying the same one, before giving up. Same pattern as inventory.html.
+const IPFS_GATEWAY_LIST = [
+  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function onAssetImgError(el) {
+  const hash = el.dataset.ipfsHash;
+  if (hash) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+      return;
+    }
+  }
+  el.replaceWith(Object.assign(document.createElement('div'), { className: 'act-card-thumb-ph', textContent: '?' }));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Checkbox / combo dropdown components — copied from inventory.html so this  */
+/* page's filter UI behaves and looks identical to the rest of the site.      */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+  closeAllCbCombos();
+}
+
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}${i.disabled ? ' disabled' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+
+function renderCbItemsInto(listEl, items, currentValue, onSelect) {
+  listEl.innerHTML = items.length
+    ? items.map(i => cbItemHtml(i, currentValue)).join('')
+    : `<div class="cb-empty">No matches</div>`;
+  listEl.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
+}
+
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
+}
+
+function syncCbComboDisplay(combo) {
+  const input   = combo.querySelector('.cb-combo-input');
+  const clear   = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._cbItems[0];
+  const active  = combo._cbItems.find(i => i.value === combo._cbCurrentValue) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function closeAllCbCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    combo.classList.remove('open');
+    if (combo._cbItems) syncCbComboDisplay(combo);
+  });
+}
+
+function buildCbCombo(comboId, items, currentValue, onSelect) {
+  const combo = document.getElementById(comboId);
+  combo._cbItems        = items;
+  combo._cbCurrentValue = currentValue;
+  combo._cbOnSelect     = onSelect;
+  syncCbComboDisplay(combo);
+  if (combo._cbWired) return;
+  combo._cbWired = true;
+
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._cbItems.slice(1);
+    const filtered = q
+      ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
+      : options;
+    renderCbItemsInto(panel, filtered, combo._cbCurrentValue, val => {
+      combo._cbCurrentValue = val;
+      closeAllCbDropdowns();
+      combo._cbOnSelect(val);
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCbDropdowns();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllCbDropdowns();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item:not(.disabled)')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllCbDropdowns(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => {
+    combo._cbCurrentValue = combo._cbItems[0].value;
+    syncCbComboDisplay(combo);
+    combo._cbOnSelect(combo._cbCurrentValue);
+    input.blur();
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Collection / schema filters                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchWalletCollections(wallet) {
+  try {
+    const data = await WaxApi.apiFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`);
+    _collections.clear();
+    _collectionNames.clear();
+    for (const entry of (data?.collections || [])) {
+      const col = entry.collection;
+      if (!col?.collection_name) continue;
+      _collections.add(col.collection_name);
+      if (col.name) _collectionNames.set(col.collection_name, col.name);
+    }
+    updateColFilter();
+  } catch (err) { console.error('Failed to fetch collections:', err); }
+}
+
+function updateColFilter() {
+  _colItemsCache = [{ value: 'all', label: 'All collections' },
+    ...[..._collections].sort((a, b) => {
+      const na = (_collectionNames.get(a) || a).toLowerCase();
+      const nb = (_collectionNames.get(b) || b).toLowerCase();
+      return na < nb ? -1 : na > nb ? 1 : 0;
+    }).map(c => ({ value: c, label: _collectionNames.get(c) || c }))];
+  const cur = _colItemsCache.some(i => i.value === _filterCol) ? _filterCol : 'all';
+  buildCbCombo('colCombo', _colItemsCache, cur, onColFilterChange);
+}
+
+function onColFilterChange(val) {
+  _filterCol = val;
+  _filterSchema = 'all';
+  document.getElementById('schemaGroup').style.display = 'none';
+  buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
+  if (_filterCol !== 'all') {
+    fetchSchemasForCollection(_filterCol).then(schemas => {
+      if (_filterCol !== val) return;
+      if (schemas.length) updateSchemaFilter(schemas);
+    });
+  }
+  loadActivity(true);
+}
+
+async function fetchSchemasForCollection(collection) {
+  if (_schemaCache[collection]) return _schemaCache[collection];
+  try {
+    const data = await WaxApi.apiFetch(`${WaxApi.aaBase()}/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`);
+    const schemas = (data || []).map(s => s.schema_name).sort();
+    _schemaCache[collection] = schemas;
+    return schemas;
+  } catch {
+    _schemaCache[collection] = [];
+    return [];
+  }
+}
+
+function updateSchemaFilter(schemas) {
+  _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...schemas.map(s => ({ value: s, label: s }))];
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  document.getElementById('schemaGroup').style.display = '';
+}
+
+function onSchemaFilterChange(val) {
+  _filterSchema = val;
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  loadActivity(true);
+}
+
+function renderSortDropdown() {
+  const options = sortOptionsForTab(_tab);
+  if (!options.some(o => o.value === _sortValue)) _sortValue = 'date_desc';
+  buildSingleCbDropdown('sortDropdown', options, _sortValue, val => {
+    _sortValue = val;
+    renderSortDropdown();
+    loadActivity(true);
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Tabs                                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function setActiveTab(tab, opts) {
+  opts = opts || {};
+  _tab = TAB_META[tab] ? tab : 'purchases';
+  document.querySelectorAll('.act-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === _tab);
+  });
+  applyTabFilterAvailability();
+  renderSortDropdown();
+  if (!opts.skipLoad) loadActivity(true);
+}
+
+function applyTabFilterAvailability() {
+  const supportsSaleFilters = TAB_META[_tab].kind === 'sale';
+  ['priceGroup', 'mintGroup'].forEach(id => {
+    const group = document.getElementById(id);
+    group.classList.toggle('is-disabled', !supportsSaleFilters);
+    group.querySelectorAll('input').forEach(inp => { inp.disabled = !supportsSaleFilters; });
+  });
+  if (!supportsSaleFilters) {
+    _priceMin = ''; _priceMax = ''; _mintMin = ''; _mintMax = '';
+    document.getElementById('priceMin').value = '';
+    document.getElementById('priceMax').value = '';
+    document.getElementById('mintMin').value  = '';
+    document.getElementById('mintMax').value  = '';
+  }
+
+  // Buyer only makes sense on Sales — Purchases is already scoped to "you"
+  // as the buyer, and Transfers uses a different field (recipient, not buyer).
+  const showBuyer = _tab === 'sales';
+  document.getElementById('buyerGroup').style.display = showBuyer ? '' : 'none';
+  if (!showBuyer) {
+    _filterBuyer = '';
+    document.getElementById('buyerFilter').value = '';
+  }
+}
+
+document.querySelectorAll('.act-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+});
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Data loading                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function endpointFor(meta) {
+  return meta.kind === 'sale'
+    ? WaxApi.marketBase().replace('/v1', '/v2') + '/sales'
+    : WaxApi.aaBase() + '/transfers';
+}
+
+async function fetchActivityPage(page) {
+  const wallet = _activeWallet;
+  const meta   = TAB_META[_tab];
+  const p = new URLSearchParams();
+  const { by: sortBy, dir: sortDir } = parseSortValue(_sortValue);
+  p.set('limit', PAGE_SIZE);
+  p.set('page', page);
+  p.set('sort', sortBy === 'price' ? 'price' : meta.dateField);
+  p.set('order', sortDir);
+  if (meta.kind === 'sale') p.set('symbol', 'WAX');
+  if (_filterCol !== 'all')    p.set('collection_name', _filterCol);
+  if (_filterSchema !== 'all') p.set('schema_name', _filterSchema);
+  if (_dateStart) p.set('after',  String(Date.parse(_dateStart + 'T00:00:00Z')));
+  if (_dateEnd)   p.set('before', String(Date.parse(_dateEnd + 'T00:00:00Z') + 86400000));
+  if (meta.kind === 'sale') {
+    if (_priceMin) p.set('min_price', _priceMin);
+    if (_priceMax) p.set('max_price', _priceMax);
+    if (_mintMin)  p.set('min_template_mint', _mintMin);
+    if (_mintMax)  p.set('max_template_mint', _mintMax);
+  }
+  if (_tab === 'sales' && _filterBuyer) p.set('buyer', _filterBuyer);
+  const url = `${endpointFor(meta)}?${meta.extra(wallet)}&${p.toString()}`;
+  return (await WaxApi.apiFetch(url)) || [];
+}
+
+async function loadActivity(reset) {
+  if (!_activeWallet) return;
+  const myGen = reset ? ++_loadGen : _loadGen;
+  if (reset) {
+    _page = 1; _hasMore = false; _autoLoadArmed = false;
+    document.getElementById('actList').innerHTML = '';
+    document.getElementById('emptyWrap').style.display = 'none';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    syncUrl();
+  }
+  document.getElementById('loadWrap').style.display = reset ? '' : 'none';
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading…'; }
+
+  try {
+    const items = await fetchActivityPage(_page);
+    if (myGen !== _loadGen) return; // stale — a newer tab/filter change superseded this
+    _hasMore = items.length === PAGE_SIZE;
+    if (reset && items.length === 0) {
+      document.getElementById('emptyWrap').style.display = '';
+    } else {
+      appendRows(items);
+    }
+    document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
+    _page++;
+  } catch (err) {
+    console.error('Failed to load activity:', err);
+    if (reset) {
+      document.getElementById('emptyWrap').innerHTML = '<strong>Something went wrong</strong>Failed to load activity. Try again.';
+      document.getElementById('emptyWrap').style.display = '';
+    }
+  } finally {
+    if (myGen === _loadGen) {
+      document.getElementById('loadWrap').style.display = 'none';
+      if (loadMoreBtn) { loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'Load more'; }
+    }
+  }
+}
+
+function debounceLoad() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => loadActivity(true), 500);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Rendering                                                                  */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function assetThumbHtml(asset) {
+  const d     = asset.data || {};
+  const t     = asset.template?.immutable_data || {};
+  const video = d.video || t.video || '';
+  const img   = d.img || d.image || t.img || t.image || '';
+  // Funko (and other) collections often ship video-only media with no
+  // static img fallback — same video-first check as inventory.html's
+  // assetMediaHtml, so those don't fall through to the "?" placeholder.
+  if (video) {
+    return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+  }
+  // loading="lazy" matters more here than on inventory.html's grid — a page
+  // of 20 cards fires 20 simultaneous requests to the same IPFS gateway
+  // host without it, which queue behind the browser's per-host connection
+  // limit and can look like images "aren't showing" when they're just slow.
+  return img
+    ? `<img src="${imgUrl(img)}" alt="" loading="lazy" data-ipfs-hash="${img.startsWith('http') ? '' : img}" data-gw-idx="0" onerror="onAssetImgError(this)">`
+    : `<div class="act-card-thumb-ph">?</div>`;
+}
+
+function assetFields(asset) {
+  const name     = asset.name || asset.data?.name || (asset.asset_id ? `Asset #${asset.asset_id}` : '—');
+  const collName = asset.collection?.name || asset.collection?.collection_name || '—';
+  const mint     = asset.template_mint ? `#${asset.template_mint}` : '—';
+  return { name, collName, mint };
+}
+
+/* AtomicHub-style card — one per asset. Record-level fields (listing id,
+   date, seller/buyer) are shared by every asset in a bundle, so a
+   multi-asset sale repeats them across each asset's card, same as
+   AtomicHub does. transferCardHtml below follows the same shape. */
+function saleCardHtml(item, asset) {
+  const precision = item.price?.token_precision ?? 8;
+  const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
+  const { name, collName, mint } = assetFields(asset);
+
+  return `<div class="act-card">
+    <div class="act-card-thumb-wrap">
+      <div class="act-card-thumb">${assetThumbHtml(asset)}</div>
+      <a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a>
+    </div>
+    <div class="act-card-cols">
+      <div class="sc-fields">
+        <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
+        <span class="sc-label">NFT</span><span class="sc-value sc-name">${escHtml(name)}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(collName)}</span>
+        <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax)}</span>
+      </div>
+      <div class="sc-fields sc-fields--meta">
+        <span class="sc-label">Listing ID</span><span class="sc-value">#${item.sale_id}</span>
+        <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
+        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${escHtml(item.seller)}</span>
+        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${escHtml(item.buyer)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function transferCardHtml(item, asset) {
+  const { name, collName, mint } = assetFields(asset);
+  const txlinkHtml = item.txid
+    ? `<a class="act-card-txlink" href="https://waxblock.io/transaction/${item.txid}" target="_blank" rel="noopener">View transaction ↗</a>`
+    : '';
+  const memoHtml = item.memo ? `<div class="act-card-memo">Memo: <span>${escHtml(item.memo)}</span></div>` : '';
+
+  return `<div class="act-card">
+    <div class="act-card-thumb-wrap">
+      <div class="act-card-thumb">${assetThumbHtml(asset)}</div>
+      ${txlinkHtml}
+    </div>
+    <div class="act-card-cols">
+      <div class="sc-fields">
+        <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
+        <span class="sc-label">NFT</span><span class="sc-value sc-name">${escHtml(name)}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(collName)}</span>
+      </div>
+      <div class="sc-fields sc-fields--meta">
+        <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
+        <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
+        <span class="sc-label">From</span><span class="sc-value sc-wallet">${escHtml(item.sender_name)}</span>
+        <span class="sc-label">To</span><span class="sc-value sc-wallet">${escHtml(item.recipient_name)}</span>
+      </div>
+    </div>
+    ${memoHtml}
+  </div>`;
+}
+
+/* Assets in a bundle sharing a template_id are copies of the same NFT
+   design — group them into one row with a comma-separated mint list
+   instead of repeating the thumbnail/name/collection per copy. Assets with
+   no template_id (or a one-off) each get their own group. */
+function groupAssetsByTemplate(assets) {
+  const groups = new Map();
+  const order  = [];
+  assets.forEach((asset, i) => {
+    const key = asset.template?.template_id || `_ungrouped_${i}`;
+    if (!groups.has(key)) { groups.set(key, []); order.push(key); }
+    groups.get(key).push(asset);
+  });
+  return order.map(key => groups.get(key));
+}
+
+/* Bulk transfers of the same template (a batch mint moved together) tend to
+   be consecutive mint runs — collapsing those into "#1–#100" instead of
+   listing every mint keeps a 100-copy transfer readable instead of a wall
+   of numbers. Non-consecutive mints still list individually. */
+function formatMintRanges(mints) {
+  const nums = mints.map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+  if (!nums.length) return [{ start: null, end: null }];
+  const segments = [];
+  let start = nums[0], end = nums[0];
+  const push = () => segments.push({ start, end });
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] === end + 1) { end = nums[i]; continue; }
+    push();
+    start = end = nums[i];
+  }
+  push();
+  return segments;
+}
+
+// Ranges get their numbers highlighted so a "#1–#100" run is easy to spot
+// at a glance next to single mint numbers — the "–" separator stays the
+// default text color so only the numbers themselves stand out.
+function mintRangesHtml(mints) {
+  return formatMintRanges(mints).map(({ start, end }) => {
+    if (start === null) return '—';
+    if (start === end) return escHtml(`#${start}`);
+    return `<span class="sc-mint-range">#${start}</span>–<span class="sc-mint-range">#${end}</span>`;
+  }).join(', ');
+}
+
+/* A bundle transfer (one blockchain transaction moving several assets at
+   once — real transfer_id, not a coincidence) repeats the same
+   transfer_id/date/from/to across every asset. Show that once instead of
+   once per asset. */
+function transferBundleCardHtml(item, assets) {
+  const txlinkHtml = item.txid
+    ? `<a class="act-card-txlink" href="https://waxblock.io/transaction/${item.txid}" target="_blank" rel="noopener">View transaction ↗</a>`
+    : '';
+  const memoHtml = item.memo ? `<div class="act-card-memo">Memo: <span>${escHtml(item.memo)}</span></div>` : '';
+  const assetRows = groupAssetsByTemplate(assets).map(group => {
+    const { name, collName } = assetFields(group[0]);
+    const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
+    return `<div class="act-card-asset">
+      <div class="act-card-thumb">${assetThumbHtml(group[0])}</div>
+      <div class="sc-fields sc-fields--wrap">
+        <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
+        <span class="sc-label">NFT</span><span class="sc-value sc-name">${escHtml(name)}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(collName)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="act-card act-card--bundle">
+    <div class="act-card-assets">${assetRows}</div>
+    <div class="act-card-meta">
+      <span class="act-card-count">${assets.length} items</span>
+      <div class="sc-fields sc-fields--meta">
+        <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
+        <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
+        <span class="sc-label">From</span><span class="sc-value sc-wallet">${escHtml(item.sender_name)}</span>
+        <span class="sc-label">To</span><span class="sc-value sc-wallet">${escHtml(item.recipient_name)}</span>
+      </div>
+      ${txlinkHtml}
+    </div>
+    ${memoHtml}
+  </div>`;
+}
+
+function renderSaleItem(item) {
+  const assets = item.assets && item.assets.length ? item.assets : [{}];
+  return assets.map(a => saleCardHtml(item, a)).join('');
+}
+
+function renderTransferItem(item) {
+  const assets = item.assets && item.assets.length ? item.assets : [{}];
+  return assets.length > 1 ? transferBundleCardHtml(item, assets) : transferCardHtml(item, assets[0]);
+}
+
+function appendRows(items) {
+  // Purchases and Sales are both /sales records (state=3), just filtered by
+  // buyer vs. seller — same fields (seller/buyer/price/updated_at_time), so
+  // the same AtomicHub-style card works for both. Transfers uses the same
+  // visual card with a lighter field set (no price/listing id).
+  const html = _tab === 'transfers'
+    ? items.map(renderTransferItem).join('')
+    : items.map(renderSaleItem).join('');
+  document.getElementById('actList').insertAdjacentHTML('beforeend', html);
+  initLazyVideos();
+}
+
+/* Same lazy-load/unload pattern as inventory.html's initLazyVideos() —
+   playing every video on a 20-card page at once is what caused the tray
+   video crash there (see [[project_bulk_actions]]); only the videos
+   actually scrolled into view get a src, and it's torn down again once
+   scrolled past to free decoder memory. */
+let _actVideoObserver = null;
+function initLazyVideos() {
+  if (_actVideoObserver) _actVideoObserver.disconnect();
+  _actVideoObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        if (video.dataset.src && !video.src) {
+          video.src = video.dataset.src;
+          video.load();
+        }
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+        if (video.src) {
+          video.removeAttribute('src');
+          video.load();
+        }
+      }
+    }
+  }, { rootMargin: '300px' });
+  document.querySelectorAll('.act-card-thumb video[data-src]').forEach(v => _actVideoObserver.observe(v));
+}
+
+async function resolveSaleTxid(saleId, wantCreated) {
+  if (_txidCache.has(saleId)) return _txidCache.get(saleId);
+  let txid = null;
+  try {
+    // limit=1 + asc/desc grabs just the log we need: the sale's creation
+    // event (lognewsale) or its most recent event (purchasesale on a sold
+    // record), rather than paging the full log history.
+    const order = wantCreated ? 'asc' : 'desc';
+    const logs = await WaxApi.apiFetch(`${WaxApi.marketBase()}/sales/${saleId}/logs?limit=1&order=${order}`);
+    txid = logs?.[0]?.txid || null;
+  } catch { /* non-fatal */ }
+  _txidCache.set(saleId, txid);
+  return txid;
+}
+
+async function onSaleTxLinkClick(link) {
+  if (link.dataset.loading === '1') return;
+  link.dataset.loading = '1';
+  const original = link.textContent;
+  link.textContent = 'Loading…';
+  const txid = await resolveSaleTxid(link.dataset.saleId, link.dataset.created === '1');
+  delete link.dataset.loading;
+  if (!txid) {
+    link.textContent = 'Transaction unavailable';
+    link.classList.add('is-unavailable');
+    return;
+  }
+  link.href = `https://waxblock.io/transaction/${txid}`;
+  link.dataset.resolved = '1';
+  link.textContent = original;
+  window.open(link.href, '_blank', 'noopener');
+}
+
+document.getElementById('actList').addEventListener('click', e => {
+  const link = e.target.closest('.tx-link[data-sale-id]');
+  if (link && link.dataset.resolved !== '1') {
+    e.preventDefault();
+    onSaleTxLinkClick(link);
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Load more / infinite scroll — same click-once-to-arm pattern used across   */
+/* inventory.html, inventory-bulk.html and explore.html.                     */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadActivity(false);
+}
+
+let _loadMoreObs = null;
+function initInfiniteScroll() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn  = document.getElementById('loadMoreBtn');
+  _loadMoreObs = new IntersectionObserver(entries => {
+    if (!_autoLoadArmed || btn.disabled || wrap.style.display === 'none') return;
+    if (entries[0].isIntersecting) loadActivity(false);
+  }, { rootMargin: '600px' });
+  _loadMoreObs.observe(wrap);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Filters — wiring + clear                                                  */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Date range — flatpickr calendar (range mode) instead of two native
+   <input type=date> boxes, styled to match the site's dark theme via the
+   .flatpickr-* overrides above. ── */
+let _dateRangeFp = null;
+
+function toYMD(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function syncDateRangeClearBtn() {
+  document.getElementById('dateRangeClear').style.display = (_dateStart || _dateEnd) ? '' : 'none';
+}
+
+// (re)apply _dateStart/_dateEnd to the picker without re-triggering onChange
+// — used when state changes programmatically (URL params, clear, wallet switch).
+function applyDateRangeToPicker() {
+  if (!_dateRangeFp) return;
+  if (_dateStart && _dateEnd) _dateRangeFp.setDate([_dateStart, _dateEnd], false);
+  else _dateRangeFp.clear(false);
+  syncDateRangeClearBtn();
+}
+
+const FP_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WAX_LAUNCH_YEAR = 2019;
+
+// Replaces flatpickr's native month <select> / year <input type=number> with
+// a .cb-dropdown-style pair — see the CSS comment above .fp-nav-wrap for why.
+function buildFpMonthYearNav(instance) {
+  const container = instance.calendarContainer.querySelector('.flatpickr-current-month');
+  if (!container || container.dataset.customNav === '1') return;
+  container.dataset.customNav = '1';
+  container.innerHTML = '';
+
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for (let y = thisYear; y >= WAX_LAUNCH_YEAR; y--) years.push(y);
+
+  const monthBtn   = document.createElement('button');
+  const yearBtn     = document.createElement('button');
+  const monthPanel = document.createElement('div');
+  const yearPanel   = document.createElement('div');
+  [monthBtn, yearBtn].forEach(b => { b.type = 'button'; b.className = 'fp-nav-btn'; });
+  [monthPanel, yearPanel].forEach(p => { p.className = 'fp-nav-panel'; });
+  monthPanel.innerHTML = FP_MONTH_NAMES.map((m, i) => `<div class="fp-nav-item" data-i="${i}">${m}</div>`).join('');
+  yearPanel.innerHTML  = years.map(y => `<div class="fp-nav-item" data-y="${y}">${y}</div>`).join('');
+
+  const monthWrap = document.createElement('div');
+  monthWrap.className = 'fp-nav-wrap';
+  monthWrap.append(monthBtn, monthPanel);
+  const yearWrap = document.createElement('div');
+  yearWrap.className = 'fp-nav-wrap';
+  yearWrap.append(yearBtn, yearPanel);
+  container.append(monthWrap, yearWrap);
+
+  const closePanels = () => { monthPanel.classList.remove('open'); yearPanel.classList.remove('open'); };
+  monthBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = !monthPanel.classList.contains('open');
+    closePanels();
+    if (willOpen) monthPanel.classList.add('open');
+  });
+  yearBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = !yearPanel.classList.contains('open');
+    closePanels();
+    if (willOpen) yearPanel.classList.add('open');
+  });
+  // jumpToDate's 2nd arg is "triggerChange" — flatpickr only fires
+  // onMonthChange/onYearChange (which is what keeps these labels in sync)
+  // when it's truthy. Calling _fpNavSync() directly is more robust than
+  // relying on that, since it doesn't depend on which internal event path
+  // jumpToDate happens to take.
+  monthPanel.addEventListener('click', e => {
+    const item = e.target.closest('.fp-nav-item');
+    if (!item) return;
+    closePanels();
+    instance.jumpToDate(new Date(instance.currentYear, Number(item.dataset.i), 1));
+    instance._fpNavSync();
+  });
+  yearPanel.addEventListener('click', e => {
+    const item = e.target.closest('.fp-nav-item');
+    if (!item) return;
+    closePanels();
+    instance.jumpToDate(new Date(Number(item.dataset.y), instance.currentMonth, 1));
+    instance._fpNavSync();
+  });
+  document.addEventListener('click', closePanels);
+
+  instance._fpNavSync = () => {
+    monthBtn.textContent = `${FP_MONTH_NAMES[instance.currentMonth]} ▾`;
+    yearBtn.textContent  = `${instance.currentYear} ▾`;
+    monthPanel.querySelectorAll('.fp-nav-item').forEach(el => el.classList.toggle('active', Number(el.dataset.i) === instance.currentMonth));
+    yearPanel.querySelectorAll('.fp-nav-item').forEach(el => el.classList.toggle('active', Number(el.dataset.y) === instance.currentYear));
+  };
+  instance._fpNavSync();
+}
+
+function initDateRangePicker() {
+  _dateRangeFp = flatpickr('#dateRangeInput', {
+    mode: 'range',
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'M j, Y',
+    altInputClass: 'cb-combo-input',
+    minDate: `${WAX_LAUNCH_YEAR}-01-01`,
+    maxDate: 'today',
+    onReady:      (d, s, instance) => buildFpMonthYearNav(instance),
+    onMonthChange: (d, s, instance) => instance._fpNavSync && instance._fpNavSync(),
+    onYearChange:  (d, s, instance) => instance._fpNavSync && instance._fpNavSync(),
+    onChange: selectedDates => {
+      if (selectedDates.length === 2) {
+        _dateStart = toYMD(selectedDates[0]);
+        _dateEnd   = toYMD(selectedDates[1]);
+      } else if (selectedDates.length === 0) {
+        _dateStart = ''; _dateEnd = '';
+      } else {
+        return; // only the start of the range picked so far — wait for the end date
+      }
+      syncDateRangeClearBtn();
+      loadActivity(true);
+    },
+  });
+  document.getElementById('dateRangeClear').addEventListener('mousedown', e => e.preventDefault());
+  document.getElementById('dateRangeClear').addEventListener('click', () => _dateRangeFp.clear());
+}
+
+function clearFilters() {
+  _filterCol = 'all'; _filterSchema = 'all'; _filterBuyer = '';
+  _dateStart = ''; _dateEnd = '';
+  _priceMin = ''; _priceMax = ''; _mintMin = ''; _mintMax = '';
+  applyDateRangeToPicker();
+  document.getElementById('priceMin').value  = '';
+  document.getElementById('priceMax').value  = '';
+  document.getElementById('mintMin').value   = '';
+  document.getElementById('mintMax').value   = '';
+  document.getElementById('buyerFilter').value = '';
+  document.getElementById('schemaGroup').style.display = 'none';
+  updateColFilter();
+  loadActivity(true);
+}
+document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+
+document.getElementById('priceMin').addEventListener('input', e => { _priceMin = e.target.value; debounceLoad(); });
+document.getElementById('priceMax').addEventListener('input', e => { _priceMax = e.target.value; debounceLoad(); });
+document.getElementById('mintMin').addEventListener('input',  e => { _mintMin  = e.target.value; debounceLoad(); });
+document.getElementById('mintMax').addEventListener('input',  e => { _mintMax  = e.target.value; debounceLoad(); });
+document.getElementById('buyerFilter').addEventListener('input', e => { _filterBuyer = e.target.value.trim(); debounceLoad(); });
+
+document.querySelectorAll('.cb-dropdown').forEach(container => {
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel  = container.querySelector('.cb-panel');
+    const isOpen = panel.classList.contains('open');
+    closeAllCbDropdowns();
+    if (!isOpen) {
+      panel.classList.add('open');
+      container.querySelector('.cb-dropdown-btn').classList.add('open');
+    }
+  });
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllCbDropdowns();
+});
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* URL sync                                                                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  p.set('tab', _tab);
+  if (_filterCol    !== 'all') p.set('col', _filterCol);
+  if (_filterSchema !== 'all') p.set('schema', _filterSchema);
+  if (_filterBuyer)  p.set('buyer', _filterBuyer);
+  if (_dateStart) p.set('start', _dateStart);
+  if (_dateEnd)   p.set('end', _dateEnd);
+  if (_priceMin)  p.set('priceMin', _priceMin);
+  if (_priceMax)  p.set('priceMax', _priceMax);
+  if (_mintMin)   p.set('mintMin', _mintMin);
+  if (_mintMax)   p.set('mintMax', _mintMax);
+  if (_sortValue !== 'date_desc') p.set('sort', _sortValue);
+  history.replaceState(null, '', '?' + p.toString());
+}
+
+function readUrlParams() {
+  const p = new URLSearchParams(location.search);
+  const tab = p.get('tab');
+  _tab          = TAB_META[tab] ? tab : 'purchases';
+  _filterCol    = p.get('col')    || 'all';
+  _filterSchema = p.get('schema') || 'all';
+  _filterBuyer  = p.get('buyer')  || '';
+  _dateStart    = p.get('start')    || '';
+  _dateEnd      = p.get('end')      || '';
+  _priceMin     = p.get('priceMin') || '';
+  _priceMax     = p.get('priceMax') || '';
+  _mintMin      = p.get('mintMin')  || '';
+  _mintMax      = p.get('mintMax')  || '';
+  _sortValue    = p.get('sort') || 'date_desc';
+
+  applyDateRangeToPicker();
+  document.getElementById('priceMin').value  = _priceMin;
+  document.getElementById('priceMax').value  = _priceMax;
+  document.getElementById('mintMin').value   = _mintMin;
+  document.getElementById('mintMax').value   = _mintMax;
+  document.getElementById('buyerFilter').value = _filterBuyer;
+  renderSortDropdown();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Wallet state                                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function onWalletChange() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) {
+    document.getElementById('authGate').style.display = '';
+    document.getElementById('mainWrap').style.display = 'none';
+    _activeWallet = null;
+    return;
+  }
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('mainWrap').style.display = '';
+
+  if (_activeWallet !== null && _activeWallet !== wallet) {
+    // Different wallet connected mid-session — drop filters, stale collections don't carry over
+    history.replaceState(null, '', location.pathname);
+    _filterCol = 'all'; _filterSchema = 'all'; _filterBuyer = '';
+    _dateStart = ''; _dateEnd = ''; _priceMin = ''; _priceMax = ''; _mintMin = ''; _mintMax = ''; _sortValue = 'date_desc';
+    applyDateRangeToPicker();
+    document.getElementById('priceMin').value  = '';
+    document.getElementById('priceMax').value  = '';
+    document.getElementById('mintMin').value   = '';
+    document.getElementById('mintMax').value   = '';
+    document.getElementById('buyerFilter').value = '';
+    document.getElementById('schemaGroup').style.display = 'none';
+    renderSortDropdown();
+  } else if (_activeWallet === null) {
+    readUrlParams();
+  }
+  _activeWallet = wallet;
+  setActiveTab(_tab, { skipLoad: true });
+  updateColFilter();
+  fetchWalletCollections(wallet).then(() => {
+    if (_filterCol !== 'all') {
+      fetchSchemasForCollection(_filterCol).then(schemas => {
+        if (schemas.length) updateSchemaFilter(schemas);
+      });
+    }
+  });
+  loadActivity(true);
+}
+
+fetchWaxPrice();
+window.addEventListener('wax-auth-change', onWalletChange);
+document.addEventListener('DOMContentLoaded', () => {
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: 'shared/wax-auth.js',
+    menuItems: [
+      { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+      { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
+      { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+    ],
+  });
+  initInfiniteScroll();
+  initDateRangePicker();
+  document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+  onWalletChange();
+});
+</script>
+</body>
+</html>
