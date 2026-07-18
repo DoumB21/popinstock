@@ -1634,6 +1634,9 @@ function saveCartToStorage() {
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([..._selected.entries()]));
   } catch {} // storage full/unavailable — cart just won't persist this time, not fatal
+  // Native 'storage' events only fire in OTHER tabs — the nav cart badge
+  // (shared/wallet-widget.js) listens for this to update in THIS tab too.
+  window.dispatchEvent(new CustomEvent('explore-cart-change'));
 }
 function loadCartFromStorage() {
   try {
@@ -1834,6 +1837,7 @@ async function runBulkAction(items, batchSize, buildActions, onChunkSuccess) {
     setProgress(`Waiting for wallet — batch ${ci + 1} of ${chunks.length}…`);
     try {
       await WaxAuth.transact(built.actions);
+      _wallet.refreshBalance();
       onChunkSuccess(built.includedIds);
       done += built.includedIds.length;
       renderTray();
@@ -1961,6 +1965,7 @@ async function buyListing(btn, saleId, amount, assetIds = []) {
 
     btn.textContent = '✓ Purchased!';
     btn.className   = 'ex-buy-btn ex-buy-btn--bought';
+    _wallet.refreshBalance();
     btn.closest('.bl-card')?.classList.add('ex-card--bought');
     // A bought item can't stay purchasable in the cart too.
     if (_selected.has(saleId)) removeFromSelection(saleId);

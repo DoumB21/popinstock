@@ -746,6 +746,7 @@ async function buyListing(btn, saleId, listingPrice, listingSym = 'WAX', assetId
 
     btn.textContent = '✓ Purchased!';
     btn.className   = 'mp-buy-btn mp-buy-btn--bought';
+    _wallet.refreshBalance();
     const card = btn.closest('.mp-card');
     if (card) {
       card.style.pointerEvents = 'none';

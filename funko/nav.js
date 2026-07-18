@@ -168,6 +168,7 @@ async function _initWallet() {
   // re-render instead of waiting for the next wax-auth-change event.
   window._walletWidget = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
+    exploreHref: '../explore.html',
     menuItems: [
       { href: 'profile.html', label: 'Collector Profile', icon: '👤' },
       { href: '../inventory.html', label: 'Inventory', icon: '📦' },

@@ -125,6 +125,7 @@ async function _initWallet() {
   await _loadWalletWidget();
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
+    exploreHref: '../explore.html',
     menuItems: [
       { href: '../inventory.html', label: 'Inventory', icon: '📦' },
       { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
