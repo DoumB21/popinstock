@@ -97,6 +97,8 @@
       background: rgba(240,168,64,0.14); border-color: var(--accent-light); color: var(--accent-light);
     }
     .bl-toolbar-btn--active:hover { background: rgba(240,168,64,0.2); color: var(--accent-light); }
+    .bl-select-first { display: flex; align-items: center; gap: 0.4rem; }
+    .bl-select-first-input { width: 70px; box-sizing: border-box; padding: 0.38rem 0.6rem; font-size: 0.82rem; }
 
     /* ── Grid ── */
     /* Matches explore.html's card width (168px) rather than inventory.html's
@@ -445,7 +447,10 @@
               <span class="bl-toolbar-selcount" id="blSelCount" style="display:none"></span>
             </div>
             <div class="bl-toolbar-btns">
-              <button class="bl-toolbar-btn" onclick="selectAllVisible()">Select all visible</button>
+              <div class="bl-select-first">
+                <input type="number" class="control-input bl-select-first-input" id="selectFirstInput" placeholder="e.g. 40" min="1" step="1" value="20" oninput="updateSelectFirstLabel()" onkeydown="if (event.key === 'Enter') selectFirstN()" />
+                <button class="bl-toolbar-btn" id="selectFirstBtn" onclick="selectFirstN()">Select first 20</button>
+              </div>
               <button class="bl-toolbar-btn" id="selectAllMatchBtn" style="display:none" onclick="selectAllMatchingFilters()">Select all matching filters</button>
               <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
               <button class="bl-toolbar-btn" id="hideListedBtn" onclick="toggleHideListed()">Hide listed</button>
@@ -507,6 +512,8 @@
             <div class="bl-transfer-panel" id="transferPanel" style="display:none">
               <label class="control-label" for="recipientInput">Recipient wallet</label>
               <input class="control-input" id="recipientInput" type="text" placeholder="e.g. player1.wam" oninput="onRecipientInput(this.value)" autocomplete="off" spellcheck="false" />
+              <label class="control-label" for="transferMemoInput">Memo (optional)</label>
+              <input class="control-input" id="transferMemoInput" type="text" placeholder="Bulk transfer on Hoardio." oninput="onMemoInput(this.value)" autocomplete="off" spellcheck="false" />
               <div class="bl-transfer-warning">⚠️ Transfers are permanent and cannot be undone — double-check the recipient.</div>
             </div>
 
@@ -537,9 +544,9 @@
 'use strict';
 
 const MAKER              = 'popinstockgo';
-const BATCH_SIZE_SELL     = 10; // 2 actions/asset (announcesale+createoffer) — proven value from the single-item listing flow
-const BATCH_SIZE_TRANSFER = 50; // 1 action carries the whole chunk's asset_ids — no precedent in this codebase yet, tune after real-world testing
-const BATCH_SIZE_CANCEL   = 20; // 1 action/listing (cancelsale only) — double BATCH_SIZE_SELL since each item costs half the actions
+const BATCH_SIZE_SELL     = 25; // 2 actions/asset (announcesale+createoffer) — bumped from 10 for real-world testing
+const BATCH_SIZE_TRANSFER = 300; // 1 action carries the whole chunk's asset_ids — bumped from 50 for real-world testing, up to the MAX_SELECTED cap
+const BATCH_SIZE_CANCEL   = 50; // 1 action/listing (cancelsale only) — bumped from 20 for real-world testing
 // 5 columns × 4 full rows. 5 is the true ceiling here, not a guess: shared/global.css
 // caps .content at 1280px site-wide; after the 290px tray + 1.5rem gap, .bl-content
 // tops out around 918px, where 5 cards at 168px+1rem gap (904px) fit but 6 (1088px)
@@ -581,6 +588,7 @@ let _selected   = new Map();  // asset_id → price string (sell) | '' (transfer
 let _hideListed = false;
 let _onlyOverFloor = false; // Cancel mode only — show just listings priced above the current market floor for their template
 let _recipient  = '';
+let _memo       = '';
 let _page       = 1;
 let _hasMore    = false;
 let _loading    = false;
@@ -593,6 +601,7 @@ let _filterSchema   = 'all';
 let _filterText     = '';
 let _filterMintMin  = '';
 let _filterMintMax  = '';
+let _selectAllCountGen = 0; // guards a stale async _count response from overwriting a newer one
 const _selectedRarities = new Set();
 let _excludeLowestMint   = false; // only selectable once a single collection is chosen — see loadAssetsFullScan
 let _excludedLowestCount = 0;
@@ -766,7 +775,7 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
       loadForMode(true);
     } else {
       _activeWallet = null; // allow a future connect (even to the same account) to reload
-      _assets = []; _cancelItems = []; _listings = new Map(); _selected = new Map(); _recipient = '';
+      _assets = []; _cancelItems = []; _listings = new Map(); _selected = new Map(); _recipient = ''; _memo = '';
       resetFiltersState();
       _collections = new Set(); _collectionNames = new Map(); _collectionCounts = new Map(); _totalAssets = null; _schemaCache = {};
       _lastSchemas = [];
@@ -1497,7 +1506,7 @@ async function loadAssets(reset = false) {
   // Full rebuild only on reset (fresh load / filter change) — a "Load more"
   // click just appends the new batch, so the cost of clicking it doesn't
   // grow with how much has already been loaded (see appendCards below).
-  if (reset) renderGrid();
+  if (reset) { renderGrid(); updateSelectAllCount(); }
   else if (batch.length) appendCards(batch);
   loadFloorPricesForCards(batch); // background — doesn't block render
 
@@ -1696,6 +1705,61 @@ async function fetchAllMatchingAssets(whitelist, onProgress) {
   return all;
 }
 
+// Cheap preview count for the "Select all matching filters" button —
+// AtomicAssets exposes a parallel /assets/_count endpoint that takes the
+// same filter params as /assets but returns just a number, so this doesn't
+// need to fetch any actual asset data the way fetchAllMatchingAssets does.
+// Unlike fetchAllMatchingAssets (which applies mint range client-side only,
+// for the dupes-scan reason explained above it), this sends min/max mint
+// straight to the API — the two approaches land on the same final count,
+// and only this path actually needs the number ahead of time.
+async function fetchMatchingCount(whitelist) {
+  const wallet = window.getWaxAccount();
+  if (!wallet) return null;
+
+  const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${enc(_filterCol)}` : '';
+  const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${enc(_filterSchema)}`        : '';
+  const matchParam     = _filterText              ? `&match=${enc(_filterText)}`                : '';
+  const whitelistParam = whitelist              ? `&template_whitelist=${whitelist}`             : '';
+  const mintMinParam   = _filterMintMin          ? `&min_template_mint=${enc(_filterMintMin)}`   : '';
+  const mintMaxParam   = _filterMintMax          ? `&max_template_mint=${enc(_filterMintMax)}`   : '';
+  const url = `${WaxApi.aaBase()}/assets/_count?owner=${enc(wallet)}${colParam}${schemaParam}${matchParam}${whitelistParam}${mintMinParam}${mintMaxParam}`;
+
+  try {
+    const r    = await WaxApi.rawFetch(url);
+    const json = await r.json();
+    return json.success ? parseInt(json.data, 10) : null;
+  } catch {
+    return null; // button just falls back to no count — selectAllMatchingFilters() itself still works
+  }
+}
+
+// Keeps the "Select all matching filters" button's count in sync with the
+// current filters. Two cases need no network call at all: dupes mode
+// (Exclude lowest / Only highest mint) already scanned every matching asset
+// to do its job, and a previous "Select all" click (or pagination simply
+// exhausting itself) already means _assets IS the complete matching set —
+// in both, _assets.length is already the true answer. Otherwise (normal
+// browsing, still paginated) this fires the lightweight count-only request.
+async function updateSelectAllCount() {
+  const btn = document.getElementById('selectAllMatchBtn');
+  if (!btn || btn.style.display === 'none') return;
+
+  if ((_excludeLowestMint || _onlyHighestMint) || !_hasMore) {
+    btn.textContent = `Select all matching filters (${_assets.length.toLocaleString()})`;
+    return;
+  }
+
+  const myGen = ++_selectAllCountGen;
+  btn.textContent = 'Select all matching filters';
+  const whitelist = computeTemplateWhitelist();
+  if (whitelist === 'EMPTY') { btn.textContent = 'Select all matching filters (0)'; return; }
+
+  const count = await fetchMatchingCount(whitelist);
+  if (myGen !== _selectAllCountGen) return; // filters changed again since this fetch started — a newer call already owns the button text
+  if (count != null) btn.textContent = `Select all matching filters (${count.toLocaleString()})`;
+}
+
 function filterByMintRange(assets) {
   const min = _filterMintMin ? Number(_filterMintMin) : null;
   const max = _filterMintMax ? Number(_filterMintMax) : null;
@@ -1738,6 +1802,7 @@ async function runDupesScan(whitelist, computeResult) {
 
   document.getElementById('blLoadWrap').style.display = 'none';
   renderGrid();
+  updateSelectAllCount();
   loadFloorPricesForCards(_assets);
   return count;
 }
@@ -1823,7 +1888,7 @@ async function selectAllMatchingFilters() {
       console.error('selectAllMatchingFilters:', err);
     }
 
-    if (btn) { btn.disabled = false; btn.textContent = 'Select all matching filters'; }
+    if (btn) { btn.disabled = false; btn.textContent = `Select all matching filters (${_assets.length.toLocaleString()})`; }
 
     // A filter changed while this fetch was in flight — that reload has
     // already taken over (or just started); selecting against this stale
@@ -2062,6 +2127,59 @@ function selectAllVisible() {
   if (capped) setProgress(`Selected the maximum of ${MAX_SELECTED} items at once — deselect some before adding more.`);
 }
 
+// AtomicHub-style "Select first N" — replaces selectAllVisible() as the
+// primary quick-select tool. Deterministic like a fresh selection (not
+// additive with whatever was selected before), so typing a new number and
+// clicking again always lands on exactly that many items, not "N more."
+// Works across all three modes (Sell/Transfer share _assets, Cancel uses
+// _cancelItems) without needing to know which — it counts/selects off the
+// same rendered .bl-card DOM selectAllVisible() already trusts, and fetches
+// more via loadForMode(false) (the same mode-agnostic dispatcher "Load more"
+// uses) only if N exceeds what's loaded so far.
+const SELECT_FIRST_ELIGIBLE_SEL = '.bl-card:not(.bl-card--listed):not(.bl-card--hidden)';
+
+function updateSelectFirstLabel() {
+  const btn = document.getElementById('selectFirstBtn');
+  const n   = parseInt(document.getElementById('selectFirstInput').value, 10);
+  if (btn) btn.textContent = Number.isFinite(n) && n > 0 ? `Select first ${n}` : 'Select first';
+}
+
+async function selectFirstN() {
+  const input = document.getElementById('selectFirstInput');
+  const n = parseInt(input.value, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    setProgress('Enter a number to select the first N items.', 'error');
+    return;
+  }
+  if (_loading) return; // a load is already in flight — same guard selectAllMatchingFilters() uses
+
+  const btn = document.getElementById('selectFirstBtn');
+  while (document.querySelectorAll(SELECT_FIRST_ELIGIBLE_SEL).length < n && _hasMore) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+    await loadForMode(false);
+  }
+  if (btn) { btn.disabled = false; updateSelectFirstLabel(); }
+
+  clearSelection();
+
+  let count = 0, capped = false;
+  document.querySelectorAll(SELECT_FIRST_ELIGIBLE_SEL).forEach(card => {
+    if (count >= n) return;
+    if (_selected.size >= MAX_SELECTED) { capped = true; return; }
+    const id = card.dataset.id;
+    _selected.set(id, '');
+    card.classList.add('selected');
+    const chk = card.querySelector('.bl-card-check');
+    if (chk) chk.textContent = '✓';
+    count++;
+  });
+  updateSelCount();
+  renderTray();
+
+  if (capped) setProgress(`Selected the maximum of ${MAX_SELECTED} items at once — deselect some before adding more.`);
+  else if (count < n) setProgress(`Only ${count} item${count !== 1 ? 's' : ''} matched the current filters — selected all of them.`, 'error');
+}
+
 function clearSelection() {
   _selected.clear();
   document.querySelectorAll('.bl-card.selected').forEach(card => {
@@ -2234,6 +2352,10 @@ function onPriceInput(el) {
 function onRecipientInput(val) {
   _recipient = val;
   updateActionBtn();
+}
+
+function onMemoInput(val) {
+  _memo = val;
 }
 
 function applyFixedPriceToAll() {
@@ -2485,6 +2607,7 @@ async function bulkList() {
 /* ── Transfer ── */
 async function bulkTransfer() {
   const recipient = _recipient.trim();
+  const memo      = _memo.trim() || 'Bulk transfer on Hoardio.';
   const items     = [..._selected.keys()];
   if (!recipient || !items.length || recipient === window.getWaxAccount()) return;
 
@@ -2496,7 +2619,7 @@ async function bulkTransfer() {
       from:      wallet,
       to:        recipient,
       asset_ids: chunk,
-      memo:      'Bulk transfer via Hoardio',
+      memo,
     },
   }], (chunk) => {
     // One filter pass over the whole array per chunk, not one per removed
