@@ -1485,11 +1485,15 @@ function cardHtml(sale) {
 // attachCardEvents already closes over the real `sale` object at render
 // time — no need for a separate sale_id -> sale lookup map just for this.
 function attachCardEvents(card, sale) {
-  card.addEventListener('mouseenter', () => {
+  // Hover tooltip only triggers over the image itself — the whole card used
+  // to fire it, which meant hovering the Buy/Cart/View buttons (inside the
+  // same card) to click them also popped the tooltip in the way.
+  const imgEl = card.querySelector('.bl-card-img');
+  imgEl.addEventListener('mouseenter', () => {
     if (document.getElementById('cardInfoPopup').style.display !== 'none') return;
     scheduleTooltip(card);
   });
-  card.addEventListener('mouseleave', cancelTooltip);
+  imgEl.addEventListener('mouseleave', cancelTooltip);
   card.addEventListener('click', e => {
     if (e.target.closest('a, button')) return;
     if (_infoAssetId === card.dataset.assetId && document.getElementById('cardInfoPopup').style.display !== 'none') {
