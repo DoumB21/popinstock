@@ -4,27 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore — Hoardio</title>
-  <meta name="description" content="Browse WAX NFT listings across all collections. Filter by collection, schema, rarity, and price." />
+  <meta name="description" content="Browse WAX NFT listings across all collections. Buy instantly or build a cart to buy several at once, in as few wallet signatures as possible." />
   <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
   <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
   <link rel="stylesheet" href="shared/global.css" />
   <style>
-    /* ── Page header — scoped override, not a shared/global.css change:
-       .page-header is used by 24+ pages, this flex layout is explore.html-only. ── */
-    #explorePageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .bulk-buy-link {
-      display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 8px; padding: 0.55rem 0.9rem;
-      color: var(--text-primary); font-size: 0.82rem; font-weight: 600;
-      text-decoration: none; transition: border-color 0.15s;
-    }
-    .bulk-buy-link:hover { border-color: rgba(192,120,40,0.5); }
-
-    /* ── Explore layout ── */
-    .explore-layout {
-      display: flex; align-items: flex-start; gap: 1.25rem;
-    }
+    /* ── Layout: filter sidebar + results column. The cart lives inside the
+       results column as a horizontal bar, not a third layout column — see
+       .cart-bar below. ── */
+    .explore-layout { display: flex; align-items: flex-start; gap: 1.25rem; }
 
     /* ── Sidebar ── */
     .ex-sidebar {
@@ -33,7 +21,6 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 16px; padding: 1.25rem;
     }
-
     .filter-section { margin-bottom: 1.25rem; }
     .filter-label {
       display: block; margin-bottom: 0.45rem;
@@ -41,11 +28,8 @@
       text-transform: uppercase; letter-spacing: 0.07em;
       color: var(--text-secondary);
     }
-
-    /* ── Collection typeahead ── */
     .typeahead-wrap { position: relative; }
     #colSearch { width: 100%; box-sizing: border-box; }
-
     #colSuggestions {
       display: none; position: absolute;
       top: calc(100% + 4px); left: 0; right: 0;
@@ -70,8 +54,6 @@
     .col-sug-info { min-width: 0; flex: 1; }
     .col-sug-name { display: block; font-size: 0.84rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .col-sug-slug { display: block; font-size: 0.71rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* ── Selected collection chip ── */
     .col-chip {
       display: none; align-items: center; gap: 0.45rem;
       margin-top: 0.5rem;
@@ -83,7 +65,6 @@
     .col-chip-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.25rem; flex-shrink: 0; }
     .col-chip-clear:hover { color: var(--text-primary); }
 
-    /* ── Funko catalog entry point ── */
     .catalog-mode-btn {
       display: flex; align-items: center; gap: 0.5rem;
       width: 100%; margin-top: 0.6rem; box-sizing: border-box;
@@ -96,133 +77,43 @@
     .catalog-mode-btn img { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; }
     .catalog-mode-btn.hidden { display: none; }
 
-    /* ── Filter inputs ──
-       Base look (padding/radius/font/colors) lives in shared/global.css
-       (.filter-select, .control-input, .cb-dropdown*, .clear-filters-btn) —
-       only page-specific layout rules stay here. */
-    .ex-sidebar .cb-panel { z-index: 400; } /* sticky sidebar sits near the nav (z-index 100) */
+    .ex-sidebar .cb-panel { z-index: 400; }
     .cb-item-tag {
       margin-left: auto; font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.04em; color: var(--text-secondary); background: rgba(255,255,255,0.06);
       padding: 0.12rem 0.4rem; border-radius: 999px; flex-shrink: 0;
     }
-
-    /* ── Price range ── */
     .price-row { display: flex; align-items: center; gap: 0.4rem; }
     .price-inp { flex: 1; min-width: 0; }
     .price-sep { color: var(--text-secondary); font-size: 0.82rem; flex-shrink: 0; }
-
-    /* ── Sort row ── */
     .sort-row { display: flex; gap: 0.4rem; }
-    .sort-row .filter-select { flex: 1; }
-
     .clear-filters-btn { width: 100%; }
-
-    /* ── Hidden filter sections ── */
     .filter-section.hidden { display: none; }
 
-    /* ── Main ── */
+    /* ── Main results column ── */
     .explore-main { flex: 1; min-width: 0; }
-
-    /* ── Empty state ── */
-    .empty-state {
-      text-align: center; padding: 5rem 2rem;
-      color: var(--text-secondary);
+    .explore-toolbar {
+      display: none;
+      align-items: center; gap: 0.65rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 0.85rem 1.25rem;
+      margin-bottom: 1.25rem;
     }
+    .explore-toolbar.visible { display: flex; flex-wrap: wrap; }
+    .explore-name-search { flex: 1; min-width: 160px; }
+    .explore-ctrl-group { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .explore-ctrl-group .cb-dropdown-btn { width: auto; }
+    .explore-ctrl-group .cb-panel { min-width: 130px; }
+
+    .empty-state { text-align: center; padding: 5rem 2rem; color: var(--text-secondary); }
     .empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
     .empty-state h2 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.4rem; }
     .empty-state p { font-size: 0.88rem; margin: 0; }
-
-    /* ── Status ── */
     .results-status { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; min-height: 1.2em; }
-
-    /* ── Cards grid ── */
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-      gap: 1rem;
+    .results-error {
+      padding: 3rem 1.5rem; text-align: center; color: var(--text-secondary);
+      font-size: 0.88rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;
     }
-
-    /* ── Card ── */
-    .ex-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 10px; overflow: hidden;
-      display: flex; flex-direction: column;
-      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
-    }
-    .ex-card:hover {
-      border-color: rgba(192,120,40,0.4);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(0,0,0,0.35);
-    }
-    .ex-card-img {
-      aspect-ratio: 1; background: rgba(0,0,0,0.25);
-      overflow: hidden; display: flex; align-items: center; justify-content: center;
-      position: relative;
-    }
-    .ex-card-img img, .ex-card-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
-    .ex-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
-    .ex-card-mint {
-      position: absolute; top: 6px; right: 6px;
-      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
-      color: var(--accent-light); font-size: 0.65rem; font-weight: 700;
-      padding: 2px 6px; border-radius: 999px;
-      border: 1px solid rgba(240,168,64,0.3);
-      pointer-events: none;
-    }
-
-    .ex-card-body { padding: 0.7rem; display: flex; flex-direction: column; gap: 0.3rem; flex: 1; }
-
-    .ex-card-name {
-      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
-      line-height: 1.3;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-    .ex-card-rarity { align-self: flex-start; }
-
-    .ex-card-price { margin-top: auto; padding-top: 0.3rem; }
-    .ex-price-wax { font-size: 0.86rem; font-weight: 700; color: var(--accent-light); display: block; }
-    .ex-price-usd { font-size: 0.73rem; color: var(--text-secondary); }
-    .ex-listings { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem; display: block; }
-
-    .ex-buy-btn {
-      display: block; width: 100%; text-align: center; margin-top: 0.5rem;
-      padding: 0.38rem; border-radius: 5px; font-size: 0.79rem; font-weight: 700;
-      background: rgba(192,120,40,0.14); border: 1px solid rgba(192,120,40,0.28);
-      color: var(--accent-light); text-decoration: none;
-      transition: background 0.15s, border-color 0.15s;
-      font-family: inherit; cursor: pointer; box-sizing: border-box;
-    }
-    .ex-buy-btn:hover:not(:disabled) { background: rgba(192,120,40,0.26); border-color: rgba(192,120,40,0.5); }
-    .ex-buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .ex-buy-btn--bought {
-      background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.3);
-      color: #3fb950; cursor: default;
-    }
-    .ex-buy-btn--error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
-    .ex-card--bought { opacity: 0.55; pointer-events: none; }
-
-    .ex-card-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
-    .ex-card-actions .ex-buy-btn { margin-top: 0; flex: 1; }
-    .ex-view-btn {
-      display: flex; align-items: center; justify-content: center;
-      flex: 0 0 auto; padding: 0.38rem 0.65rem; border-radius: 5px;
-      font-size: 0.79rem; font-weight: 700;
-      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-      color: var(--text-secondary); text-decoration: none;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    .ex-view-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); color: var(--text-primary); }
-
-    /* ── Load more ── */
-    #loadMoreWrap { display: none; text-align: center; padding: 2rem 0 1rem; }
-    /* #loadMoreBtn's look lives in shared/global.css (.load-more-btn, shared with inventory.html/inventory-bulk.html) */
-    .load-more-hint {
-      max-width: 380px; margin: 0.6rem auto 0;
-      font-size: 0.78rem; color: var(--accent-light); line-height: 1.4;
-    }
-
-    /* ── Retry / error states ── */
     .retry-btn {
       padding: 0.6rem 2rem; background: rgba(255,255,255,0.04);
       border: 1px solid var(--border); border-radius: 8px;
@@ -231,12 +122,6 @@
       font-family: inherit;
     }
     .retry-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
-    .results-error {
-      padding: 3rem 1.5rem; text-align: center; color: var(--text-secondary);
-      font-size: 0.88rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;
-    }
-
-    /* ── Spinner ── */
     .spin {
       display: inline-block; width: 14px; height: 14px; vertical-align: middle;
       border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent-light);
@@ -244,49 +129,198 @@
     }
     @keyframes rot { to { transform: rotate(360deg); } }
 
-    /* ── Toolbar (above cards) ── */
-    .explore-toolbar {
+    /* ── Cards grid ── */
+    .bl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 1rem;
+    }
+    .bl-card {
+      position: relative;
+      background: var(--bg-card); border: 2px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      cursor: pointer; user-select: none;
+      transition: border-color 0.15s;
+    }
+    .bl-card:hover { border-color: rgba(192,120,40,0.45); }
+    .bl-card.selected { border-color: var(--accent-light); }
+    .bl-card-img { position: relative; aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .bl-card-img img, .bl-card-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .bl-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
+    .bl-card-check {
+      position: absolute; top: 6px; left: 6px;
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.62rem; color: transparent;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      pointer-events: none;
+    }
+    .bl-card.selected .bl-card-check { background: var(--accent-light); border-color: var(--accent-light); color: #fff; }
+    .bl-card-mint {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      color: var(--accent-light); font-size: 0.6rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.3);
+      pointer-events: none;
+    }
+    .bl-card-body { padding: 0.7rem; }
+    .bl-card-name {
+      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bl-card-listed-note { font-size: 0.74rem; font-weight: 700; color: var(--accent-light); margin-top: 0.25rem; }
+    .ex-card--bought { opacity: 0.55; pointer-events: none; }
+
+    /* ── Card actions: Buy / Cart / View ── */
+    .ex-card-actions { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
+    .ex-card-actions > * { flex: 1 1 0; min-width: 0; }
+    .ex-buy-btn, .cart-btn, .ex-view-btn {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.34rem 0.2rem; border-radius: 5px;
+      font-size: 0.66rem; font-weight: 700; text-align: center;
+      text-decoration: none; cursor: pointer; font-family: inherit;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      box-sizing: border-box; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .ex-buy-btn {
+      background: rgba(192,120,40,0.14); border: 1px solid rgba(192,120,40,0.28);
+      color: var(--accent-light);
+    }
+    .ex-buy-btn:hover:not(:disabled) { background: rgba(192,120,40,0.26); border-color: rgba(192,120,40,0.5); }
+    .ex-buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ex-buy-btn--bought { background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.3); color: #3fb950; cursor: default; }
+    .ex-buy-btn--error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
+    .cart-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-secondary);
+    }
+    .cart-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+    .cart-btn--active {
+      background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.35);
+      color: #e74c3c;
+    }
+    .cart-btn--active:hover { background: rgba(231,76,60,0.24); }
+    .ex-view-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    .ex-view-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); color: var(--text-primary); }
+
+    .bl-loadmore-wrap { text-align: center; padding: 1.5rem 0 0.5rem; }
+    .load-more-hint {
+      max-width: 380px; margin: 0.6rem auto 0;
+      font-size: 0.78rem; color: var(--accent-light); line-height: 1.4;
+    }
+
+    /* ── Cart bar: horizontal, non-sticky, sits right below the search/sort
+       toolbar and above the grid — same position on mobile and desktop.
+       Deliberately NOT sticky/position:fixed: while scrolling down to browse
+       more cards, the cart doesn't need to stay in view (the site-wide
+       back-to-top button is how you return to it). ── */
+    .cart-bar {
       display: none;
-      align-items: center; gap: 0.65rem;
       background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 16px; padding: 0.85rem 1.25rem;
+      border-radius: 16px; padding: 1rem 1.25rem;
       margin-bottom: 1.25rem;
+      box-sizing: border-box;
+      /* .explore-main is a flex item of .explore-layout (column direction on
+         mobile) — without this, the horizontally-scrolling item row below
+         (#trayItems) pushes its own min-content width up through the block
+         chain and grows .explore-main (and the whole page) wider than the
+         viewport instead of staying clipped and scrolling internally. */
+      max-width: 100%;
+      overflow-x: hidden;
     }
-    .explore-toolbar.visible { display: flex; }
-    .explore-name-search { flex: 1; min-width: 0; }
-    .explore-ctrl-group { display: flex; gap: 0.4rem; flex-shrink: 0; }
-    .explore-ctrl-group .cb-dropdown-btn { width: auto; }
-    .explore-ctrl-group .cb-panel { min-width: 130px; }
-
-    /* Mobile-collapsible filters toggle — hidden outside the mobile
-       breakpoint at all times, regardless of the .hidden class (which only
-       matters once we're inside the media query below). */
-    .filters-toggle { display: none; }
-
-    /* ── Mobile ── */
-    @media (max-width: 820px) {
-      .explore-layout { flex-direction: column; gap: 1rem; }
-      .ex-sidebar { width: 100%; position: static; }
-      .explore-toolbar { flex-wrap: wrap; }
-      .explore-ctrl-group { flex-shrink: 0; }
-
-      /* Collection picker always shows; the rest collapses behind a toggle
-         so a phone doesn't have to scroll past the whole sidebar before
-         reaching any results. */
-      .filters-toggle:not(.hidden) {
-        display: flex; align-items: center; justify-content: space-between;
-        width: 100%; margin-top: 1rem; padding: 0; border: none; background: none;
-        color: var(--text-primary); font-size: 0.88rem; font-weight: 700;
-        font-family: inherit; cursor: pointer;
-      }
-      .filters-toggle-arrow { color: var(--text-secondary); font-size: 0.75rem; transition: transform 0.2s; }
-      .filters-toggle.open .filters-toggle-arrow { transform: rotate(180deg); }
-
-      .ex-filters-content { display: none; margin-top: 1rem; }
-      .ex-filters-content.open { display: block; }
+    .cart-bar.visible { display: block; }
+    .cart-bar-head { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .bl-tray-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text-secondary); }
+    .bl-tray-count { color: var(--accent-light); margin-left: 0.3rem; }
+    /* Sits below the Buy button, bottom-right of the block — see .cart-buy-wrap. */
+    .bl-tray-batch-note { font-size: 0.7rem; font-weight: 600; color: var(--accent-light); }
+    .bl-tray-clearall {
+      margin-left: auto;
+      background: none; border: none; color: var(--text-secondary);
+      font-size: 0.75rem; cursor: pointer; padding: 0;
+      font-family: inherit; text-decoration: underline;
     }
+    .bl-tray-clearall:hover { color: var(--text-primary); }
+    .bl-tray-empty { color: var(--text-secondary); font-size: 0.85rem; padding: 0.5rem 0 0; }
 
-    /* ── Hover tooltip (ported from inventory.html) ── */
+    /* Items scroll sideways instead of stacking vertically — this is what
+       keeps the bar's height constant regardless of how many items are in
+       the cart, so Total/Buy stay visible without their own scroll region. */
+    .bl-tray-items {
+      display: flex; flex-direction: row; gap: 0.4rem;
+      overflow-x: auto; overflow-y: hidden;
+      padding: 0.85rem 0.1rem 0.5rem;
+    }
+    .bl-tray-item {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+      flex: 0 0 150px; width: 150px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.6rem;
+      box-sizing: border-box;
+    }
+    .bl-tray-thumb {
+      width: 128px; height: 128px; flex-shrink: 0;
+      border-radius: 6px; overflow: hidden;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .bl-tray-thumb img, .bl-tray-thumb video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .bl-tray-info { width: 100%; text-align: center; }
+    .bl-tray-name {
+      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bl-tray-mint { font-size: 0.74rem; color: var(--text-secondary); }
+    .bl-tray-remove {
+      position: absolute; top: 4px; right: 4px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.2);
+      color: var(--text-primary); font-size: 0.78rem; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; padding: 0;
+    }
+    .bl-tray-remove:hover { background: rgba(0,0,0,0.85); }
+    /* Total moved up into .cart-bar-head (next to "Cart N") — the footer now
+       only holds the progress line + Buy button, so it stays empty (no
+       reserved blank space) except for the few moments a purchase is
+       actually running. */
+    .cart-bar-footer {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      flex-wrap: wrap;
+      padding-top: 0.6rem; border-top: 1px solid var(--border);
+    }
+    /* margin-left adds to .cart-bar-head's own 0.75rem flex gap, doubling
+       the space before "Total" specifically without also widening the gap
+       before "Clear all". */
+    .bl-tray-total { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text-secondary); margin-left: 0.75rem; }
+    .bl-tray-total-val { color: var(--text-primary); font-weight: 700; margin-left: 0.3rem; }
+    .cart-buy-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+    .cart-buy-btn { width: auto; white-space: normal; padding: 0.7rem 1.5rem; }
+    .bl-progress { font-size: 0.75rem; color: var(--text-secondary); text-align: left; flex: 1; min-width: 140px; }
+    .bl-progress.is-error   { color: #e05050; }
+    .bl-progress.is-success { color: #50c878; }
+
+    .bl-toolbar { margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .bl-toolbar-count  { font-size: 0.82rem; color: var(--text-secondary); }
+    .bl-toolbar-selcount { font-size: 0.82rem; font-weight: 600; color: var(--accent-light); }
+    .bl-toolbar-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 0.38rem 0.75rem;
+      color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
+    .bl-toolbar-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+    .bl-select-first { display: flex; align-items: center; gap: 0.4rem; }
+    .bl-select-first-input { width: 70px; box-sizing: border-box; padding: 0.38rem 0.6rem; font-size: 0.82rem; }
+
+    /* ── Hover tooltip (ported from inventory.html/explore.html) ── */
     .hover-tooltip {
       position: fixed; z-index: 300; width: 200px;
       background: #16161f; border: 1px solid rgba(255,255,255,0.1);
@@ -315,16 +349,9 @@
     }
     .copy-btn:hover { opacity: 1; color: var(--accent-light); }
     .copy-btn.copied { color: #4ade80; opacity: 1; }
-
-    /* No hover on touch devices — a 350ms-delayed panel that never
-       dismisses on its own (no mouseleave) would just sit there stuck.
-       Click-to-open (.info-popup below) is the touch equivalent instead. */
     @media (hover: none) {
       .hover-tooltip { display: none !important; }
     }
-
-    /* ── Info popup (click — persists until dismissed, unlike the hover
-       tooltip above) ── */
     .info-popup {
       position: fixed; z-index: 301; width: 240px;
       background: #16161f; border: 1px solid rgba(255,255,255,0.15);
@@ -338,7 +365,31 @@
       flex-shrink: 0; transition: color 0.15s;
     }
     .info-popup-close:hover { color: var(--text-primary); }
+
+    /* ── Mobile — no separate tray column anymore, cart bar is just a
+       normal block in .explore-main's document flow on every viewport. ── */
+    @media (max-width: 1000px) {
+      .explore-layout { flex-direction: column; gap: 1rem; }
+      .ex-sidebar { width: 100%; position: static; }
+      /* .explore-main is a flex item of .explore-layout, which switches to
+         flex-direction:column here — cross-axis (width) stretch alone isn't
+         enough to contain it: the horizontally-scrolling cart row nested
+         inside (#trayItems) still pushes its min-content width up through
+         the block chain otherwise, growing .explore-main (and the whole
+         page) wider than the viewport instead of scrolling internally. An
+         explicit width + overflow-x:hidden forces real containment. */
+      .explore-main { width: 100%; min-width: 0; overflow-x: hidden; }
+    }
+    @media (max-width: 480px) {
+      .bl-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+    }
   </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/moved.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
 </head>
 <body>
 
@@ -356,12 +407,9 @@
 <div class="page">
 <div class="content">
 
-  <div class="page-header" id="explorePageHeader">
-    <div>
-      <div class="page-title">Explo<span class="accent">re</span></div>
-      <div class="page-subtitle">Browse WAX NFT listings across any collection. Select a collection to start.</div>
-    </div>
-    <a href="explore-bulk.html" class="bulk-buy-link">📋 Bulk Buy</a>
+  <div class="page-header">
+    <div class="page-title">Explo<span class="accent">re</span></div>
+    <div class="page-subtitle">Browse WAX NFT listings across any collection — buy instantly, or add listings to your cart and buy several at once.</div>
   </div>
 
 <div class="explore-layout">
@@ -369,7 +417,6 @@
   <!-- ── Sidebar ── -->
   <aside class="ex-sidebar">
 
-    <!-- Collection -->
     <div class="filter-section" id="secCollection">
       <span class="filter-label">Collection</span>
       <div class="typeahead-wrap">
@@ -387,89 +434,74 @@
       </button>
     </div>
 
-    <!-- Mobile-only: the rest of the filters are collapsed behind this
-         toggle so a phone screen doesn't have to scroll past the whole
-         sidebar before reaching any results. No effect on desktop. -->
-    <button type="button" class="filters-toggle hidden" id="filtersToggle">
-      <span>More filters</span>
-      <span class="filters-toggle-arrow">▾</span>
-    </button>
-
-    <div class="ex-filters-content" id="exFiltersContent">
-
-      <!-- Drop (Funko catalog mode only) -->
-      <div class="filter-section hidden" id="secDrop">
-        <span class="filter-label">Drop</span>
-        <div class="cb-dropdown" id="dropDd">
-          <button class="cb-dropdown-btn" id="dropTrigger" type="button">
-            <span class="cb-label">All drops</span>
-            <span class="cb-arrow">▼</span>
-          </button>
-          <div class="cb-panel" id="dropPanel"></div>
-        </div>
+    <!-- Drop (Funko catalog mode only) -->
+    <div class="filter-section hidden" id="secDrop">
+      <span class="filter-label">Drop</span>
+      <div class="cb-dropdown" id="dropDd">
+        <button class="cb-dropdown-btn" id="dropTrigger" type="button">
+          <span class="cb-label">All drops</span>
+          <span class="cb-arrow">▼</span>
+        </button>
+        <div class="cb-panel" id="dropPanel"></div>
       </div>
+    </div>
 
-      <!-- Schema -->
-      <div class="filter-section hidden" id="secSchema">
-        <span class="filter-label">Schema</span>
-        <div class="cb-dropdown" id="schemaDd">
-          <button class="cb-dropdown-btn" id="schemaTrigger" type="button">
-            <span class="cb-label">All schemas</span>
-            <span class="cb-arrow">▼</span>
-          </button>
-          <div class="cb-panel" id="schemaPanel"></div>
-        </div>
+    <div class="filter-section hidden" id="secSchema">
+      <span class="filter-label">Schema</span>
+      <div class="cb-dropdown" id="schemaDd">
+        <button class="cb-dropdown-btn" id="schemaTrigger" type="button">
+          <span class="cb-label">All schemas</span>
+          <span class="cb-arrow">▼</span>
+        </button>
+        <div class="cb-panel" id="schemaPanel"></div>
       </div>
+    </div>
 
-      <!-- Rarity -->
-      <div class="filter-section hidden" id="secRarity">
-        <span class="filter-label">Rarity</span>
-        <div class="cb-dropdown" id="rarityDd">
-          <button class="cb-dropdown-btn" id="rarityTrigger" type="button">
-            <span class="cb-label">All rarities</span>
-            <span class="cb-arrow">▼</span>
-          </button>
-          <div class="cb-panel" id="rarityPanel"></div>
-        </div>
+    <div class="filter-section hidden" id="secRarity">
+      <span class="filter-label">Rarity</span>
+      <div class="cb-dropdown" id="rarityDd">
+        <button class="cb-dropdown-btn" id="rarityTrigger" type="button">
+          <span class="cb-label">All rarities</span>
+          <span class="cb-arrow">▼</span>
+        </button>
+        <div class="cb-panel" id="rarityPanel"></div>
       </div>
+    </div>
 
-      <!-- Price -->
-      <div class="filter-section hidden" id="secPrice">
-        <span class="filter-label">Price (WAX)</span>
-        <div class="price-row">
-          <input type="number" class="price-inp control-input" id="minPrice" placeholder="Min" min="0" step="1" />
-          <span class="price-sep">—</span>
-          <input type="number" class="price-inp control-input" id="maxPrice" placeholder="Max" min="0" step="1" />
-        </div>
+    <div class="filter-section hidden" id="secPrice">
+      <span class="filter-label">Price (WAX)</span>
+      <div class="price-row">
+        <input type="number" class="price-inp control-input" id="minPrice" placeholder="Min" min="0" step="1" />
+        <span class="price-sep">—</span>
+        <input type="number" class="price-inp control-input" id="maxPrice" placeholder="Max" min="0" step="1" />
       </div>
+    </div>
 
-      <!-- Mint -->
-      <div class="filter-section hidden" id="secMint">
-        <span class="filter-label">Mint #</span>
-        <div class="price-row">
-          <input type="number" class="price-inp control-input" id="minMint" placeholder="Min" min="1" step="1" />
-          <span class="price-sep">—</span>
-          <input type="number" class="price-inp control-input" id="maxMint" placeholder="Max" min="1" step="1" />
-        </div>
+    <div class="filter-section hidden" id="secMint">
+      <span class="filter-label">Mint #</span>
+      <div class="price-row">
+        <input type="number" class="price-inp control-input" id="minMint" placeholder="Min" min="1" step="1" />
+        <span class="price-sep">—</span>
+        <input type="number" class="price-inp control-input" id="maxMint" placeholder="Max" min="1" step="1" />
       </div>
+    </div>
 
-      <!-- Listing type -->
-      <div class="filter-section hidden" id="secBundle">
-        <span class="filter-label">Listing type</span>
-        <div class="cb-dropdown" id="bundleDd">
-          <button class="cb-dropdown-btn" id="bundleTrigger" type="button">
-            <span class="cb-label">All listings</span>
-            <span class="cb-arrow">▼</span>
-          </button>
-          <div class="cb-panel" id="bundlePanel"></div>
-        </div>
+    <!-- Listing type — locked to "Single cards only" until bundle display
+         + buy flow exist; kept visible-but-disabled so the feature reads as
+         "coming soon" rather than missing. -->
+    <div class="filter-section hidden" id="secBundle">
+      <span class="filter-label">Listing type</span>
+      <div class="cb-dropdown" id="bundleDd">
+        <button class="cb-dropdown-btn" id="bundleTrigger" type="button">
+          <span class="cb-label">Single cards only</span>
+          <span class="cb-arrow">▼</span>
+        </button>
+        <div class="cb-panel" id="bundlePanel"></div>
       </div>
+    </div>
 
-      <!-- Clear filters -->
-      <div class="filter-section hidden" id="secClear">
-        <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
-      </div>
-
+    <div class="filter-section hidden" id="secClear">
+      <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
     </div>
 
   </aside>
@@ -477,18 +509,8 @@
   <!-- ── Main ── -->
   <main class="explore-main">
 
-    <!-- Toolbar: visible when a collection is selected -->
     <div class="explore-toolbar" id="exploreToolbar">
       <input type="text" id="nameSearch" class="explore-name-search control-input" placeholder="Search by name…" autocomplete="off" spellcheck="false" />
-      <div class="explore-ctrl-group">
-        <div class="cb-dropdown" id="groupByDd">
-          <button class="cb-dropdown-btn" id="groupByTrigger" type="button">
-            <span class="cb-label">By template</span>
-            <span class="cb-arrow">▼</span>
-          </button>
-          <div class="cb-panel" id="groupByPanel"></div>
-        </div>
-      </div>
       <div class="explore-ctrl-group">
         <div class="cb-dropdown" id="sortByDd">
           <button class="cb-dropdown-btn" id="sortByTrigger" type="button">
@@ -507,21 +529,52 @@
       </div>
     </div>
 
+    <!-- ── Cart bar: right below the search/sort toolbar, above the grid.
+         Not sticky — see CSS comment. Visible whenever a collection is
+         picked OR the cart already has items restored from a previous
+         visit (see loadCartFromStorage). ── -->
+    <div class="cart-bar" id="cartBar">
+      <div class="cart-bar-head">
+        <span class="bl-tray-title">Items in cart<span class="bl-tray-count" id="trayCount"> 0</span></span>
+        <span class="bl-tray-total">Total<span class="bl-tray-total-val" id="trayTotal"> 0.00 WAX</span></span>
+        <button class="bl-tray-clearall" onclick="clearSelection()">Clear all</button>
+      </div>
+      <div id="trayEmpty" class="bl-tray-empty">No items in cart yet — click 🛒 Cart on a listing to add it.</div>
+      <div id="trayBody" style="display:none">
+        <div class="bl-tray-items" id="trayItems"></div>
+        <div class="cart-bar-footer">
+          <div class="bl-progress" id="blProgress"></div>
+          <div class="cart-buy-wrap">
+            <button class="bl-list-btn cart-buy-btn" id="blActionBtn" disabled onclick="runAction()">Buy items</button>
+            <span class="bl-tray-batch-note" id="trayBatchNote">1 wallet signature per 25 items</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="emptyState" class="empty-state">
       <div class="empty-state-icon">🔍</div>
       <h2>Search for a collection</h2>
-      <p>Type a collection name in the sidebar to start browsing the WAX marketplace.</p>
+      <p>Type a collection name in the sidebar to start browsing listings — buy instantly, or add them to your cart.</p>
     </div>
 
+    <div class="bl-toolbar" id="blToolbar" style="display:none">
+      <span class="bl-toolbar-count" id="blCount"></span>
+      <span class="bl-toolbar-selcount" id="blSelCount" style="display:none"></span>
+      <div class="bl-select-first">
+        <input type="number" class="control-input bl-select-first-input" id="selectFirstInput" placeholder="e.g. 40" min="1" step="1" value="20" oninput="updateSelectFirstLabel()" onkeydown="if (event.key === 'Enter') selectFirstN()" />
+        <button class="bl-toolbar-btn" id="selectFirstBtn" onclick="selectFirstN()">Select first 20</button>
+      </div>
+      <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
+    </div>
     <div class="results-status" id="resultsStatus" style="display:none"></div>
     <div class="status-wrap" id="exLoadWrap" style="display:none">
       <div class="spinner"></div>
-      <div class="status-text">Loading cards…</div>
+      <div class="status-text">Loading listings…</div>
     </div>
-    <div class="cards-grid" id="cardsGrid"></div>
-    <div id="loadMoreWrap">
+    <div class="bl-grid" id="cardsGrid"></div>
+    <div id="loadMoreWrap" style="display:none; text-align:center; padding:2rem 0 1rem;">
       <button id="loadMoreBtn" class="load-more-btn">Load more</button>
-      <div id="loadMoreHint" class="load-more-hint" style="display:none">Many of the next listings repeat templates already shown — try adding a filter (schema, rarity, price) for more varied results.</div>
     </div>
   </main>
 
@@ -537,20 +590,21 @@
   <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
 </footer>
 
-<script src="shared/supabase-config.js"></script>
-<script src="shared/moved.js"></script>
-<script src="shared/wax-api.js"></script>
-<script src="shared/wallet-widget.js"></script>
 <script>
-/* ── Config ── */
-const PAGE_SIZE = 20;
-const IPFS_GW   = 'https://ipfs.io/ipfs/';
-const TAKER_MARKETPLACE = 'popinstockgo'; // same account as marketplace.html — 1% commission on purchases made through the site
+'use strict';
 
-const RARITY_ORDER = [
-  '1 of 1','Mythic','Grail','Royalty','Legendary','Epic',
-  'Super Rare','Ultra Rare','Rare','Uncommon','Common',
-];
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Constants / state                                                          */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const PAGE_SIZE         = 20;   // no longer forced to a 3-column-friendly number — removing the right-hand tray column lets the grid reflow to more columns on its own (same auto-fill CSS as before)
+const TAKER_MARKETPLACE = 'popinstockgo'; // same account as marketplace.html — 1% commission on purchases made through the site
+const BATCH_SIZE_BUY    = 25;   // up to 25 individual (assertsale, transfer, purchasesale) triplets per tx — a stale listing fails the whole chunk, so raise further only after this size is confirmed to clear on-chain
+const MAX_SELECTED      = 350;  // tray-render-perf cap, unrelated to batch size
+const IPFS_GW           = 'https://ipfs.io/ipfs/';
+const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+const CART_STORAGE_KEY  = 'explore_cart_v1';
+
 const RARITY_CSS = {
   'common':'r-common','uncommon':'r-uncommon','rare':'r-rare',
   'epic':'r-epic','legendary':'r-legendary','grail':'r-grail',
@@ -558,55 +612,96 @@ const RARITY_CSS = {
   'ultra rare':'r-ultra','super rare':'r-super-rare',
 };
 
-/* ── State ── */
-let _col        = null;          // {collection_name, name, img} or {isCatalog:true, collection_name:<joined list>, name, img} for Funko catalog mode
-let _drop       = '';            // '' or 'collection|schema' — only meaningful when _col.isCatalog
-let _funkoCatalogData = null;    // lazy cache: { allCollections, dropOptions, rarities }
+let _col        = null;   // {collection_name, name, img} or {isCatalog:true, collection_name:<joined list>, name, img} for Funko catalog mode
+let _drop       = '';     // '' or 'collection|schema' — only meaningful when _col.isCatalog
 let _schema     = '';
-let _rarity     = '';            // single value — the sales API only matches data:text.rarity exactly, no OR
-let _minP       = '';
-let _maxP       = '';
-let _minMint    = '';
-let _maxMint    = '';
-let _bundle     = 'single'; // 'all'/'bundle' disabled in the UI until bundle display + buy flow exist
-let _sortBy     = 'price';
-let _sortOrd    = 'asc';
+let _rarity     = '';     // single value — the sales API only matches data:text.rarity exactly
+let _minP = '', _maxP = '', _minMint = '', _maxMint = '';
+let _bundle  = 'single'; // 'all'/'bundle' disabled in the UI until bundle display + buy flow exist
+let _sortBy  = 'price';
+let _sortOrd = 'asc';
 let _nameFilter = '';
-let _groupBy    = 'template'; // 'template' (one card per template_id, current behavior) | 'none' (one card per listing)
-
-let _waxUsd     = 0;
+let _waxUsd = 0;
 let _suggestions = [];
+let _funkoCatalogData = null;    // lazy cache: { allCollections, dropOptions, rarities }
 
-// Results pagination state
-let _gen     = 0;                // incremented on reset to invalidate in-flight fetches
-let _seen    = new Set();        // template IDs already in grid
-let _queue   = [];               // fetched templates not yet rendered
-let _shownN  = 0;
-// sale_id -> listing_price (WAX, raw integer string), only populated in
-// "No grouping" mode — lets refreshBuyButtons() rebuild a button's
-// text/onclick after a wallet connect/disconnect without needing to refetch
-// or keep the full sale objects around.
+// Results pagination state — queue holds full sale objects (not pre-rendered
+// HTML strings): this page needs each listing's data again later, for the
+// cart and for building the buy transaction, not just once at render time.
+let _gen      = 0;
+let _queue    = [];
+let _sales    = [];   // every sale rendered so far, in display order (for "select first N" lookups)
+let _shownN   = 0;
+let _apiPage  = 1;
+let _apiDone  = false;
+let _busy     = false;
+let _autoLoadArmed = false;
+
+// sale_id (string) -> {amount, assetIds}. Lets refreshBuyButtons() rebuild a
+// card's Buy button text/onclick after a wallet connect/disconnect without
+// needing to refetch or keep the full sale objects around for that purpose.
 let _saleAmountById = new Map();
-let _apiPage = 1;
-let _apiDone = false;
-let _busy    = false;
-let _autoLoadArmed = false; // true once the user has manually clicked "Load more" once — see initInfiniteScroll
 
-/* ── Utils ── */
-function esc(s) {
+// sale_id (string) -> full sale record. Deliberately NOT cleared when the
+// collection/filters change or the grid resets — the cart is self-contained
+// once an item is added, so switching collections mid-session (or leaving
+// the page entirely — see loadCartFromStorage) and buying a mixed batch
+// later just works.
+let _selected = new Map();
+let _buyBusy  = false;
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Helpers                                                                    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function fmtWax(n) {
   if (!isFinite(n) || n <= 0) return '—';
   return n.toFixed((n * 1000 % 10 !== 0) ? 3 : 2) + ' WAX';
 }
+function usdTag(wax) {
+  if (!_waxUsd || wax == null) return '';
+  return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsd).toFixed(2)}</span>`;
+}
 function rcls(r) { return RARITY_CSS[(r || '').toLowerCase()] || ''; }
 
-// Public IPFS gateways don't all have the same peers/cache — a CID that's
-// cold on one (times out fetching it fresh from the P2P network) can
-// already be warm on another. Cycle through a few gateways instead of
-// retrying the same one, before giving up on the "?" placeholder.
-const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+async function fetchWaxUsd() {
+  try {
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd', { signal: ctrl.signal });
+    clearTimeout(timer);
+    _waxUsd = (await r.json())?.wax?.usd || 0;
+  } catch {} // decorative — cards still render fine without a USD conversion
+}
+
+function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GW + v; }
+
+// Best-effort media resolution across collections that don't all follow the
+// img/video naming convention.
+function resolveMedia(asset) {
+  const data   = asset.data || asset.template?.immutable_data || {};
+  const fields = asset.schema?.format || [];
+  const looksLikeVideo = name => /video|animat/i.test(name);
+
+  if (data.img)   return { kind: 'img',   url: toMediaUrl(data.img) };
+  if (data.video) return { kind: 'video', url: toMediaUrl(data.video) };
+  if (data.image) return { kind: 'img',   url: toMediaUrl(data.image) };
+
+  for (const f of fields) {
+    if ((f.type === 'ipfs' || looksLikeVideo(f.name)) && data[f.name]) {
+      return { kind: 'video', url: toMediaUrl(data[f.name]) };
+    }
+  }
+  for (const f of fields) {
+    if (f.type === 'image' && !looksLikeVideo(f.name) && data[f.name]) {
+      return { kind: 'img', url: toMediaUrl(data[f.name]) };
+    }
+  }
+  return null;
+}
 
 function onCardImgError(el) {
   const hash = el.dataset.ipfsHash;
@@ -618,42 +713,16 @@ function onCardImgError(el) {
       return;
     }
   } else if (!el.dataset.retried) {
-    // Not a bare CID (already an absolute, non-gateway URL) — nothing to
-    // swap gateways on, so just retry the same URL once.
     el.dataset.retried = '1';
     setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
     return;
   }
-  el.parentElement.innerHTML = '<div class="ex-card-img-ph">?</div>';
+  el.parentElement.innerHTML = '<div class="bl-card-img-ph">?</div>';
 }
 
-/* ── WAX/USD ── */
-async function fetchWaxUsd() {
-  try {
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd', { signal: ctrl.signal });
-    clearTimeout(timer);
-    _waxUsd = (await r.json())?.wax?.usd || 0;
-  } catch {} // decorative — cards still render fine without a USD conversion
-}
-
-/* ── Collection typeahead ── */
-const $colSearch = document.getElementById('colSearch');
-const $colSugs   = document.getElementById('colSuggestions');
-const $colChip   = document.getElementById('colChip');
-
-let _debT = null;
-$colSearch.addEventListener('input', () => {
-  clearTimeout(_debT);
-  const q = $colSearch.value.trim();
-  if (q.length < 3) { hideSugs(); return; }
-  _debT = setTimeout(() => searchCollections(q), 300);
-});
-document.addEventListener('mousedown', e => {
-  if (!e.target.closest('.typeahead-wrap')) hideSugs();
-  if (!e.target.closest('.cb-dropdown')) closeAllDd();
-});
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Dropdown plumbing (cb-dropdown open/close)                                 */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 function toggleDd(id) {
   const wrap = document.getElementById(id);
@@ -667,18 +736,31 @@ function closeAllDd() {
   document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
   document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
 }
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.typeahead-wrap')) hideSugs();
+  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+});
 
-// "match" filters by substring anywhere in collection_name with no relevance
-// ranking, so a popular query (e.g. "topps") surfaces dozens of copycat
-// collections cloning the real one's display name. Text similarity alone
-// can't tell them apart (spam clones often match just as well or better).
-// Asset count does: real collections have orders of magnitude more assets
-// than one-off impersonators, so pull per-collection stats for the
-// text-relevant candidates and let asset count decide the final order.
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Collection typeahead                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const $colSearch = document.getElementById('colSearch');
+const $colSugs   = document.getElementById('colSuggestions');
+const $colChip   = document.getElementById('colChip');
+
+let _debT = null;
+$colSearch.addEventListener('input', () => {
+  clearTimeout(_debT);
+  const q = $colSearch.value.trim();
+  if (q.length < 3) { hideSugs(); return; }
+  _debT = setTimeout(() => searchCollections(q), 300);
+});
+
 function matchScore(c, q) {
   const slug = (c.collection_name || '').toLowerCase();
   const name = (c.name || '').toLowerCase();
-  const segs = slug.split('.'); // WAX collections often encode as "brand.partner" (e.g. "mlb.topps")
+  const segs = slug.split('.');
   if (slug === q) return 0;
   if (segs.includes(q)) return 1;
   if (slug.startsWith(q)) return 2;
@@ -688,10 +770,6 @@ function matchScore(c, q) {
   return 6;
 }
 
-// Bounds a promise to `ms` — for best-effort enrichment calls (search
-// ranking, rarity preload) where a slow node should never be allowed to
-// stall the UI. A rejected/timed-out call degrades to the caller's catch,
-// it never blocks the group it's part of.
 function raced(promise, ms) {
   return Promise.race([
     promise,
@@ -699,19 +777,6 @@ function raced(promise, ms) {
   ]);
 }
 
-// Fetches one exact URL and, on a 429/503/408, retries that *same* URL
-// with backoff — it never rotates to a different node mid-call, so a
-// caller fetching sequential pages of one paginated result set can pin
-// them all to one node (see fetchCollectionPages below) without risking
-// a later page silently landing on a different, possibly out-of-sync node.
-//
-// The fetch is bounded by an AbortController timeout (unlike a bare
-// fetch(), which can hang indefinitely on a flaky connection instead of
-// ever rejecting). Without this, a stalled mobile connection left the
-// collection typeahead waiting on a promise that never settled — no
-// suggestions and no error, since nothing ever threw. Desktop wifi rarely
-// hits this because a dead connection there usually fails fast instead of
-// hanging.
 async function pinnedFetch(url, attempts = 2) {
   for (let i = 0; i < attempts; i++) {
     let res;
@@ -737,14 +802,6 @@ async function pinnedFetch(url, attempts = 2) {
   }
 }
 
-// Fetches both pages of one /collections?match= query, pinned together to
-// the same node (see pinnedFetch above). If that node is currently bad
-// (e.g. rate-limiting this route for everyone), both pages fail together —
-// rather than giving up and returning nothing, this rotates the shared
-// preferred node elsewhere via WaxApi.rotateAwayFrom and retries both
-// pages against the new node. Tries up to 3 distinct nodes before giving
-// up for real, so one misbehaving node can't make the search box unusable
-// until an unrelated request elsewhere happens to rotate away from it.
 async function fetchCollectionPages(q) {
   let base = WaxApi.aaBase();
   const tried = new Set();
@@ -764,19 +821,8 @@ async function fetchCollectionPages(q) {
   return [];
 }
 
-// collection_name → asset count, for the life of the page. Typing "topps"
-// re-searches largely overlapping candidates on almost every keystroke
-// ("to" → "top" → "topp" → "topps"), so this cuts most of the stats
-// lookups below to zero network calls after the first search or two.
 const _statsCache = new Map();
 
-// AtomicAssets' /collections?match= only ever searches collection_name (the
-// on-chain slug), never the human-readable display name — so a search for
-// "consumerbreak" never returns cbreakgaming ("ConsumerBreak") no matter how
-// many pages we pull. collection_search_index is a site-built cache (see
-// cacheCollectionName) of display names for collections real users have
-// actually picked before; querying it here is what lets a later search by
-// display name find what a slug-only search cannot.
 async function searchNameIndex(q) {
   try {
     const url = `${SUPABASE_URL}/rest/v1/collection_search_index?name=ilike.*${encodeURIComponent(q)}*&select=collection_name,name,img&limit=12`;
@@ -790,45 +836,18 @@ let _colGen = 0;
 async function searchCollections(q) {
   const myGen = ++_colGen;
   try {
-    // Pull as much of the match pool as practical — a popular query can have
-    // 100+ hits, and the real collection (often years old) sorts far behind
-    // recent copycats when ordered by created-desc, so a small limit silently
-    // drops it before we ever get to rank by relevance/asset count.
-    // Fetched as two pages of 100 (rather than one page of 200 — some
-    // AtomicAssets nodes cap /collections at limit=100 and reject anything
-    // higher with a 400), pinned to the same node per attempt so the two
-    // pages of this one ordered result set can't land on out-of-sync nodes
-    // — see fetchCollectionPages for the node-rotation-on-failure logic.
     const [results, indexed] = await Promise.all([fetchCollectionPages(q), searchNameIndex(q)]);
-    if (myGen !== _colGen) return; // stale — a newer keystroke superseded this
+    if (myGen !== _colGen) return;
 
-    // Merge in name-index hits the slug search missed, deduping by
-    // collection_name (blockchain copy wins — it's always current).
     const seen = new Set(results.map(c => c.collection_name));
     for (const c of indexed) {
       if (!seen.has(c.collection_name)) { results.push(c); seen.add(c.collection_name); }
     }
 
     const ql = q.toLowerCase();
-    // Only pre-rank the top 15 by text relevance before spending a network
-    // call on each — the list only ever shows 12, and asset-count re-ranking
-    // exists to break ties among genuine near-matches, not to rescue
-    // candidates matchScore already ranked in the bottom half of 30.
-    const candidates = results
-      .sort((a, b) => matchScore(a, ql) - matchScore(b, ql))
-      .slice(0, 15);
-
-    // Skip the network entirely for anything already looked up this session.
+    const candidates = results.sort((a, b) => matchScore(a, ql) - matchScore(b, ql)).slice(0, 15);
     const uncached = candidates.filter(c => !_statsCache.has(c.collection_name));
 
-    // Spread the remaining lookups across a few nodes — the browser caps
-    // concurrent connections per origin (~6), so several requests to one
-    // node queue up while the same batch spread across 3 nodes can mostly
-    // run at once. Deliberately capped at 3 (not the full pool): this is a
-    // live-search ranking signal, and some pool nodes are healthy but
-    // simply slow (seconds per request) — fine as a last-resort fallback,
-    // bad as a peer in a fan-out. A 2.5s per-call cap on top means even a
-    // node that's slow right now can't stall typing.
     const statBases = WaxApi.aaBases(3);
     await Promise.all(uncached.map(async (c, i) => {
       let assets = 0;
@@ -838,13 +857,12 @@ async function searchCollections(q) {
           2500
         );
         assets = parseInt(data?.assets || 0);
-      } catch {} // one bad/slow node just ranks that collection as 0 assets, doesn't break search
+      } catch {}
       _statsCache.set(c.collection_name, assets);
     }));
     if (myGen !== _colGen) return;
 
     const withAssets = candidates.map(c => ({ c, assets: _statsCache.get(c.collection_name) || 0 }));
-
     _suggestions = withAssets
       .sort((a, b) => b.assets - a.assets || matchScore(a.c, ql) - matchScore(b.c, ql))
       .slice(0, 12)
@@ -856,31 +874,23 @@ async function searchCollections(q) {
 function renderSugs() {
   if (!_suggestions.length) { hideSugs(); return; }
   $colSugs.innerHTML = _suggestions.map((c, i) => {
-    const img = c.img ? `<img src="${IPFS_GW}${esc(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'col-sug-ph'}))">` : '<div class="col-sug-ph"></div>';
+    const img = c.img ? `<img src="${IPFS_GW}${escHtml(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'col-sug-ph'}))">` : '<div class="col-sug-ph"></div>';
     return `<div class="col-sug" data-i="${i}">
       ${img}
       <div class="col-sug-info">
-        <span class="col-sug-name">${esc(c.name || c.collection_name)}</span>
-        <span class="col-sug-slug">${esc(c.collection_name)}</span>
+        <span class="col-sug-name">${escHtml(c.name || c.collection_name)}</span>
+        <span class="col-sug-slug">${escHtml(c.collection_name)}</span>
       </div>
     </div>`;
   }).join('');
   $colSugs.style.display = 'block';
 }
-
 $colSugs.addEventListener('mousedown', e => {
   const el = e.target.closest('.col-sug');
   if (el) selectCollection(_suggestions[+el.dataset.i]);
 });
-
 function hideSugs() { $colSugs.style.display = 'none'; }
 
-// Best-effort cache write: whenever a user actually picks a collection (not
-// just sees it in the dropdown), remember its display name so a future
-// search for that name — which the AtomicAssets API can't match, since its
-// `match` param only indexes collection_name, never the display name —
-// finds it via collection_search_index instead. Never awaited/blocking;
-// a failed write just means this collection isn't cached yet, same as now.
 function cacheCollectionName(c) {
   fetch(`${SUPABASE_URL}/rest/v1/collection_search_index`, {
     method: 'POST',
@@ -900,7 +910,6 @@ async function selectCollection(c) {
   _col = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
   cacheCollectionName(_col);
 
-  // Show chip
   const $img  = document.getElementById('colChipImg');
   const $name = document.getElementById('colChipName');
   if (_col.img) { $img.src = IPFS_GW + _col.img; $img.style.display = ''; }
@@ -908,10 +917,7 @@ async function selectCollection(c) {
   $name.textContent = _col.name;
   $colChip.style.display = 'flex';
 
-  // Reset rarity/schema/name when user picks a new collection manually
-  _rarity = '';
-  _schema = '';
-  _nameFilter = '';
+  _rarity = ''; _schema = ''; _nameFilter = '';
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
   document.getElementById('schemaPanel').innerHTML = '';
@@ -921,11 +927,9 @@ async function selectCollection(c) {
   showFilters();
   pushUrl();
   resetResults();
-  {
-    const [b1, b2] = WaxApi.aaBases(2);
-    loadSchemas(b1);
-    loadRarityOptions(b2);
-  }
+  const [b1, b2] = WaxApi.aaBases(2);
+  loadSchemas(b1);
+  loadRarityOptions(b2);
   loadMore();
 }
 
@@ -945,45 +949,27 @@ function clearCollection() {
   document.getElementById('emptyState').style.display = '';
 }
 
-/* ── Filter sections visibility ── */
 const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secClear'];
 function showFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
   document.getElementById('exploreToolbar').classList.add('visible');
-  document.getElementById('filtersToggle').classList.remove('hidden');
-  // Schema is collection-specific and doesn't generalize across the merged
-  // Funko catalog list — kept visible (not hidden) per product decision, just
-  // disabled, while the catalog-only Drop section takes its place.
+  document.getElementById('blToolbar').style.display = '';
   document.getElementById('secDrop').classList.toggle('hidden', !_col?.isCatalog);
   document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
-  // Redundant with the chip already shown while in catalog mode — hide the
-  // entry point button so it doesn't look like a second, still-selectable
-  // option sitting right next to the one that's active. Reappears once the
-  // visitor picks a normal single collection (or clears back to empty).
   document.getElementById('funkoCatalogBtn').classList.toggle('hidden', !!_col?.isCatalog);
-  collapseFiltersOnMobile();
+  updateCartBarVisible();
 }
 function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('exploreToolbar').classList.remove('visible');
-  document.getElementById('filtersToggle').classList.add('hidden');
+  document.getElementById('blToolbar').style.display = 'none';
   document.getElementById('secDrop').classList.add('hidden');
   document.getElementById('schemaTrigger').disabled = false;
   document.getElementById('funkoCatalogBtn').classList.remove('hidden');
-  collapseFiltersOnMobile();
+  updateCartBarVisible();
 }
 
-/* ── Funko catalog mode ──
-   A Funko-only shortcut that browses listings across every Funko collection
-   at once instead of one at a time. Feasible because the AtomicMarket sales
-   endpoint accepts a comma-separated collection_name list and returns mixed
-   results across all of them — so the "multi-collection" query is really
-   just one normal request whose collection_name happens to be a joined
-   string (see fetchSalesPage / effectiveScope below). ── */
-
-// Cosmetic label cleanup ported from funko/market-overview.html — Funko drop
-// display names often redundantly repeat "Funko" (e.g. "Alien x Funko"),
-// which is already obvious from context on this page.
+/* ── Funko catalog mode ── */
 function cleanName(name) {
   return (name || '')
     .replace(/^Funko Presents\s+/i, '')
@@ -993,17 +979,12 @@ function cleanName(name) {
     .replace(/\s+x\s+Funko Digital Pop!$/i, '');
 }
 
-// Raw schema values are internal slugs (e.g. "series1.drop") — turn them into
-// the "Series 1" labels already used site-wide for the same data.
 function schemaLabel(sn) {
   const b = (sn || '').replace('.drop', '');
   const m = b.match(/^series(\d+)$/);
   return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
 }
 
-// Lazy + cached: drops_catalog.json (collection list + drop display names)
-// and sort_order.json (canonical rarity tier order) are static site assets,
-// not blockchain data, so this never needs to hit the WAX API or Supabase.
 async function ensureFunkoCatalog() {
   if (_funkoCatalogData) return _funkoCatalogData;
   const [drops, sortOrder] = await Promise.all([
@@ -1022,7 +1003,7 @@ function buildDropDropdown(options) {
   const panel = document.getElementById('dropPanel');
   panel.innerHTML = [
     `<div class="cb-item${!_drop ? ' active' : ''}" data-val=""><span>All drops</span></div>`,
-    ...options.map(o => `<div class="cb-item${_drop === o.value ? ' active' : ''}" data-val="${esc(o.value)}"><span>${esc(o.label)}</span></div>`)
+    ...options.map(o => `<div class="cb-item${_drop === o.value ? ' active' : ''}" data-val="${escHtml(o.value)}"><span>${escHtml(o.label)}</span></div>`)
   ].join('');
   const curLabel = (options.find(o => o.value === _drop) || { label: 'All drops' }).label;
   document.querySelector('#dropDd .cb-label').textContent = curLabel;
@@ -1070,37 +1051,26 @@ async function selectFunkoCatalog({ restoring = false } = {}) {
 }
 document.getElementById('funkoCatalogBtn').addEventListener('click', () => selectFunkoCatalog());
 
-// Collapsed by default on mobile every time a collection is (re)selected —
-// desktop ignores .open entirely (CSS only hides/shows via that class
-// inside the mobile media query), so this is a no-op there.
-function collapseFiltersOnMobile() {
-  document.getElementById('filtersToggle').classList.remove('open');
-  document.getElementById('exFiltersContent').classList.remove('open');
-}
-document.getElementById('filtersToggle').addEventListener('click', () => {
-  document.getElementById('filtersToggle').classList.toggle('open');
-  document.getElementById('exFiltersContent').classList.toggle('open');
-});
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Schema / Rarity / Price / Mint / Bundle / Sort / Name filters              */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
-/* ── Schemas ── */
 async function loadSchemas(base) {
   if (!_col) return;
   try {
     const data = await WaxApi.apiFetch(`${base || WaxApi.aaBase()}/schemas?collection_name=${_col.collection_name}&limit=100`);
     buildSchemaDropdown((data || []).map(s => s.schema_name));
   } catch {
-    buildSchemaDropdown([]); // schema filter just won't offer options — cards load independently
+    buildSchemaDropdown([]);
   }
 }
-
 function buildSchemaDropdown(schemas) {
   const panel = document.getElementById('schemaPanel');
   panel.innerHTML = [
     `<div class="cb-item${!_schema ? ' active' : ''}" data-val=""><span>All schemas</span></div>`,
-    ...schemas.map(s => `<div class="cb-item${_schema === s ? ' active' : ''}" data-val="${esc(s)}"><span>${esc(s)}</span></div>`)
+    ...schemas.map(s => `<div class="cb-item${_schema === s ? ' active' : ''}" data-val="${escHtml(s)}"><span>${escHtml(s)}</span></div>`)
   ].join('');
   document.querySelector('#schemaDd .cb-label').textContent = _schema || 'All schemas';
-
   panel.querySelectorAll('.cb-item').forEach(item => {
     item.addEventListener('click', () => {
       _schema = item.dataset.val;
@@ -1114,36 +1084,21 @@ function buildSchemaDropdown(schemas) {
     });
   });
 }
-
 document.getElementById('schemaTrigger').addEventListener('click', () => toggleDd('schemaDd'));
 document.getElementById('rarityTrigger').addEventListener('click', () => toggleDd('rarityDd'));
 
-/* ── Rarity (single-select — the sales API filters by data:text.rarity
-   server-side, and it only matches one exact value, not a list, so the
-   filter itself has to be single-select too). This fetch only populates
-   the dropdown's options, not a filter list, so unlike the old
-   template_whitelist approach, small cross-node inconsistencies at page
-   boundaries don't matter here: at worst a handful of templates get
-   counted twice or skipped, never a whole rarity tier silently dropped.
-   Safe to distribute pages across nodes and fetch them fully in parallel.
-   (A single page-1-only fetch isn't enough — rarities aren't evenly
-   spread across pages; e.g. mlb.topps/series1 has ~2000 templates and
-   half its rarity values only appear on page 2.) ── */
 async function loadRarityOptions(base) {
   const col = _col?.collection_name;
   if (!col) { buildRarityDropdown([]); return; }
-
   const pageUrl = (b, page) => {
     let url = `${b}/templates?collection_name=${col}&has_assets=true&limit=1000&page=${page}`;
     if (_schema) url += `&schema_name=${encodeURIComponent(_schema)}`;
     return url;
   };
-
   const rarities = new Set();
   try {
     const first = await WaxApi.apiFetch(pageUrl(base || WaxApi.aaBase(), 1));
     (first || []).forEach(t => { const r = t.immutable_data?.rarity; if (r) rarities.add(r); });
-
     if ((first || []).length === 1000) {
       const bases = WaxApi.aaBases(3);
       const pages = [2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -1152,19 +1107,16 @@ async function loadRarityOptions(base) {
       );
       for (const batch of rest) (batch || []).forEach(t => { const r = t.immutable_data?.rarity; if (r) rarities.add(r); });
     }
-  } catch {} // rarity filter just won't offer options — cards load independently
-
+  } catch {}
   buildRarityDropdown([...rarities].sort((a, b) => a.localeCompare(b)));
 }
-
 function buildRarityDropdown(rarities) {
   const panel = document.getElementById('rarityPanel');
   panel.innerHTML = [
     `<div class="cb-item${!_rarity ? ' active' : ''}" data-val=""><span>All rarities</span></div>`,
-    ...rarities.map(r => `<div class="cb-item${_rarity === r ? ' active' : ''}" data-val="${esc(r)}"><span>${esc(r)}</span></div>`)
+    ...rarities.map(r => `<div class="cb-item${_rarity === r ? ' active' : ''}" data-val="${escHtml(r)}"><span>${escHtml(r)}</span></div>`)
   ].join('');
   document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'All rarities';
-
   panel.querySelectorAll('.cb-item').forEach(item => {
     item.addEventListener('click', () => {
       _rarity = item.dataset.val;
@@ -1176,7 +1128,6 @@ function buildRarityDropdown(rarities) {
   });
 }
 
-/* ── Price ── */
 let _priceT = null;
 function onPriceChange() {
   clearTimeout(_priceT);
@@ -1185,7 +1136,6 @@ function onPriceChange() {
 document.getElementById('minPrice').addEventListener('input', function () { _minP = this.value.trim(); onPriceChange(); });
 document.getElementById('maxPrice').addEventListener('input', function () { _maxP = this.value.trim(); onPriceChange(); });
 
-/* ── Mint ── */
 let _mintT = null;
 function onMintChange() {
   clearTimeout(_mintT);
@@ -1194,7 +1144,6 @@ function onMintChange() {
 document.getElementById('minMint').addEventListener('input', function () { _minMint = this.value.trim(); onMintChange(); });
 document.getElementById('maxMint').addEventListener('input', function () { _maxMint = this.value.trim(); onMintChange(); });
 
-/* ── Bundle / Sort ── */
 function initStaticDropdown(ddId, options, getValue, onSelect) {
   const root  = document.getElementById(ddId);
   const label = root.querySelector('.cb-label');
@@ -1221,24 +1170,18 @@ function initStaticDropdown(ddId, options, getValue, onSelect) {
   return render;
 }
 
-// Bundle listings aren't visually distinguishable from single cards yet
-// (no "NFT Bundle (x/y)" treatment, no way to browse a bundle's contents,
-// and the buy button assumes one template_id per listing, which a bundle
-// doesn't have). Until that's built, "All listings" and "Bundles only"
-// stay visible but inert so the feature reads as "coming soon" rather
-// than missing — see feature-plan notes. Single cards only is the sole
-// selectable option and the fetch itself is hardcoded to it below,
-// independent of this dropdown's state.
+// Bundle listings aren't visually distinguishable from single cards yet and
+// the buy flow (single or cart) assumes one template_id per listing, which a
+// bundle doesn't have. Kept visible-but-inert so it reads as "coming soon"
+// rather than missing. "Single cards only" is the sole selectable option and
+// fetchSalesPage's &max_assets=1 is hardcoded independent of this dropdown's
+// state (see the comment there) — a hand-edited _bundle can't change the
+// actual request.
 const renderBundleDd = initStaticDropdown('bundleDd', [
   { value: 'all',    label: 'All listings',      disabled: true },
   { value: 'single', label: 'Single cards only' },
   { value: 'bundle', label: 'Bundles only',       disabled: true },
 ], () => _bundle, v => { _bundle = v; pushUrl(); resetResults(); loadMore(); });
-
-const renderGroupByDd = initStaticDropdown('groupByDd', [
-  { value: 'template', label: 'By template' },
-  { value: 'none',     label: 'No grouping' },
-], () => _groupBy, v => { _groupBy = v; pushUrl(); resetResults(); loadMore(); });
 
 const renderSortByDd = initStaticDropdown('sortByDd', [
   { value: 'price',         label: 'Price' },
@@ -1251,7 +1194,6 @@ const renderSortOrderDd = initStaticDropdown('sortOrderDd', [
   { value: 'desc', label: 'Desc' },
 ], () => _sortOrd, v => { _sortOrd = v; pushUrl(); resetResults(); loadMore(); });
 
-/* ── Name search ── */
 let _nameT = null;
 document.getElementById('nameSearch').addEventListener('input', function () {
   _nameFilter = this.value.trim();
@@ -1259,16 +1201,12 @@ document.getElementById('nameSearch').addEventListener('input', function () {
   _nameT = setTimeout(() => { pushUrl(); resetResults(); loadMore(); }, 400);
 });
 
-/* ── Clear filters (keeps the selected collection) ── */
 function clearFilters() {
-  _schema = '';
-  _rarity = '';
-  _minP = ''; _maxP = '';
-  _minMint = ''; _maxMint = '';
-  _bundle = 'all';
+  _schema = ''; _rarity = '';
+  _minP = ''; _maxP = ''; _minMint = ''; _maxMint = '';
+  _bundle = 'single';
   _sortBy = 'price'; _sortOrd = 'asc';
   _nameFilter = '';
-  _groupBy = 'template';
 
   document.getElementById('minPrice').value = '';
   document.getElementById('maxPrice').value = '';
@@ -1277,7 +1215,6 @@ function clearFilters() {
   renderBundleDd();
   renderSortByDd();
   renderSortOrderDd();
-  renderGroupByDd();
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
   document.getElementById('schemaPanel').innerHTML = '';
@@ -1286,44 +1223,30 @@ function clearFilters() {
 
   pushUrl();
   resetResults();
-  {
-    const [b1, b2] = WaxApi.aaBases(2);
-    loadSchemas(b1);
-    loadRarityOptions(b2);
-  }
+  const [b1, b2] = WaxApi.aaBases(2);
+  loadSchemas(b1);
+  loadRarityOptions(b2);
   loadMore();
 }
 document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
 
-/* ── Results ── */
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Results / pagination                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 function resetResults() {
   _gen++;
-  _seen.clear(); _queue = []; _saleAmountById.clear();
+  _queue = []; _sales = []; _saleAmountById.clear();
   _shownN = 0; _apiPage = 1; _apiDone = false; _busy = false; _autoLoadArmed = false;
-  _videoObserver?.disconnect(); // grid is about to be wiped — drop refs to the old (soon-detached) video elements
-  document.getElementById('cardsGrid').innerHTML    = '';
-  document.getElementById('loadMoreWrap').style.display  = 'none';
-  document.getElementById('loadMoreHint').style.display  = 'none';
+  _videoObserver?.disconnect();
+  document.getElementById('cardsGrid').innerHTML = '';
+  document.getElementById('loadMoreWrap').style.display = 'none';
   document.getElementById('resultsStatus').style.display = 'none';
-  document.getElementById('emptyState').style.display    = 'none';
-  cancelTooltip(); // grid is about to be wiped — don't leave a tooltip pointing at a now-detached card
-  closeInfoPopup(); // same, for the click-persisted popup
-  // _gen++ above means any loadMore() already in flight will bail out at its
-  // next generation check without ever reaching the code that hides this —
-  // hide it unconditionally here so it can't get stuck visible (e.g.
-  // clearing the collection mid-fetch). loadMore() re-shows it immediately
-  // after, if this reset is actually about to be followed by a fresh fetch.
+  document.getElementById('emptyState').style.display = 'none';
   document.getElementById('exLoadWrap').style.display = 'none';
 }
 
-/* ── Lazy video loading — cards render off-screen too (up to PAGE_SIZE per
-   batch), and every card can be a video for some collections (e.g.
-   daria.funko). Loading/playing all of them at once at insert time was
-   the actual cause of the slowness — this defers a video's src (and
-   playback) until it's about to scroll into view, and releases it again
-   when it scrolls away, matching the pattern already used in
-   inventory.html. ── */
-let _videoObserver = new IntersectionObserver((entries) => {
+function _lazyVideoCallback(entries) {
   for (const entry of entries) {
     const video = entry.target;
     if (entry.isIntersecting) {
@@ -1331,11 +1254,12 @@ let _videoObserver = new IntersectionObserver((entries) => {
       video.play().catch(() => {});
     } else {
       video.pause();
-      if (video.src) { video.removeAttribute('src'); video.load(); } // free decoder memory; browser cache makes reload instant
+      if (video.src) { video.removeAttribute('src'); video.load(); }
     }
   }
-}, { rootMargin: '300px' }); // start loading slightly before it's actually visible
+}
 
+let _videoObserver = new IntersectionObserver(_lazyVideoCallback, { rootMargin: '150px' });
 function observeNewVideos(root) {
   root.querySelectorAll('video[data-src]:not([data-obs])').forEach(v => {
     v.dataset.obs = '1';
@@ -1343,126 +1267,12 @@ function observeNewVideos(root) {
   });
 }
 
-async function loadMore() {
-  if (!_col || _busy) return;
-  _busy = true;
-  const myGen = _gen;
-
-  const $btn      = document.getElementById('loadMoreBtn');
-  const $grid     = document.getElementById('cardsGrid');
-  const $status   = document.getElementById('resultsStatus');
-  const $loadWrap = document.getElementById('exLoadWrap');
-
-  $btn.disabled = true;
-  $btn.innerHTML = '<span class="spin"></span>Loading…';
-  // _shownN === 0 means this is a fresh round (initial load or right after a
-  // filter change reset the grid), not a "Load more"/infinite-scroll
-  // continuation onto cards that are already visible. The button's own tiny
-  // spinner above is invisible here too — #loadMoreWrap stays hidden until
-  // there's something to show — so without this, a slow or retried fetch
-  // (WaxApi.apiFetch backs off and retries 429/503/408 under the hood) left
-  // the page looking dead for several seconds with no sign anything was
-  // happening.
-  if (_shownN === 0) $loadWrap.style.display = '';
-
-  const MAX_PAGES_PER_CALL = 10;
-  const BATCH_SIZE         = 3; // sales pages fetched in parallel per round, within the browser's per-origin connection limit
-  let pagesLoaded = 0;
-  let hadError    = false;
-
-  while (_queue.length < PAGE_SIZE && !_apiDone && pagesLoaded < MAX_PAGES_PER_CALL) {
-    const n = Math.min(BATCH_SIZE, MAX_PAGES_PER_CALL - pagesLoaded);
-    const pageNums = Array.from({ length: n }, (_, i) => _apiPage + i);
-    const results  = await Promise.allSettled(pageNums.map(fetchSalesPage));
-    if (myGen !== _gen) return; // stale — another reset happened
-
-    // Stop at the first failure so a retry resumes at exactly the page that
-    // failed, rather than silently skipping past a gap in the results.
-    const firstFailIdx = results.findIndex(r => r.status === 'rejected');
-    const usable = firstFailIdx === -1 ? results : results.slice(0, firstFailIdx);
-
-    for (const result of usable) {
-      const sales = result.value || [];
-      if (sales.length < 100) _apiDone = true;
-      for (const sale of sales) {
-        const asset = sale.assets?.[0];
-        if (!asset) continue;
-        const tid = String(asset.template?.template_id ?? '');
-        if (!tid) continue;
-        // Grouped: one card per template_id, first (best-sorted) listing wins.
-        // Ungrouped: one card per listing — keyed by sale_id so the same
-        // template can appear once per copy currently listed.
-        const key = _groupBy === 'none' ? `s${sale.sale_id}` : tid;
-        if (_seen.has(key)) continue;
-        _seen.add(key);
-        if (_groupBy === 'none') _saleAmountById.set(String(sale.sale_id), {
-          amount: sale.price?.amount || '0',
-          assetIds: (sale.assets || []).map(a => a.asset_id),
-        });
-        _queue.push(buildCardHtml(sale, asset));
-      }
-    }
-    _apiPage    += usable.length;
-    pagesLoaded += usable.length;
-
-    if (firstFailIdx !== -1) { hadError = true; break; }
-  }
-
-  if (myGen !== _gen) return;
-
-  // Grouping dedups by template_id — a collection where a handful of
-  // templates carry most of the listings (e.g. a common card with dozens of
-  // copies for sale) can burn through the whole per-click page-scan budget
-  // (MAX_PAGES_PER_CALL) without turning up much that's actually new, since
-  // every listing for an already-shown template gets silently skipped. That
-  // looks like "Load more" is broken rather than just filtered out — surface
-  // it explicitly instead.
-  const starved = pagesLoaded >= MAX_PAGES_PER_CALL && _queue.length < PAGE_SIZE && !_apiDone && !hadError && _groupBy !== 'none';
-
-  const batch = _queue.splice(0, PAGE_SIZE);
-  if (batch.length) {
-    // _shownN === 0 means the grid currently holds nothing but a stale
-    // placeholder (the "Couldn't load listings" error, or nothing at all on
-    // a fresh load) — never real cards, since those always bump _shownN.
-    // Clear it before appending so a successful retry after a failed
-    // attempt doesn't leave the old error message sitting above the cards.
-    if (_shownN === 0) $grid.innerHTML = '';
-    $grid.insertAdjacentHTML('beforeend', batch.join(''));
-    _shownN += batch.length;
-    observeNewVideos($grid);
-    wireTooltips($grid);
-  }
-
-  $loadWrap.style.display = 'none';
-  $status.style.display = '';
-  if (_shownN === 0 && hadError) {
-    $status.textContent = '';
-    $grid.innerHTML = `<div class="results-error">
-      <div>Couldn't load listings right now — the marketplace didn't respond.</div>
-    </div>`;
-  } else if (_shownN === 0 && _apiDone) {
-    $status.textContent = '';
-    $grid.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-secondary);font-size:0.88rem">No listings found for the selected filters.</div>';
-  } else {
-    const unit = _groupBy === 'none' ? 'listing' : 'template';
-    $status.textContent = _shownN
-      ? `${_shownN} ${unit}${_shownN !== 1 ? 's' : ''} shown${(!_apiDone || _queue.length) ? ' — more available' : ''}${hadError ? ' — some results may be missing, try again' : ''}`
-      : '';
-  }
-
-  const hasMore = !_apiDone || _queue.length > 0 || hadError;
-  document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
-  document.getElementById('loadMoreHint').style.display = hasMore && starved ? '' : 'none';
-  $btn.disabled    = false;
-  $btn.textContent = hadError ? 'Try again' : 'Load more';
-
-  _busy = false;
+const _trayVideoObserver = new IntersectionObserver(_lazyVideoCallback, { rootMargin: '150px' });
+function observeTrayVideos(root) {
+  _trayVideoObserver.disconnect();
+  root.querySelectorAll('video[data-src]').forEach(v => _trayVideoObserver.observe(v));
 }
 
-// In normal mode, scope is just the picked collection + Schema filter. In
-// Funko catalog mode, scope is either every Funko collection at once (no
-// specific Drop picked) or one exact collection+schema pair (a Drop picked) —
-// see selectFunkoCatalog/buildDropDropdown.
 function effectiveScope() {
   if (_col.isCatalog) {
     if (_drop) {
@@ -1486,156 +1296,716 @@ function fetchSalesPage(page) {
   if (_maxP)       url += `&max_price=${parseFloat(_maxP)}`;
   if (_minMint)    url += `&min_template_mint=${parseInt(_minMint, 10)}`;
   if (_maxMint)    url += `&max_template_mint=${parseInt(_maxMint, 10)}`;
-  // Hardcoded, not `if (_bundle === 'single')` — bundles have no card
-  // display or working buy flow yet, so single-only is enforced at the
-  // fetch itself. Even if someone forces _bundle to 'all'/'bundle' via
-  // devtools, this line doesn't consult that variable at all, so no
-  // bundle listing can ever actually be requested. Restore the
-  // conditional (and re-enable the two disabled dropdown options) once
-  // bundle display + purchase flow are built.
+  // Excludes bundle listings entirely — every sale_id this page ever
+  // handles maps to exactly one asset. Hardcoded, not gated on _bundle —
+  // see the Listing Type dropdown comment above.
   url += '&max_assets=1';
-
-  // Filtered server-side by exact rarity value — no template list to build
-  // or fit in the URL, and no dependency on the (best-effort, page-1-only)
-  // rarity dropdown data actually being complete.
   if (_rarity) url += `&data:text.rarity=${encodeURIComponent(_rarity)}`;
-
-  // marketBase() is a single fixed endpoint (atomicmarket isn't reliably
-  // mirrored elsewhere), but apiFetch still gives it a bounded timeout and
-  // same-endpoint retries with backoff on 429/503/408 instead of a plain
-  // fetch() that could hang indefinitely or fail on the first hiccup.
   return WaxApi.apiFetch(url).then(data => data || []);
 }
 
-function toMediaUrl(v) {
-  return /^https?:\/\//i.test(v) ? v : IPFS_GW + v;
+async function loadMore() {
+  if (!_col || _busy) return;
+  _busy = true;
+  const myGen = _gen;
+
+  const $btn      = document.getElementById('loadMoreBtn');
+  const $grid     = document.getElementById('cardsGrid');
+  const $status   = document.getElementById('resultsStatus');
+  const $loadWrap = document.getElementById('exLoadWrap');
+
+  $btn.disabled = true;
+  $btn.innerHTML = '<span class="spin"></span>Loading…';
+  if (_shownN === 0) $loadWrap.style.display = '';
+
+  const MAX_PAGES_PER_CALL = 10;
+  const BATCH_SIZE         = 3;
+  let pagesLoaded = 0;
+  let hadError    = false;
+
+  while (_queue.length < PAGE_SIZE && !_apiDone && pagesLoaded < MAX_PAGES_PER_CALL) {
+    const n = Math.min(BATCH_SIZE, MAX_PAGES_PER_CALL - pagesLoaded);
+    const pageNums = Array.from({ length: n }, (_, i) => _apiPage + i);
+    const results  = await Promise.allSettled(pageNums.map(fetchSalesPage));
+    if (myGen !== _gen) return;
+
+    const firstFailIdx = results.findIndex(r => r.status === 'rejected');
+    const usable = firstFailIdx === -1 ? results : results.slice(0, firstFailIdx);
+
+    for (const result of usable) {
+      const sales = result.value || [];
+      if (sales.length < 100) _apiDone = true;
+      for (const sale of sales) {
+        if (!sale.assets?.[0]) continue;
+        _queue.push(sale);
+      }
+    }
+    _apiPage    += usable.length;
+    pagesLoaded += usable.length;
+
+    if (firstFailIdx !== -1) { hadError = true; break; }
+  }
+
+  if (myGen !== _gen) return;
+
+  const batch = _queue.splice(0, PAGE_SIZE);
+  if (batch.length) {
+    if (_shownN === 0) $grid.innerHTML = '';
+    _sales.push(...batch);
+    const frag = document.createDocumentFragment();
+    for (const sale of batch) {
+      _saleAmountById.set(String(sale.sale_id), {
+        amount: String(sale.price?.amount || '0'),
+        assetIds: (sale.assets || []).map(a => String(a.asset_id)),
+      });
+      const wrap = document.createElement('div');
+      wrap.innerHTML = cardHtml(sale).trim();
+      const card = wrap.firstElementChild;
+      attachCardEvents(card, sale);
+      frag.appendChild(card);
+    }
+    $grid.appendChild(frag);
+    _shownN += batch.length;
+    observeNewVideos($grid);
+  }
+
+  $loadWrap.style.display = 'none';
+  $status.style.display = '';
+  if (_shownN === 0 && hadError) {
+    $status.textContent = '';
+    $grid.innerHTML = `<div class="results-error">
+      <div>Couldn't load listings right now — the marketplace didn't respond.</div>
+      <button type="button" class="retry-btn" onclick="loadMore()">Try again</button>
+    </div>`;
+  } else if (_shownN === 0 && _apiDone) {
+    $status.textContent = '';
+    $grid.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-secondary);font-size:0.88rem">No listings found for the selected filters.</div>';
+  } else {
+    $status.textContent = _shownN
+      ? `${_shownN} listing${_shownN !== 1 ? 's' : ''} shown${(!_apiDone || _queue.length) ? ' — more available' : ''}${hadError ? ' — some results may be missing, try again' : ''}`
+      : '';
+  }
+
+  const hasMore = !_apiDone || _queue.length > 0 || hadError;
+  document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
+  $btn.disabled    = false;
+  $btn.textContent = hadError ? 'Try again' : 'Load more';
+
+  _busy = false;
 }
 
-// Best-effort media resolution: not every creator follows the img/video
-// convention. Explicit conventional keys (img/video/image) are checked
-// first — unambiguous author intent, static image wins if both exist.
-// Only when none of those are present do we fall back to scanning the
-// schema's declared field types, and video is checked before the generic
-// image scan there: a field named/typed as video is a better signal of the
-// primary art than an unrelated secondary image field (e.g. a card back).
-// A field's `type` is just how it's stored — many schemas declare a video
-// field as type:"image" too, and the AtomicMarket sales endpoint's embedded
-// schema (unlike /templates) doesn't include `mediatype` to disambiguate —
-// so field *name* is the only signal this endpoint actually gives us here.
-function resolveMedia(asset) {
-  const data   = asset.data || asset.template?.immutable_data || {};
-  const fields = asset.schema?.format || [];
-  const looksLikeVideo = name => /video|animat/i.test(name);
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadMore();
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
 
-  if (data.img)   return { kind: 'img',   url: toMediaUrl(data.img) };
-  if (data.video) return { kind: 'video', url: toMediaUrl(data.video) };
-  if (data.image) return { kind: 'img',   url: toMediaUrl(data.image) };
-
-  for (const f of fields) {
-    if ((f.type === 'ipfs' || looksLikeVideo(f.name)) && data[f.name]) {
-      return { kind: 'video', url: toMediaUrl(data[f.name]) };
-    }
-  }
-  for (const f of fields) {
-    if (f.type === 'image' && !looksLikeVideo(f.name) && data[f.name]) {
-      return { kind: 'img', url: toMediaUrl(data[f.name]) };
-    }
-  }
-
-  return null;
+let _loadMoreObs = null;
+function initInfiniteScroll() {
+  const wrap = document.getElementById('loadMoreWrap');
+  _loadMoreObs = new IntersectionObserver(entries => {
+    if (!_autoLoadArmed || _busy || wrap.style.display === 'none') return;
+    if (entries[0].isIntersecting) loadMore();
+  }, { rootMargin: '600px' });
+  _loadMoreObs.observe(wrap);
 }
 
-function buildCardHtml(sale, asset) {
-  const data   = asset.data || asset.template?.immutable_data || {};
-  const rarity = data.rarity || '';
-  const name   = esc(asset.name || data.name || '—');
-  const media  = resolveMedia(asset);
-  const tid    = asset.template?.template_id;
-  const col    = asset.collection?.collection_name || _col?.collection_name || '';
-  const price  = parseInt(sale.price?.amount || 0) / 1e8;
-  const rc     = rcls(rarity);
-  const href   = `marketplace.html?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
-  const usd    = _waxUsd ? `≈ $${(price * _waxUsd).toFixed(2)}` : '';
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Card rendering: Buy / Cart / View + hover tooltip / click info popup       */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
-  // Hover-tooltip data, read off the card element by wireTooltips/showTooltip
-  // (see the Tooltip section below) rather than kept in a parallel JS array —
-  // cards here are plain HTML strings batch-inserted via insertAdjacentHTML,
-  // so there's nothing else to look the asset back up from once rendered.
+function cardHtml(sale) {
+  const asset     = sale.assets?.[0] || {};
+  const data      = asset.data || asset.template?.immutable_data || {};
+  const name      = escHtml(asset.name || data.name || 'Unknown');
+  const media     = resolveMedia(asset);
+  const mint      = asset.template_mint ? `#${asset.template_mint}` : '';
+  const id        = String(sale.sale_id);
+  const isSel     = _selected.has(id);
+  const precision = sale.price?.token_precision ?? 8;
+  const priceWax  = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+
+  const tid        = asset.template?.template_id;
+  const col        = asset.collection?.collection_name || _col?.collection_name || '';
+  const colDisplay = asset.collection?.name || col;
   const schemaName = asset.schema?.schema_name || '';
   const cardid     = data.cardid || asset.template?.immutable_data?.cardid || '';
-  const colDisplay = asset.collection?.name || col;
+  const href       = `marketplace.html?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
+
+  // Hover-tooltip/click-popup data, read back off the card element by
+  // cardDataFromEl() rather than kept in a parallel JS array.
   const ttData = {
-    'data-asset-id':         asset.asset_id || '',
-    'data-template-id':      tid || '',
-    'data-collection':       col,
-    'data-collection-name':  colDisplay,
-    'data-schema':           schemaName,
-    'data-rarity':           rarity,
-    'data-cardid':           cardid,
-    'data-name':             asset.name || data.name || '',
+    'data-asset-id':        asset.asset_id || '',
+    'data-template-id':     tid || '',
+    'data-collection':      col,
+    'data-collection-name': colDisplay,
+    'data-schema':          schemaName,
+    'data-rarity':          data.rarity || '',
+    'data-cardid':          cardid,
+    'data-name':            asset.name || data.name || '',
   };
-  const ttAttrs = Object.entries(ttData).map(([k, v]) => `${k}="${esc(String(v))}"`).join(' ');
-
-  // Only meaningful in "No grouping" — a grouped (By template) card is just
-  // the first best-sorted listing among possibly many different mints of
-  // that template, so tagging it with one specific mint number would imply
-  // a precision the grouping doesn't actually have.
-  const mint   = _groupBy === 'none' && asset.template_mint ? `#${asset.template_mint}` : '';
-
-  // In "No grouping", each card is exactly one listing — buy it directly
-  // instead of sending the visitor to marketplace.html to pick one among
-  // several. Grouped ("By template") cards still need "View listings" since
-  // they represent the best-sorted listing among possibly several for that
-  // template, not a single purchasable one.
-  let actionHtml;
-  if (_groupBy === 'none') {
-    const saleId = String(sale.sale_id);
-    const amount = String(sale.price?.amount || '0');
-    const assetIdsJs = (sale.assets || []).map(a => `'${a.asset_id}'`).join(',');
-    const buyBtn = window.getWaxAccount()
-      ? `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="buyListing(this,'${saleId}','${amount}',[${assetIdsJs}])">Buy Now</button>`
-      : `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="connectWallet()">Connect to Buy</button>`;
-    // Buying is direct here, but the visitor may still want to compare this
-    // template's other listings (different mints/prices/sellers) before
-    // committing — "View" keeps that escape hatch without giving up the
-    // one-click buy that grouping normally trades away.
-    const viewBtn = `<a class="ex-view-btn" href="${href}" target="_blank" rel="noopener noreferrer" title="View all listings of this card">View</a>`;
-    actionHtml = `<div class="ex-card-actions">${buyBtn}${viewBtn}</div>`;
-  } else {
-    actionHtml = `<a class="ex-buy-btn" href="${href}" target="_blank" rel="noopener noreferrer">View listings</a>`;
-  }
+  const ttAttrs = Object.entries(ttData).map(([k, v]) => `${k}="${escHtml(String(v))}"`).join(' ');
 
   let mediaHtml;
   if (media?.kind === 'video') {
-    mediaHtml = `<video data-src="${esc(media.url)}" muted loop playsinline preload="none"></video>`;
+    mediaHtml = `<video data-src="${escHtml(media.url)}" muted loop playsinline preload="none"></video>`;
   } else if (media?.kind === 'img') {
     const ipfsHash = media.url.startsWith(IPFS_GW) ? media.url.slice(IPFS_GW.length) : '';
-    mediaHtml = `<img src="${esc(media.url)}" alt="${name}" loading="lazy" data-ipfs-hash="${esc(ipfsHash)}" data-gw-idx="0" onerror="onCardImgError(this)">`;
+    mediaHtml = `<img src="${escHtml(media.url)}" alt="${name}" loading="lazy" data-ipfs-hash="${escHtml(ipfsHash)}" data-gw-idx="0" onerror="onCardImgError(this)">`;
   } else {
-    mediaHtml = '<div class="ex-card-img-ph">?</div>';
+    mediaHtml = '<div class="bl-card-img-ph">?</div>';
   }
 
-  return `<div class="ex-card" ${ttAttrs}>
-    <div class="ex-card-img">
+  const amount     = String(sale.price?.amount || '0');
+  const assetIdsJs = (sale.assets || []).map(a => `'${a.asset_id}'`).join(',');
+  const buyBtn = window.getWaxAccount()
+    ? `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="buyListing(this,'${id}','${amount}',[${assetIdsJs}])">Buy</button>`
+    : `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="connectWallet()">Connect</button>`;
+  const cartBtn = `<button type="button" class="cart-btn${isSel ? ' cart-btn--active' : ''}">${isSel ? '✕ Cart' : '🛒 Cart'}</button>`;
+  const viewBtn = `<a class="ex-view-btn" href="${href}" target="_blank" rel="noopener noreferrer" title="View all listings of this card">View</a>`;
+
+  return `<div class="bl-card${isSel ? ' selected' : ''}" data-id="${id}" ${ttAttrs}>
+    <div class="bl-card-img">
       ${mediaHtml}
-      ${mint ? `<span class="ex-card-mint">${mint}</span>` : ''}
+      ${mint ? `<span class="bl-card-mint">${mint}</span>` : ''}
+      <div class="bl-card-check">${isSel ? '✓' : ''}</div>
     </div>
-    <div class="ex-card-body">
-      <div class="ex-card-name">${name}</div>
-      <div class="ex-card-price">
-        <span class="ex-price-wax">${fmtWax(price)}</span>
-        ${usd ? `<span class="ex-price-usd">${usd}</span>` : ''}
-      </div>
-      ${actionHtml}
+    <div class="bl-card-body">
+      <div class="bl-card-name" title="${name}">${name}</div>
+      <div class="bl-card-listed-note">${fmtWax(priceWax)}${usdTag(priceWax)}</div>
+      <div class="ex-card-actions">${buyBtn}${cartBtn}${viewBtn}</div>
     </div>
   </div>`;
 }
 
-/* ── Hover tooltip (ported from inventory.html's card hover panel) ──
-   Cards here are plain HTML strings, not JS objects kept around after
-   render, so unlike inventory.html this reads everything it needs back off
-   the hovered card's data-* attributes (see ttData/ttAttrs in buildCardHtml)
-   instead of a closure over the original asset. */
+// Card body click opens the persistent info popup (matches inventory.html's
+// pattern) — ignored when the click landed on Buy/Cart/View, so those keep
+// working normally instead of also opening/closing the popup underneath
+// them. Cart button gets its own listener here (not inline onclick) since
+// attachCardEvents already closes over the real `sale` object at render
+// time — no need for a separate sale_id -> sale lookup map just for this.
+function attachCardEvents(card, sale) {
+  card.addEventListener('mouseenter', () => {
+    if (document.getElementById('cardInfoPopup').style.display !== 'none') return;
+    scheduleTooltip(card);
+  });
+  card.addEventListener('mouseleave', cancelTooltip);
+  card.addEventListener('click', e => {
+    if (e.target.closest('a, button')) return;
+    if (_infoAssetId === card.dataset.assetId && document.getElementById('cardInfoPopup').style.display !== 'none') {
+      closeInfoPopup();
+    } else {
+      openInfoPopup(card);
+    }
+  });
+
+  const cartBtn = card.querySelector('.cart-btn');
+  if (cartBtn) cartBtn.addEventListener('click', () => toggleSelect(sale, card));
+}
+
+// Keeps the corner checkmark, the card border, and the Cart button's
+// label/color all in sync in one place — every selection-changing call site
+// below goes through this instead of touching each piece individually.
+function setCardSelectedVisual(card, isSel) {
+  if (!card) return;
+  card.classList.toggle('selected', isSel);
+  const chk = card.querySelector('.bl-card-check');
+  if (chk) chk.textContent = isSel ? '✓' : '';
+  const cartBtn = card.querySelector('.cart-btn');
+  if (cartBtn) {
+    cartBtn.classList.toggle('cart-btn--active', isSel);
+    cartBtn.textContent = isSel ? '✕ Cart' : '🛒 Cart';
+  }
+}
+
+function toggleSelect(sale, cardEl) {
+  const id = String(sale.sale_id);
+  if (_selected.has(id)) {
+    _selected.delete(id);
+    setCardSelectedVisual(cardEl, false);
+    updateSelCount();
+    removeFromTrayDom(id);
+  } else {
+    if (_selected.size >= MAX_SELECTED) {
+      setProgress(`You can select up to ${MAX_SELECTED} items at once — deselect some before adding more.`);
+      return;
+    }
+    _selected.set(id, sale);
+    setCardSelectedVisual(cardEl, true);
+    updateSelCount();
+    addToTray(id, sale);
+  }
+}
+
+// AtomicHub-style "Select first N". Deterministic like a fresh selection
+// (not additive with whatever was selected before), so typing a new number
+// and clicking again always lands on exactly that many items. Every
+// rendered card here is buyable, so the eligible set is just every .bl-card.
+function updateSelectFirstLabel() {
+  const btn = document.getElementById('selectFirstBtn');
+  const n   = parseInt(document.getElementById('selectFirstInput').value, 10);
+  if (btn) btn.textContent = Number.isFinite(n) && n > 0 ? `Select first ${n}` : 'Select first';
+}
+
+async function selectFirstN() {
+  const input = document.getElementById('selectFirstInput');
+  const n = parseInt(input.value, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    setProgress('Enter a number to select the first N items.', 'error');
+    return;
+  }
+  if (_busy) return;
+
+  const btn = document.getElementById('selectFirstBtn');
+  while (document.querySelectorAll('.bl-card').length < n && (!_apiDone || _queue.length > 0)) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+    await loadMore();
+  }
+  if (btn) { btn.disabled = false; updateSelectFirstLabel(); }
+
+  clearSelectionSilent();
+
+  const salesById = new Map(_sales.map(s => [String(s.sale_id), s]));
+  let count = 0, capped = false;
+  document.querySelectorAll('.bl-card').forEach(card => {
+    if (count >= n) return;
+    if (_selected.size >= MAX_SELECTED) { capped = true; return; }
+    const id = card.dataset.id;
+    const sale = salesById.get(id);
+    if (!sale) return;
+    _selected.set(id, sale);
+    setCardSelectedVisual(card, true);
+    count++;
+  });
+  updateSelCount();
+  renderTray();
+
+  if (capped) setProgress(`Selected the maximum of ${MAX_SELECTED} items at once — deselect some before adding more.`);
+  else if (count < n) setProgress(`Only ${count} item${count !== 1 ? 's' : ''} matched the current filters — selected all of them.`, 'error');
+}
+
+// Shared body for "Select first N" (which clears, then rebuilds a fresh
+// selection) and the public Clear all/Clear selection buttons — the only
+// difference is whether updateSelCount()/renderTray() fire immediately
+// (selectFirstN defers both until its own new selection is built).
+function clearSelectionSilent() {
+  _selected.clear();
+  document.querySelectorAll('.bl-card.selected').forEach(card => setCardSelectedVisual(card, false));
+}
+
+function clearSelection() {
+  clearSelectionSilent();
+  updateSelCount();
+  renderTray();
+}
+
+function removeFromSelection(id) {
+  _selected.delete(id);
+  const card = document.querySelector(`.bl-card[data-id="${id}"]`);
+  setCardSelectedVisual(card, false);
+  updateSelCount();
+  removeFromTrayDom(id);
+}
+
+function updateSelCount() {
+  const el = document.getElementById('blSelCount');
+  if (_selected.size) {
+    el.textContent = `${_selected.size} selected`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+  saveCartToStorage();
+  updateCartBarVisible();
+}
+
+/* ── Cart persistence — survives navigating away and back ──
+   _selected already stores the full sale record per entry (not a reference
+   into the currently-loaded grid), which is why the cart already survives
+   collection switches mid-session. Extending that to survive a full page
+   reload/re-visit is just a save/load boundary around the same Map — no new
+   data model. No on-load re-validation pass: the existing per-chunk
+   pre-flight check in runBulkAction/bulkBuy already re-checks each sale_id
+   right before it's actually bought, drops anything sold/cancelled since
+   selection, and surfaces a friendly summary — that already covers "is this
+   still available" without needing a second check just because the cart
+   might be a few days old. ── */
+function saveCartToStorage() {
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([..._selected.entries()]));
+  } catch {} // storage full/unavailable — cart just won't persist this time, not fatal
+}
+function loadCartFromStorage() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return;
+    const entries = JSON.parse(raw);
+    if (Array.isArray(entries)) {
+      for (const [id, sale] of entries) _selected.set(id, sale);
+    }
+  } catch {}
+}
+
+// Cart bar shows whenever a collection is active (matches the old tray's
+// visibility) OR the cart already has items restored from a previous visit
+// — otherwise a returning visitor with a saved cart would see no sign of it
+// until they picked a collection again.
+function updateCartBarVisible() {
+  document.getElementById('cartBar').classList.toggle('visible', !!_col || _selected.size > 0);
+}
+
+function trayThumbHtml(asset) {
+  const media = resolveMedia(asset);
+  if (media?.kind === 'video') return `<video data-src="${escHtml(media.url)}" muted loop playsinline preload="none"></video>`;
+  if (media?.kind === 'img')   return `<img src="${escHtml(media.url)}" alt="" loading="lazy">`;
+  return '';
+}
+
+function trayItemHtml(id, sale) {
+  const asset     = sale.assets?.[0] || {};
+  const data      = asset.data || asset.template?.immutable_data || {};
+  const name      = escHtml(asset.name || data.name || 'Unknown');
+  const mint      = asset.template_mint ? `#${asset.template_mint}` : '';
+  const precision = sale.price?.token_precision ?? 8;
+  const priceWax  = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+  return `
+      <div class="bl-tray-item" data-id="${id}">
+        <div class="bl-tray-thumb">${trayThumbHtml(asset)}</div>
+        <div class="bl-tray-info">
+          <div class="bl-tray-name" title="${name}">${name}</div>
+          ${mint ? `<div class="bl-tray-mint">${mint}</div>` : ''}
+          <div class="bl-tray-mint">${priceWax.toFixed(2)} WAX</div>
+        </div>
+        <button class="bl-tray-remove" onclick="removeFromSelection('${id}')" title="Remove">✕</button>
+      </div>`;
+}
+
+function updateTrayTotal() {
+  const totalEl = document.getElementById('trayTotal');
+  if (!totalEl) return;
+  let total = 0;
+  for (const sale of _selected.values()) {
+    const precision = sale.price?.token_precision ?? 8;
+    total += Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+  }
+  const usd = _waxUsd && total > 0 ? ` ≈ $${(total * _waxUsd).toFixed(2)}` : '';
+  // Leading space mirrors trayCount's own text (" 0") — combined with
+  // .bl-tray-total-val's margin-left, this matches the "Items in cart X"
+  // spacing exactly rather than just visually approximating it.
+  totalEl.textContent = ` ${total.toFixed(2)} WAX${usd}`;
+}
+
+// Full rebuild — only for genuine bulk changes (Select first N / Clear
+// selection / post-buy cleanup), where one user action legitimately means
+// "re-render everything once". See addToTray()/removeFromTrayDom() below for
+// the single-item path, which must NOT go through here.
+function renderTray() {
+  const countEl = document.getElementById('trayCount');
+  const emptyEl = document.getElementById('trayEmpty');
+  const bodyEl  = document.getElementById('trayBody');
+  const itemsEl = document.getElementById('trayItems');
+
+  countEl.textContent = ` ${_selected.size}`;
+
+  if (!_selected.size) {
+    emptyEl.style.display = '';
+    bodyEl.style.display  = 'none';
+    _trayVideoObserver.disconnect();
+    itemsEl.innerHTML = '';
+    updateTrayTotal(); // Total now lives in the always-visible header, not just inside trayBody — must reset to 0 here too, not just when trayBody is shown
+    updateActionBtn();
+    return;
+  }
+  emptyEl.style.display = 'none';
+  bodyEl.style.display  = '';
+
+  itemsEl.innerHTML = [..._selected.entries()].map(([id, sale]) => trayItemHtml(id, sale)).join('');
+  observeTrayVideos(itemsEl);
+  updateTrayTotal();
+  updateActionBtn();
+}
+
+// Single-item append — appends one node without touching any existing tray
+// item's DOM, so no other video gets reloaded/replayed.
+function addToTray(id, sale) {
+  const countEl = document.getElementById('trayCount');
+  const emptyEl = document.getElementById('trayEmpty');
+  const bodyEl  = document.getElementById('trayBody');
+  const itemsEl = document.getElementById('trayItems');
+
+  countEl.textContent = ` ${_selected.size}`;
+  emptyEl.style.display = 'none';
+  bodyEl.style.display  = '';
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = trayItemHtml(id, sale).trim();
+  const node = wrap.firstElementChild;
+  itemsEl.appendChild(node);
+  const video = node.querySelector('video[data-src]');
+  if (video) _trayVideoObserver.observe(video);
+
+  updateTrayTotal();
+  updateActionBtn();
+}
+
+// Single-item removal — removes and unobserve()s just this one node, leaving
+// every other tray item's video untouched.
+function removeFromTrayDom(id) {
+  const countEl = document.getElementById('trayCount');
+  const emptyEl = document.getElementById('trayEmpty');
+  const bodyEl  = document.getElementById('trayBody');
+  const itemsEl = document.getElementById('trayItems');
+
+  const node = itemsEl.querySelector(`.bl-tray-item[data-id="${id}"]`);
+  if (node) {
+    const video = node.querySelector('video');
+    if (video) _trayVideoObserver.unobserve(video);
+    node.remove();
+  }
+
+  countEl.textContent = ` ${_selected.size}`;
+  if (!_selected.size) {
+    emptyEl.style.display = '';
+    bodyEl.style.display  = 'none';
+  }
+
+  updateTrayTotal();
+  updateActionBtn();
+}
+
+function updateActionBtn() {
+  const btn = document.getElementById('blActionBtn');
+  if (!btn) return;
+  const n = _selected.size;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) {
+    btn.disabled    = n === 0;
+    btn.textContent = n ? `Connect wallet to buy ${n} item${n !== 1 ? 's' : ''}` : 'Buy items';
+    return;
+  }
+  btn.disabled    = _buyBusy || n === 0;
+  btn.textContent = n ? `Buy ${n} item${n !== 1 ? 's' : ''}` : 'Buy items';
+}
+
+function setProgress(msg, type = '') {
+  const el = document.getElementById('blProgress');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'bl-progress' + (type ? ` is-${type}` : '');
+}
+
+function runAction() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { connectWallet(); return; }
+  return bulkBuy();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Cart buy — chunked transact + a live pre-flight re-check per chunk        */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function runBulkAction(items, batchSize, buildActions, onChunkSuccess) {
+  if (_buyBusy || !items.length) return 0;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) return 0;
+
+  _buyBusy = true;
+  updateActionBtn();
+  setProgress('');
+
+  const chunks = [];
+  for (let i = 0; i < items.length; i += batchSize) chunks.push(items.slice(i, i + batchSize));
+
+  let done = 0;
+  for (let ci = 0; ci < chunks.length; ci++) {
+    setProgress(`Checking listings — batch ${ci + 1} of ${chunks.length}…`);
+    const chunk = chunks[ci];
+    const built = await buildActions(chunk, wallet);
+
+    if (built.skippedIds.length) {
+      setProgress(`Skipping ${built.skippedIds.length} listing${built.skippedIds.length !== 1 ? 's' : ''} that sold before this batch — continuing with the rest.`, 'error');
+      for (const id of built.skippedIds) {
+        removeFromSelection(id);
+        document.querySelector(`.bl-card[data-id="${id}"]`)?.remove();
+      }
+    }
+    if (!built.actions.length) continue;
+
+    setProgress(`Waiting for wallet — batch ${ci + 1} of ${chunks.length}…`);
+    try {
+      await WaxAuth.transact(built.actions);
+      onChunkSuccess(built.includedIds);
+      done += built.includedIds.length;
+      renderTray();
+      updateSelCount();
+    } catch (err) {
+      _buyBusy = false;
+      updateActionBtn();
+      const msg  = (err?.message || '').toLowerCase();
+      const text = msg.includes('cancelled the atomicassets offer') || msg.includes('to assert differs from')
+        ? 'One of these listings sold or changed right before your batch went through — nothing in this batch was purchased. Try again.'
+        : msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.'
+        : `Error: ${err?.message || 'Unknown error'}`;
+      setProgress(text, 'error');
+      return done;
+    }
+  }
+
+  _buyBusy = false;
+  updateActionBtn();
+  return done;
+}
+
+async function bulkBuy() {
+  const items = [..._selected.keys()]; // sale_ids
+  if (!items.length) return;
+
+  const bought = await runBulkAction(items, BATCH_SIZE_BUY, async (chunk, wallet) => {
+    let activeIds = new Set(chunk); // optimistic default if the check itself fails — on-chain revert is the fallback safety net
+    try {
+      const url = `${WaxApi.marketBase().replace('/v1', '/v2')}/sales?ids=${chunk.join(',')}&state=1`;
+      const rows = await WaxApi.apiFetch(url);
+      activeIds = new Set((rows || []).map(r => String(r.sale_id)));
+    } catch {}
+
+    const includedIds = chunk.filter(id => activeIds.has(id));
+    const skippedIds  = chunk.filter(id => !activeIds.has(id));
+
+    if (!includedIds.length) return { actions: [], includedIds: [], skippedIds };
+
+    const actions = [];
+    for (const id of includedIds) {
+      const sale = _selected.get(id);
+      if (!sale) continue;
+      const precision   = sale.price?.token_precision ?? 8;
+      const quantity    = (Number(sale.price?.amount ?? 0) / Math.pow(10, precision)).toFixed(precision) + ' WAX';
+      const assetIds    = (sale.assets || []).map(a => String(a.asset_id));
+      actions.push(
+        { account: 'atomicmarket', name: 'assertsale', authorization: [{ actor: wallet, permission: 'active' }],
+          data: { sale_id: id, asset_ids_to_assert: assetIds, listing_price_to_assert: quantity, settlement_symbol_to_assert: '8,WAX' } },
+        { account: 'eosio.token', name: 'transfer', authorization: [{ actor: wallet, permission: 'active' }],
+          data: { from: wallet, to: 'atomicmarket', quantity, memo: 'deposit' } },
+        { account: 'atomicmarket', name: 'purchasesale', authorization: [{ actor: wallet, permission: 'active' }],
+          data: { buyer: wallet, sale_id: id, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE } },
+      );
+    }
+    return { actions, includedIds, skippedIds };
+  }, (includedIds) => {
+    for (const saleId of includedIds) {
+      _selected.delete(saleId);
+      const card = document.querySelector(`.bl-card[data-id="${saleId}"]`);
+      if (card) card.remove();
+    }
+    saveCartToStorage();
+  });
+
+  if (bought) {
+    setProgress(`${bought} item${bought !== 1 ? 's' : ''} purchased successfully!`, 'success');
+    setTimeout(() => setProgress(''), 6000);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Single-item Buy — instant purchase, independent of the cart               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function toWaxQty(amount) {
+  return (parseInt(amount) / 1e8).toFixed(8) + ' WAX';
+}
+
+// assertsale is a free, no-authorization guard: it hard-fails the whole
+// transaction (transfer included) if the sale's asset_ids/listing_price/
+// settlement_symbol don't exactly match what's currently on-chain at
+// execution time. purchasesale itself does NOT independently validate any
+// of that — it just trusts whatever's stored for sale_id — so this is what
+// actually guarantees the buyer pays for what they saw, not whatever our
+// (third-party, sometimes-flaky) API happened to report.
+function assertSaleAction(buyer, saleId, assetIds, listingPriceAsset) {
+  return {
+    account: 'atomicmarket',
+    name:    'assertsale',
+    authorization: [{ actor: buyer, permission: 'active' }],
+    data: {
+      sale_id: saleId,
+      asset_ids_to_assert: assetIds,
+      listing_price_to_assert: listingPriceAsset,
+      settlement_symbol_to_assert: '8,WAX',
+    },
+  };
+}
+
+async function buyListing(btn, saleId, amount, assetIds = []) {
+  const buyer = window.getWaxAccount();
+  if (!buyer) { connectWallet(); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Buying…';
+  btn.className = 'ex-buy-btn';
+
+  try {
+    await WaxAuth.transact([
+      assertSaleAction(buyer, saleId, assetIds, toWaxQty(amount)),
+      {
+        account: 'eosio.token',
+        name: 'transfer',
+        authorization: [{ actor: buyer, permission: 'active' }],
+        data: { from: buyer, to: 'atomicmarket', quantity: toWaxQty(amount), memo: 'deposit' },
+      },
+      {
+        account: 'atomicmarket',
+        name: 'purchasesale',
+        authorization: [{ actor: buyer, permission: 'active' }],
+        data: { buyer, sale_id: saleId, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE },
+      },
+    ]);
+
+    btn.textContent = '✓ Purchased!';
+    btn.className   = 'ex-buy-btn ex-buy-btn--bought';
+    btn.closest('.bl-card')?.classList.add('ex-card--bought');
+    // A bought item can't stay purchasable in the cart too.
+    if (_selected.has(saleId)) removeFromSelection(saleId);
+  } catch (e) {
+    const msg       = String(e?.message || e).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    btn.disabled    = false;
+    if (cancelled) {
+      btn.textContent = 'Buy';
+      btn.className   = 'ex-buy-btn';
+    } else {
+      btn.textContent = 'Failed — retry';
+      btn.className   = 'ex-buy-btn ex-buy-btn--error';
+      setTimeout(() => {
+        btn.textContent = 'Buy';
+        btn.className   = 'ex-buy-btn';
+      }, 3000);
+    }
+  }
+}
+
+// Cards render with a snapshot of the wallet state at fetch time (see
+// cardHtml) — if the visitor connects/disconnects afterward via the nav
+// widget, already-rendered cards need to catch up without a full re-render
+// of the grid.
+function refreshBuyButtons() {
+  document.querySelectorAll('#cardsGrid .ex-buy-btn[data-sale-id]').forEach(btn => {
+    if (btn.classList.contains('ex-buy-btn--bought')) return; // already purchased — leave as-is
+    const saleId = btn.dataset.saleId;
+    const entry  = _saleAmountById.get(saleId);
+    if (entry == null) return;
+    if (window.getWaxAccount()) {
+      btn.textContent = 'Buy';
+      btn.onclick     = () => buyListing(btn, saleId, entry.amount, entry.assetIds);
+    } else {
+      btn.textContent = 'Connect';
+      btn.onclick     = () => connectWallet();
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Hover tooltip + click info popup — ported from inventory.html/explore.html */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 const _supplyCache = {};
 const _ownedCache  = {};
 let _tooltipTimer    = null;
@@ -1653,29 +2023,6 @@ function cardDataFromEl(cardEl) {
     cardid:         cardEl.dataset.cardid,
     name:           cardEl.dataset.name,
   };
-}
-
-// Click toggles a persistent info popup for that card (matches
-// inventory.html); ignored when the click actually landed on one of the
-// card's own buttons/links (Buy Now, View, etc.) so those keep working
-// normally instead of also opening/closing the popup underneath them.
-function wireTooltips(root) {
-  root.querySelectorAll('.ex-card:not([data-tt-wired])').forEach(card => {
-    card.dataset.ttWired = '1';
-    card.addEventListener('mouseenter', () => {
-      if (document.getElementById('cardInfoPopup').style.display !== 'none') return; // an info popup is pinned open — don't also show the hover panel
-      scheduleTooltip(card);
-    });
-    card.addEventListener('mouseleave', cancelTooltip);
-    card.addEventListener('click', e => {
-      if (e.target.closest('a, button')) return;
-      if (_infoAssetId === card.dataset.assetId && document.getElementById('cardInfoPopup').style.display !== 'none') {
-        closeInfoPopup();
-      } else {
-        openInfoPopup(card);
-      }
-    });
-  });
 }
 
 function scheduleTooltip(cardEl) {
@@ -1717,9 +2064,9 @@ function copyVal(btn, text) {
 const _copyIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 
 // Shared by both the hover tooltip and the click-persisted popup — they only
-// differ in the header (see renderTooltip/renderInfoPopup below). The copy
-// buttons/AtomicHub link are inert during hover (.hover-tooltip is
-// pointer-events:none) and only actually clickable once pinned via a click.
+// differ in the header. The copy buttons/AtomicHub link are inert during
+// hover (.hover-tooltip is pointer-events:none) and only actually clickable
+// once pinned via a click.
 function renderTooltipBody(d, supply, owned) {
   const loading = !supply && !owned;
   const dash    = loading ? '…' : '—';
@@ -1734,12 +2081,12 @@ function renderTooltipBody(d, supply, owned) {
   return `
     <div class="tt-heading">Attributes</div>
     <div class="tt-section" style="margin-bottom:0.5rem">
-      ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.collectionName)}</span></div>` : ''}
-      ${d.schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${esc(d.schema)}</span></div>` : ''}
-      ${d.rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${esc(d.rarity)}</span></span></div>` : ''}
-      ${d.cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${esc(d.cardid)}</span></div>` : ''}
-      ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${esc(d.assetId)}<button class="copy-btn" onclick="copyVal(this,'${esc(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
-      ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${esc(d.templateId)}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${esc(d.templateId)}<button class="copy-btn" onclick="copyVal(this,'${esc(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
+      ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.collectionName)}</span></div>` : ''}
+      ${d.schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${escHtml(d.schema)}</span></div>` : ''}
+      ${d.rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${escHtml(d.rarity)}</span></span></div>` : ''}
+      ${d.cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${escHtml(d.cardid)}</span></div>` : ''}
+      ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${escHtml(d.assetId)}<button class="copy-btn" onclick="copyVal(this,'${escHtml(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
+      ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${escHtml(d.templateId)}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${escHtml(d.templateId)}<button class="copy-btn" onclick="copyVal(this,'${escHtml(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
     </div>
     <div class="tt-divider"></div>
     <div class="tt-heading">Supply</div>
@@ -1758,12 +2105,12 @@ function renderTooltipBody(d, supply, owned) {
 }
 
 function renderTooltip(d, supply, owned) {
-  return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${esc(d.name || 'Unknown')}</div>${renderTooltipBody(d, supply, owned)}`;
+  return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${escHtml(d.name || 'Unknown')}</div>${renderTooltipBody(d, supply, owned)}`;
 }
 
 function renderInfoPopup(d, supply, owned) {
   return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
-    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${esc(d.name || 'Unknown')}</div>
+    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${escHtml(d.name || 'Unknown')}</div>
     <button class="info-popup-close" onclick="closeInfoPopup()">✕</button>
   </div>${renderTooltipBody(d, supply, owned)}`;
 }
@@ -1831,7 +2178,7 @@ async function openInfoPopup(cardEl) {
 
 document.addEventListener('click', e => {
   const popup = document.getElementById('cardInfoPopup');
-  if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.ex-card')) {
+  if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.bl-card')) {
     closeInfoPopup();
   }
 });
@@ -1878,29 +2225,10 @@ function fetchOwned(wallet, templateId) {
   return _ownedCache[key];
 }
 
-/* Clicking "Load more" once arms infinite scroll for the rest of this filter
-   set — after that, reaching the button again auto-loads the next chunk
-   (like AtomicHub), no more clicking required. Any filter/search/sort change
-   disarms it again (see resetResults), so a first click is always required
-   on a new result set. */
-function onLoadMoreClick() {
-  _autoLoadArmed = true;
-  loadMore();
-}
-document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* URL sync                                                                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
-let _loadMoreObs = null;
-function initInfiniteScroll() {
-  const wrap = document.getElementById('loadMoreWrap');
-  _loadMoreObs = new IntersectionObserver(entries => {
-    if (!_autoLoadArmed || _busy || wrap.style.display === 'none') return;
-    if (entries[0].isIntersecting) loadMore();
-  }, { rootMargin: '600px' });
-  _loadMoreObs.observe(wrap);
-}
-initInfiniteScroll();
-
-/* ── URL sync ── */
 function pushUrl() {
   const p = new URLSearchParams();
   if (_col?.isCatalog) {
@@ -1909,18 +2237,16 @@ function pushUrl() {
   } else if (_col) {
     p.set('col', _col.collection_name);
   }
-  if (_schema)            p.set('schema', _schema);
-  if (_rarity)            p.set('rarity', _rarity);
-  if (_minP)              p.set('minP',   _minP);
-  if (_maxP)              p.set('maxP',   _maxP);
-  if (_minMint)           p.set('minMint', _minMint);
-  if (_maxMint)           p.set('maxMint', _maxMint);
-  // _bundle intentionally not persisted — see restoreFromUrl and
-  // fetchSalesPage; it's pinned to 'single' regardless of URL content.
+  if (_schema)  p.set('schema', _schema);
+  if (_rarity)  p.set('rarity', _rarity);
+  if (_minP)    p.set('minP',   _minP);
+  if (_maxP)    p.set('maxP',   _maxP);
+  if (_minMint) p.set('minMint', _minMint);
+  if (_maxMint) p.set('maxMint', _maxMint);
+  // _bundle intentionally not persisted — always pinned to 'single'.
   if (_sortBy !== 'price')  p.set('sort',  _sortBy);
   if (_sortOrd !== 'asc')   p.set('order', _sortOrd);
-  if (_nameFilter)        p.set('name',   _nameFilter);
-  if (_groupBy !== 'template') p.set('group', _groupBy);
+  if (_nameFilter) p.set('name', _nameFilter);
   const qs = p.toString();
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
@@ -1930,25 +2256,18 @@ async function restoreFromUrl() {
   const colName = p.get('col');
   if (!colName) return;
 
-  // Restore scalar state before fetching collection
   _schema     = p.get('schema')  || '';
   _rarity     = p.get('rarity')  || '';
   _minP       = p.get('minP')    || '';
   _maxP       = p.get('maxP')    || '';
   _minMint    = p.get('minMint') || '';
   _maxMint    = p.get('maxMint') || '';
-  // _bundle is never read from the URL — always 'single' until bundles
-  // are actually supported, no matter what a hand-edited URL contains.
   _sortBy     = p.get('sort')    || 'price';
   _sortOrd    = p.get('order')   || 'asc';
   _nameFilter = p.get('name')    || '';
-  _groupBy    = p.get('group')   === 'none' ? 'none' : 'template';
 
-  // Sync UI controls
-  renderGroupByDd();
   renderSortByDd();
   renderSortOrderDd();
-  renderBundleDd();
   if (_minP) document.getElementById('minPrice').value = _minP;
   if (_maxP) document.getElementById('maxPrice').value = _maxP;
   if (_minMint) document.getElementById('minMint').value = _minMint;
@@ -1960,8 +2279,6 @@ async function restoreFromUrl() {
     try {
       await selectFunkoCatalog({ restoring: true });
     } catch {
-      // Same failure UI as a broken single-collection deep link — here it'd
-      // mean drops_catalog.json/sort_order.json failed to fetch.
       const $empty = document.getElementById('emptyState');
       $empty.innerHTML = `
         <div class="empty-state-icon">⚠️</div>
@@ -1989,12 +2306,10 @@ async function restoreFromUrl() {
     showFilters();
     resetResults();
     const [b1, b2] = WaxApi.aaBases(2);
-    loadSchemas(b1);       // restores schema select value after populating
-    loadRarityOptions(b2); // respects _schema; restored _rarity is applied once options render
+    loadSchemas(b1);
+    loadRarityOptions(b2);
     loadMore();
   } catch {
-    // Deep link failed to resolve (bad collection name or every node unreachable) —
-    // don't silently fall back to the generic "search for a collection" empty state.
     const $empty = document.getElementById('emptyState');
     $empty.innerHTML = `
       <div class="empty-state-icon">⚠️</div>
@@ -2006,107 +2321,14 @@ async function restoreFromUrl() {
   }
 }
 
-/* ── Buy (No grouping only — see buildCardHtml) ── */
-function toWaxQty(amount) {
-  return (parseInt(amount) / 1e8).toFixed(8) + ' WAX';
-}
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Init                                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 function connectWallet() {
   return _wallet.connect();
 }
 
-// assertsale is a free, no-authorization guard: it hard-fails the whole
-// transaction (transfer included) if the sale's asset_ids/listing_price/
-// settlement_symbol don't exactly match what's currently on-chain at
-// execution time. purchasesale itself does NOT independently validate any
-// of that — it just trusts whatever's stored for sale_id — so this is what
-// actually guarantees the buyer pays for what they saw, not whatever our
-// (third-party, sometimes-flaky) API happened to report. settlement_symbol
-// is always "8,WAX" regardless of listing currency — confirmed against a
-// live on-chain USD-listed sale row; not relevant here anyway since this
-// page's queries are always &symbol=WAX (see fetchSalesPage).
-function assertSaleAction(buyer, saleId, assetIds, listingPriceAsset) {
-  return {
-    account: 'atomicmarket',
-    name:    'assertsale',
-    authorization: [{ actor: buyer, permission: 'active' }],
-    data: {
-      sale_id: saleId,
-      asset_ids_to_assert: assetIds,
-      listing_price_to_assert: listingPriceAsset,
-      settlement_symbol_to_assert: '8,WAX',
-    },
-  };
-}
-
-async function buyListing(btn, saleId, amount, assetIds = []) {
-  const buyer = window.getWaxAccount();
-  if (!buyer) { connectWallet(); return; }
-
-  btn.disabled = true;
-  btn.textContent = 'Buying…';
-  btn.className = 'ex-buy-btn';
-
-  try {
-    await WaxAuth.transact([
-      assertSaleAction(buyer, saleId, assetIds, toWaxQty(amount)),
-      {
-        account: 'eosio.token',
-        name: 'transfer',
-        authorization: [{ actor: buyer, permission: 'active' }],
-        data: { from: buyer, to: 'atomicmarket', quantity: toWaxQty(amount), memo: 'deposit' },
-      },
-      {
-        account: 'atomicmarket',
-        name: 'purchasesale',
-        authorization: [{ actor: buyer, permission: 'active' }],
-        data: { buyer, sale_id: saleId, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE },
-      },
-    ]);
-
-    btn.textContent = '✓ Purchased!';
-    btn.className   = 'ex-buy-btn ex-buy-btn--bought';
-    btn.closest('.ex-card')?.classList.add('ex-card--bought');
-  } catch (e) {
-    const msg       = String(e?.message || e).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
-    btn.disabled    = false;
-    if (cancelled) {
-      btn.textContent = 'Buy Now';
-      btn.className   = 'ex-buy-btn';
-    } else {
-      btn.textContent = 'Failed — retry';
-      btn.className   = 'ex-buy-btn ex-buy-btn--error';
-      setTimeout(() => {
-        btn.textContent = 'Buy Now';
-        btn.className   = 'ex-buy-btn';
-      }, 3000);
-    }
-  }
-}
-
-// Cards render with a snapshot of the wallet state at fetch time (see
-// buildCardHtml) — if the visitor connects/disconnects afterward via the nav
-// widget, already-rendered "No grouping" cards need to catch up without a
-// full re-render of the grid.
-function refreshBuyButtons() {
-  document.querySelectorAll('#cardsGrid .ex-buy-btn[data-sale-id]').forEach(btn => {
-    if (btn.classList.contains('ex-buy-btn--bought')) return; // already purchased — leave as-is
-    const saleId = btn.dataset.saleId;
-    const entry  = _saleAmountById.get(saleId);
-    if (entry == null) return;
-    if (window.getWaxAccount()) {
-      btn.textContent = 'Buy Now';
-      btn.onclick     = () => buyListing(btn, saleId, entry.amount, entry.assetIds);
-    } else {
-      btn.textContent = 'Connect to Buy';
-      btn.onclick     = () => connectWallet();
-    }
-  });
-}
-window.addEventListener('wax-auth-change', refreshBuyButtons);
-
-/* ── Init ── */
 const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
@@ -2115,9 +2337,17 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
   ],
 });
-fetchWaxUsd();
+window.addEventListener('wax-auth-change', () => { updateActionBtn(); refreshBuyButtons(); });
+
+// A cart hydrated from storage renders immediately at init, before this
+// resolves — re-run the total once the price arrives so the USD suffix
+// doesn't just stay missing for the rest of the visit.
+fetchWaxUsd().then(() => updateTrayTotal());
+initInfiniteScroll();
+loadCartFromStorage();
+renderTray();
+updateSelCount();
 restoreFromUrl();
 </script>
-
 </body>
 </html>
