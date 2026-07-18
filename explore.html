@@ -9,6 +9,18 @@
   <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
   <link rel="stylesheet" href="shared/global.css" />
   <style>
+    /* ── Page header — scoped override, not a shared/global.css change:
+       .page-header is used by 24+ pages, this flex layout is explore.html-only. ── */
+    #explorePageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .bulk-buy-link {
+      display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.55rem 0.9rem;
+      color: var(--text-primary); font-size: 0.82rem; font-weight: 600;
+      text-decoration: none; transition: border-color 0.15s;
+    }
+    .bulk-buy-link:hover { border-color: rgba(192,120,40,0.5); }
+
     /* ── Explore layout ── */
     .explore-layout {
       display: flex; align-items: flex-start; gap: 1.25rem;
@@ -344,9 +356,12 @@
 <div class="page">
 <div class="content">
 
-  <div class="page-header">
-    <div class="page-title">Explo<span class="accent">re</span></div>
-    <div class="page-subtitle">Browse WAX NFT listings across any collection. Select a collection to start.</div>
+  <div class="page-header" id="explorePageHeader">
+    <div>
+      <div class="page-title">Explo<span class="accent">re</span></div>
+      <div class="page-subtitle">Browse WAX NFT listings across any collection. Select a collection to start.</div>
+    </div>
+    <a href="explore-bulk.html" class="bulk-buy-link">📋 Bulk Buy</a>
   </div>
 
 <div class="explore-layout">
@@ -1380,7 +1395,10 @@ async function loadMore() {
         const key = _groupBy === 'none' ? `s${sale.sale_id}` : tid;
         if (_seen.has(key)) continue;
         _seen.add(key);
-        if (_groupBy === 'none') _saleAmountById.set(String(sale.sale_id), sale.price?.amount || '0');
+        if (_groupBy === 'none') _saleAmountById.set(String(sale.sale_id), {
+          amount: sale.price?.amount || '0',
+          assetIds: (sale.assets || []).map(a => a.asset_id),
+        });
         _queue.push(buildCardHtml(sale, asset));
       }
     }
@@ -1573,8 +1591,9 @@ function buildCardHtml(sale, asset) {
   if (_groupBy === 'none') {
     const saleId = String(sale.sale_id);
     const amount = String(sale.price?.amount || '0');
+    const assetIdsJs = (sale.assets || []).map(a => `'${a.asset_id}'`).join(',');
     const buyBtn = window.getWaxAccount()
-      ? `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="buyListing(this,'${saleId}','${amount}')">Buy Now</button>`
+      ? `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="buyListing(this,'${saleId}','${amount}',[${assetIdsJs}])">Buy Now</button>`
       : `<button type="button" class="ex-buy-btn" data-sale-id="${saleId}" onclick="connectWallet()">Connect to Buy</button>`;
     // Buying is direct here, but the visitor may still want to compare this
     // template's other listings (different mints/prices/sellers) before
@@ -1996,7 +2015,31 @@ function connectWallet() {
   return _wallet.connect();
 }
 
-async function buyListing(btn, saleId, amount) {
+// assertsale is a free, no-authorization guard: it hard-fails the whole
+// transaction (transfer included) if the sale's asset_ids/listing_price/
+// settlement_symbol don't exactly match what's currently on-chain at
+// execution time. purchasesale itself does NOT independently validate any
+// of that — it just trusts whatever's stored for sale_id — so this is what
+// actually guarantees the buyer pays for what they saw, not whatever our
+// (third-party, sometimes-flaky) API happened to report. settlement_symbol
+// is always "8,WAX" regardless of listing currency — confirmed against a
+// live on-chain USD-listed sale row; not relevant here anyway since this
+// page's queries are always &symbol=WAX (see fetchSalesPage).
+function assertSaleAction(buyer, saleId, assetIds, listingPriceAsset) {
+  return {
+    account: 'atomicmarket',
+    name:    'assertsale',
+    authorization: [{ actor: buyer, permission: 'active' }],
+    data: {
+      sale_id: saleId,
+      asset_ids_to_assert: assetIds,
+      listing_price_to_assert: listingPriceAsset,
+      settlement_symbol_to_assert: '8,WAX',
+    },
+  };
+}
+
+async function buyListing(btn, saleId, amount, assetIds = []) {
   const buyer = window.getWaxAccount();
   if (!buyer) { connectWallet(); return; }
 
@@ -2006,6 +2049,7 @@ async function buyListing(btn, saleId, amount) {
 
   try {
     await WaxAuth.transact([
+      assertSaleAction(buyer, saleId, assetIds, toWaxQty(amount)),
       {
         account: 'eosio.token',
         name: 'transfer',
@@ -2049,11 +2093,11 @@ function refreshBuyButtons() {
   document.querySelectorAll('#cardsGrid .ex-buy-btn[data-sale-id]').forEach(btn => {
     if (btn.classList.contains('ex-buy-btn--bought')) return; // already purchased — leave as-is
     const saleId = btn.dataset.saleId;
-    const amount = _saleAmountById.get(saleId);
-    if (amount == null) return;
+    const entry  = _saleAmountById.get(saleId);
+    if (entry == null) return;
     if (window.getWaxAccount()) {
       btn.textContent = 'Buy Now';
-      btn.onclick     = () => buyListing(btn, saleId, amount);
+      btn.onclick     = () => buyListing(btn, saleId, entry.amount, entry.assetIds);
     } else {
       btn.textContent = 'Connect to Buy';
       btn.onclick     = () => connectWallet();

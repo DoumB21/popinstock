@@ -3,6 +3,10 @@
 // Add new generic pages here and every page picks up the new link automatically.
 // Inventory is deliberately excluded — it's already reachable from the wallet
 // widget menu (wallet-related page), so it stays out of the top-level nav.
+// Bulk Buy is also deliberately excluded — narrow, low-frequency power-user
+// feature that doesn't warrant permanent top-level exposure; reachable via a
+// button on explore.html instead (same shape as inventory-bulk.html being
+// reached from inventory.html rather than living in the nav).
 const GENERIC_NAV_LINKS = [
   { label: 'Explore', href: 'explore.html' },
   { label: 'Trade Analyzer', href: 'trade-analyzer.html' },

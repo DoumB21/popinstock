@@ -673,7 +673,32 @@ function connectWallet() {
 }
 
 /* ── Buy ── */
-async function buyListing(btn, saleId, listingPrice, listingSym = 'WAX') {
+// assertsale is a free, no-authorization guard: it hard-fails the whole
+// transaction (transfer included) if the sale's asset_ids/listing_price/
+// settlement_symbol don't exactly match what's currently on-chain at
+// execution time. purchasesale itself does NOT independently validate any
+// of that — it just trusts whatever's stored for sale_id — so this is what
+// actually guarantees the buyer pays for what they saw, not whatever our
+// (third-party, sometimes-flaky) API happened to report. settlement_symbol
+// is always "8,WAX" regardless of listing currency — confirmed against a
+// live on-chain USD-listed sale row (listing_price "50.00 USD",
+// settlement_symbol "8,WAX"); "settlement" is the token actually
+// transferred, not the listing's display currency.
+function assertSaleAction(buyer, saleId, assetIds, listingPriceAsset) {
+  return {
+    account: 'atomicmarket',
+    name:    'assertsale',
+    authorization: [{ actor: buyer, permission: 'active' }],
+    data: {
+      sale_id: saleId,
+      asset_ids_to_assert: assetIds,
+      listing_price_to_assert: listingPriceAsset,
+      settlement_symbol_to_assert: '8,WAX',
+    },
+  };
+}
+
+async function buyListing(btn, saleId, listingPrice, listingSym = 'WAX', assetIds = []) {
   const buyer = window.getWaxAccount();
   if (!buyer) { connectWallet(); return; }
 
@@ -696,7 +721,15 @@ async function buyListing(btn, saleId, listingPrice, listingSym = 'WAX') {
       delphiMedian = median;
     }
 
+    // listing_price_to_assert must match the sale's stored (raw) listing
+    // price/currency exactly, not the WAX-converted `quantity` computed
+    // above for USD-denominated listings.
+    const listingPriceAsset = listingSym === 'WAX'
+      ? toWaxQty(listingPrice)
+      : (parseInt(listingPrice) / 100).toFixed(2) + ' ' + listingSym;
+
     await WaxAuth.transact([
+      assertSaleAction(buyer, saleId, assetIds, listingPriceAsset),
       {
         account: 'eosio.token',
         name:    'transfer',
@@ -889,7 +922,8 @@ function renderCard(sale, isBest) {
   } else {
     btnText    = 'Buy Now';
     btnClass   = 'mp-buy-btn';
-    btnOnclick = `buyListing(this,'${saleId}','${amount}','${sym}')`;
+    const assetIdsJs = (sale.assets || []).map(a => `'${a.asset_id}'`).join(',');
+    btnOnclick = `buyListing(this,'${saleId}','${amount}','${sym}',[${assetIdsJs}])`;
   }
 
   return `<div class="mp-card${isBest ? ' mp-card--best' : ''}">
@@ -983,7 +1017,7 @@ function refreshBuyButtons() {
     if (acc) {
       btn.textContent = 'Buy Now';
       btn.className   = 'mp-buy-btn';
-      btn.onclick     = () => buyListing(btn, saleId, sale.listing_price, sale.listing_symbol);
+      btn.onclick     = () => buyListing(btn, saleId, sale.listing_price, sale.listing_symbol, (sale.assets || []).map(a => a.asset_id));
     } else {
       btn.textContent = 'Connect to Buy';
       btn.className   = 'mp-buy-btn mp-buy-btn--connect';
