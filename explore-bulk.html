@@ -416,7 +416,7 @@
   <aside class="bl-tray">
     <div class="bl-tray-mode">
       <div class="bl-tray-mode-title">Buy Mode</div>
-      <div class="bl-tray-batch-note" id="trayBatchNote">1 wallet signature per 10 items</div>
+      <div class="bl-tray-batch-note" id="trayBatchNote">1 wallet signature per 25 items</div>
     </div>
     <div class="bl-tray-head">
       <span class="bl-tray-title">Selected<span class="bl-tray-count" id="trayCount"> 0</span></span>
@@ -454,7 +454,7 @@
 
 const PAGE_SIZE         = 18;   // grid batch size — divisible by 3, matching this page's 3-wide card layout so batches end on a clean row
 const TAKER_MARKETPLACE = 'popinstockgo';
-const BATCH_SIZE_BUY    = 10;   // up to 10 individual (assertsale, transfer, purchasesale) triplets per tx — bumped from 5 for real-world testing; a stale listing fails the whole chunk, so raise further only after this size is confirmed to clear on-chain
+const BATCH_SIZE_BUY    = 25;   // up to 25 individual (assertsale, transfer, purchasesale) triplets per tx — bumped from 10 for real-world testing; a stale listing fails the whole chunk, so raise further only after this size is confirmed to clear on-chain
 const MAX_SELECTED      = 350;  // reused from inventory-bulk.html — tray-render-perf cap, unrelated to batch size
 const IPFS_GW           = 'https://ipfs.io/ipfs/';
 const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
