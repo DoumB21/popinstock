@@ -1240,7 +1240,14 @@ document.getElementById('priceMin').addEventListener('input', e => { _priceMin =
 document.getElementById('priceMax').addEventListener('input', e => { _priceMax = e.target.value; debounceLoad(); });
 document.getElementById('mintMin').addEventListener('input',  e => { _mintMin  = e.target.value; debounceLoad(); });
 document.getElementById('mintMax').addEventListener('input',  e => { _mintMax  = e.target.value; debounceLoad(); });
-document.getElementById('buyerFilter').addEventListener('input', e => { _filterBuyer = e.target.value.trim(); debounceLoad(); });
+document.getElementById('buyerFilter').addEventListener('input', e => {
+  const el = e.target;
+  const { selectionStart, selectionEnd } = el;
+  el.value = el.value.toLowerCase();
+  el.setSelectionRange(selectionStart, selectionEnd);
+  _filterBuyer = el.value.trim();
+  debounceLoad();
+});
 
 document.querySelectorAll('.cb-dropdown').forEach(container => {
   container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {

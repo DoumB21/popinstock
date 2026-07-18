@@ -511,8 +511,11 @@
   // ── Init ───────────────────────────────────────────────────────
 
   document.getElementById('walletInput').addEventListener('input', () => {
-    document.getElementById('lookupBtn').disabled =
-      document.getElementById('walletInput').value.trim() === '';
+    const el = document.getElementById('walletInput');
+    const { selectionStart, selectionEnd } = el;
+    el.value = el.value.toLowerCase();
+    el.setSelectionRange(selectionStart, selectionEnd);
+    document.getElementById('lookupBtn').disabled = el.value.trim() === '';
   });
   document.getElementById('walletInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupWallet();

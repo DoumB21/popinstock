@@ -2350,7 +2350,11 @@ function onPriceInput(el) {
 }
 
 function onRecipientInput(val) {
-  _recipient = val;
+  const el = document.getElementById('recipientInput');
+  const { selectionStart, selectionEnd } = el;
+  el.value = el.value.toLowerCase();
+  el.setSelectionRange(selectionStart, selectionEnd);
+  _recipient = el.value;
   updateActionBtn();
 }
 
