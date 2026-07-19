@@ -154,6 +154,7 @@
         <span id="navWaxBalance" class="nav-wax-balance"></span>
         <button id="navWaxName" class="nav-wax-name" type="button"></button>
         <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
+          <div id="navWaxMenuBalance" class="nav-wax-menu-balance"></div>
           ${menuHtml}
           <div class="nav-wax-menu-divider"></div>
           <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button"><span class="nav-wax-menu-icon">↪</span>Logout</button>
@@ -167,7 +168,16 @@
     const menuEl      = wrap.querySelector('#navWaxMenu');
     const logoutBtn   = wrap.querySelector('#navWaxLogout');
     const balanceEl   = wrap.querySelector('#navWaxBalance');
+    const menuBalanceEl = wrap.querySelector('#navWaxMenuBalance');
     const cartBadge   = wrap.querySelector('#navCartBadge');
+
+    // Pill balance is hidden below 480px (no room next to the name) — this
+    // mirrors the same HTML into the dropdown menu instead, so it's still
+    // one tap away on mobile. CSS shows only one of the two at a time.
+    function _paintBalanceHtml(html) {
+      balanceEl.innerHTML     = html;
+      menuBalanceEl.innerHTML = html;
+    }
 
     // Insert before the hamburger if this nav has one, so wallet UI always
     // sits between the nav links and the burger — matches every existing layout.
@@ -202,7 +212,7 @@
     function _paintCachedBalance(acc) {
       if (_haveLiveBalance) return;
       const cached = _readCachedBalance(acc);
-      if (cached) balanceEl.innerHTML = _fmtBalance(cached.wax, cached.rate);
+      if (cached) _paintBalanceHtml(_fmtBalance(cached.wax, cached.rate));
     }
 
     async function _refreshBalance(acc, force) {
@@ -211,7 +221,7 @@
       const [wax, rate] = await Promise.all([_fetchWaxBalance(acc), _fetchWaxUsdRate()]);
       if (window.getWaxAccount() !== acc) return; // stale — account changed while this was in flight
       if (wax === null) return; // every RPC node failed — leave whatever's showing (cached or blank) rather than flicker it away
-      balanceEl.innerHTML = _fmtBalance(wax, rate);
+      _paintBalanceHtml(_fmtBalance(wax, rate));
       _haveLiveBalance = true;
       _writeCachedBalance(acc, wax, rate);
     }
@@ -256,7 +266,7 @@
         _lastAccountRefreshed = undefined;
         _lastBalanceAcc = undefined;
         _haveLiveBalance = false;
-        balanceEl.innerHTML = '';
+        _paintBalanceHtml('');
         clearInterval(_balancePoll);
         _balancePoll = null;
       }

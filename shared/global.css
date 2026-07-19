@@ -377,8 +377,22 @@ body::before {
 .nav-wax-balance:empty { display: none; }
 .nav-wax-balance-usd { opacity: 0.75; font-weight: 500; }
 
+/* Mirrors .nav-wax-balance's HTML into the dropdown menu — hidden here on
+   desktop since the pill already shows it; swaps places with the pill
+   version below 480px so the balance is still one tap away on mobile. */
+.nav-wax-menu-balance {
+  display: none;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.3rem;
+}
+
 @media (max-width: 480px) {
   .nav-wax-balance { display: none; }
+  .nav-wax-menu-balance:not(:empty) { display: block; }
 }
 
 .nav-wax-menu {
