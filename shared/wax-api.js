@@ -184,15 +184,18 @@
   /* Fetch a WAX AtomicAssets URL, rotating to the next healthy endpoint on 429/503/408.
      atomicmarket URLs can't rotate (only reliable on the official node), so they get
      same-endpoint retries with backoff instead — still resilient to transient hiccups.
-     Returns json.data on success; throws on non-retryable errors or no healthy fallback. */
-  async function apiFetch(url) {
+     Returns json.data on success; throws on non-retryable errors or no healthy fallback.
+     `opts.timeout` overrides the market timeout for callers who know a specific query
+     is unusually heavy (e.g. a huge collection_name IN-list) — ignored for rotatable
+     (atomicassets) URLs since TIMEOUT is already tuned for those. */
+  async function apiFetch(url, opts) {
     let cur = url;
     const rotatable   = _canRotate(url);
     const maxAttempts = rotatable ? AA_ENDPOINTS.length : MARKET_RETRIES;
     for (let i = 0; i < maxAttempts; i++) {
       let res;
       try {
-        res = await _fetchWithTimeout(cur, rotatable ? TIMEOUT : MARKET_TIMEOUT);
+        res = await _fetchWithTimeout(cur, rotatable ? TIMEOUT : (opts?.timeout || MARKET_TIMEOUT));
       } catch (err) {
         if (i === maxAttempts - 1) throw err;
         if (rotatable) { _penalize(_baseOf(cur)); cur = await _rotateToHealthy(cur); await _delay(300); }

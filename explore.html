@@ -1301,7 +1301,12 @@ function fetchSalesPage(page) {
   // see the Listing Type dropdown comment above.
   url += '&max_assets=1';
   if (_rarity) url += `&data:text.rarity=${encodeURIComponent(_rarity)}`;
-  return WaxApi.apiFetch(url).then(data => data || []);
+  // Catalog-wide scope joins every Funko collection into one collection_name
+  // IN-list (70+ values) — AtomicMarket's default 6s market timeout isn't
+  // enough for that query to complete (measured 20-26s for sort=price),
+  // so it needs a much longer allowance than a single-collection request.
+  const heavyScope = col.includes(',');
+  return WaxApi.apiFetch(url, heavyScope ? { timeout: 30000 } : undefined).then(data => data || []);
 }
 
 async function loadMore() {
