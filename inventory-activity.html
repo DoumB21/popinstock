@@ -36,6 +36,15 @@
       border-color: transparent; color: #fff;
     }
 
+    /* "Purchases" is the longest label and the one that wraps to 2 lines
+       first — it's short by only a few px at common phone widths. Trim the
+       button's own internal padding/gap (not its flex:1 share of the row,
+       which is untouched) to give the text just enough room to stay on
+       one line. */
+    @media (max-width: 480px) {
+      .act-tab-btn { padding: 0.55rem 0.5rem; gap: 0.3rem; }
+    }
+
     /* ── Controls card (filter panel) ── */
     .controls-card {
       background: var(--bg-card); border: 1px solid var(--border);
