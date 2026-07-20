@@ -2497,12 +2497,19 @@
   // 3 elements are placed directly into the shared .tsc-table grid (not
   // wrapped in their own row div) so every row shares the same column
   // tracks — see the .tsc-table comment in the CSS for why that matters.
-  // `winner` ('a'/'b'/null) just controls which value cell gets the green
-  // highlight — used both standalone (Items) and inside a block.
+  //
+  // `winner` drives the row-caption's "leads" text (who benefits
+  // strategically — see tscCompareRow: giving away the worse stat is the
+  // strategic win). The green highlight here intentionally marks the
+  // OPPOSITE cell: the objectively better raw number (lowest mint#, lowest
+  // supply, highest $ value), which is always the opposite of the
+  // strategic winner by construction (giving away a WORSE stat is what
+  // makes you the strategic winner). Matches the same fix applied to
+  // trade-offers.html's scoreRow.
   function tscRow(label, aHtml, bHtml, winner) {
     return `<span class="tsc-row-label">${label}</span>
-      <span class="tsc-row-val tsc-col-a${winner === 'a' ? ' tsc-win' : ''}">${aHtml}</span>
-      <span class="tsc-row-val tsc-col-b${winner === 'b' ? ' tsc-win' : ''}">${bHtml}</span>`;
+      <span class="tsc-row-val tsc-col-a${winner === 'b' ? ' tsc-win' : ''}">${aHtml}</span>
+      <span class="tsc-row-val tsc-col-b${winner === 'a' ? ' tsc-win' : ''}">${bHtml}</span>`;
   }
 
   // Section title for a grouped block (Mint Distribution / Supply / Floor
