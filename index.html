@@ -215,8 +215,22 @@
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
 </head>
 <body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
 
   <div class="page">
 
@@ -381,6 +395,18 @@
     <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
   </footer>
 
+<script>
+'use strict';
+WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: [
+    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
+    { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
+  ],
+});
+</script>
 <script src="shared/moved.js"></script>
 </body>
 </html>
