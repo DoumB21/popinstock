@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trade Offers — Hoardio</title>
-  <meta name="description" content="Review, accept, and cancel WAX trade offers for your NFT cards — both received and sent." />
-  <link rel="canonical" href="https://www.hoardio.com/trade-offers.html" />
+  <title>Trade History — Hoardio</title>
+  <meta name="description" content="Review the history of your resolved WAX trade offers — accepted, declined, and cancelled, both received and sent." />
+  <link rel="canonical" href="https://www.hoardio.com/trade-history.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/trade-offers.html" />
-  <meta property="og:title" content="Trade Offers — Hoardio" />
-  <meta property="og:description" content="Review, accept, and cancel WAX trade offers for your NFT cards — both received and sent." />
+  <meta property="og:url" content="https://www.hoardio.com/trade-history.html" />
+  <meta property="og:title" content="Trade History — Hoardio" />
+  <meta property="og:description" content="Review the history of your resolved WAX trade offers — accepted, declined, and cancelled, both received and sent." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Trade Offers — Hoardio" />
-  <meta name="twitter:description" content="Review, accept, and cancel WAX trade offers for your NFT cards — both received and sent." />
+  <meta name="twitter:title" content="Trade History — Hoardio" />
+  <meta name="twitter:description" content="Review the history of your resolved WAX trade offers — accepted, declined, and cancelled, both received and sent." />
   <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
   <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
   <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
@@ -31,7 +31,7 @@
     .auth-gate-hint  { font-size: 0.88rem; }
 
     /* ── Tab switcher — same visual language as inventory-activity.html's
-       .act-tabs (Purchases/Sales/Transfers). ── */
+       .act-tabs (Purchases/Sales/Transfers), reused from trade-offers.html. ── */
     .offer-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
     .offer-tab-btn {
       flex: 1;
@@ -53,14 +53,14 @@
     }
 
     #offersPageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .history-link {
+    .offers-link {
       display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 8px; padding: 0.55rem 0.9rem;
       color: var(--text-primary); font-size: 0.82rem; font-weight: 600;
       text-decoration: none; transition: border-color 0.15s;
     }
-    .history-link:hover { border-color: rgba(192,120,40,0.5); }
+    .offers-link:hover { border-color: rgba(192,120,40,0.5); }
 
     .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
     .spinner {
@@ -90,16 +90,15 @@
     .offer-item.open .offer-chevron { transform: rotate(90deg); }
     .offer-from { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .offer-from-wallet { color: var(--accent-light); }
-    .offer-invalid-tag {
+    .status-pill {
       display: inline-block; margin-left: 0.5rem; font-size: 0.68rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.04em; color: #ef4444;
-      background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35);
+      text-transform: uppercase; letter-spacing: 0.04em;
       border-radius: 999px; padding: 0.12rem 0.5rem; vertical-align: middle;
     }
-    .offer-invalid-banner {
-      font-size: 0.82rem; color: #ef4444; background: rgba(239,68,68,0.08);
-      border-bottom: 1px solid var(--border); padding: 0.65rem 1.25rem;
-    }
+    .status-accepted  { color: #4ade80; background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.35); }
+    .status-declined  { color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
+    .status-cancelled { color: var(--text-secondary); background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+    .status-unknown   { color: var(--text-secondary); background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
     .offer-meta { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
     .offer-ratio {
       flex-shrink: 0; display: grid;
@@ -115,7 +114,7 @@
     .offer-item.open .offer-body { display: block; }
 
     /* ── Two-column sides ── */
-    .offer-sides { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.5rem; border-bottom: 1px solid var(--border); }
+    .offer-sides { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.5rem; }
     .offer-side-label {
       font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.08em; color: #4ade80;
@@ -143,8 +142,6 @@
     .ac-supply-null { color: var(--text-secondary); }
     .ac-mint       { grid-column: 4; grid-row: 1 / 3; align-self: center; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .ac-mint-trade { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
-    .ac-mint-trade.ac-mint-warn { color: #ef4444; }
-    .ac-mint-low   { font-size: 0.8rem; color: var(--text-secondary); margin-top: 1px; }
     .asset-header {
       display: grid; grid-template-columns: 3fr 1.5fr 5.5rem 4rem;
       column-gap: 1.25rem; padding: 0.4rem 1rem;
@@ -156,41 +153,17 @@
     .asset-header span:nth-child(4) { font-weight: 700; color: var(--text-primary); }
     .asset-empty { padding: 0.75rem 1rem; font-size: 0.82rem; color: var(--text-secondary); }
 
-    /* ── Offer actions ── */
-    .offer-actions {
-      display: flex; align-items: center; justify-content: flex-end;
-      gap: 0.65rem; padding: 1.25rem 1.25rem 0.85rem;
-      border-top: 1px solid var(--border); margin-top: 0.25rem;
-    }
-    .offer-memo {
-      flex: 1; align-self: center; display: flex; align-items: center;
+    .offer-memo-row {
+      padding: 0.85rem 1.25rem; border-top: 1px solid var(--border);
       font-size: 0.78rem; color: var(--text-secondary);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      padding-right: 0.5rem; line-height: 1.2;
     }
-    .offer-memo span { color: var(--text-primary); }
-    .offer-btn {
-      font-size: 0.82rem; font-weight: 700; padding: 0.5rem 1.25rem;
-      border-radius: 8px; border: 1px solid transparent; cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, opacity 0.15s; white-space: nowrap;
-    }
-    .offer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .offer-btn--accept  { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.4); color: #4ade80; }
-    .offer-btn--accept:not(:disabled):hover { background: rgba(74,222,128,0.2); border-color: #4ade80; }
-    .offer-btn--decline { background: rgba(224,82,82,0.08); border-color: rgba(224,82,82,0.3); color: #e05252; }
-    .offer-btn--decline:not(:disabled):hover { background: rgba(224,82,82,0.18); border-color: #e05252; }
-    .offer-btn--done { background: rgba(100,100,100,0.1); border-color: rgba(255,255,255,0.12); color: var(--text-secondary); cursor: default !important; }
+    .offer-memo-row span { color: var(--text-primary); }
 
     /* ── Responsive ── */
     @media (max-width: 700px) {
       .page-main { padding: 1.25rem 0.75rem 3rem; }
       .offer-sides { grid-template-columns: 1fr; }
       .offer-side + .offer-side { border-top: 1px solid var(--border); }
-      /* Sender name gets its own full-width row — sharing one line with the
-         fixed-width ratio/age stats left it squeezed down to a couple of
-         characters (e.g. "Offer f..."). Wrapping .offer-meta as a whole
-         onto row 2 keeps Receiving/Giving and the age together, spread
-         apart with space-between. */
       .offer-header { flex-wrap: wrap; gap: 0.35rem 1rem; }
       .offer-from  { flex-basis: calc(100% - 18px - 1rem); white-space: normal; }
       .offer-meta  { flex-basis: 100%; justify-content: space-between; padding-left: calc(18px + 1rem); box-sizing: border-box; }
@@ -220,10 +193,10 @@
 <main class="page-main">
   <div class="page-header" id="offersPageHeader">
     <div>
-      <h1 class="page-title">Trade <span class="accent">Offers</span></h1>
-      <p class="page-desc" id="pageDesc">Review and respond to pending offers sent to your WAX wallet.</p>
+      <h1 class="page-title">Trade <span class="accent">History</span></h1>
+      <p class="page-desc" id="pageDesc">Resolved offers sent to your WAX wallet — accepted, declined, or expired.</p>
     </div>
-    <a href="trade-history.html" class="history-link">🕘 Trade History</a>
+    <a href="trade-offers.html" class="offers-link">🔄 Trade Offers</a>
   </div>
 
   <div class="offer-tabs" id="offerTabs">
@@ -233,26 +206,30 @@
 
   <div id="authGate" class="auth-gate" style="display:none;">
     <p class="auth-gate-title">Wallet not connected</p>
-    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your pending trade offers.</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your trade history.</p>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
     <div class="spinner"></div>
-    <div>Loading trade offers…</div>
+    <div>Loading trade history…</div>
   </div>
 
   <div id="emptyWrap" class="empty-state" style="display:none;">
-    <strong>No pending offers</strong>
+    <strong>No trade history</strong>
+    You have no resolved incoming trade offers yet. Head back to <a href="trade-offers.html">Trade Offers</a>.
   </div>
 
   <div id="offersList" class="offers-list" style="display:none;"></div>
+  <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
+    <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+  </div>
 </main>
 
 <script>
 'use strict';
 
 /* ── Nav auth ──────────────────────────────────────────────────────────────── */
-const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
+WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
     { href: 'inventory.html', label: 'Inventory', icon: '📦' },
@@ -266,31 +243,45 @@ window.addEventListener('wax-auth-change', onWalletChange);
 /* ── Tabs ──────────────────────────────────────────────────────────────────── */
 let _tab = 'received';
 const TAB_DESC = {
-  received: 'Review and respond to pending offers sent to your WAX wallet.',
-  sent:     "Review and cancel trade offers you've sent to other wallets, still awaiting a response.",
+  received: 'Resolved offers sent to your WAX wallet — accepted, declined, or expired.',
+  sent:     'Resolved offers you sent to other wallets — accepted, declined, or cancelled.',
 };
 function setActiveTab(tab) {
   _tab = tab === 'sent' ? 'sent' : 'received';
   document.querySelectorAll('.offer-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === _tab));
   document.getElementById('pageDesc').textContent = TAB_DESC[_tab];
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (wallet && API_BASE) loadOffers();
+  if (wallet && API_BASE) loadOffers(true);
 }
 document.querySelectorAll('.offer-tab-btn').forEach(btn => {
   btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
 });
 
 // Tab button counts — omitted entirely at 0 (the empty state already says so
-// on-screen, a "(0)" next to it would be redundant). Shows "100+" instead of
-// "100" when a count hits OFFERS_LIMIT, since that's a page cap, not a real total.
+// on-screen). Shows "100+" instead of "100" when a count hits COUNT_LIMIT,
+// since that's a page cap, not a real total.
 const TAB_COUNT_EL = { received: document.getElementById('tabCountReceived'), sent: document.getElementById('tabCountSent') };
 let _counts = { received: null, sent: null };
 function setTabCount(tab, n) {
   _counts[tab] = n;
   const el = TAB_COUNT_EL[tab];
   if (!el) return;
-  el.textContent = n ? ` (${n === OFFERS_LIMIT ? n + '+' : n})` : '';
+  el.textContent = n ? ` (${n === COUNT_LIMIT ? n + '+' : n})` : '';
 }
+
+/* ── Offer state ───────────────────────────────────────────────────────────── */
+// From the atomicassets-api indexer's OfferState enum (the on-chain offers
+// table has no state field at all — accepted/declined/cancelled offers are
+// simply erased on-chain, so "state" is purely an atomicassets-api concept
+// reconstructed from the create/accept/decline/cancel action trace history).
+// 0=PENDING and 1=INVALID are the "open" states shown on trade-offers.html;
+// this page only ever queries the four terminal states below.
+const STATUS_META = {
+  2: { label: 'Unknown',   cls: 'status-unknown' },
+  3: { label: 'Accepted',  cls: 'status-accepted' },
+  4: { label: 'Declined',  cls: 'status-declined' },
+  5: { label: 'Cancelled', cls: 'status-cancelled' },
+};
 
 /* ── Data ──────────────────────────────────────────────────────────────────── */
 let FUNKO_RARITY_ORDER = [];
@@ -444,10 +435,6 @@ function rarityRank(r, project, schemaKey) {
   return 999; // generic collection — no curated rarity order to rank by
 }
 
-// Project is resolved per-asset (not once for the whole array) — an offer
-// can freely mix Funko/Topps/generic assets on one side now that unknown
-// collections render instead of being blocked, so a single blanket project
-// no longer holds for the whole side.
 function sortAssets(assets) {
   return [...assets].sort((a, b) => {
     const pa = assetProject(a), pb = assetProject(b);
@@ -492,29 +479,11 @@ function relativeTime(ms) {
 
 function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-/* ── Lowest mints ──────────────────────────────────────────────────────────── */
-async function fetchLowestMints(wallet, templateIds) {
-  if (!templateIds.length || !wallet) return new Map();
-  const entries = await Promise.all([...new Set(templateIds)].map(async tid => {
-    try {
-      const url = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_id=${encodeURIComponent(tid)}&sort=template_mint&order=asc&limit=1`;
-      const res = await WaxApi.rawFetch(url);
-      if (!res.ok) return null;
-      const json = await res.json();
-      const mint = json.data?.[0]?.template_mint;
-      return mint != null ? [tid, Number(mint)] : null;
-    } catch { return null; }
-  }));
-  return new Map(entries.filter(Boolean));
-}
-
-/* ── Asset card rendering ──────────────────────────────────────────────────── */
-// `side` is my perspective on this batch of assets ('receiving' or 'giving'),
-// not the raw sender_assets/recipient_assets field it came from — those two
-// only line up with my perspective on the Received tab; on Sent they're
-// swapped (see buildOfferItem), so the warn logic below has to key off
-// perspective, not the JSON field name.
-function buildAssetCards(assets, tplMap, lowestMints, side) {
+/* ── Asset card rendering ─────────────────────────────────────────────────────
+   No lowest-mint lookup/warn highlighting here (unlike trade-offers.html) —
+   that comparison exists to help decide whether to accept/decline a pending
+   offer, which doesn't apply to an already-resolved trade. ── */
+function buildAssetCards(assets, tplMap) {
   if (!assets || assets.length === 0) return '<div class="asset-empty">No assets</div>';
   return sortAssets(assets).map(asset => {
     const project = assetProject(asset);
@@ -526,16 +495,8 @@ function buildAssetCards(assets, tplMap, lowestMints, side) {
     const col     = asset.collection?.collection_name || '';
     const sch     = asset.schema?.schema_name || '';
 
-    const tradeMint  = asset.template_mint ? Number(asset.template_mint) : null;
-    const lowestMint = lowestMints?.get(tid) ?? null;
-    const warn = tradeMint != null && lowestMint != null && (
-      side === 'receiving' ? tradeMint >= lowestMint :
-      side === 'giving'    ? tradeMint === lowestMint : false
-    );
-    const mintHtml = tradeMint != null
-      ? `<div class="ac-mint-trade${warn?' ac-mint-warn':''}">#${tradeMint.toLocaleString()}</div>`
-        + `<div class="ac-mint-low">${lowestMint != null ? '#'+lowestMint.toLocaleString() : '—'}</div>`
-      : '—';
+    const tradeMint = asset.template_mint ? Number(asset.template_mint) : null;
+    const mintHtml  = tradeMint != null ? `<div class="ac-mint-trade">#${tradeMint.toLocaleString()}</div>` : '—';
 
     const cardId  = tpl.cardId != null ? tpl.cardId : null;
     const nameStr = cardId != null ? `${cardId} — ${name}` : name;
@@ -546,8 +507,6 @@ function buildAssetCards(assets, tplMap, lowestMints, side) {
     } else if (project === 'topps') {
       dropDisplay = escHtml(tpl.dropDisplay || TOPPS_DROP_DISPLAY.get(`${col}|${sch}`) || asset.collection?.name || '');
     } else {
-      // Generic collection — no curated drop-name catalog, so just show
-      // whatever AtomicAssets itself calls the collection.
       dropDisplay = escHtml(asset.collection?.name || col || '');
     }
     const schema = escHtml(schemaLabel(sch));
@@ -573,58 +532,37 @@ function buildAssetCards(assets, tplMap, lowestMints, side) {
 }
 
 /* ── Offer item ────────────────────────────────────────────────────────────── */
-// `direction` is 'received' or 'sent' (the active tab). sender_assets/
-// recipient_assets only map to "what I receive"/"what I give" when I'm the
-// offer's recipient (Received tab) — on Sent I'm the offer's sender, so
-// those two are swapped for display purposes.
-function buildOfferItem(offer, tplMap, lowestMints, type, direction) {
+// `direction` is 'received' or 'sent' (the active tab) — same perspective-
+// swap as trade-offers.html: sender_assets/recipient_assets only map to
+// "what I received"/"what I gave" when I was the offer's recipient.
+function buildOfferItem(offer, tplMap, type, direction) {
   const offerId      = offer.offer_id;
   const isSent       = direction === 'sent';
   const counterparty = escHtml(isSent ? offer.recipient_name : offer.sender_name);
   const memo         = offer.memo || '';
-  const age          = relativeTime(offer.created_at_time);
+  const age          = relativeTime(offer.updated_at_time); // when it was resolved, not when it was created
+  const status       = STATUS_META[offer.state] || STATUS_META[2];
 
   const receiveAssets = isSent ? offer.recipient_assets : offer.sender_assets;
   const giveAssets    = isSent ? offer.sender_assets    : offer.recipient_assets;
   const receiveN      = receiveAssets?.length ?? 0;
   const giveN         = giveAssets?.length ?? 0;
 
-  // state 1 = INVALID — an asset in the offer was transferred/burned elsewhere
-  // since it was made, so it can no longer be accepted on-chain. Still fully
-  // cancellable/declinable (that's the point of showing it), just not acceptable.
-  const isInvalid = offer.state === 1;
-
-  // Every offer gets full asset details now — Funko/Topps assets get their
-  // curated drop names/rarity order/circulating supply from Supabase (see
-  // fetchTemplateData), anything else falls back to whatever AtomicAssets
-  // itself reports (name, collection, schema, mint, supply), which is always
-  // present regardless of collection. See buildAssetCards/sortAssets.
-  const assetHeaderHtml = `<div class="asset-header"><span>Name</span><span>Drop</span><span>Supply</span><span>Mint #<br><span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);letter-spacing:0.04em;">Own #</span></span></div>`;
-  const actionsHtml = isSent
-    ? `<button class="offer-btn offer-btn--decline" data-action="cancel" data-offer="${offerId}">Cancel Offer</button>`
-    : `<button class="offer-btn offer-btn--decline" data-action="decline" data-offer="${offerId}">Decline</button>
-       <button class="offer-btn offer-btn--accept"  data-action="accept"  data-offer="${offerId}"${isInvalid ? ' disabled title="No longer valid — an offered asset has since moved or been burned"' : ''}>Accept Trade</button>`;
-  const invalidBannerHtml = isInvalid
-    ? `<div class="offer-invalid-banner">⚠ No longer valid — one of the offered assets has since moved or been burned. ${isSent ? 'You can still cancel it.' : 'You can still decline it.'}</div>`
-    : '';
+  const assetHeaderHtml = `<div class="asset-header"><span>Name</span><span>Drop</span><span>Supply</span><span>Mint #</span></div>`;
   const bodyHtml = `
-      ${invalidBannerHtml}
       <div class="offer-sides">
         <div class="offer-side">
-          <div class="offer-side-label">You receive (${receiveN})</div>
+          <div class="offer-side-label">${isSent ? 'You would receive' : 'You received'} (${receiveN})</div>
           ${assetHeaderHtml}
-          <div class="asset-cards">${buildAssetCards(receiveAssets, tplMap, lowestMints, 'receiving')}</div>
+          <div class="asset-cards">${buildAssetCards(receiveAssets, tplMap)}</div>
         </div>
         <div class="offer-side">
-          <div class="offer-side-label label-give">You give (${giveN})</div>
+          <div class="offer-side-label label-give">${isSent ? 'You would give' : 'You gave'} (${giveN})</div>
           ${assetHeaderHtml}
-          <div class="asset-cards">${buildAssetCards(giveAssets, tplMap, lowestMints, 'giving')}</div>
+          <div class="asset-cards">${buildAssetCards(giveAssets, tplMap)}</div>
         </div>
       </div>
-      <div class="offer-actions">
-        ${memo ? `<div class="offer-memo">Memo: <span>${escHtml(memo)}</span></div>` : '<div class="offer-memo"></div>'}
-        ${actionsHtml}
-      </div>`;
+      ${memo ? `<div class="offer-memo-row">Memo: <span>${escHtml(memo)}</span></div>` : ''}`;
 
   const item = document.createElement('div');
   item.className = 'offer-item';
@@ -632,14 +570,14 @@ function buildOfferItem(offer, tplMap, lowestMints, type, direction) {
   item.innerHTML = `
     <div class="offer-header">
       <svg class="offer-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      <span class="offer-from">Offer ${isSent ? 'to' : 'from'} <span class="offer-from-wallet">${counterparty}</span>${type === 'funko' ? ' — Funko' : type === 'topps' ? ' — Topps' : ''}${isInvalid ? ' <span class="offer-invalid-tag">⚠ Invalid</span>' : ''}</span>
+      <span class="offer-from">Offer ${isSent ? 'to' : 'from'} <span class="offer-from-wallet">${counterparty}</span>${type === 'funko' ? ' — Funko' : type === 'topps' ? ' — Topps' : ''}<span class="status-pill ${status.cls}">${status.label}</span></span>
       <div class="offer-meta">
         <div class="offer-ratio">
           <span class="ratio-receive">Receiving <span class="ratio-num">${receiveN}</span></span>
           <span class="ratio-sep">&middot;</span>
           <span class="ratio-give">Giving <span class="ratio-num">${giveN}</span></span>
         </div>
-        <span class="offer-age">${age}</span>
+        <span class="offer-age" title="Resolved">${age}</span>
       </div>
     </div>
     <div class="offer-body">${bodyHtml}</div>
@@ -651,74 +589,7 @@ function buildOfferItem(offer, tplMap, lowestMints, type, direction) {
     if (!isOpen) item.classList.add('open');
   });
 
-  if (isSent) {
-    item.querySelector('[data-action="cancel"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'cancel', item); });
-  } else {
-    item.querySelector('[data-action="accept"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'accept', item); });
-    item.querySelector('[data-action="decline"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'decline', item); });
-  }
-
   return item;
-}
-
-/* ── Actions ───────────────────────────────────────────────────────────────── */
-// 'accept'/'decline' are only ever wired on Received cards, 'cancel' only on
-// Sent cards (see buildOfferItem) — a card only ever has the buttons for its
-// own direction, so exactly one of these three querySelectors will find
-// anything on a given itemEl.
-const OFFER_CONTRACT_ACTION = { accept: 'acceptoffer', decline: 'declineoffer', cancel: 'canceloffer' };
-const OFFER_LABEL           = { accept: 'Accept Trade', decline: 'Decline',    cancel: 'Cancel Offer' };
-const OFFER_PROGRESS_LABEL  = { accept: 'Accepting…',   decline: 'Declining…', cancel: 'Cancelling…' };
-const OFFER_DONE_LABEL      = { accept: 'Accepted!',    decline: 'Declined',   cancel: 'Cancelled' };
-
-async function handleOfferAction(offerId, action, itemEl) {
-  const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!myAccount) return;
-  const acceptBtn  = itemEl.querySelector('[data-action="accept"]');
-  const declineBtn = itemEl.querySelector('[data-action="decline"]');
-  const cancelBtn  = itemEl.querySelector('[data-action="cancel"]');
-  const activeBtn  = itemEl.querySelector(`[data-action="${action}"]`);
-  [acceptBtn, declineBtn, cancelBtn].forEach(b => { if (b) b.disabled = true; });
-  activeBtn.textContent = OFFER_PROGRESS_LABEL[action];
-  try {
-    await WaxAuth.transact([{
-      account: 'atomicassets',
-      name: OFFER_CONTRACT_ACTION[action],
-      authorization: [{ actor: myAccount, permission: 'active' }],
-      data: { offer_id: offerId },
-    }]);
-    activeBtn.textContent = OFFER_DONE_LABEL[action];
-    activeBtn.classList.add('offer-btn--done');
-    setTimeout(() => {
-      itemEl.style.transition = 'opacity 0.3s'; itemEl.style.opacity = '0';
-      setTimeout(() => {
-        itemEl.remove();
-        checkEmpty();
-        // 'cancel' only ever fires on a Sent-tab card, 'accept'/'decline' only on Received.
-        const direction = action === 'cancel' ? 'sent' : 'received';
-        if (_counts[direction] != null) {
-          const n = Math.max(0, _counts[direction] - 1);
-          setTabCount(direction, n);
-          // Only Received affects the nav's pending-offers badge — a Sent
-          // cancel doesn't change how many incoming offers need my attention.
-          if (direction === 'received') _wallet.setOffersBadge(n);
-        }
-      }, 350);
-    }, 1200);
-  } catch (err) {
-    console.error(`${action} offer failed:`, err);
-    [acceptBtn, declineBtn, cancelBtn].forEach(b => { if (b) b.disabled = false; });
-    activeBtn.textContent = 'Failed — try again';
-    setTimeout(() => { activeBtn.textContent = OFFER_LABEL[action]; }, 2500);
-  }
-}
-
-function checkEmpty() {
-  const list = document.getElementById('offersList');
-  if (list && list.children.length === 0) {
-    list.style.display = 'none';
-    document.getElementById('emptyWrap').style.display = 'block';
-  }
 }
 
 function showState(state) {
@@ -729,88 +600,143 @@ function showState(state) {
 }
 
 /* ── Load offers ───────────────────────────────────────────────────────────── */
-const OFFERS_LIMIT = 100;
+// History can run to hundreds of resolved offers per wallet, so the list itself
+// is paginated 10 at a time (PAGE_SIZE) — separate from COUNT_LIMIT, which is
+// just how deep the lightweight tab-label count fetch looks (see setTabCount).
+const PAGE_SIZE   = 10;
+const COUNT_LIMIT = 100;
 const EMPTY_MSG = {
-  received: '<strong>No pending offers</strong>',
-  sent:     '<strong>No pending sent offers</strong>You have no outgoing trade offers awaiting a response. Head back to the <a href="trade-analyzer.html">Trade Analyzer</a>.',
+  received: '<strong>No trade history</strong>You have no resolved incoming trade offers yet. Head back to <a href="trade-offers.html">Trade Offers</a>.',
+  sent:     '<strong>No sent trade history</strong>You have no resolved outgoing trade offers yet. Head back to <a href="trade-offers.html">Trade Offers</a>.',
 };
 
-function offersUrl(direction, wallet) {
+function offersUrl(direction, wallet, limit, page) {
   const filterKey = direction === 'sent' ? 'sender' : 'recipient';
-  // state 0=PENDING, 1=INVALID (an asset in the offer moved/burned since it
-  // was made, so it can no longer be accepted) — both are still "open" and
-  // actionable (decline/cancel), unlike the terminal states on trade-history.html.
-  return `${WaxApi.aaBase()}/offers?${filterKey}=${encodeURIComponent(wallet)}&state=0,1&hide_contracts=true&limit=${OFFERS_LIMIT}&page=1`;
+  // state 2=UNKNOWN, 3=ACCEPTED, 4=DECLINED, 5=CANCELLED — the terminal
+  // (resolved) states; 0/1 (pending/invalid) live on trade-offers.html.
+  // Sorted by when each offer was last updated (i.e. resolved), not created.
+  return `${WaxApi.aaBase()}/offers?${filterKey}=${encodeURIComponent(wallet)}&state=2,3,4,5&hide_contracts=true&sort=updated&order=desc&limit=${limit}&page=${page}`;
 }
 
-// Lightweight count-only fetch for the tab NOT currently being viewed — the
-// active tab's count comes from loadOffers() itself, this just keeps the
-// inactive tab's button label populated without building any DOM for it.
-async function refreshTabCountOnly(direction) {
+// Lightweight count-only fetch, independent of the paginated list below —
+// used for both tabs' button labels regardless of which one is on-screen,
+// since actions never change these counts here (this page is read-only)
+// there's no need to ever re-fetch beyond wallet connect/switch.
+async function refreshTabCount(direction) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet || !API_BASE) return;
   try {
-    const res = await WaxApi.rawFetch(offersUrl(direction, wallet));
+    const res = await WaxApi.rawFetch(offersUrl(direction, wallet, COUNT_LIMIT, 1));
     if (!res.ok) return;
     const json = await res.json();
     setTabCount(direction, (json.data || []).length);
   } catch { /* leave whatever count (or lack of one) was already showing */ }
 }
+function refreshBothTabCounts() { refreshTabCount('received'); refreshTabCount('sent'); }
 
-let _loadGen = 0;
-async function loadOffers() {
+let _page          = 1;
+let _hasMore       = false;
+let _autoLoadArmed = false;
+let _loadGen       = 0;
+
+async function loadOffers(reset) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet || !API_BASE) { showState('auth'); return; }
 
-  const myGen = ++_loadGen;
+  const myGen = reset ? ++_loadGen : _loadGen;
   const direction = _tab; // snapshot — _tab can change again before this resolves
-  showState('loading');
+  if (reset) {
+    _page = 1; _hasMore = false; _autoLoadArmed = false;
+    document.getElementById('offersList').innerHTML = '';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    showState('loading');
+  }
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (!reset && loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading…'; }
+
   try {
-    const res = await WaxApi.rawFetch(offersUrl(direction, wallet));
+    const res = await WaxApi.rawFetch(offersUrl(direction, wallet, PAGE_SIZE, _page));
     if (!res.ok) throw new Error(`API ${res.status}`);
     const json = await res.json();
     const offers = json.data || [];
     if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
-    setTabCount(direction, offers.length);
 
-    const list = document.getElementById('offersList');
-    list.innerHTML = '';
+    _hasMore = offers.length === PAGE_SIZE;
 
-    if (offers.length === 0) {
+    if (reset && offers.length === 0) {
       document.getElementById('emptyWrap').innerHTML = EMPTY_MSG[direction];
       showState('empty');
       return;
     }
 
-    const allTemplateIds = offers.flatMap(o => [
-      ...(o.sender_assets    || []),
-      ...(o.recipient_assets || []),
-    ]).map(a => String(a.template?.template_id || '')).filter(Boolean);
-
-    const [tplMap, lowestMints] = await Promise.all([
-      fetchTemplateData(offers),
-      fetchLowestMints(wallet, allTemplateIds),
-    ]);
-    if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
-
-    offers.forEach(offer => {
-      const type = classifyOffer(offer);
-      list.appendChild(buildOfferItem(offer, tplMap, lowestMints, type, direction));
-    });
+    if (offers.length) {
+      const tplMap = await fetchTemplateData(offers);
+      if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
+      const list = document.getElementById('offersList');
+      offers.forEach(offer => {
+        const type = classifyOffer(offer);
+        list.appendChild(buildOfferItem(offer, tplMap, type, direction));
+      });
+    }
     showState('list');
+    document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
+    _page++;
   } catch (err) {
     if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
-    console.error('Failed to load offers:', err);
-    showState('empty');
-    document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load offers</strong>Could not reach the WAX API. Please try again later.';
+    console.error('Failed to load trade history:', err);
+    if (reset) {
+      showState('empty');
+      document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load trade history</strong>Could not reach the WAX API. Please try again later.';
+    }
+  } finally {
+    if (myGen === _loadGen && loadMoreBtn) { loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'Load more'; }
   }
+  // Catches the case where this batch alone didn't push the button out of the
+  // lookahead zone — chains straight into the next batch without waiting for
+  // a scroll event that may never come (e.g. the whole list already fits on
+  // screen). No-ops if not armed / no more pages / already loading again.
+  checkAutoLoad();
 }
 
-function otherTab(tab) { return tab === 'sent' ? 'received' : 'sent'; }
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadOffers(false);
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+// Scroll-driven, not IntersectionObserver-driven: each history batch is only
+// 10 short list rows, so it often doesn't grow the page enough to push the
+// button back OUT of the lookahead zone — an IntersectionObserver only fires
+// on enter/exit transitions, so once it settles "still intersecting" it never
+// notifies again and auto-load silently stalls until a resize/reflow jars it
+// loose. Checking on every scroll tick (and once right after each load
+// completes, for the case where a batch never needed a fresh scroll at all)
+// re-evaluates the current position instead of waiting for a transition.
+function isLoadMoreNearViewport() {
+  const wrap = document.getElementById('loadMoreWrap');
+  if (wrap.style.display === 'none') return false;
+  const rect = wrap.getBoundingClientRect();
+  const LOOKAHEAD = 600;
+  return rect.top < window.innerHeight + LOOKAHEAD && rect.bottom > -LOOKAHEAD;
+}
+
+let _autoLoadCheckQueued = false;
+function checkAutoLoad() {
+  if (_autoLoadCheckQueued) return;
+  _autoLoadCheckQueued = true;
+  requestAnimationFrame(() => {
+    _autoLoadCheckQueued = false;
+    if (!_autoLoadArmed || !_hasMore) return;
+    const btn = document.getElementById('loadMoreBtn');
+    if (btn.disabled) return; // a load is already in flight
+    if (isLoadMoreNearViewport()) loadOffers(false);
+  });
+}
+window.addEventListener('scroll', checkAutoLoad, { passive: true });
 
 function onWalletChange() {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (wallet && API_BASE) { loadOffers(); refreshTabCountOnly(otherTab(_tab)); }
+  if (wallet && API_BASE) { loadOffers(true); refreshBothTabCounts(); }
   else { showState('auth'); setTabCount('received', null); setTabCount('sent', null); }
 }
 
@@ -818,7 +744,7 @@ function onWalletChange() {
 async function init() {
   await loadAllData();
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (wallet) { loadOffers(); refreshTabCountOnly(otherTab(_tab)); }
+  if (wallet) { loadOffers(true); refreshBothTabCounts(); }
   else showState('auth');
 }
 

@@ -7,31 +7,49 @@
 
    Usage: WalletWidget.mount(navInnerEl, {
      authScript:   'shared/wax-auth.js' | '../shared/wax-auth.js',  // relative to the calling page
+     apiScript:    'shared/wax-api.js'  | '../shared/wax-api.js',   // relative to the calling page — lazy-loaded only if window.WaxApi isn't already present, defaults to 'shared/wax-api.js'
      exploreHref:  'explore.html' | '../explore.html',              // relative to the calling page — cart icon link, defaults to 'explore.html'
+     offersHref:   'trade-offers.html' | '../trade-offers.html',    // relative to the calling page — pending-offers icon link, defaults to 'trade-offers.html'
      menuItems:    [{ href, label }, ...],   // e.g. Inventory everywhere, Collector Profile on Funko only
      decorateName: (acc) => 'prefix ',       // optional — reads synchronously-available/cached data only (e.g. Funko's cached tier), never awaited — must not delay paint
      onAccount:    async (acc) => {},        // optional — fire-and-forget background refresh while acc is set (e.g. fetch+cache tier); triggers one re-render on completion, never blocks the current paint
      onLogout:     () => {},                 // optional — e.g. clear a cached tier
      onUpdate:     (acc|null) => {},          // optional — fires after every render, incl. logged-out state
    })
-   Returns { render, connect, logout, refreshBalance } so a page can trigger
-   login/logout programmatically (e.g. a "Connect Wallet" prompt on a buy
-   button), or force an immediate WAX-balance refresh right after a
-   purchase completes instead of waiting for the next poll tick. */
+   Returns { render, connect, logout, refreshBalance, refreshOffersCount, setOffersBadge } so a
+   page can trigger login/logout programmatically (e.g. a "Connect Wallet"
+   prompt on a buy button), force an immediate WAX-balance/offers-count
+   refresh right after a purchase completes instead of waiting for the next
+   poll tick, or (setOffersBadge) push an already-known fresh offers count
+   straight into the nav badge — e.g. trade-offers.html after an
+   accept/decline, which knows the new count without another network call. */
 (function () {
   function _waxShort(acc) {
     return acc.length > 13 ? acc.slice(0, 6) + '…' + acc.slice(-4) : acc;
   }
 
-  function _loadWaxAuth(authScript) {
-    if (window.WaxAuth) return Promise.resolve();
+  function _loadScriptOnce(src) {
     return new Promise((res, rej) => {
       const s = document.createElement('script');
-      s.src = authScript;
+      s.src = src;
       s.onload = res;
       s.onerror = rej;
       document.head.appendChild(s);
     });
+  }
+
+  function _loadWaxAuth(authScript) {
+    if (window.WaxAuth) return Promise.resolve();
+    return _loadScriptOnce(authScript);
+  }
+
+  // WaxApi isn't guaranteed to already be on the page (several pages that
+  // mount this widget — e.g. inventory.html, the funko/topps/twitch/wombat
+  // hubs — never load shared/wax-api.js themselves), so the pending-offers
+  // badge below loads it lazily, same as WaxAuth above.
+  function _loadWaxApi(apiScript) {
+    if (window.WaxApi) return Promise.resolve();
+    return _loadScriptOnce(apiScript);
   }
 
   window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
@@ -133,10 +151,41 @@
     } catch { return 0; }
   }
 
+  /* ── Pending trade offers badge (nav icon) ──
+     Unlike the cart, this IS account-specific and needs a network call
+     (AtomicAssets /offers), so it's cached per-account for flash-prevention
+     (same reasoning as the WAX balance above) and only shown while connected.
+     Counts "Received" offers only (state 0=PENDING + 1=INVALID, matching
+     trade-offers.html's Received tab exactly) — a Sent offer awaiting the
+     OTHER wallet's response isn't something this user needs to act on. */
+  const _OFFERS_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M21 7H9a4 4 0 0 0-4 4v1"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h12a4 4 0 0 0 4-4v-1"/></svg>`;
+  const _OFFERS_BADGE_CACHE_KEY = 'wax_offers_badge_cache_v1';
+
+  function _readCachedOffersCount(acc) {
+    try {
+      const obj = JSON.parse(localStorage.getItem(_OFFERS_BADGE_CACHE_KEY) || 'null');
+      return obj && obj.acc === acc ? obj.count : null;
+    } catch { return null; }
+  }
+  function _writeCachedOffersCount(acc, count) {
+    try { localStorage.setItem(_OFFERS_BADGE_CACHE_KEY, JSON.stringify({ acc, count })); } catch {}
+  }
+
+  async function _fetchPendingOffersCount(acc, apiScript) {
+    try {
+      await _loadWaxApi(apiScript);
+      const url = `${WaxApi.aaBase()}/offers?recipient=${encodeURIComponent(acc)}&state=0,1&hide_contracts=true&limit=100&page=1`;
+      const data = await WaxApi.apiFetch(url);
+      return (data || []).length;
+    } catch { return null; } // every node failed / script failed to load — leave whatever's showing
+  }
+
   function mount(navInner, opts) {
     opts = opts || {};
     const authScript   = opts.authScript || 'shared/wax-auth.js';
+    const apiScript    = opts.apiScript  || 'shared/wax-api.js';
     const exploreHref  = opts.exploreHref || 'explore.html';
+    const offersHref   = opts.offersHref  || 'trade-offers.html';
     const menuItems    = opts.menuItems || [];
     const decorateName = opts.decorateName || (() => '');
     const onAccount    = opts.onAccount || null;
@@ -148,6 +197,7 @@
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <a id="navCartBtn" class="nav-cart-btn" href="${exploreHref}" title="View cart">${_CART_ICON}<span id="navCartBadge" class="nav-cart-badge" style="display:none;"></span></a>
+      <a id="navOffersBtn" class="nav-cart-btn" href="${offersHref}" title="Pending trade offers" style="display:none;">${_OFFERS_ICON}<span id="navOffersBadge" class="nav-cart-badge" style="display:none;"></span></a>
       <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">${_WALLET_ICON}<span id="navWaxBtnLabel">Connect Wallet</span></button>
       <div id="navWaxConnected" class="nav-wax-connected-widget">
         <span class="nav-wax-dot"></span>
@@ -170,6 +220,8 @@
     const balanceEl   = wrap.querySelector('#navWaxBalance');
     const menuBalanceEl = wrap.querySelector('#navWaxMenuBalance');
     const cartBadge   = wrap.querySelector('#navCartBadge');
+    const offersBtn   = wrap.querySelector('#navOffersBtn');
+    const offersBadge = wrap.querySelector('#navOffersBadge');
 
     // Pill balance is hidden below 480px (no room next to the name) — this
     // mirrors the same HTML into the dropdown menu instead, so it's still
@@ -231,6 +283,48 @@
       if (acc) _refreshBalance(acc, true);
     }
 
+    let _lastOffersAcc      = undefined; // avoid re-fetching the count on every re-render for the same account
+    let _haveLiveOffersCount = false;    // true once a real (non-cached) fetch has painted this page load
+
+    function _paintOffersBadge(n) {
+      offersBadge.textContent   = n > 99 ? '99+' : String(n);
+      offersBadge.style.display = n > 0 ? '' : 'none';
+    }
+
+    function _paintCachedOffersCount(acc) {
+      if (_haveLiveOffersCount) return;
+      const cached = _readCachedOffersCount(acc);
+      if (cached != null) _paintOffersBadge(cached);
+    }
+
+    async function _refreshOffersCount(acc, force) {
+      if (!force && acc === _lastOffersAcc) return;
+      _lastOffersAcc = acc;
+      const n = await _fetchPendingOffersCount(acc, apiScript);
+      if (window.getWaxAccount() !== acc) return; // stale — account changed while this was in flight
+      if (n === null) return; // fetch failed — leave whatever's showing (cached or blank) rather than flicker it away
+      _paintOffersBadge(n);
+      _haveLiveOffersCount = true;
+      _writeCachedOffersCount(acc, n);
+    }
+
+    function refreshOffersCount() {
+      const acc = window.getWaxAccount();
+      if (acc) _refreshOffersCount(acc, true);
+    }
+
+    // Lets a page that already knows the fresh count (e.g. trade-offers.html
+    // right after an accept/decline) update the badge instantly, without
+    // waiting for the next poll tick or paying for a redundant network call —
+    // the caller already paid for that fetch itself.
+    function setOffersBadge(n) {
+      const acc = window.getWaxAccount();
+      if (!acc) return;
+      _paintOffersBadge(n);
+      _haveLiveOffersCount = true;
+      _writeCachedOffersCount(acc, n);
+    }
+
     function render() {
       const acc = window.getWaxAccount();
       if (acc) {
@@ -251,10 +345,13 @@
         }
         _paintCachedBalance(acc);
         _refreshBalance(acc, false).catch(() => {});
+        offersBtn.style.display = '';
+        _paintCachedOffersCount(acc);
+        _refreshOffersCount(acc, false).catch(() => {});
         if (!_balancePoll) {
           _balancePoll = setInterval(() => {
             const cur = window.getWaxAccount();
-            if (cur) _refreshBalance(cur, true);
+            if (cur) { _refreshBalance(cur, true); _refreshOffersCount(cur, true); }
           }, _BALANCE_POLL_MS);
         }
       } else {
@@ -267,6 +364,10 @@
         _lastBalanceAcc = undefined;
         _haveLiveBalance = false;
         _paintBalanceHtml('');
+        offersBtn.style.display = 'none';
+        _lastOffersAcc = undefined;
+        _haveLiveOffersCount = false;
+        offersBadge.style.display = 'none';
         clearInterval(_balancePoll);
         _balancePoll = null;
       }
@@ -327,7 +428,7 @@
       render();
     })();
 
-    return { render, connect, logout, refreshBalance };
+    return { render, connect, logout, refreshBalance, refreshOffersCount, setOffersBadge };
   }
 
   window.WalletWidget = { mount };

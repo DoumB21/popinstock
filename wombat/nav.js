@@ -125,11 +125,14 @@ async function _initWallet() {
   await _loadWalletWidget();
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
+    apiScript: '../shared/wax-api.js',
     exploreHref: '../explore.html',
+    offersHref: '../trade-offers.html',
     menuItems: [
       { href: '../inventory.html', label: 'Inventory', icon: '📦' },
       { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
       { href: '../inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+      { href: '../trade-offers.html', label: 'Trade Offers', icon: '🔄' },
     ],
   });
 }

@@ -168,12 +168,15 @@ async function _initWallet() {
   // re-render instead of waiting for the next wax-auth-change event.
   window._walletWidget = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
+    apiScript: '../shared/wax-api.js',
     exploreHref: '../explore.html',
+    offersHref: '../trade-offers.html',
     menuItems: [
       { href: 'profile.html', label: 'Collector Profile', icon: '👤' },
       { href: '../inventory.html', label: 'Inventory', icon: '📦' },
       { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
       { href: '../inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+      { href: '../trade-offers.html', label: 'Trade Offers', icon: '🔄' },
     ],
     // Reads the cached tier synchronously so the icon appears instantly —
     // onAccount below refreshes it in the background, never blocking paint.
