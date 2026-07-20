@@ -74,6 +74,25 @@
     .empty-state a { color: var(--accent-light); text-decoration: underline; }
     .empty-state a:hover { opacity: 0.8; }
 
+    /* ── Asset sort toggle (per-offer, sits under the Trade Scorecard) ── */
+    .sort-controls {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.7rem 1.25rem; border-bottom: 1px solid var(--border);
+    }
+    .sort-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+    .sort-btns  { display: flex; gap: 0.4rem; }
+    .sort-btn {
+      font-size: 0.78rem; font-weight: 700; font-family: inherit;
+      padding: 0.35rem 0.9rem; border-radius: 999px;
+      border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .sort-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+    .sort-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+
     .offers-list { display: flex; flex-direction: column; gap: 0.7rem; }
 
     /* ── Accordion item ── */
@@ -113,6 +132,73 @@
     .offer-age     { flex-shrink: 0; width: 5rem; font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; text-align: right; }
     .offer-body    { display: none; border-top: 1px solid var(--border); }
     .offer-item.open .offer-body { display: block; }
+
+    /* ── Asset score summary ──────────────────────────────────────────────
+       Same format as trade-analyzer.html's Trade Scorecard: Items, then
+       3 blocks (Mint Distribution / Supply / Floor Value). Mint# is never
+       summed/averaged — it's highly nonlinear (a #1 or single-digit mint is
+       worth far more than the number implies), so a sum/avg would let a
+       pile of "okay" mints falsely outweigh (or hide) one truly special
+       piece. Supply/Floor value get both a fair aggregate (avg/sum) AND a
+       Lowest/Highest row, since an outlier item can otherwise hide inside
+       an aggregate pulled toward the rest of the pile. ── */
+    .score-summary {
+      padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .score-summary-header {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+    }
+    .score-summary-title {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-secondary);
+    }
+    .score-chevron {
+      width: 14px; height: 14px; color: var(--text-secondary);
+      transition: transform 0.15s; flex-shrink: 0;
+    }
+    .score-chevron--open { transform: rotate(90deg); }
+    /* One shared grid for the whole block (column header + every row +
+       block titles) — if each row were its own separate grid, column 1's
+       content-driven width would be recalculated per row (a short label vs
+       a long one), shifting where columns 2/3 start and breaking vertical
+       alignment between rows/blocks. One grid = one set of column tracks,
+       so "You receive"/"You give" line up top-to-bottom everywhere.
+       inline-grid + max-content keeps the whole thing flush left instead of
+       stretching to the card's full width. */
+    .score-grid {
+      display: inline-grid; grid-template-columns: repeat(3, max-content);
+      column-gap: 2rem; row-gap: 0.35rem; align-items: start;
+      margin-top: 0.55rem;
+    }
+    .score-col-header { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-align: right; }
+    .score-row-label  { font-size: 0.82rem; color: var(--text-secondary); text-align: left; align-self: center; }
+    .score-val {
+      font-size: 0.88rem; font-weight: 700; color: var(--text-primary);
+      text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .score-val.score-win { color: #4ade80; }
+    /* Explicit class (not :first-of-type/nth-child) — in a shared grid with
+       full-width block titles/captions interspersed between rows, structural
+       selectors can't reliably tell "You receive"'s column from "You give"'s. */
+    .score-col-receive { background: rgba(74,222,128,0.08); border-radius: 5px; padding: 0.08rem 0.4rem; }
+    .score-null    { color: var(--text-secondary); font-weight: 400; }
+    .score-partial { font-size: 0.7rem; font-weight: 400; color: var(--text-secondary); margin-left: 0.3rem; }
+    .score-usd     { font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-top: 1px; }
+    .score-caption {
+      grid-column: 1 / -1;
+      font-size: 0.72rem; color: var(--text-secondary); text-align: right;
+      margin-top: -0.1rem;
+    }
+    .score-adv-you  { color: #4ade80; font-weight: 700; }
+    .score-adv-them { color: #fb923c; font-weight: 700; }
+    .score-block-title {
+      grid-column: 1 / -1;
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-secondary);
+      margin-top: 0.35rem; padding-top: 0.55rem; border-top: 1px solid var(--border);
+    }
 
     /* ── Two-column sides ── */
     .offer-sides { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.5rem; border-bottom: 1px solid var(--border); }
@@ -413,21 +499,65 @@ async function fetchTemplateData(offers) {
       .map(a => String(a.template?.template_id || '')).filter(Boolean)
   )];
 
-  const [funkoRows, toppsRows, funkoDropNames] = await Promise.all([
+  const [funkoRows, toppsRows, funkoDropNames, floorMap] = await Promise.all([
     fetchTemplateRows('funko', funkoTids),
     fetchTemplateRows('topps', toppsTids),
     fetchFunkoDropNames(allAssets),
+    fetchFloorPrices(allAssets),
   ]);
 
   const tplMap = new Map();
   for (const r of funkoRows) {
     const tid = String(r.template_id);
-    tplMap.set(tid, { circ: r.in_circulation ?? null, issued: r.issued_supply ?? null, cardId: r.cardid ?? null, dropDisplay: funkoDropNames.get(tid) ?? null });
+    tplMap.set(tid, { circ: r.in_circulation ?? null, issued: r.issued_supply ?? null, cardId: r.cardid ?? null, dropDisplay: funkoDropNames.get(tid) ?? null, floor: floorMap.get(tid) ?? null });
   }
   for (const r of toppsRows) {
-    tplMap.set(String(r.template_id), { circ: r.in_circulation ?? null, issued: r.issued_supply ?? null, cardId: r.cardid ?? null, dropDisplay: null });
+    const tid = String(r.template_id);
+    tplMap.set(tid, { circ: r.in_circulation ?? null, issued: r.issued_supply ?? null, cardId: r.cardid ?? null, dropDisplay: null, floor: floorMap.get(tid) ?? null });
+  }
+  // Unknown-project assets never get a curated templates-catalog row, but
+  // they can still have a live floor price — give them a floor-only entry.
+  for (const [tid, price] of floorMap) {
+    if (!tplMap.has(tid)) tplMap.set(tid, { circ: null, issued: null, cardId: null, dropDisplay: null, floor: price });
   }
   return tplMap;
+}
+
+/* ── Floor prices (live, AtomicMarket) ────────────────────────────────────────
+   Deliberately not sourced from funko_market_prices — that table can lag —
+   so every project (Funko included) gets its floor from the lowest active
+   AtomicMarket listing, fetched at load time. Calls are batched (not all in
+   parallel) because atomicmarket is only reliably hosted on one node and
+   doesn't rotate — same conservative pattern as inventory-bulk.html's
+   fetchFloorPrice/loadFloorPricesForCards. */
+async function fetchChainFloorPrice(templateId, collection) {
+  try {
+    const url = `${WaxApi.marketBase()}/sales?state=1&template_id=${encodeURIComponent(templateId)}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&sort=price&order=asc&limit=1`;
+    const data = await WaxApi.apiFetch(url);
+    if (!data || !data.length) return null;
+    const sale      = data[0];
+    const precision = sale.price?.token_precision ?? sale.token?.token_precision ?? 8;
+    const rawPrice  = sale.price?.amount ?? sale.listing_price;
+    return rawPrice != null ? Number(rawPrice) / Math.pow(10, precision) : null;
+  } catch { return null; }
+}
+
+async function fetchFloorPrices(allAssets) {
+  const todo = new Map(); // template_id -> collection_name
+  for (const a of allAssets) {
+    const tid = String(a.template?.template_id || '');
+    const col = a.collection?.collection_name || '';
+    if (tid && !todo.has(tid)) todo.set(tid, col);
+  }
+  const entries = [...todo.entries()];
+  const out = new Map();
+  const BATCH = 3;
+  for (let i = 0; i < entries.length; i += BATCH) {
+    const chunk  = entries.slice(i, i + BATCH);
+    const prices = await Promise.all(chunk.map(([tid, col]) => fetchChainFloorPrice(tid, col)));
+    chunk.forEach(([tid], j) => out.set(tid, prices[j]));
+  }
+  return out;
 }
 
 /* ── Sorting ───────────────────────────────────────────────────────────────── */
@@ -448,7 +578,20 @@ function rarityRank(r, project, schemaKey) {
 // can freely mix Funko/Topps/generic assets on one side now that unknown
 // collections render instead of being blocked, so a single blanket project
 // no longer holds for the whole side.
-function sortAssets(assets) {
+// 'rarity' (default) — curated rarity order, then curated drop/set order as a
+// tiebreaker. 'mint' — ascending trade mint #, so the most desirable (lowest)
+// mints float to the top of each side for a quick side-by-side comparison.
+// Each offer has its own independent mode (see _sortModeByOffer) — the
+// per-offer sort-btn controls under that offer's Trade Scorecard only affect
+// that one card.
+function sortAssets(assets, mode) {
+  if (mode === 'mint') {
+    return [...assets].sort((a, b) => {
+      const ma = a.template_mint != null ? Number(a.template_mint) : Infinity;
+      const mb = b.template_mint != null ? Number(b.template_mint) : Infinity;
+      return ma - mb;
+    });
+  }
   return [...assets].sort((a, b) => {
     const pa = assetProject(a), pb = assetProject(b);
     const schA = (a.schema?.schema_name || '').replace('.drop', '');
@@ -508,15 +651,219 @@ async function fetchLowestMints(wallet, templateIds) {
   return new Map(entries.filter(Boolean));
 }
 
+/* ── Asset score summary ──────────────────────────────────────────────────
+   Same format as trade-analyzer.html's Trade Scorecard (see project memory
+   project_trade_scorecard.md for the full rationale). Key points:
+   - Mint# is never summed/averaged — collector value on mint# is highly
+     nonlinear (a #1 or single-digit mint is worth far more than the number
+     implies), so instead: Lowest Mint # (best single piece) + a bucket
+     distribution (1–9/10–25/26–99/100+, plain counts, no forced winner).
+   - Supply gets an average (fair, roughly linear, pile-size-normalized)
+     PLUS a Lowest Supply row, since one rare item can hide inside an
+     average pulled toward more-common filler items.
+   - Floor value gets a sum (genuinely additive $ value) PLUS a Highest
+     Value row, so one expensive item can't hide among cheap ones.
+   - Each side is the pile that side is GIVING away (what you receive is the
+     counterparty's given pile, and vice versa) — so the winner of a row is
+     whoever is giving up the less desirable pile: for Mint#/Supply a HIGHER
+     value means more common/less prized (giving more of that is the win),
+     for Floor value a LOWER value means less $ given away (that's the win)
+     — opposite directions, not a mistake. ────────────────────────────── */
+function computeAssetScore(assets, tplMap) {
+  let mintMin = null, mintN = 0;
+  const buckets = { b1_9: 0, b10_25: 0, b26_99: 0, b100p: 0 };
+  let supplySum = 0, supplyMin = null, supplyN = 0;
+  let floorSum = 0, floorMax = null, floorN = 0;
+
+  for (const a of assets || []) {
+    const tid  = String(a.template?.template_id || '');
+    const tpl  = tplMap?.get(tid) ?? {};
+    const mint = a.template_mint != null ? Number(a.template_mint) : null;
+    if (mint != null) {
+      mintN++;
+      if (mintMin == null || mint < mintMin) mintMin = mint;
+      if (mint <= 9)        buckets.b1_9++;
+      else if (mint <= 25)  buckets.b10_25++;
+      else if (mint <= 99)  buckets.b26_99++;
+      else                  buckets.b100p++;
+    }
+
+    const circ    = tpl.circ ?? null;
+    const issued  = tpl.issued ?? (a.template?.issued_supply != null ? Number(a.template.issued_supply) : null);
+    const supply  = circ ?? issued;
+    if (supply != null) {
+      supplySum += Number(supply); supplyN++;
+      if (supplyMin == null || supply < supplyMin) supplyMin = Number(supply);
+    }
+
+    const floor = tpl.floor ?? null;
+    if (floor != null) {
+      floorSum += Number(floor); floorN++;
+      if (floorMax == null || floor > floorMax) floorMax = Number(floor);
+    }
+  }
+
+  return {
+    itemCount: (assets || []).length,
+    mintMin, mintN,
+    buckets,
+    supplyAvg: supplyN ? supplySum / supplyN : null, supplyMin, supplyN,
+    floorSum, floorMax, floorN,
+  };
+}
+
+function fmtScoreInt(v)     { return Math.round(v).toLocaleString(); }
+function fmtScoreMint(v)    { return '#' + Math.round(v).toLocaleString(); }
+function fmtScoreWax(v)     { return (v < 1 ? v.toFixed(4) : v.toFixed(2)) + ' WAX'; }
+function fmtScoreDiffInt(v) { return Math.round(v).toLocaleString(); }
+function fmtScoreDiffWax(v) { return (Math.abs(v) < 1 ? v.toFixed(4) : v.toFixed(2)) + ' WAX'; }
+
+function fmtUsd(v) { return '$' + v.toFixed(2); }
+function fmtUsdSigned(v) {
+  const sign = v > 0 ? '+' : (v < 0 ? '-' : '');
+  return sign + '$' + Math.abs(v).toFixed(2);
+}
+
+// Best-effort live spot rate, fetched once at page load (fire-and-forget, see
+// init()) — same CoinGecko source funko/market-overview.html uses. If it
+// hasn't resolved (or failed) by the time a card renders, the USD subtext is
+// just omitted rather than blocking the WAX values on it.
+let _waxUsdRate = null;
+async function fetchWaxUsdRate() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    if (!r.ok) return;
+    const j = await r.json();
+    _waxUsdRate = j?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+function scoreCell(val, n, total, fmt, usd) {
+  if (n === 0) return '<span class="score-null">—</span>';
+  const partial = n < total ? `<span class="score-partial">(${n}/${total})</span>` : '';
+  const usdHtml = usd != null ? `<div class="score-usd">≈ ${fmtUsd(usd)}</div>` : '';
+  return `<div class="score-val-main">${fmt(val)}${partial}</div>${usdHtml}`;
+}
+
+// A single 3-column stat row: label | You receive | You give. These 3
+// elements are placed directly into the shared .score-grid (not wrapped in
+// their own row container) so every row shares the same column tracks —
+// see the .score-grid comment in the CSS for why that matters.
+//
+// `winner` drives the CAPTION's "leads" text (who benefits strategically —
+// see scoreCompareRow), but the green highlight here intentionally marks
+// the OPPOSITE cell. Reason: winner='rec' means the counterparty's given
+// pile scored favorably *for them to give away* — under the give-less-value-
+// wins model that means it's numerically the LESS impressive raw stat (e.g.
+// a higher/more common mint#). Highlighting that cell green, under a "You
+// receive" label, reads as backwards. Green here instead marks whichever
+// raw number is the objectively better collectible stat (lower mint#,
+// lower supply, higher $) — which is always the cell winner='rec'/'give'
+// did NOT flag, since "better to give away" and "better stat" are opposites
+// by construction.
+function scoreRow(label, recHtml, giveHtml, winner) {
+  return `
+      <div class="score-row-label">${label}</div>
+      <div class="score-val score-col-receive${winner === 'give' ? ' score-win' : ''}">${recHtml}</div>
+      <div class="score-val${winner === 'rec' ? ' score-win' : ''}">${giveHtml}</div>`;
+}
+
+function scoreBlockTitle(title) {
+  return `<div class="score-block-title">${title}</div>`;
+}
+
+function scoreCompareRow(label, recVal, recN, recTotal, giveVal, giveN, giveTotal, fmt, diffFmt, higherIsBetter, counterparty, usdEligible) {
+  let winner = null;
+  if (recN && giveN && recVal !== giveVal) {
+    winner = (higherIsBetter ? recVal > giveVal : recVal < giveVal) ? 'rec' : 'give';
+  }
+
+  const isWax  = usdEligible && _waxUsdRate != null;
+  const recUsd  = isWax && recN  ? recVal  * _waxUsdRate : null;
+  const giveUsd = isWax && giveN ? giveVal * _waxUsdRate : null;
+
+  const rowHtml = scoreRow(label, scoreCell(recVal, recN, recTotal, fmt, recUsd), scoreCell(giveVal, giveN, giveTotal, fmt, giveUsd), winner);
+
+  // Caption only renders once both sides actually have a comparable value —
+  // no need to clutter a still-loading row with a dash where the numbers
+  // themselves already show "—".
+  if (!recN || !giveN) return rowHtml;
+  const diff    = recVal - giveVal;
+  const sign    = diff > 0 ? '+' : '';
+  const diffUsd = isWax ? ` (≈ ${fmtUsdSigned(diff * _waxUsdRate)})` : '';
+  // "rec" (You receive) is what the COUNTERPARTY is giving away, and "give"
+  // (You give) is what YOU'RE giving away — so a "rec"-side win (their given
+  // pile scores as the favorable-to-its-giver value) means THEY benefit, and
+  // a "give"-side win means YOU do. This is the opposite of a direct
+  // rec→You/give→them mapping, which would attribute your own advantage to
+  // your counterparty. counterparty arrives already HTML-escaped (see
+  // buildOfferItem) — don't escape it again here.
+  const captionHtml = winner
+    ? `${sign}${diffFmt(diff)}${diffUsd} · <span class="${winner === 'give' ? 'score-adv-you' : 'score-adv-them'}">${winner === 'give' ? 'You' : counterparty} leads</span>`
+    : 'Tied';
+  return rowHtml + `<div class="score-caption">${captionHtml}</div>`;
+}
+
+// Per-offer collapse state, keyed by offer_id — mirrors _sortModeByOffer,
+// so collapsing one card's scorecard doesn't affect any other open offer.
+// Click wiring lives in buildOfferItem (addEventListener over the offerId
+// closure, not an inline onclick="...(${offerId})" string) — offer_id can
+// be a number, and string-interpolating it into an attribute then reading
+// it back would look it up under a different Map key type than it was set
+// with, same reasoning as _sortModeByOffer's wiring.
+const _scoreCollapsedByOffer = new Map();
+
+function scoreSummaryHeaderHtml(collapsed) {
+  return `<div class="score-summary-header">
+    <span class="score-summary-title">Trade Scorecard</span>
+    <svg class="score-chevron${collapsed ? '' : ' score-chevron--open'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </div>`;
+}
+
+function buildScoreSummaryHtml(receiveAssets, giveAssets, tplMap, counterparty, offerId) {
+  const collapsed = !!_scoreCollapsedByOffer.get(offerId);
+  if (collapsed) {
+    return `<div class="score-summary">${scoreSummaryHeaderHtml(true)}</div>`;
+  }
+
+  const rec  = computeAssetScore(receiveAssets, tplMap);
+  const give = computeAssetScore(giveAssets, tplMap);
+  return `<div class="score-summary">
+    ${scoreSummaryHeaderHtml(false)}
+    <div class="score-grid">
+      <div></div>
+      <div class="score-col-header">You receive</div>
+      <div class="score-col-header">You give</div>
+
+      ${scoreRow('Items', rec.itemCount, give.itemCount, null)}
+
+      ${scoreBlockTitle('Mint Distribution')}
+      ${scoreCompareRow('Lowest Mint #', rec.mintMin, rec.mintN, rec.itemCount, give.mintMin, give.mintN, give.itemCount, fmtScoreMint, fmtScoreDiffInt, true, counterparty, false)}
+      ${scoreRow('1–9',   rec.buckets.b1_9,   give.buckets.b1_9,   null)}
+      ${scoreRow('10–25', rec.buckets.b10_25, give.buckets.b10_25, null)}
+      ${scoreRow('26–99', rec.buckets.b26_99, give.buckets.b26_99, null)}
+      ${scoreRow('100+',  rec.buckets.b100p,  give.buckets.b100p,  null)}
+
+      ${scoreBlockTitle('Supply')}
+      ${scoreCompareRow('Avg Supply',    rec.supplyAvg, rec.supplyN, rec.itemCount, give.supplyAvg, give.supplyN, give.itemCount, fmtScoreInt, fmtScoreDiffInt, true, counterparty, false)}
+      ${scoreCompareRow('Lowest Supply', rec.supplyMin, rec.supplyN, rec.itemCount, give.supplyMin, give.supplyN, give.itemCount, fmtScoreInt, fmtScoreDiffInt, true, counterparty, false)}
+
+      ${scoreBlockTitle('Floor Value')}
+      ${scoreCompareRow('Σ Floor value', rec.floorSum, rec.floorN, rec.itemCount, give.floorSum, give.floorN, give.itemCount, fmtScoreWax, fmtScoreDiffWax, false, counterparty, true)}
+      ${scoreCompareRow('Highest Value', rec.floorMax, rec.floorN, rec.itemCount, give.floorMax, give.floorN, give.itemCount, fmtScoreWax, fmtScoreDiffWax, false, counterparty, true)}
+    </div>
+  </div>`;
+}
+
 /* ── Asset card rendering ──────────────────────────────────────────────────── */
 // `side` is my perspective on this batch of assets ('receiving' or 'giving'),
 // not the raw sender_assets/recipient_assets field it came from — those two
 // only line up with my perspective on the Received tab; on Sent they're
 // swapped (see buildOfferItem), so the warn logic below has to key off
 // perspective, not the JSON field name.
-function buildAssetCards(assets, tplMap, lowestMints, side) {
+function buildAssetCards(assets, tplMap, lowestMints, side, sortMode) {
   if (!assets || assets.length === 0) return '<div class="asset-empty">No assets</div>';
-  return sortAssets(assets).map(asset => {
+  return sortAssets(assets, sortMode).map(asset => {
     const project = assetProject(asset);
     const data    = asset.template?.immutable_data ?? {};
     const rarity  = data.rarity || '';
@@ -607,18 +954,33 @@ function buildOfferItem(offer, tplMap, lowestMints, type, direction) {
   const invalidBannerHtml = isInvalid
     ? `<div class="offer-invalid-banner">⚠ No longer valid — one of the offered assets has since moved or been burned. ${isSent ? 'You can still cancel it.' : 'You can still decline it.'}</div>`
     : '';
+  const scoreSummaryHtml = buildScoreSummaryHtml(receiveAssets, giveAssets, tplMap, counterparty, offerId);
+
+  // Sort mode is per-offer (see _sortModeByOffer) — the toggle below only
+  // ever affects this one card's asset lists, not every open offer.
+  const sortMode = _sortModeByOffer.get(offerId) || 'rarity';
+  const sortControlsHtml = `<div class="sort-controls">
+    <span class="sort-label">Sort assets by</span>
+    <div class="sort-btns">
+      <button type="button" class="sort-btn${sortMode === 'rarity' ? ' active' : ''}" data-sort="rarity">Rarity / Set</button>
+      <button type="button" class="sort-btn${sortMode === 'mint'   ? ' active' : ''}" data-sort="mint">Mint #</button>
+    </div>
+  </div>`;
+
   const bodyHtml = `
       ${invalidBannerHtml}
+      ${scoreSummaryHtml}
+      ${sortControlsHtml}
       <div class="offer-sides">
         <div class="offer-side">
           <div class="offer-side-label">You receive (${receiveN})</div>
           ${assetHeaderHtml}
-          <div class="asset-cards">${buildAssetCards(receiveAssets, tplMap, lowestMints, 'receiving')}</div>
+          <div class="asset-cards">${buildAssetCards(receiveAssets, tplMap, lowestMints, 'receiving', sortMode)}</div>
         </div>
         <div class="offer-side">
           <div class="offer-side-label label-give">You give (${giveN})</div>
           ${assetHeaderHtml}
-          <div class="asset-cards">${buildAssetCards(giveAssets, tplMap, lowestMints, 'giving')}</div>
+          <div class="asset-cards">${buildAssetCards(giveAssets, tplMap, lowestMints, 'giving', sortMode)}</div>
         </div>
       </div>
       <div class="offer-actions">
@@ -658,7 +1020,42 @@ function buildOfferItem(offer, tplMap, lowestMints, type, direction) {
     item.querySelector('[data-action="decline"]').addEventListener('click', e => { e.stopPropagation(); handleOfferAction(offerId, 'decline', item); });
   }
 
+  item.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation(); // don't toggle the accordion open/closed
+      const mode = btn.dataset.sort;
+      if (_sortModeByOffer.get(offerId) === mode) return;
+      _sortModeByOffer.set(offerId, mode);
+      rebuildOfferItem(offerId);
+    });
+  });
+
+  item.querySelector('.score-summary-header').addEventListener('click', e => {
+    e.stopPropagation(); // don't toggle the accordion open/closed
+    _scoreCollapsedByOffer.set(offerId, !_scoreCollapsedByOffer.get(offerId));
+    rebuildOfferItem(offerId);
+  });
+
   return item;
+}
+
+// Per-offer sort mode, keyed by offer_id — each card's toggle only affects
+// that one card (see buildOfferItem/rebuildOfferItem).
+const _sortModeByOffer = new Map();
+
+// Rebuilds a single offer card in place from the cached last-fetched data
+// (see _lastOffers), preserving whether it was expanded. Used by the
+// per-offer sort toggle so switching sort mode doesn't require a refetch.
+function rebuildOfferItem(offerId) {
+  if (!_lastOffers) return;
+  const offer = _lastOffers.find(o => String(o.offer_id) === String(offerId));
+  const oldEl = document.querySelector(`.offer-item[data-offer-id="${offerId}"]`);
+  if (!offer || !oldEl) return;
+  const wasOpen = oldEl.classList.contains('open');
+  const type = classifyOffer(offer);
+  const newEl = buildOfferItem(offer, _lastTplMap, _lastLowestMints, type, _lastDirection);
+  if (wasOpen) newEl.classList.add('open');
+  oldEl.replaceWith(newEl);
 }
 
 /* ── Actions ───────────────────────────────────────────────────────────────── */
@@ -694,6 +1091,7 @@ async function handleOfferAction(offerId, action, itemEl) {
       setTimeout(() => {
         itemEl.remove();
         checkEmpty();
+        if (_lastOffers) _lastOffers = _lastOffers.filter(o => o.offer_id !== offerId);
         // 'cancel' only ever fires on a Sent-tab card, 'accept'/'decline' only on Received.
         const direction = action === 'cancel' ? 'sent' : 'received';
         if (_counts[direction] != null) {
@@ -757,6 +1155,24 @@ async function refreshTabCountOnly(direction) {
   } catch { /* leave whatever count (or lack of one) was already showing */ }
 }
 
+// Cache of the most recently fetched offer list — lets the sort-mode toggle
+// (and anything else purely cosmetic) re-render instantly from already-fetched
+// data instead of re-running the offer/template/floor-price fetches.
+let _lastOffers = null, _lastTplMap = null, _lastLowestMints = null, _lastDirection = null;
+
+function renderOfferList() {
+  if (!_lastOffers) return;
+  const list = document.getElementById('offersList');
+  const openIds = new Set([...list.querySelectorAll('.offer-item.open')].map(el => el.dataset.offerId));
+  list.innerHTML = '';
+  _lastOffers.forEach(offer => {
+    const type = classifyOffer(offer);
+    const item = buildOfferItem(offer, _lastTplMap, _lastLowestMints, type, _lastDirection);
+    if (openIds.has(String(offer.offer_id))) item.classList.add('open');
+    list.appendChild(item);
+  });
+}
+
 let _loadGen = 0;
 async function loadOffers() {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
@@ -773,10 +1189,9 @@ async function loadOffers() {
     if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
     setTabCount(direction, offers.length);
 
-    const list = document.getElementById('offersList');
-    list.innerHTML = '';
-
     if (offers.length === 0) {
+      _lastOffers = null;
+      document.getElementById('offersList').innerHTML = '';
       document.getElementById('emptyWrap').innerHTML = EMPTY_MSG[direction];
       showState('empty');
       return;
@@ -793,10 +1208,8 @@ async function loadOffers() {
     ]);
     if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
 
-    offers.forEach(offer => {
-      const type = classifyOffer(offer);
-      list.appendChild(buildOfferItem(offer, tplMap, lowestMints, type, direction));
-    });
+    _lastOffers = offers; _lastTplMap = tplMap; _lastLowestMints = lowestMints; _lastDirection = direction;
+    renderOfferList();
     showState('list');
   } catch (err) {
     if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
@@ -816,6 +1229,7 @@ function onWalletChange() {
 
 /* ── Init ──────────────────────────────────────────────────────────────────── */
 async function init() {
+  fetchWaxUsdRate(); // fire-and-forget — nice-to-have, shouldn't delay first paint
   await loadAllData();
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (wallet) { loadOffers(); refreshTabCountOnly(otherTab(_tab)); }
