@@ -750,7 +750,7 @@ function scoreCell(val, n, total, fmt, usd) {
 // their own row container) so every row shares the same column tracks —
 // see the .score-grid comment in the CSS for why that matters.
 //
-// `winner` drives the CAPTION's "leads" text (who benefits strategically —
+// `winner` drives the CAPTION's "Advantage:" text (who benefits strategically —
 // see scoreCompareRow), but the green highlight here intentionally marks
 // the OPPOSITE cell. Reason: winner='rec' means the counterparty's given
 // pile scored favorably *for them to give away* — under the give-less-value-
@@ -799,7 +799,7 @@ function scoreCompareRow(label, recVal, recN, recTotal, giveVal, giveN, giveTota
   // your counterparty. counterparty arrives already HTML-escaped (see
   // buildOfferItem) — don't escape it again here.
   const captionHtml = winner
-    ? `${sign}${diffFmt(diff)}${diffUsd} · <span class="${winner === 'give' ? 'score-adv-you' : 'score-adv-them'}">${winner === 'give' ? 'You' : counterparty} leads</span>`
+    ? `${sign}${diffFmt(diff)}${diffUsd} · Advantage: <span class="${winner === 'give' ? 'score-adv-you' : 'score-adv-them'}">${winner === 'give' ? 'You' : counterparty}</span>`
     : 'Tied';
   return rowHtml + `<div class="score-caption">${captionHtml}</div>`;
 }
