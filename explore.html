@@ -90,6 +90,18 @@
     .clear-filters-btn { width: 100%; }
     .filter-section.hidden { display: none; }
 
+    .ex-checkbox-label {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.82rem; color: var(--text-primary);
+      cursor: pointer; user-select: none;
+    }
+    .ex-checkbox-label input[type="checkbox"] {
+      accent-color: var(--accent-light); width: 15px; height: 15px;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .ex-checkbox-label:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+    .ex-checkbox-label input:disabled { cursor: not-allowed; }
+
     /* ── Main results column ── */
     .explore-main { flex: 1; min-width: 0; }
     .explore-toolbar {
@@ -388,6 +400,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/supabase-config.js"></script>
   <script src="shared/moved.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
 </head>
@@ -498,6 +511,13 @@
         </button>
         <div class="cb-panel" id="bundlePanel"></div>
       </div>
+    </div>
+
+    <div class="filter-section hidden" id="secHideOwned">
+      <label class="ex-checkbox-label" id="hideOwnedLabel" for="hideOwnedChk">
+        <input type="checkbox" id="hideOwnedChk" />
+        <span>Hide owned assets</span>
+      </label>
     </div>
 
     <div class="filter-section hidden" id="secClear">
@@ -621,6 +641,12 @@ let _bundle  = 'single'; // 'all'/'bundle' disabled in the UI until bundle displ
 let _sortBy  = 'price';
 let _sortOrd = 'asc';
 let _nameFilter = '';
+let _hideOwned = false; // requires a connected wallet; unavailable in Funko Catalog mode (see updateHideOwnedAvailability)
+// Set<string> of template_ids the wallet owns anywhere in the selected collection (not
+// re-scoped per schema — template_id is unique collection-wide, so one fetch per
+// collection selection covers every schema/rarity/price/mint combo under it).
+// null = not loaded yet for the current collection+wallet.
+let _ownedTemplateIds = null;
 let _waxUsd = 0;
 let _suggestions = [];
 let _funkoCatalogData = null;    // lazy cache: { allCollections, dropOptions, rarities }
@@ -918,6 +944,7 @@ async function selectCollection(c) {
   $colChip.style.display = 'flex';
 
   _rarity = ''; _schema = ''; _nameFilter = '';
+  _ownedTemplateIds = null; // new collection scope — stale for the one just left
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
   document.getElementById('schemaPanel').innerHTML = '';
@@ -936,6 +963,7 @@ async function selectCollection(c) {
 document.getElementById('colChipClear').addEventListener('click', clearCollection);
 function clearCollection() {
   _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = '';
+  _ownedTemplateIds = null;
   $colChip.style.display = 'none';
   $colSearch.value = '';
   document.getElementById('nameSearch').value = '';
@@ -949,7 +977,7 @@ function clearCollection() {
   document.getElementById('emptyState').style.display = '';
 }
 
-const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secClear'];
+const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secHideOwned','secClear'];
 function showFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
   document.getElementById('exploreToolbar').classList.add('visible');
@@ -958,6 +986,7 @@ function showFilters() {
   document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
   document.getElementById('funkoCatalogBtn').classList.toggle('hidden', !!_col?.isCatalog);
   updateCartBarVisible();
+  updateHideOwnedAvailability();
 }
 function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -1207,6 +1236,8 @@ function clearFilters() {
   _bundle = 'single';
   _sortBy = 'price'; _sortOrd = 'asc';
   _nameFilter = '';
+  _hideOwned = false;
+  document.getElementById('hideOwnedChk').checked = false;
 
   document.getElementById('minPrice').value = '';
   document.getElementById('maxPrice').value = '';
@@ -1230,6 +1261,56 @@ function clearFilters() {
 }
 document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
 
+// Not available in Funko Catalog mode — that scope joins 70+ collections into
+// one query, and an ownership lookup across all of them would need the same
+// heavy-scope handling fetchSalesPage uses for sales, for a filter that's a
+// nice-to-have rather than core. Also requires a connected wallet.
+function updateHideOwnedAvailability() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  const supported = !!wallet && !_col?.isCatalog;
+  const $chk   = document.getElementById('hideOwnedChk');
+  const $label = document.getElementById('hideOwnedLabel');
+  $chk.disabled = !supported;
+  $label.title = !wallet
+    ? 'Connect your wallet to use this filter'
+    : (_col?.isCatalog ? 'Not available in Funko Catalog mode' : '');
+  if (!supported && _hideOwned) {
+    _hideOwned = false;
+    $chk.checked = false;
+    _ownedTemplateIds = null;
+  }
+}
+
+// template_id is unique collection-wide, so this is scoped to collection_name only
+// (not schema_name) — one fetch per collection selection covers every schema.
+async function fetchOwnedTemplateIds() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet || !_col || _col.isCatalog) return new Set();
+  const ids = new Set();
+  let page = 1;
+  while (true) {
+    const url = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(_col.collection_name)}&limit=1000&page=${page}`;
+    let data;
+    try { data = await WaxApi.apiFetch(url); } catch { break; }
+    (data || []).forEach(a => { if (a.template?.template_id) ids.add(String(a.template.template_id)); });
+    if (!data || data.length < 1000) break;
+    page++;
+  }
+  return ids;
+}
+
+document.getElementById('hideOwnedChk').addEventListener('change', async function () {
+  _hideOwned = this.checked;
+  if (_hideOwned && !_ownedTemplateIds) {
+    this.disabled = true;
+    _ownedTemplateIds = await fetchOwnedTemplateIds();
+    updateHideOwnedAvailability(); // re-syncs disabled state (e.g. wallet disconnected mid-fetch)
+  }
+  pushUrl();
+  resetResults();
+  loadMore();
+});
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Results / pagination                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1251,7 +1332,7 @@ function _lazyVideoCallback(entries) {
     const video = entry.target;
     if (entry.isIntersecting) {
       if (video.dataset.src && !video.src) { video.src = video.dataset.src; video.load(); }
-      video.play().catch(() => {});
+      if (!window.getReduceMotion?.()) video.play().catch(() => {});
     } else {
       video.pause();
       if (video.src) { video.removeAttribute('src'); video.load(); }
@@ -1323,6 +1404,11 @@ async function loadMore() {
   $btn.innerHTML = '<span class="spin"></span>Loading…';
   if (_shownN === 0) $loadWrap.style.display = '';
 
+  if (_hideOwned && !_ownedTemplateIds && !_col.isCatalog) {
+    _ownedTemplateIds = await fetchOwnedTemplateIds();
+    if (myGen !== _gen) return; // collection/filters changed while this was in flight — resetResults() already reset _busy
+  }
+
   const MAX_PAGES_PER_CALL = 10;
   const BATCH_SIZE         = 3;
   let pagesLoaded = 0;
@@ -1342,6 +1428,7 @@ async function loadMore() {
       if (sales.length < 100) _apiDone = true;
       for (const sale of sales) {
         if (!sale.assets?.[0]) continue;
+        if (_hideOwned && _ownedTemplateIds?.has(String(sale.assets[0].template?.template_id))) continue;
         _queue.push(sale);
       }
     }
@@ -2352,7 +2439,16 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
   ],
 });
-window.addEventListener('wax-auth-change', () => { updateActionBtn(); refreshBuyButtons(); });
+window.addEventListener('wax-auth-change', () => {
+  updateActionBtn(); refreshBuyButtons();
+  const wasHidingOwned = _hideOwned;
+  _ownedTemplateIds = null; // stale for whatever wallet was connected before (or now none)
+  if (_col) updateHideOwnedAvailability();
+  // Only the disconnect case needs a re-render: updateHideOwnedAvailability force-unchecks
+  // the box when the wallet drops, and previously-hidden owned listings need to come back.
+  // Connecting doesn't need this — the filter stays off until the visitor opts in.
+  if (wasHidingOwned && !_hideOwned) { resetResults(); loadMore(); }
+});
 
 // A cart hydrated from storage renders immediately at init, before this
 // resolves — re-run the total once the price arrives so the USD suffix

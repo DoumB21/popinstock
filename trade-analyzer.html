@@ -660,6 +660,7 @@
   <script src="shared/supabase-config.js"></script>
   <script src="shared/wax-auth.js"></script>
   <script src="shared/wax-api.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
 </head>
 <body>
@@ -2001,7 +2002,7 @@
     const hash = tmpl.media.hash;
     if (tmpl.media.kind === 'video') {
       const video = document.createElement('video');
-      video.muted = true; video.loop = true; video.playsInline = true; video.autoplay = true;
+      video.muted = true; video.loop = true; video.playsInline = true; video.autoplay = !window.getReduceMotion?.();
       video.dataset.gwIdx = '0';
       video.addEventListener('error', () => retryMediaGateway(video, hash, mediaWrap));
       video.src = IPFS_GATEWAY_LIST[0] + hash;

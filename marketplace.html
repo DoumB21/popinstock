@@ -431,6 +431,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/wax-api.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
 </head>
 <body>
@@ -826,7 +827,8 @@ function renderHero(tpl, listingCount, supply, burnedCount) {
 
   let imageHtml;
   if (video) {
-    imageHtml = `<video autoplay loop muted playsinline><source src="${IPFS_GW}${video}" type="video/mp4"></video>`;
+    const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+    imageHtml = `<video ${autoplay} loop muted playsinline><source src="${IPFS_GW}${video}" type="video/mp4"></video>`;
   } else if (img) {
     imageHtml = `<img src="${IPFS_GW}${img}" alt="${name}" loading="lazy" data-ipfs-hash="${img}" data-gw-idx="0" onerror="onHeroImgError(this)">`;
   } else {

@@ -213,6 +213,7 @@
 </div>
 
 <script src="../shared/supabase-config.js"></script>
+<script src="../shared/settings.js"></script>
 <script src="nav.js"></script>
 <script>
 'use strict';
@@ -623,7 +624,8 @@ async function renderTop10(rows) {
 
       let mediaEl;
       if (m.video) {
-        mediaEl = `<video autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;display:block"><source src="${videoUrl(m.video)}" type="video/mp4"></video>`;
+        const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+        mediaEl = `<video ${autoplay} muted loop playsinline style="width:100%;height:100%;object-fit:cover;display:block"><source src="${videoUrl(m.video)}" type="video/mp4"></video>`;
       } else if (m.img) {
         mediaEl = `<img src="${ipfsUrl(m.img)}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`;
       } else {
@@ -707,7 +709,8 @@ async function renderLast10(rows) {
 
       let mediaEl;
       if (m.video) {
-        mediaEl = `<video autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;display:block"><source src="${videoUrl(m.video)}" type="video/mp4"></video>`;
+        const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+        mediaEl = `<video ${autoplay} muted loop playsinline style="width:100%;height:100%;object-fit:cover;display:block"><source src="${videoUrl(m.video)}" type="video/mp4"></video>`;
       } else if (m.img) {
         mediaEl = `<img src="${ipfsUrl(m.img)}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`;
       } else {

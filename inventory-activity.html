@@ -248,6 +248,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/supabase-config.js"></script>
   <script src="shared/wax-api.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 </head>
@@ -1021,7 +1022,7 @@ function initLazyVideos() {
           video.src = video.dataset.src;
           video.load();
         }
-        video.play().catch(() => {});
+        if (!window.getReduceMotion?.()) video.play().catch(() => {});
       } else {
         video.pause();
         if (video.src) {

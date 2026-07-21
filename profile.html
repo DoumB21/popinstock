@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile — Hoardio</title>
+  <meta name="description" content="Manage your Hoardio preferences, saved to this browser." />
+  <link rel="canonical" href="https://www.hoardio.com/profile.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/profile.html" />
+  <meta property="og:title" content="Profile — Hoardio" />
+  <meta property="og:description" content="Manage your Hoardio preferences, saved to this browser." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Profile — Hoardio" />
+  <meta name="twitter:description" content="Manage your Hoardio preferences, saved to this browser." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    .page-main { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .settings-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem;
+    }
+    .settings-section-title {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-secondary);
+      margin-bottom: 1.1rem;
+    }
+    .settings-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
+    .settings-row-text  { flex: 1; min-width: 0; }
+    .settings-row-label { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem; }
+    .settings-row-hint  { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+    /* Toggle switch — same on/off language as everywhere else on the site
+       uses plain checkboxes (.ex-checkbox-label / .bl-checkbox-label), but
+       this page is nothing BUT settings rows, so a switch reads clearer at
+       a glance than a row of checkboxes would. */
+    .toggle-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: rgba(255,255,255,0.12); border: 1px solid var(--border);
+      border-radius: 999px; transition: background 0.15s, border-color 0.15s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 16px; height: 16px;
+      left: 2px; top: 2px; background: var(--text-secondary);
+      border-radius: 50%; transition: transform 0.15s, background 0.15s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: rgba(240,168,64,0.25); border-color: var(--accent-light); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--accent-light); }
+
+    .settings-saved-note {
+      font-size: 0.76rem; color: var(--accent-light);
+      opacity: 0; transition: opacity 0.2s; margin-top: 0.9rem;
+    }
+    .settings-saved-note.show { opacity: 1; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/settings.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header">
+    <div class="page-title">Pro<span class="accent">file</span></div>
+    <div class="page-subtitle">Preferences that apply across every Hoardio page — saved to this browser, no wallet required.</div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-section-title">Display</div>
+    <div class="settings-row">
+      <div class="settings-row-text">
+        <div class="settings-row-label">Pause NFT video previews</div>
+        <div class="settings-row-hint">Card art shows as a still frame instead of autoplaying. Lowers CPU and memory use while browsing — helpful on an older or slower computer.</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="reduceMotionChk" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="settings-saved-note" id="savedNote">Saved — applies on pages you load from now on.</div>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: [
+    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
+    { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
+    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
+  ],
+});
+
+const $chk  = document.getElementById('reduceMotionChk');
+const $note = document.getElementById('savedNote');
+$chk.checked = window.getReduceMotion();
+
+let _noteT = null;
+$chk.addEventListener('change', function () {
+  window.setReduceMotion(this.checked);
+  $note.classList.add('show');
+  clearTimeout(_noteT);
+  _noteT = setTimeout(() => $note.classList.remove('show'), 2500);
+});
+</script>
+<script src="shared/moved.js"></script>
+</body>
+</html>

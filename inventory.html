@@ -428,6 +428,7 @@
     .buyoffer-accept-btn:hover { background: rgba(34,197,94,0.22); }
   </style>
   <script src="shared/supabase-config.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
 </head>
 <body>
@@ -766,7 +767,10 @@ function assetMediaHtml(a, extraAttr = '', eager = false) {
   const video = d.video || t.video || '';
   const img   = d.img || d.image || t.img || t.image || '';
   if (video) {
-    if (eager) return `<video src="${imgUrl(video)}" muted playsinline loop autoplay style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+    if (eager) {
+      const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+      return `<video src="${imgUrl(video)}" muted playsinline loop ${autoplay} style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+    }
     return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
   }
   if (img)   return `<img src="${imgUrl(img)}" alt="${a.name || ''}" ${extraAttr} data-ipfs-hash="${img.startsWith('http') ? '' : img}" data-gw-idx="0" onerror="onAssetImgError(this)">`;
@@ -795,7 +799,7 @@ function initLazyVideos() {
           video.src = video.dataset.src;
           video.load();
         }
-        video.play().catch(() => {});
+        if (!window.getReduceMotion?.()) video.play().catch(() => {});
       } else {
         video.pause();
         // Unload src to free decoder memory; browser cache makes reload instant

@@ -161,6 +161,14 @@
   const _OFFERS_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M21 7H9a4 4 0 0 0-4 4v1"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h12a4 4 0 0 0 4-4v-1"/></svg>`;
   const _OFFERS_BADGE_CACHE_KEY = 'wax_offers_badge_cache_v1';
 
+  /* ── Profile/settings icon (nav icon) ──
+     Always visible, unlike the offers icon — the preferences on that page
+     (starting with "pause NFT video previews") are localStorage-only and
+     deliberately don't require a connected wallet, since the visitor most
+     likely to want them (an old/slow computer) shouldn't have to connect a
+     wallet first just to turn off video autoplay. */
+  const _PROFILE_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>`;
+
   function _readCachedOffersCount(acc) {
     try {
       const obj = JSON.parse(localStorage.getItem(_OFFERS_BADGE_CACHE_KEY) || 'null');
@@ -186,6 +194,7 @@
     const apiScript    = opts.apiScript  || 'shared/wax-api.js';
     const exploreHref  = opts.exploreHref || 'explore.html';
     const offersHref   = opts.offersHref  || 'trade-offers.html';
+    const profileHref  = opts.profileHref || 'profile.html';
     const menuItems    = opts.menuItems || [];
     const decorateName = opts.decorateName || (() => '');
     const onAccount    = opts.onAccount || null;
@@ -198,6 +207,7 @@
     wrap.innerHTML = `
       <a id="navCartBtn" class="nav-cart-btn" href="${exploreHref}" title="View cart">${_CART_ICON}<span id="navCartBadge" class="nav-cart-badge" style="display:none;"></span></a>
       <a id="navOffersBtn" class="nav-cart-btn" href="${offersHref}" title="Pending trade offers" style="display:none;">${_OFFERS_ICON}<span id="navOffersBadge" class="nav-cart-badge" style="display:none;"></span></a>
+      <a id="navProfileBtn" class="nav-cart-btn" href="${profileHref}" title="Profile & settings">${_PROFILE_ICON}</a>
       <button id="navWaxBtn" class="nav-wax-btn" title="Connect your WAX wallet">${_WALLET_ICON}<span id="navWaxBtnLabel">Connect Wallet</span></button>
       <div id="navWaxConnected" class="nav-wax-connected-widget">
         <span class="nav-wax-dot"></span>

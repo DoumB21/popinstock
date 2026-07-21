@@ -130,6 +130,7 @@ async function _initWallet() {
     apiScript: '../shared/wax-api.js',
     exploreHref: '../explore.html',
     offersHref: '../trade-offers.html',
+    profileHref: '../profile.html',
     menuItems: [
       { href: '../inventory.html', label: 'Inventory', icon: '📦' },
       { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
