@@ -65,6 +65,13 @@
     #rpcDropdown { width: 300px; }
     #rpcDropdown .cb-label,
     #rpcDropdown .cb-item { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.78rem; }
+
+    /* Narrow screens: the 300px RPC dropdown next to hint text left almost no
+       room for the text, squeezing it into a thin first column. Stack instead. */
+    @media (max-width: 560px) {
+      .settings-row--network { flex-direction: column; align-items: stretch; }
+      .settings-row--network #rpcDropdown { width: 100%; }
+    }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -108,7 +115,7 @@
 
   <div class="settings-card" style="margin-top:1.25rem;">
     <div class="settings-section-title">Network</div>
-    <div class="settings-row">
+    <div class="settings-row settings-row--network">
       <div class="settings-row-text">
         <div class="settings-row-label">Wallet RPC endpoint</div>
         <div class="settings-row-hint">Which node your wallet uses to sign and broadcast transactions (Buy, List, Transfer, etc.). Greymass works for most people — if wallet actions fail to complete on your network, try switching nodes.</div>
