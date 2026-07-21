@@ -9,4 +9,15 @@
     localStorage.setItem(KEY, on ? '1' : '0');
     window.dispatchEvent(new CustomEvent('reduce-motion-change', { detail: { on: !!on } }));
   };
+
+  // Chain RPC endpoint used to sign/push wallet transactions (src/wax-auth.js
+  // reads this same key directly — no shared import, since that's a
+  // standalone compiled bundle). Empty string = use the built-in default
+  // (Greymass). Takes effect on next page load/login, not the live session.
+  const RPC_KEY = 'hoardio_rpc_endpoint';
+  window.getRpcEndpoint = () => localStorage.getItem(RPC_KEY) || '';
+  window.setRpcEndpoint = url => {
+    if (url) localStorage.setItem(RPC_KEY, url);
+    else localStorage.removeItem(RPC_KEY);
+  };
 })();

@@ -59,6 +59,12 @@
       opacity: 0; transition: opacity 0.2s; margin-top: 0.9rem;
     }
     .settings-saved-note.show { opacity: 1; }
+
+    /* RPC dropdown shows raw URLs (technical audience) — monospace for
+       readability, wider box than a typical filter dropdown to fit them. */
+    #rpcDropdown { width: 300px; }
+    #rpcDropdown .cb-label,
+    #rpcDropdown .cb-item { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.78rem; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -99,6 +105,24 @@
     </div>
     <div class="settings-saved-note" id="savedNote">Saved — applies on pages you load from now on.</div>
   </div>
+
+  <div class="settings-card" style="margin-top:1.25rem;">
+    <div class="settings-section-title">Network</div>
+    <div class="settings-row">
+      <div class="settings-row-text">
+        <div class="settings-row-label">Wallet RPC endpoint</div>
+        <div class="settings-row-hint">Which node your wallet uses to sign and broadcast transactions (Buy, List, Transfer, etc.). Greymass works for most people — if wallet actions fail to complete on your network, try switching nodes.</div>
+      </div>
+      <div class="cb-dropdown" id="rpcDropdown" style="flex-shrink:0;">
+        <button class="cb-dropdown-btn" type="button">
+          <span class="cb-label"></span>
+          <span class="cb-arrow">▾</span>
+        </button>
+        <div class="cb-panel"></div>
+      </div>
+    </div>
+    <div class="settings-saved-note" id="rpcSavedNote">Saved — applies next time you connect your wallet.</div>
+  </div>
 </main>
 
 <footer>
@@ -129,6 +153,69 @@ $chk.addEventListener('change', function () {
   $note.classList.add('show');
   clearTimeout(_noteT);
   _noteT = setTimeout(() => $note.classList.remove('show'), 2500);
+});
+
+// ── Wallet RPC endpoint dropdown ──
+// Labels are the raw URLs on purpose — WAX users are technical and want to
+// know exactly which node they're pointed at, not just a friendly name.
+const RPC_OPTIONS = [
+  { value: '', label: 'https://wax.greymass.com (default)' },
+  { value: 'https://api.waxsweden.org', label: 'https://api.waxsweden.org' },
+  { value: 'https://wax.eosphere.io', label: 'https://wax.eosphere.io' },
+];
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
+}
+
+let _rpcNoteT = null;
+const $rpcNote = document.getElementById('rpcSavedNote');
+function renderRpcDropdown() {
+  buildSingleCbDropdown('rpcDropdown', RPC_OPTIONS, window.getRpcEndpoint(), url => {
+    window.setRpcEndpoint(url);
+    renderRpcDropdown();
+    $rpcNote.classList.add('show');
+    clearTimeout(_rpcNoteT);
+    _rpcNoteT = setTimeout(() => $rpcNote.classList.remove('show'), 2500);
+  });
+}
+renderRpcDropdown();
+
+document.getElementById('rpcDropdown').querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  const panel  = e.currentTarget.parentElement.querySelector('.cb-panel');
+  const isOpen = panel.classList.contains('open');
+  closeAllCbDropdowns();
+  if (!isOpen) {
+    panel.classList.add('open');
+    e.currentTarget.classList.add('open');
+  }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
 });
 </script>
 <script src="shared/moved.js"></script>

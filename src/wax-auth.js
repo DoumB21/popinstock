@@ -4,9 +4,14 @@ import { WalletPluginAnchor } from '@wharfkit/wallet-plugin-anchor';
 import { WalletPluginCloudWallet } from '@wharfkit/wallet-plugin-cloudwallet';
 import { WalletPluginWombat } from '@wharfkit/wallet-plugin-wombat';
 
+const DEFAULT_RPC = 'https://wax.greymass.com';
+
 const WAX_CHAIN = {
   id: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4',
-  url: 'https://wax.greymass.com',
+  // 'hoardio_rpc_endpoint' is set by shared/settings.js (edited on profile.html)
+  // — read directly here (same key, no import) since this file compiles to a
+  // standalone bundle. Empty/unset falls back to the default above.
+  url: localStorage.getItem('hoardio_rpc_endpoint') || DEFAULT_RPC,
 };
 
 const ui = new WebRenderer();
@@ -23,6 +28,16 @@ const sessionKit = new SessionKit({
 });
 
 let session = null;
+
+// Lets a visitor change the RPC endpoint on profile.html in one tab and have
+// it take effect immediately in another already-open tab's live session —
+// e.g. mid-search on explore.html, without losing filter state to a reload.
+// 'storage' only fires in OTHER tabs, never the one that made the change.
+window.addEventListener('storage', e => {
+  if (e.key === 'hoardio_rpc_endpoint' && session) {
+    session.setEndpoint(e.newValue || DEFAULT_RPC);
+  }
+});
 
 function _dispatch(account) {
   if (account) {
