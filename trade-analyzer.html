@@ -2557,7 +2557,7 @@
   // the entry list out in a 360px sidebar. In-memory only (resets on reload),
   // survives re-renders because renderTradeScorecard() reads it each time
   // rather than the DOM owning the state.
-  let _tscCollapsed = false;
+  let _tscCollapsed = true;
   function toggleTradeScorecard() {
     _tscCollapsed = !_tscCollapsed;
     renderTradeScorecard();
