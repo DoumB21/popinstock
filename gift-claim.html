@@ -65,9 +65,26 @@
       animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
-    .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
-    .empty-state a { color: var(--accent-light); text-decoration: underline; }
+    .empty-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 2.5rem 1.75rem; text-align: center;
+    }
+    .empty-icon {
+      width: 96px; height: 96px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.75rem; margin: 0 auto 1.35rem;
+    }
+    .empty-icon.is-claimed   { background: rgba(74,222,128,0.12); }
+    .empty-icon.is-cancelled { background: rgba(255,255,255,0.07); }
+    .empty-icon.is-error     { background: rgba(224,80,80,0.12); }
+    .empty-title { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .empty-hint  { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; }
+    .empty-hint a { color: var(--accent-light); text-decoration: underline; }
+    .empty-cta {
+      display: inline-block; margin-top: 1.5rem; font-size: 0.88rem;
+      font-weight: 700; color: var(--accent-light); text-decoration: none;
+    }
+    .empty-cta:hover { text-decoration: underline; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -94,7 +111,7 @@
     <div class="spinner"></div>
     <div>Loading gift…</div>
   </div>
-  <div id="emptyWrap" class="empty-state" style="display:none;"></div>
+  <div id="emptyWrap" class="empty-card" style="display:none;"></div>
   <div id="claimCard" class="claim-card" style="display:none;"></div>
 </main>
 
@@ -178,11 +195,15 @@ const privKey = location.hash.replace(/^#/, '');
 
 let _link = null; // { creator, memo, asset_ids }
 
-function showEmpty(title, hint) {
+function showEmpty(icon, variant, title, hint) {
   document.getElementById('loadWrap').style.display = 'none';
   document.getElementById('claimCard').style.display = 'none';
   const el = document.getElementById('emptyWrap');
-  el.innerHTML = `<strong>${escHtml(title)}</strong>${hint}`;
+  el.innerHTML = `
+    <div class="empty-icon is-${variant}">${icon}</div>
+    <div class="empty-title">${escHtml(title)}</div>
+    ${hint ? `<div class="empty-hint">${hint}</div>` : ''}
+    <a class="empty-cta" href="index.html">← Back to Hoardio</a>`;
   el.style.display = '';
 }
 
@@ -194,20 +215,20 @@ async function showResolvedState() {
     const body = await res.json();
     const link = body?.success ? body.data : null;
     if (link?.state === 3) {
-      showEmpty(`⚡ Already claimed by ${link.claimer}! You were just a little too late.`, '');
+      showEmpty('⚡', 'claimed', `Already claimed by ${link.claimer}!`, 'You were just a little too late.');
       return;
     }
     if (link?.state === 2) {
-      showEmpty('🚫 Looks like the sender changed their mind. This gift link has been cancelled.', '');
+      showEmpty('🚫', 'cancelled', 'This gift link has been cancelled', 'Looks like the sender changed their mind.');
       return;
     }
   } catch (err) { /* fall through to generic message */ }
-  showEmpty('❌ This gift link is no longer active.', '');
+  showEmpty('❌', 'error', 'This gift link is no longer active', '');
 }
 
 async function loadLink() {
   if (!linkId || !privKey) {
-    showEmpty('Invalid gift link', 'This link is missing its ID or key — ask the sender for the full link again.');
+    showEmpty('⚠️', 'error', 'Invalid gift link', 'This link is missing its ID or key — ask the sender for the full link again.');
     return;
   }
   try {
@@ -254,7 +275,7 @@ async function loadLink() {
     initLazyVideos();
     document.getElementById('claimBtn').addEventListener('click', handleClaim);
   } catch (err) {
-    showEmpty("Couldn't load this gift link", escHtml(err?.message || 'Unknown error'));
+    showEmpty('⚠️', 'error', "Couldn't load this gift link", escHtml(err?.message || 'Unknown error'));
   }
 }
 
