@@ -186,6 +186,25 @@ function showEmpty(title, hint) {
   el.style.display = '';
 }
 
+const TOOLS_API = 'https://wax.api.atomicassets.io/atomictools/v1';
+
+async function showResolvedState() {
+  try {
+    const res = await fetch(`${TOOLS_API}/links/${encodeURIComponent(linkId)}`);
+    const body = await res.json();
+    const link = body?.success ? body.data : null;
+    if (link?.state === 3) {
+      showEmpty(`⚡ Already claimed by ${link.claimer}! You were just a little too late.`, '');
+      return;
+    }
+    if (link?.state === 2) {
+      showEmpty('🚫 Looks like the sender changed their mind. This gift link has been cancelled.', '');
+      return;
+    }
+  } catch (err) { /* fall through to generic message */ }
+  showEmpty('❌ This gift link is no longer active.', '');
+}
+
 async function loadLink() {
   if (!linkId || !privKey) {
     showEmpty('Invalid gift link', 'This link is missing its ID or key — ask the sender for the full link again.');
@@ -198,7 +217,10 @@ async function loadLink() {
     });
     const { rows } = await res.json();
     if (!rows || !rows.length) {
-      showEmpty('This gift link is no longer available', 'It may have already been claimed or was cancelled by the sender.');
+      // Row is gone from the live chain table once resolved either way — fall
+      // back to the indexed atomictools API (see gift-links.html) to learn
+      // the real outcome (state 2 CANCELED, 3 CLAIMED) instead of guessing.
+      await showResolvedState();
       return;
     }
     _link = rows[0];
