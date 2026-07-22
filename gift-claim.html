@@ -323,7 +323,8 @@ async function handleClaim() {
     document.getElementById('claimCard').innerHTML = `
       <div class="claim-title">🎉 Claimed!</div>
       <p style="color:var(--text-secondary); margin-bottom:1.25rem;">These NFTs are now in your wallet.</p>
-      <a class="claim-btn" style="display:block; text-decoration:none; box-sizing:border-box;" href="inventory.html">View My Inventory</a>`;
+      <a class="claim-btn" style="display:block; text-decoration:none; box-sizing:border-box;" href="inventory.html">View My Inventory</a>
+      <a class="empty-cta" href="inventory.html">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
   } catch (err) {
     btn.disabled = false;
     const msg = (err?.message || '').toLowerCase();
