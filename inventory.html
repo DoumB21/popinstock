@@ -3100,6 +3100,25 @@ function assetsIndex() {
 function selectedNotListed() { return [..._selected.keys()].filter(id => !_listings.has(id)); }
 function selectedListed()    { return [..._selected.keys()].filter(id => _listings.has(id)); }
 
+// Sums each selected asset's backed_tokens (integer smallest-unit arithmetic,
+// same reasoning as bulkBackTokens — avoids float drift) — what actually
+// comes back to the wallet when these NFTs are burned. Most items back with
+// a single token, but nothing stops a mix, so this totals per symbol and
+// joins them like fmtBackedTokens does for a single card.
+function bulkBurnTokenTotal() {
+  const assetsById = assetsIndex();
+  const totals = new Map(); // symbol -> { amountInt, precision }
+  for (const id of _selected.keys()) {
+    for (const t of assetsById.get(id)?.backed_tokens || []) {
+      const cur = totals.get(t.token_symbol) || { amountInt: 0, precision: t.token_precision };
+      cur.amountInt += Number(t.amount);
+      totals.set(t.token_symbol, cur);
+    }
+  }
+  if (!totals.size) return '';
+  return [...totals].map(([symbol, { amountInt, precision }]) => `${fmtWax(amountInt / (10 ** precision))} ${symbol}`).join(', ');
+}
+
 function toggleSelect(assetId, cardEl) {
   const id = String(assetId);
   if (_selected.has(id)) {
@@ -3643,8 +3662,13 @@ function renderBulkActionModal() {
       ${bodyHtml}
       <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkTotal">${total.toFixed(2)} WAX</span></div>`;
   } else if (_bulkAction === 'burn') {
+    const tokenTotal = bulkBurnTokenTotal();
+    const totalHtml = tokenTotal
+      ? `<div class="bl-tray-total"><span>You'll receive</span><span class="bl-tray-total-val">${tokenTotal}</span></div>`
+      : '';
     bodyHtml = `
       ${bodyHtml}
+      ${totalHtml}
       <div class="bulk-warn-text">⚠️ Burning permanently destroys these NFTs. This cannot be undone.</div>
       <label class="bl-checkbox-label" style="white-space:normal;">
         <input type="checkbox" id="bulkBurnAck" onchange="updateBulkActionBtn()" />
