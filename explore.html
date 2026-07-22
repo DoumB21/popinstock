@@ -339,7 +339,8 @@
     }
     .bl-toolbar-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
     .bl-select-first { display: flex; align-items: center; gap: 0.4rem; }
-    .bl-select-first-input { width: 70px; box-sizing: border-box; padding: 0.38rem 0.6rem; font-size: 0.82rem; }
+    .bl-select-first-label { font-size: 0.82rem; color: var(--text-secondary); }
+    .bl-select-first-input { width: 44px; box-sizing: border-box; padding: 0.38rem 0.4rem; font-size: 0.82rem; text-align: center; }
 
     /* ── Hover tooltip (ported from inventory.html/explore.html) ── */
     .hover-tooltip {
@@ -594,7 +595,8 @@
       <span class="bl-toolbar-count" id="blCount"></span>
       <span class="bl-toolbar-selcount" id="blSelCount" style="display:none"></span>
       <div class="bl-select-first">
-        <input type="number" class="control-input bl-select-first-input" id="selectFirstInput" placeholder="e.g. 40" min="1" step="1" value="20" oninput="updateSelectFirstLabel()" onkeydown="if (event.key === 'Enter') selectFirstN()" />
+        <span class="bl-select-first-label">Select first</span>
+        <input type="number" class="control-input bl-select-first-input" id="selectFirstInput" min="1" max="350" step="1" value="20" oninput="clampSelectFirstInput(this); updateSelectFirstLabel()" onkeydown="if (event.key === 'Enter') selectFirstN()" />
         <button class="bl-toolbar-btn" id="selectFirstBtn" onclick="selectFirstN()">Select first 20</button>
       </div>
       <button class="bl-toolbar-btn" onclick="clearSelection()">Clear selection</button>
@@ -1695,6 +1697,15 @@ function toggleSelect(sale, cardEl) {
 // (not additive with whatever was selected before), so typing a new number
 // and clicking again always lands on exactly that many items. Every
 // rendered card here is buyable, so the eligible set is just every .bl-card.
+// type="number" doesn't honor maxlength, so without this a pasted/typed
+// value like 888888 sails straight into selectFirstN()'s loadMore() loop
+// below and hammers the API/DOM with hundreds of thousands of cards until
+// the tab dies. Clamp at the source, on every keystroke.
+function clampSelectFirstInput(el) {
+  const digits = el.value.replace(/\D/g, '').slice(0, 3);
+  el.value = digits && parseInt(digits, 10) > MAX_SELECTED ? String(MAX_SELECTED) : digits;
+}
+
 function updateSelectFirstLabel() {
   const btn = document.getElementById('selectFirstBtn');
   const n   = parseInt(document.getElementById('selectFirstInput').value, 10);
@@ -1703,7 +1714,10 @@ function updateSelectFirstLabel() {
 
 async function selectFirstN() {
   const input = document.getElementById('selectFirstInput');
-  const n = parseInt(input.value, 10);
+  // Belt-and-suspenders: clampSelectFirstInput already keeps the field itself
+  // at or below MAX_SELECTED, but this is the actual function that loops
+  // loadMore() up to n — worth clamping again in case that ever changes.
+  const n = Math.min(parseInt(input.value, 10) || 0, MAX_SELECTED);
   if (!Number.isFinite(n) || n <= 0) {
     setProgress('Enter a number to select the first N items.', 'error');
     return;
