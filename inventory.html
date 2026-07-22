@@ -142,12 +142,28 @@
       margin-top: 0.15rem;
     }
 
-    .inv-card-foot { padding: 0.4rem 0.7rem 0.65rem; }
+    .inv-card-foot { padding: 0.4rem 0.7rem 0.65rem; display: flex; gap: 0.4rem; }
     .inv-card-btn {
-      width: 100%; font-size: 0.72rem; font-weight: 700;
+      flex: 1; min-width: 0; font-size: 0.72rem; font-weight: 700;
       padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid transparent;
       cursor: pointer; transition: background 0.15s, border-color 0.15s;
       letter-spacing: 0.02em;
+    }
+    .inv-card-dots-btn {
+      flex: 0 0 auto; width: 30px; font-size: 0.85rem; font-weight: 700;
+      padding: 0.4rem 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05); color: var(--text-secondary);
+      cursor: pointer; line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .inv-card-dots-btn:hover, .inv-card-dots-btn.open {
+      background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.35); color: var(--accent-light);
+    }
+    .card-action-menu {
+      position: fixed; z-index: 301; min-width: 190px;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 0.35rem 0;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
     }
     .inv-card-btn--list {
       background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12);
@@ -444,11 +460,11 @@
     .inv-card.selected { border-color: var(--accent-light); }
     .inv-card-check {
       position: absolute; top: 6px; left: 6px;
-      width: 20px; height: 20px; border-radius: 50%;
+      width: 26px; height: 26px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.3);
       background: rgba(0,0,0,0.45); padding: 0; line-height: 1;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.62rem; color: transparent; cursor: pointer;
+      font-size: 0.75rem; color: transparent; cursor: pointer;
       transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
     .inv-card.selected .inv-card-check {
@@ -590,8 +606,8 @@
     }
     .bl-tray-total-val { color: var(--text-primary); font-weight: 700; }
     .bl-progress { font-size: 0.75rem; color: var(--text-secondary); text-align: center; min-height: 1rem; margin-top: 0.5rem; }
-    .bl-progress.is-error   { color: #e05050; }
-    .bl-progress.is-success { color: #50c878; }
+    .bl-progress.is-error   { color: #e05050; font-size: 0.9rem; font-weight: 600; }
+    .bl-progress.is-success { color: #50c878; font-size: 0.9rem; font-weight: 600; }
 
     /* ── Gift link result screen ── */
     .gift-result { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
@@ -802,6 +818,7 @@
 <div id="bulkActionModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
 <div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
 <div id="infoPopup" class="info-popup" style="display:none;"></div>
+<div id="cardActionMenu" class="card-action-menu" style="display:none;"></div>
 
 <script>
 'use strict';
@@ -1135,6 +1152,9 @@ function attachCardEvents(card, asset) {
   const btn = card.querySelector('.inv-card-btn');
   if (btn) btn.addEventListener('click', e => { e.stopPropagation(); openModal(asset); });
 
+  const dotsBtn = card.querySelector('.inv-card-dots-btn');
+  if (dotsBtn) dotsBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardActionMenu(dotsBtn, asset); });
+
   const chk = card.querySelector('.inv-card-check');
   if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(asset.asset_id, card); });
 
@@ -1142,13 +1162,24 @@ function attachCardEvents(card, asset) {
   // fix for the same problem: hovering the title/List-Edit button/checkbox
   // to click them used to also pop the tooltip in the way.
   const imgEl = card.querySelector('.inv-card-img');
-  imgEl.addEventListener('mouseenter', () => {
+  const maybeScheduleTooltip = () => {
     if (document.getElementById('listingModal').style.display !== 'none') return;
     if (document.getElementById('acceptOfferModal').style.display !== 'none') return;
     if (document.getElementById('infoPopup').style.display !== 'none') return;
     scheduleTooltip(card, asset);
-  });
+  };
+  imgEl.addEventListener('mouseenter', maybeScheduleTooltip);
   imgEl.addEventListener('mouseleave', cancelTooltip);
+
+  // The checkbox sits inside imgEl, so reaching it still counts as hovering
+  // the image — without this, the tooltip pops up right as you're about to
+  // click the checkbox, in the way. Cancel on entry, resume once the cursor
+  // moves off it and back onto plain image (still within imgEl, so imgEl's
+  // own mouseenter won't refire to do this for us).
+  if (chk) {
+    chk.addEventListener('mouseenter', cancelTooltip);
+    chk.addEventListener('mouseleave', maybeScheduleTooltip);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1725,6 +1756,7 @@ function cardHtml(a) {
         <button class="inv-card-btn ${isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}">
           ${isListed ? 'Edit listing' : 'List for sale'}
         </button>
+        <button type="button" class="inv-card-dots-btn" title="More actions">⋮</button>
       </div>
     </div>
   `;
@@ -3350,6 +3382,7 @@ async function loadAssetsOnlyHighest(whitelist) {
 
 /* ── Bulk-action chip + menu ── */
 function updateBulkChip() {
+  if (_quickAction) return; // header chip must keep showing the real bulk selection while a quick per-card action is in progress
   const chip = document.getElementById('bulkActionChip');
   if (!chip) return;
   const n = _selected.size;
@@ -3395,6 +3428,67 @@ function toggleBulkMenu() {
 function closeBulkMenu() {
   document.getElementById('bulkActionMenu')?.classList.remove('open');
   document.getElementById('bulkActionChip')?.classList.remove('open');
+}
+
+/* ── Per-card "⋮" quick-action menu ──
+   Only Transfer/Gift link/Burn/Back with tokens live here — List/Edit and
+   Cancel already have their own dedicated button per card (openModal). ── */
+const CARD_MENU_ACTIONS = [
+  { key: 'transfer',   label: 'Transfer' },
+  { key: 'gift',       label: 'Gift link' },
+  { key: 'burn',       label: 'Burn' },
+  { key: 'backtokens', label: 'Back with tokens' },
+];
+
+let _cardMenuAssetId = null;
+
+function toggleCardActionMenu(btnEl, asset) {
+  const menu = document.getElementById('cardActionMenu');
+  const wasOpenForThis = menu.style.display !== 'none' && _cardMenuAssetId === String(asset.asset_id);
+  closeCardActionMenu();
+  if (wasOpenForThis) return;
+  _cardMenuAssetId = String(asset.asset_id);
+  menu.innerHTML = CARD_MENU_ACTIONS.map(a =>
+    `<div class="bulk-action-item" data-action="${a.key}"><span>${a.label}</span></div>`
+  ).join('');
+  menu.querySelectorAll('.bulk-action-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const action = item.dataset.action;
+      closeCardActionMenu();
+      openSingleItemModal(asset.asset_id, action);
+    });
+  });
+  btnEl.classList.add('open');
+  menu.style.display = '';
+  const rect = btnEl.getBoundingClientRect();
+  const MW = menu.offsetWidth || 190;
+  const MH = menu.offsetHeight || 180;
+  let left = rect.right - MW;
+  if (left < 8) left = 8;
+  let top = rect.bottom + 4;
+  if (top + MH > window.innerHeight - 8) top = rect.top - MH - 4;
+  menu.style.left = left + 'px';
+  menu.style.top  = top + 'px';
+}
+
+function closeCardActionMenu() {
+  document.getElementById('cardActionMenu').style.display = 'none';
+  document.querySelectorAll('.inv-card-dots-btn.open').forEach(b => b.classList.remove('open'));
+  _cardMenuAssetId = null;
+}
+
+// Quick single-item action: reuses the bulk action modal (openBulkActionModal
+// reads only from `_selected`) by swapping in a one-item selection and
+// restoring whatever bulk selection existed before once the modal closes —
+// so a pre-existing "N selected" bulk selection is never disturbed.
+let _quickAction         = false;
+let _quickActionSnapshot = null;
+
+function openSingleItemModal(assetId, action) {
+  _quickActionSnapshot = _selected;
+  _quickAction = true;
+  _selected = new Map([[String(assetId), '']]);
+  openBulkActionModal(action);
 }
 
 /* ── Bulk action modal — horizontal strip + action-specific fields.
@@ -3462,6 +3556,16 @@ function closeBulkActionModal() {
   if (modal) modal.style.display = 'none';
   document.getElementById('panelOverlay').style.display = 'none';
   document.body.style.overflow = '';
+  // A quick per-card action always throws away its temporary one-item
+  // _selected and restores whatever bulk selection was active before it
+  // opened — regardless of whether the quick action succeeded, failed, or
+  // was cancelled.
+  if (_quickAction) {
+    _selected = _quickActionSnapshot;
+    _quickActionSnapshot = null;
+    _quickAction = false;
+    updateBulkChip();
+  }
 }
 
 const BULK_MODAL_TITLES = {
@@ -3514,7 +3618,7 @@ function renderBulkActionModal() {
         <label class="control-label" for="bulkRecipientInput">Recipient wallet</label>
         <input class="control-input" id="bulkRecipientInput" type="text" placeholder="e.g. player1.wam" oninput="onBulkRecipientInput()" autocomplete="off" spellcheck="false" />
         <label class="control-label" for="bulkMemoInput">Memo (optional)</label>
-        <input class="control-input" id="bulkMemoInput" type="text" placeholder="Bulk transfer on Hoardio." oninput="onBulkMemoInput(this.value)" autocomplete="off" spellcheck="false" />
+        <input class="control-input" id="bulkMemoInput" type="text" placeholder="${_quickAction ? 'Transfer' : 'Bulk transfer'} on Hoardio." oninput="onBulkMemoInput(this.value)" autocomplete="off" spellcheck="false" />
         <div class="bl-transfer-warning">⚠️ Transfers are permanent and cannot be undone — double-check the recipient.</div>
       </div>`;
   } else if (_bulkAction === 'cancel') {
@@ -3928,7 +4032,7 @@ async function bulkCancel() {
 
 async function bulkTransfer() {
   const recipient = _recipient.trim();
-  const memo      = _memo.trim() || 'Bulk transfer on Hoardio.';
+  const memo      = _memo.trim() || (_quickAction ? 'Transfer on Hoardio.' : 'Bulk transfer on Hoardio.');
   const ids       = [..._selected.keys()];
   const wallet    = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!recipient || !ids.length || recipient === wallet) return;
@@ -4354,6 +4458,7 @@ document.addEventListener('click', e => {
   }
   if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllCbDropdowns();
   if (!e.target.closest('.bulk-action-chip-wrap')) closeBulkMenu();
+  if (!e.target.closest('.inv-card-dots-btn') && !e.target.closest('#cardActionMenu')) closeCardActionMenu();
 });
 </script>
 </body>

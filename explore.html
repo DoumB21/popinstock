@@ -162,13 +162,12 @@
     .bl-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
     .bl-card-check {
       position: absolute; top: 6px; left: 6px;
-      width: 20px; height: 20px; border-radius: 50%;
+      width: 26px; height: 26px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.3);
-      background: rgba(0,0,0,0.45);
+      background: rgba(0,0,0,0.45); padding: 0; line-height: 1;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.62rem; color: transparent;
+      font-size: 0.75rem; color: transparent; cursor: pointer;
       transition: background 0.12s, border-color 0.12s, color 0.12s;
-      pointer-events: none;
     }
     .bl-card.selected .bl-card-check { background: var(--accent-light); border-color: var(--accent-light); color: #fff; }
     .bl-card-mint {
@@ -1604,7 +1603,7 @@ function cardHtml(sale) {
     <div class="bl-card-img">
       ${mediaHtml}
       ${mint ? `<span class="bl-card-mint">${mint}</span>` : ''}
-      <div class="bl-card-check">${isSel ? '✓' : ''}</div>
+      <button type="button" class="bl-card-check" title="Select">${isSel ? '✓' : ''}</button>
     </div>
     <div class="bl-card-body">
       <div class="bl-card-name" title="${name}">${name}</div>
@@ -1625,10 +1624,11 @@ function attachCardEvents(card, sale) {
   // to fire it, which meant hovering the Buy/Cart/View buttons (inside the
   // same card) to click them also popped the tooltip in the way.
   const imgEl = card.querySelector('.bl-card-img');
-  imgEl.addEventListener('mouseenter', () => {
+  const maybeScheduleTooltip = () => {
     if (document.getElementById('cardInfoPopup').style.display !== 'none') return;
     scheduleTooltip(card);
-  });
+  };
+  imgEl.addEventListener('mouseenter', maybeScheduleTooltip);
   imgEl.addEventListener('mouseleave', cancelTooltip);
   card.addEventListener('click', e => {
     if (e.target.closest('a, button')) return;
@@ -1641,6 +1641,20 @@ function attachCardEvents(card, sale) {
 
   const cartBtn = card.querySelector('.cart-btn');
   if (cartBtn) cartBtn.addEventListener('click', () => toggleSelect(sale, card));
+
+  // The circle now acts exactly like the Cart button (just a smaller target
+  // reachable without scrolling to the card's footer) — same toggle, same
+  // handler. It sits inside imgEl, so reaching it still counts as hovering
+  // the image; cancel the tooltip on entry so it doesn't pop up right as
+  // you're about to click, and resume once the cursor moves back onto plain
+  // image (still within imgEl, so imgEl's own mouseenter won't refire to do
+  // this for us).
+  const chk = card.querySelector('.bl-card-check');
+  if (chk) {
+    chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(sale, card); });
+    chk.addEventListener('mouseenter', cancelTooltip);
+    chk.addEventListener('mouseleave', maybeScheduleTooltip);
+  }
 }
 
 // Keeps the corner checkmark, the card border, and the Cart button's
