@@ -35,6 +35,10 @@
       background: linear-gradient(135deg, var(--accent-light), var(--accent));
       border-color: transparent; color: #fff;
     }
+    /* "Inventory" is a way back to inventory.html, not one of the 3 real
+       activity tabs — same visual family (an <a>, not a <button>, so needs
+       its own text-decoration reset) but never gets the .active fill. */
+    a.act-tab-btn { text-decoration: none; }
 
     /* "Purchases" is the longest label and the one that wraps to 2 lines
        first — it's short by only a few px at common phone widths. Trim the
@@ -278,6 +282,7 @@
 
   <div id="mainWrap" style="display:none;">
     <div class="act-tabs" id="actTabs">
+      <a class="act-tab-btn" href="inventory.html">📦 Inventory</a>
       <button type="button" class="act-tab-btn" data-tab="purchases">🛒 Purchases</button>
       <button type="button" class="act-tab-btn" data-tab="sales">💰 Sales</button>
       <button type="button" class="act-tab-btn" data-tab="transfers">↔️ Transfers</button>
@@ -727,7 +732,9 @@ function applyTabFilterAvailability() {
   }
 }
 
-document.querySelectorAll('.act-tab-btn').forEach(btn => {
+// [data-tab] excludes the "Inventory" link — it navigates away via its own
+// href, not a client-side tab switch, and has no data-tab to switch to.
+document.querySelectorAll('.act-tab-btn[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
 });
 
@@ -1371,7 +1378,6 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems: [
       { href: 'inventory.html', label: 'Inventory', icon: '📦' },
       { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-      { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
       { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
     ],
   });

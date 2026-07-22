@@ -4,9 +4,12 @@
   "type": "module",
   "scripts": {
     "build:auth": "vite build",
+    "build:gift": "vite build --config vite.gift.config.js",
+    "build:qr": "vite build --config vite.qrcode.config.js",
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@wharfkit/antelope": "^1.2.0",
     "@wharfkit/session": "^1",
     "@wharfkit/wallet-plugin-anchor": "^1",
     "@wharfkit/wallet-plugin-cloudwallet": "^1",

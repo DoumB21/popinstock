@@ -3,10 +3,11 @@
 // Add new generic pages here and every page picks up the new link automatically.
 // Inventory is deliberately excluded — it's already reachable from the wallet
 // widget menu (wallet-related page), so it stays out of the top-level nav.
-// Bulk Buy is also deliberately excluded — narrow, low-frequency power-user
-// feature that doesn't warrant permanent top-level exposure; reachable via a
-// button on explore.html instead (same shape as inventory-bulk.html being
-// reached from inventory.html rather than living in the nav).
+// Bulk actions are also deliberately excluded as a nav destination — both
+// explore.html (Buy) and inventory.html (Sell/Transfer/Burn/Cancel/etc, via
+// a select-then-choose-action flow) handle bulk operations fully in-page
+// now; there's no separate inventory-bulk.html or explore-bulk.html page
+// left to link to.
 const GENERIC_NAV_LINKS = [
   { label: 'Explore', href: 'explore.html' },
   { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
@@ -56,7 +57,7 @@ const GENERIC_NAV_LINKS = [
 
 // Same "back to top" widget the project-specific nav.js files (funko/topps/
 // wombat/twitch) build — ported here so every page loading generic-nav.js
-// (Explore, Inventory, Inventory Bulk Actions, Trade Analyzer) gets it too.
+// (Explore, Inventory, Trade Analyzer) gets it too.
 (function buildBackToTop() {
   const style = document.createElement('style');
   style.textContent = `

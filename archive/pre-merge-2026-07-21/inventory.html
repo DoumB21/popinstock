@@ -30,11 +30,6 @@
       text-transform: uppercase; color: var(--text-secondary);
     }
     .filter-row { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-    /* Override .controls-row's flex-end here specifically — Duplicates has
-       2 checkboxes stacked under its label, taller than the single-row
-       groups next to it (Mint Range/Assets/Backed), so bottom-alignment
-       pushed those others down out of line with everything's actual top. */
-    .controls-row.filter-row { align-items: flex-start; }
     .mint-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
     .mint-range-inputs .control-input { flex: 1; min-width: 0; }
     .range-sep { color: var(--text-secondary); flex-shrink: 0; }
@@ -58,14 +53,6 @@
     }
     .activity-tab-btn:hover {
       background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7);
-    }
-    /* Marks "Inventory" as the page you're already on — same gold-gradient
-       treatment inventory-activity.html uses for its own active tab, so the
-       4-item row (Inventory/Purchases/Sales/Transfers) reads consistently
-       across both pages regardless of which one you're currently viewing. */
-    .activity-tab-btn--current {
-      background: linear-gradient(135deg, var(--accent-light), var(--accent));
-      border-color: transparent; color: #fff;
     }
     /* "Purchases" is the longest label and the one that wraps to 2 lines
        first — it's short by only a few px at common phone widths. Trim the
@@ -439,179 +426,10 @@
       color: #22c55e; border-radius: 4px; cursor: pointer; line-height: 1.5;
     }
     .buyoffer-accept-btn:hover { background: rgba(34,197,94,0.22); }
-
-    /* ── Bulk selection (merged in from inventory-bulk.html) ── */
-    .inv-card.selected { border-color: var(--accent-light); }
-    .inv-card-check {
-      position: absolute; top: 6px; left: 6px;
-      width: 20px; height: 20px; border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.3);
-      background: rgba(0,0,0,0.45); padding: 0; line-height: 1;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.62rem; color: transparent; cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
-    }
-    .inv-card.selected .inv-card-check {
-      background: var(--accent-light); border-color: var(--accent-light); color: #fff;
-    }
-
-    .bl-checkbox-label {
-      display: flex; align-items: center; gap: 0.45rem;
-      font-size: 0.82rem; color: var(--text-primary);
-      cursor: pointer; user-select: none; white-space: nowrap;
-      padding: 0.55rem 0;
-    }
-    .bl-checkbox-label input[type="checkbox"] {
-      accent-color: var(--accent-light); width: 15px; height: 15px;
-      cursor: pointer; flex-shrink: 0;
-    }
-    .bl-checkbox-label:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
-    .bl-checkbox-label input:disabled { cursor: not-allowed; }
-
-    /* Bulk-selection helper row (Select first N / Select all matching / Clear) */
-    .bulk-toolbar-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-    .bulk-select-first { display: flex; align-items: center; gap: 0.4rem; }
-    .bulk-select-first-input { width: 70px; box-sizing: border-box; padding: 0.38rem 0.6rem; font-size: 0.82rem; }
-    .bulk-toolbar-btn {
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px; padding: 0.38rem 0.75rem;
-      color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
-      cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s;
-    }
-    .bulk-toolbar-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
-
-    /* Bulk-action chip + menu */
-    .bulk-action-chip-wrap { position: relative; }
-    .bulk-action-chip {
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 8px; padding: 0.55rem 0.9rem;
-      color: var(--text-secondary); font-size: 0.82rem; font-weight: 700;
-      cursor: pointer; font-family: inherit; white-space: nowrap;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    .bulk-action-chip:disabled { opacity: 0.45; cursor: not-allowed; }
-    .bulk-action-chip:not(:disabled):hover,
-    .bulk-action-chip.open { border-color: rgba(240,168,64,0.5); color: var(--accent-light); }
-    .bulk-action-chip.has-selection { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
-    .bulk-action-menu {
-      display: none; position: absolute; top: calc(100% + 4px); right: 0; z-index: 60;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px; padding: 0.35rem 0; min-width: 210px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
-    }
-    .bulk-action-menu.open { display: block; }
-    .bulk-action-item {
-      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-      padding: 0.55rem 0.9rem; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);
-    }
-    .bulk-action-item:hover:not(.disabled) { background: rgba(255,255,255,0.05); }
-    .bulk-action-item.disabled { opacity: 0.4; cursor: not-allowed; }
-    .bulk-action-item-note { font-size: 0.66rem; color: var(--text-secondary); }
-
-    /* Bulk action modal — horizontal strip + transplanted price/transfer panels.
-       Roughly double inventory.html's default single-item .listing-modal width
-       (420px) — this modal shows N items at once, not one, so it needs the room. */
-    #bulkActionModal { width: 860px; }
-    .bulk-strip { display: flex; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.5rem; }
-    /* Custom scrollbar, same dark-theme approach as .cb-panel's (site-wide,
-       shared/global.css) but chunkier — this one gets dragged directly, not
-       just glanced at, so 4px like the dropdown panels' would be too fiddly. */
-    .bulk-strip { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent; }
-    .bulk-strip::-webkit-scrollbar { height: 9px; }
-    .bulk-strip::-webkit-scrollbar-track { background: transparent; }
-    .bulk-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 5px; }
-    .bulk-strip::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
-    /* Each item is its own bg/border block (not just the thumbnail) — same
-       treatment as explore.html's cart strip (.bl-tray-item there), which
-       reads more distinctly "each item is its own card" at a glance. */
-    .bulk-strip-item {
-      position: relative; flex-shrink: 0; width: 152px; box-sizing: border-box;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 10px; padding: 0.6rem;
-    }
-    .bulk-strip-thumb {
-      width: 128px; height: 128px; border-radius: 6px; overflow: hidden;
-      background: var(--bg-card); border: 1px solid var(--border);
-    }
-    .bulk-strip-thumb img, .bulk-strip-thumb video { width: 100%; height: 100%; object-fit: contain; display: block; }
-    .bulk-strip-name {
-      font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.35rem;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .bulk-strip-remove {
-      position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
-      background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
-      color: var(--text-primary); font-size: 0.75rem; cursor: pointer; line-height: 1;
-      display: flex; align-items: center; justify-content: center; padding: 0;
-    }
-    .bulk-strip-remove:hover { background: rgba(0,0,0,0.85); }
-    /* Same control-input everyone else on the site gets — was previously a
-       bespoke bold/rounded style that didn't match, per direct feedback. */
-    .bulk-strip-price { margin-top: 0.35rem; display: flex; align-items: center; gap: 0.3rem; }
-    .bulk-strip-price input.control-input { padding: 0.4rem 0.5rem; font-size: 0.8rem; min-width: 0; flex: 1; }
-    .bulk-strip-price input.missing { border-color: rgba(255,107,107,0.5); }
-    .bulk-strip-price-unit { font-size: 0.68rem; color: var(--text-secondary); flex-shrink: 0; }
-    .bulk-strip-listed-price { font-size: 0.72rem; color: #4ade80; margin-top: 0.3rem; }
-    .bulk-warn-text { font-size: 0.8rem; color: var(--accent-light); line-height: 1.5; text-align: left; }
-
-    .bl-price-panel { display: flex; flex-direction: column; gap: 0.9rem; }
-    .bl-price-block { display: flex; flex-direction: column; gap: 0.4rem; }
-    .bl-price-block-label {
-      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--text-secondary);
-    }
-    .bl-price-row { display: flex; gap: 0.5rem; align-items: center; }
-    /* Fixed narrow width instead of flex:1 — these never hold more than ~10
-       characters, and stretching them full-row was shoving "Apply to all"
-       out to the far right edge of the (now much wider) modal. */
-    .bl-price-row .control-input { width: 110px; flex: 0 0 auto; min-width: 0; font-size: 0.85rem; }
-    /* Fixed width regardless of text ("WAX" vs "%") so "Apply to all" lands
-       in the same spot on every row instead of drifting with label length. */
-    .bl-price-unit { font-size: 0.75rem; color: var(--text-secondary); flex-shrink: 0; display: inline-block; width: 30px; }
-    /* Batch-size transparency note, same copy/placement convention as
-       explore.html's cart bar (.bl-tray-batch-note there). */
-    .bulk-batch-note { font-size: 0.72rem; font-weight: 600; color: var(--accent-light); text-align: right; margin-top: 0.4rem; }
-    .bl-set-all-btn {
-      background: rgba(255,255,255,0.07); border: 1px solid var(--border);
-      border-radius: 8px; padding: 0.45rem 0.6rem;
-      color: var(--text-primary); font-size: 0.75rem; font-weight: 600;
-      cursor: pointer; font-family: inherit; white-space: nowrap;
-      transition: background 0.15s; flex-shrink: 0;
-    }
-    .bl-set-all-btn:hover { background: rgba(255,255,255,0.13); }
-    .bl-price-note { font-size: 0.68rem; color: var(--accent-light); min-height: 1em; }
-    .bl-transfer-panel { display: flex; flex-direction: column; gap: 0.5rem; }
-    .bl-transfer-panel .control-input { width: 100%; box-sizing: border-box; }
-    .bl-transfer-warning { font-size: 0.72rem; color: var(--accent-light); line-height: 1.5; }
-    .bl-tray-total {
-      display: flex; justify-content: space-between;
-      font-size: 0.78rem; color: var(--text-secondary);
-      padding-top: 0.5rem; border-top: 1px solid var(--border);
-    }
-    .bl-tray-total-val { color: var(--text-primary); font-weight: 700; }
-    .bl-progress { font-size: 0.75rem; color: var(--text-secondary); text-align: center; min-height: 1rem; margin-top: 0.5rem; }
-    .bl-progress.is-error   { color: #e05050; }
-    .bl-progress.is-success { color: #50c878; }
-
-    /* ── Gift link result screen ── */
-    .gift-result { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
-    /* QR modules render as plain black <rect>s (SVG default fill) — a white
-       box behind them is required for the code to stay scannable regardless
-       of the site's dark theme, not just a style choice. */
-    .gift-qr-wrap {
-      background: #fff; padding: 12px; border-radius: 10px;
-      display: inline-flex; line-height: 0;
-    }
-    .gift-qr-wrap svg { width: 180px; height: 180px; display: block; }
-    .gift-link-row { display: flex; gap: 0.5rem; width: 100%; }
-    .gift-link-row .control-input { flex: 1; min-width: 0; font-size: 0.8rem; }
-    .gift-links-page-link { font-size: 0.82rem; text-align: center; color: var(--accent-light); }
   </style>
   <script src="shared/supabase-config.js"></script>
   <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
-  <script src="shared/gift-crypto.js"></script>
-  <script src="shared/qrcode.js"></script>
 </head>
 <body>
 
@@ -730,45 +548,13 @@
           <div class="cb-panel"></div>
         </div>
       </div>
-      <div class="control-group control-group--narrow" id="dupesGroup">
-        <label class="control-label">Duplicates</label>
-        <label class="bl-checkbox-label" id="excludeLowestLabel" title="Select a collection to enable this filter">
-          <input type="checkbox" id="excludeLowestMint" disabled />
-          Exclude lowest mint
-        </label>
-        <label class="bl-checkbox-label" id="onlyHighestLabel" title="Select a collection to enable this filter">
-          <input type="checkbox" id="onlyHighestMint" disabled />
-          Only highest mint
-        </label>
-      </div>
-      <div class="control-group control-group--narrow">
-        <label class="control-label">Backed</label>
-        <label class="bl-checkbox-label">
-          <input type="checkbox" id="onlyBackedFilter" />
-          Only backed NFTs
-        </label>
-      </div>
-      <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end; align-self:flex-end; gap:0.6rem;">
-        <div class="bulk-action-chip-wrap">
-          <button id="bulkActionChip" class="bulk-action-chip" type="button" disabled>Bulk action ▾</button>
-          <div class="bulk-action-menu" id="bulkActionMenu"></div>
-        </div>
+      <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end;">
         <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
       </div>
     </div>
   </div>
 
-  <div id="bulkToolbar" class="bulk-toolbar-row" style="display:none;">
-    <div class="bulk-select-first">
-      <input type="number" class="control-input bulk-select-first-input" id="selectFirstInput" placeholder="e.g. 40" min="1" step="1" value="20" oninput="updateSelectFirstLabel()" onkeydown="if (event.key === 'Enter') selectFirstN()" />
-      <button class="bulk-toolbar-btn" id="selectFirstBtn" onclick="selectFirstN()">Select first 20</button>
-    </div>
-    <button class="bulk-toolbar-btn" id="selectAllMatchBtn" style="display:none" onclick="selectAllMatchingFilters()">Select all matching filters</button>
-    <button class="bulk-toolbar-btn" onclick="clearAllSelection()">Clear selection</button>
-  </div>
-
   <div id="activityTabs" class="activity-tabs" style="display:none;">
-    <a class="activity-tab-btn activity-tab-btn--current" href="inventory.html">📦 Inventory</a>
     <a class="activity-tab-btn" href="inventory-activity.html?tab=purchases">🛒 Purchases</a>
     <a class="activity-tab-btn" href="inventory-activity.html?tab=sales">💰 Sales</a>
     <a class="activity-tab-btn" href="inventory-activity.html?tab=transfers">↔️ Transfers</a>
@@ -799,7 +585,6 @@
 <div id="panelOverlay" class="panel-overlay" style="display:none;"></div>
 <div id="listingModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
 <div id="acceptOfferModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
-<div id="bulkActionModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
 <div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
 <div id="infoPopup" class="info-popup" style="display:none;"></div>
 
@@ -828,10 +613,6 @@ const MARKET_API = 'https://wax.api.atomicassets.io';
 
 const PAGE_SIZE  = 18;
 const MAKER      = 'popinstockgo';
-// Same override key + default src/wax-auth.js reads for the wallet's own RPC —
-// used here only for read-only get_table_rows calls (no signing), to find a
-// just-created gift link's id (see bulkGift()).
-const CHAIN_RPC  = localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com';
 
 const SORT_OPTIONS = [
   { value: 'transferred_desc', label: 'Transferred (Newest)', sort: 'transferred',   order: 'desc' },
@@ -870,7 +651,7 @@ let _collectionNames  = new Map();  // collection_name → display name
 let _collectionCounts = new Map();  // collection_name → asset count
 let _totalAssets      = null;       // total NFT count across all collections
 let _sortOrder       = 'transferred_desc';
-let _modalAsset      = null;        // asset open in the List/Edit-listing modal
+let _selected        = null;        // asset open in modal
 let _selectedListing = null;        // listing for that asset (null = not listed)
 let _offerModalAsset  = null;        // asset open in buy offer modal
 let _offerModalOffers = null;        // cached top-10 list for phase 1 (null = not fetched)
@@ -897,59 +678,6 @@ let _acceptBusy      = false;
 let _activeWallet    = null;    // tracks last connected wallet; null = fresh page load
 const _supplyCache   = {};          // templateId → Promise<supply>
 const _ownedCache    = {};          // `${wallet}:${tid}` → Promise<owned>
-let _pendingReload   = false;       // a filter changed while _loading was already true — see finishLoading()
-
-// ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──
-let _selected = new Map();          // asset_id → price string (Sell) | '' (other actions, unused)
-const MAX_SELECTED        = 350;
-const MAX_PRICE_WAX       = 10_000_000;
-const BATCH_SIZE_SELL       = 25;  // 2 actions/asset (announcesale+createoffer)
-const BATCH_SIZE_TRANSFER   = 300; // 1 action carries the whole chunk's asset_ids array
-const BATCH_SIZE_CANCEL     = 50;  // 1 action/listing (cancelsale only)
-const BATCH_SIZE_BURN       = 50;  // 1 action/asset (burnasset only)
-const BATCH_SIZE_BACKTOKENS = 50;  // 1 backasset/asset + 2 fixed actions/chunk (announcedepo + deposit transfer) — see bulkBackTokens()
-// Per-action lookup for the "1 wallet signature per N items" note — same
-// transparency copy inventory-bulk.html's mode banner and explore.html's
-// cart bar both already surface.
-const BULK_BATCH_SIZES = {
-  sell: BATCH_SIZE_SELL, transfer: BATCH_SIZE_TRANSFER, cancel: BATCH_SIZE_CANCEL,
-  burn: BATCH_SIZE_BURN, backtokens: BATCH_SIZE_BACKTOKENS,
-};
-
-// Tokens offered in "Back with tokens." Only WAX for now — reading which
-// tokens (and how much of each) a wallet actually holds, across whatever
-// contracts issue them, is future work (flagged explicitly, not guessed at
-// here). The dropdown/data shape below is already built to take more entries
-// once that lookup exists, so adding a token later is just adding a row.
-const BACK_TOKEN_OPTIONS = [
-  { symbol: 'WAX', contract: 'eosio.token', precision: 8 },
-];
-let _backToken = BACK_TOKEN_OPTIONS[0].symbol;
-let _recipient  = '';
-let _memo       = '';
-let _busy       = false;            // bulk-action transaction in flight
-let _bulkAction = null;             // 'sell' | 'transfer' | 'cancel' | 'burn' | 'backtokens' | 'gift' — action open in the bulk modal
-let _giftStep   = 'confirm';        // 'confirm' | 'result' — gift is the one bulk action with a 2-screen flow
-let _giftResult = null;             // { linkId, url, privateKey } — set once creation succeeds, read by the result screen
-let _floorNoListingIds = [];
-let _excludeLowestMint   = false;   // only selectable once a single collection is chosen — see loadAssetsFullScan
-let _excludedLowestCount = 0;
-let _onlyHighestMint     = false;   // mutually exclusive with _excludeLowestMint — see loadAssetsOnlyHighest
-let _onlyHighestCount    = 0;
-// Server-side filter (AtomicAssets /assets' own has_backed_tokens=true param,
-// confirmed against the live swagger docs) — no collection-gating needed
-// unlike the dupes filters above, since it's not a client-side full scan.
-let _onlyBacked          = false;
-let _selectAllCountGen   = 0;       // guards a stale async count from overwriting a newer one
-
-const BULK_ACTIONS = [
-  { key: 'sell',       label: 'List for sale',    needs: 'unlisted' },
-  { key: 'transfer',   label: 'Transfer',         needs: 'any' },
-  { key: 'gift',       label: 'Gift link',        needs: 'any' },
-  { key: 'burn',       label: 'Burn',             needs: 'any' },
-  { key: 'backtokens', label: 'Back with tokens', needs: 'any' },
-  { key: 'cancel',     label: 'Cancel listing',   needs: 'listed' },
-];
 
 const SB_HEADERS = {
   'apikey': SUPABASE_ANON_KEY,
@@ -1083,7 +811,7 @@ function initLazyVideos() {
     }
   }, { rootMargin: '300px' }); // pre-load 300px ahead so videos are ready before they're visible
 
-  document.querySelectorAll('.inv-card-img video[data-src], .bulk-strip-thumb video[data-src]').forEach(v => _videoObserver.observe(v));
+  document.querySelectorAll('.inv-card-img video[data-src]').forEach(v => _videoObserver.observe(v));
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1123,8 +851,7 @@ function patchCard(assetId) {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function attachCardEvents(card, asset) {
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('a, button')) return; // List/Edit button and the select checkbox handle their own clicks
+  card.addEventListener('click', () => {
     if (_infoAsset?.asset_id === asset.asset_id && document.getElementById('infoPopup').style.display !== 'none') {
       closeInfoPopup();
     } else {
@@ -1135,20 +862,13 @@ function attachCardEvents(card, asset) {
   const btn = card.querySelector('.inv-card-btn');
   if (btn) btn.addEventListener('click', e => { e.stopPropagation(); openModal(asset); });
 
-  const chk = card.querySelector('.inv-card-check');
-  if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(asset.asset_id, card); });
-
-  // Scoped to the image itself, not the whole card — matches explore.html's
-  // fix for the same problem: hovering the title/List-Edit button/checkbox
-  // to click them used to also pop the tooltip in the way.
-  const imgEl = card.querySelector('.inv-card-img');
-  imgEl.addEventListener('mouseenter', () => {
+  card.addEventListener('mouseenter', () => {
     if (document.getElementById('listingModal').style.display !== 'none') return;
     if (document.getElementById('acceptOfferModal').style.display !== 'none') return;
     if (document.getElementById('infoPopup').style.display !== 'none') return;
     scheduleTooltip(card, asset);
   });
-  imgEl.addEventListener('mouseleave', cancelTooltip);
+  card.addEventListener('mouseleave', cancelTooltip);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -1205,7 +925,6 @@ function renderInfoContent(asset, supply, owned) {
       ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
       ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${asset.asset_id}<button class="copy-btn" onclick="copyVal(this,'${asset.asset_id}')" title="Copy asset ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
       ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${asset.template.template_id}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${asset.template.template_id}<button class="copy-btn" onclick="copyVal(this,'${asset.template.template_id}')" title="Copy template ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${fmtBackedTokens(asset)}</span></div>
     </div>
     <div class="tt-divider"></div>
     <div class="tt-heading">Supply</div>
@@ -1318,7 +1037,6 @@ function renderTooltip(asset, supply, owned) {
       ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
       ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val">#${asset.asset_id}</span></div>` : ''}
       ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val">#${asset.template.template_id}</span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${fmtBackedTokens(asset)}</span></div>
     </div>
     <div class="tt-divider"></div>
     <div class="tt-heading">Supply</div>
@@ -1706,13 +1424,11 @@ function cardHtml(a) {
   const col     = a.collection?.collection_name || '';
   const listing = _listings.get(String(a.asset_id));
   const isListed = !!listing;
-  const isSel   = _selected.has(String(a.asset_id));
   return `
-    <div class="inv-card${isListed ? ' is-listed' : ''}${isSel ? ' selected' : ''}" data-id="${a.asset_id}">
+    <div class="inv-card${isListed ? ' is-listed' : ''}" data-id="${a.asset_id}">
       <div class="inv-card-img">
         ${assetMediaHtml(a, 'loading="lazy"')}
         ${mint ? `<span class="inv-card-mint">${mint}</span>` : ''}
-        <button type="button" class="inv-card-check" title="Select">${isSel ? '✓' : ''}</button>
       </div>
       <div class="inv-card-info">
         <div class="inv-card-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
@@ -1789,9 +1505,6 @@ function onColFilterChange(val) {
   document.getElementById('rarityGroup').style.display = 'none';
   document.getElementById('cardIdGroup').style.display = 'none';
   buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
-  setDupesFiltersAvailability(_filterCol !== 'all');
-  const selAllBtn = document.getElementById('selectAllMatchBtn');
-  if (selAllBtn) selAllBtn.style.display = _filterCol !== 'all' ? '' : 'none';
 
   const col = _filterCol;
   if (col !== 'all') {
@@ -1916,29 +1629,12 @@ async function readUrlParams() {
   }
 }
 
-// _loading is a simple mutex shared by every async load path (plain
-// pagination here, plus the dupes full-scans below) — only one can run at a
-// time. A reset that arrives while one is already in flight is recorded in
-// _pendingReload and re-run via finishLoading() the moment the in-flight one
-// finishes, instead of leaving the grid showing results for stale filters.
-function finishLoading() {
-  _loading = false;
-  if (_pendingReload) {
-    _pendingReload = false;
-    loadAssets(true, false);
-    return true; // a fresh reload just started — caller should skip further UI reset for this stale call
-  }
-  return false;
-}
-
 async function loadAssets(reset = false, walletChange = false) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!wallet) return;
-  if (_loading) { if (reset) _pendingReload = true; return; }
+  if (!wallet || _loading) return;
   if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; syncUrl(); }
 
-  const whitelistForDupes = computeTemplateWhitelist();
-  if (whitelistForDupes === 'EMPTY') {
+  if (computeTemplateWhitelist() === 'EMPTY') {
     document.getElementById('invGrid').style.display      = 'none';
     document.getElementById('loadMoreWrap').style.display = 'none';
     const ew = document.getElementById('emptyWrap');
@@ -1946,8 +1642,6 @@ async function loadAssets(reset = false, walletChange = false) {
     ew.style.display = '';
     return;
   }
-  if (reset && _excludeLowestMint && _filterCol !== 'all') return loadAssetsFullScan(whitelistForDupes);
-  if (reset && _onlyHighestMint   && _filterCol !== 'all') return loadAssetsOnlyHighest(whitelistForDupes);
 
   _loading = true;
   const loadMoreBtn = document.getElementById('loadMoreBtn');
@@ -1995,12 +1689,8 @@ async function loadAssets(reset = false, walletChange = false) {
     // by this wallet (e.g. transferred away without the listing being
     // cancelled first).
     const idsParam       = _listingsFilter === 'only' ? `&ids=${[..._listings.keys()].join(',')}` : '';
-    // has_backed_tokens is AtomicAssets' own server-side filter (confirmed
-    // against the live swagger docs) — shows assets backed by ANY token,
-    // regardless of which one, matching what was actually asked for.
-    const backedParam    = _onlyBacked    ? `&has_backed_tokens=true` : '';
     const sortOpt        = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
-    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}${idsParam}${backedParam}`;
+    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}${idsParam}`;
 
     let batch = [];
 
@@ -2049,7 +1739,7 @@ async function loadAssets(reset = false, walletChange = false) {
       emptyWrap.style.display = '';
     }
   } finally {
-    if (finishLoading()) return; // a queued reload already took over — its own render/UI reset will handle the rest
+    _loading = false;
     if (reset) document.getElementById('loadWrap').style.display = 'none';
     if (loadMoreBtn) { loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'Load more'; }
   }
@@ -2671,7 +2361,7 @@ async function handleAcceptOffer() {
 
 function openModal(asset) {
   const listing    = _listings.get(String(asset.asset_id)) || null;
-  _modalAsset      = asset;
+  _selected        = asset;
   _selectedListing = listing;
   _listBusy        = false;
   _listingRoyaltyPct = 0;
@@ -2685,13 +2375,13 @@ function openModal(asset) {
 
   if (tid) {
     fetchFloorPrice(tid, col).then(price => {
-      if (_modalAsset?.asset_id === asset.asset_id) updateModalFloor(price);
+      if (_selected?.asset_id === asset.asset_id) updateModalFloor(price);
     });
   }
 
   if (col) {
     fetchCollectionFee(col).then(royalty => {
-      if (_modalAsset?.asset_id !== asset.asset_id) return;
+      if (_selected?.asset_id !== asset.asset_id) return;
       _listingRoyaltyPct = royalty;
       updateModalFees(royalty);
       if (listing) updateListingReceipt(String(listing.price_wax));
@@ -2701,7 +2391,7 @@ function openModal(asset) {
 }
 
 function closeModal() {
-  _modalAsset      = null;
+  _selected        = null;
   _selectedListing = null;
   document.getElementById('listingModal').style.display = 'none';
   document.getElementById('panelOverlay').style.display = 'none';
@@ -2806,16 +2496,6 @@ function fmtWax(n) {
     .replace(/(\.\d{2})0+$/, '$1');
 }
 
-// AtomicAssets' /assets response always includes backed_tokens (empty array
-// when there's none) regardless of any query param — confirmed live, no
-// extra fetch needed. Not WAX-specific: shows whatever token(s) actually
-// back the asset, could be more than one.
-function fmtBackedTokens(asset) {
-  const tokens = asset?.backed_tokens;
-  if (!tokens || !tokens.length) return 'None';
-  return tokens.map(t => `${fmtWax(Number(t.amount) / (10 ** t.token_precision))} ${t.token_symbol}`).join(', ');
-}
-
 function onPriceInput(el) {
   const d = el.value.indexOf('.');
   if (d !== -1 && el.value.length - d > 3) el.value = el.value.slice(0, d + 3);
@@ -2886,7 +2566,7 @@ function showModalMsg(text, type) {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 async function handleCancelListing() {
-  if (_listBusy || !_modalAsset || !_selectedListing) return;
+  if (_listBusy || !_selected || !_selectedListing) return;
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) { showModalMsg('No wallet connected.', 'error'); return; }
 
@@ -2896,7 +2576,7 @@ async function handleCancelListing() {
   if (cancelBtn) cancelBtn.disabled = true;
   if (listBtn)   listBtn.disabled   = true;
 
-  const asset   = _modalAsset;
+  const asset   = _selected;
   const listing = _selectedListing;
 
   if (cancelBtn) cancelBtn.textContent = 'Cancelling…';
@@ -2941,7 +2621,7 @@ async function handleCancelListing() {
 }
 
 async function handleList() {
-  if (_listBusy || !_modalAsset) return;
+  if (_listBusy || !_selected) return;
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) { showModalMsg('No wallet connected.', 'error'); return; }
 
@@ -2967,7 +2647,7 @@ async function handleList() {
   if (listBtn)   listBtn.disabled   = true;
   if (cancelBtn) cancelBtn.disabled = true;
 
-  const asset   = _modalAsset;
+  const asset   = _selected;
   const listing = _selectedListing;
 
   if (listBtn) listBtn.textContent = listing ? 'Updating…' : 'Listing…';
@@ -3050,1086 +2730,6 @@ async function handleList() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/* Bulk selection (merged in from inventory-bulk.html, 2026-07-21)           */
-/* No persistent tray — selection is invisible in the grid until the user    */
-/* opens the Bulk-action modal for it. Closing that modal never clears       */
-/* selection; only an explicit Clear/disconnect/wallet-switch does.          */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-// O(1) asset_id → asset lookup, built fresh from the current _assets each
-// time it's needed — an _assets.find() per selected item inside a loop is an
-// O(n²) scan at a few hundred selected (see bulkList/applyBulkBelowFloor).
-function assetsIndex() {
-  return new Map(_assets.map(a => [String(a.asset_id), a]));
-}
-
-function selectedNotListed() { return [..._selected.keys()].filter(id => !_listings.has(id)); }
-function selectedListed()    { return [..._selected.keys()].filter(id => _listings.has(id)); }
-
-function toggleSelect(assetId, cardEl) {
-  const id = String(assetId);
-  if (_selected.has(id)) {
-    _selected.delete(id);
-    cardEl.classList.remove('selected');
-    const chk = cardEl.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '';
-  } else {
-    if (_selected.size >= MAX_SELECTED) return;
-    _selected.set(id, '');
-    cardEl.classList.add('selected');
-    const chk = cardEl.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '✓';
-  }
-  updateBulkChip();
-}
-
-function clearAllSelection() {
-  _selected.clear();
-  document.querySelectorAll('.inv-card.selected').forEach(card => {
-    card.classList.remove('selected');
-    const chk = card.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '';
-  });
-  updateBulkChip();
-}
-
-function removeFromBulkSelection(id) {
-  _selected.delete(id);
-  const card = document.querySelector(`.inv-card[data-id="${id}"]`);
-  if (card) {
-    card.classList.remove('selected');
-    const chk = card.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '';
-  }
-  updateBulkChip();
-  if (_selected.size === 0) { closeBulkActionModal(); return; }
-  renderBulkActionModal();
-}
-
-function updateSelectFirstLabel() {
-  const btn = document.getElementById('selectFirstBtn');
-  const n   = parseInt(document.getElementById('selectFirstInput').value, 10);
-  if (btn) btn.textContent = Number.isFinite(n) && n > 0 ? `Select first ${n}` : 'Select first';
-}
-
-// AtomicHub-style "Select first N" — deterministic (not additive): typing a
-// new number and clicking again always lands on exactly that many items.
-async function selectFirstN() {
-  const input = document.getElementById('selectFirstInput');
-  const n = parseInt(input.value, 10);
-  if (!Number.isFinite(n) || n <= 0 || _loading) return;
-
-  const btn = document.getElementById('selectFirstBtn');
-  while (document.querySelectorAll('.inv-card').length < n && _hasMore) {
-    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-    await loadAssets(false);
-  }
-  if (btn) { btn.disabled = false; updateSelectFirstLabel(); }
-
-  clearAllSelection();
-  let count = 0;
-  document.querySelectorAll('.inv-card').forEach(card => {
-    if (count >= n || _selected.size >= MAX_SELECTED) return;
-    const id = card.dataset.id;
-    _selected.set(id, '');
-    card.classList.add('selected');
-    const chk = card.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '✓';
-    count++;
-  });
-  updateBulkChip();
-}
-
-// "Select all matching filters" — plain pagination may only hold whatever's
-// been paginated in via Load More so far; this fetches the rest first (when
-// needed) so "select all" really means all of it. Gated to one collection
-// (see fetchAllMatchingAssets) — same reasoning as the dupes-scan filters.
-async function selectAllMatchingFilters() {
-  if (_filterCol === 'all' || _loading) return;
-
-  if (!_excludeLowestMint && !_onlyHighestMint && _hasMore) {
-    const whitelist = computeTemplateWhitelist();
-    if (whitelist === 'EMPTY') return;
-
-    _loading = true;
-    const btn = document.getElementById('selectAllMatchBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-
-    try {
-      const all = await fetchAllMatchingAssets(whitelist, n => { if (btn) btn.textContent = `Loading ${n.toLocaleString()}…`; });
-      _assets  = filterByMintRange(all);
-      _hasMore = false;
-    } catch (err) {
-      console.error('selectAllMatchingFilters:', err);
-    }
-
-    if (btn) { btn.disabled = false; btn.textContent = `Select all matching filters (${_assets.length.toLocaleString()})`; }
-    if (finishLoading()) return;
-    renderGrid();
-    initLazyVideos();
-    loadFloorPricesForCards(_assets);
-  }
-
-  document.querySelectorAll('.inv-card').forEach(card => {
-    const id = card.dataset.id;
-    if (_selected.has(id) || _selected.size >= MAX_SELECTED) return;
-    _selected.set(id, '');
-    card.classList.add('selected');
-    const chk = card.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '✓';
-  });
-  updateBulkChip();
-}
-
-/* ── Duplicates filters ("Exclude lowest mint" / "Only highest mint") ──
-   Both need a full scan of every matching asset — only tractable once
-   narrowed to a single collection (tens of thousands of assets across
-   hundreds of collections otherwise). Deliberately asymmetric by design,
-   confirmed — do not "fix": a single-copy template is always excluded by
-   "exclude lowest" (even though it's the only copy owned), but "only
-   highest" drops single-copy templates entirely rather than treating them
-   as automatically "the highest". */
-function setDupesFiltersAvailability(enabled) {
-  const cbLow     = document.getElementById('excludeLowestMint');
-  const labelLow  = document.getElementById('excludeLowestLabel');
-  const cbHigh    = document.getElementById('onlyHighestMint');
-  const labelHigh = document.getElementById('onlyHighestLabel');
-  const hint      = enabled ? '' : 'Select a collection to enable this filter';
-
-  cbLow.disabled  = !enabled;
-  cbHigh.disabled = !enabled;
-  labelLow.title  = hint;
-  labelHigh.title = hint;
-
-  if (!enabled) {
-    cbLow.checked = false;
-    cbHigh.checked = false;
-    _excludeLowestMint = false;
-    _excludedLowestCount = 0;
-    _onlyHighestMint = false;
-    _onlyHighestCount = 0;
-  }
-}
-
-document.getElementById('excludeLowestMint').addEventListener('change', function () {
-  _excludeLowestMint = this.checked;
-  if (_excludeLowestMint) {
-    _onlyHighestMint = false;
-    document.getElementById('onlyHighestMint').checked = false;
-  }
-  loadAssets(true);
-});
-
-document.getElementById('onlyHighestMint').addEventListener('change', function () {
-  _onlyHighestMint = this.checked;
-  if (_onlyHighestMint) {
-    _excludeLowestMint = false;
-    document.getElementById('excludeLowestMint').checked = false;
-  }
-  loadAssets(true);
-});
-
-document.getElementById('onlyBackedFilter').addEventListener('change', function () {
-  _onlyBacked = this.checked;
-  loadAssets(true);
-});
-
-// Deliberately NOT passing mint range here — callers needing "the true
-// lowest mint owned" can't restrict by mint range up front, or a range like
-// "min 500" would treat the lowest mint *within that range* as the keeper
-// instead of the template's true lowest. Mint range is applied client-side
-// afterward instead — see filterByMintRange.
-async function fetchAllMatchingAssets(whitelist, onProgress) {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!wallet) return [];
-
-  const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
-  const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${encodeURIComponent(_filterSchema)}`       : '';
-  const matchParam     = _filterText              ? `&match=${encodeURIComponent(_filterText)}`              : '';
-  const whitelistParam = whitelist              ? `&template_whitelist=${whitelist}`                          : '';
-  const backedParam    = _onlyBacked            ? `&has_backed_tokens=true`                                  : '';
-  const sortOpt = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
-
-  const all = [];
-  let page = 1;
-  while (true) {
-    const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=1000&page=${page}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${matchParam}${whitelistParam}${backedParam}`;
-    const res  = await fetchWithRetry(url);
-    const json = await res.json();
-    if (!json.success) throw new Error('API error');
-    const batch = json.data || [];
-    all.push(...batch);
-    if (onProgress) onProgress(all.length);
-    if (batch.length < 1000) break;
-    page++;
-  }
-  return all;
-}
-
-function filterByMintRange(assets) {
-  const min = _filterMintMin ? Number(_filterMintMin) : null;
-  const max = _filterMintMax ? Number(_filterMintMax) : null;
-  if (min == null && max == null) return assets;
-  return assets.filter(a => {
-    const mint = Number(a.template_mint);
-    if (min != null && (!isFinite(mint) || mint < min)) return false;
-    if (max != null && (!isFinite(mint) || mint > max)) return false;
-    return true;
-  });
-}
-
-async function runDupesScan(whitelist, computeResult) {
-  _loading = true;
-  document.getElementById('loadWrap').style.display     = '';
-  document.getElementById('invGrid').style.display       = 'none';
-  document.getElementById('emptyWrap').style.display     = 'none';
-  document.getElementById('loadMoreWrap').style.display  = 'none';
-  const statusEl = document.querySelector('#loadWrap div:last-child');
-
-  let all = [];
-  try {
-    all = await fetchAllMatchingAssets(whitelist, n => {
-      if (statusEl) statusEl.textContent = `Scanning ${n.toLocaleString()} asset${n !== 1 ? 's' : ''} for duplicates…`;
-    });
-  } catch (err) {
-    console.error('runDupesScan:', err);
-  }
-
-  const { assets, count } = computeResult(all);
-  _assets  = assets;
-  _hasMore = false;
-
-  if (finishLoading()) return undefined;
-
-  document.getElementById('loadWrap').style.display = 'none';
-  renderGrid();
-  initLazyVideos();
-  loadFloorPricesForCards(_assets);
-  return count;
-}
-
-async function loadAssetsFullScan(whitelist) {
-  const count = await runDupesScan(whitelist, all => {
-    const lowestByTemplate = new Map();
-    for (const a of all) {
-      const tid = a.template?.template_id;
-      if (!tid) continue;
-      const mint = Number(a.template_mint);
-      if (!isFinite(mint)) continue;
-      const cur = lowestByTemplate.get(tid);
-      if (!cur || mint < cur.mint) lowestByTemplate.set(tid, { mint, asset_id: a.asset_id });
-    }
-    const excludeIds = new Set([...lowestByTemplate.values()].map(v => String(v.asset_id)));
-    return { assets: filterByMintRange(all).filter(a => !excludeIds.has(String(a.asset_id))), count: excludeIds.size };
-  });
-  if (count !== undefined) _excludedLowestCount = count;
-}
-
-async function loadAssetsOnlyHighest(whitelist) {
-  const count = await runDupesScan(whitelist, all => {
-    const groupsByTemplate = new Map();
-    for (const a of all) {
-      const tid = a.template?.template_id;
-      if (!tid) continue;
-      const mint = Number(a.template_mint);
-      if (!isFinite(mint)) continue;
-      if (!groupsByTemplate.has(tid)) groupsByTemplate.set(tid, []);
-      groupsByTemplate.get(tid).push({ mint, asset_id: a.asset_id });
-    }
-    const keepIds = new Set();
-    for (const group of groupsByTemplate.values()) {
-      if (group.length < 2) continue;
-      let highest = group[0];
-      for (const item of group) if (item.mint > highest.mint) highest = item;
-      keepIds.add(String(highest.asset_id));
-    }
-    return { assets: filterByMintRange(all).filter(a => keepIds.has(String(a.asset_id))), count: keepIds.size };
-  });
-  if (count !== undefined) _onlyHighestCount = count;
-}
-
-/* ── Bulk-action chip + menu ── */
-function updateBulkChip() {
-  const chip = document.getElementById('bulkActionChip');
-  if (!chip) return;
-  const n = _selected.size;
-  chip.disabled = n === 0;
-  chip.classList.toggle('has-selection', n > 0);
-  chip.textContent = n > 0 ? `${n} selected · Bulk action ▾` : 'Bulk action ▾';
-  if (n === 0) closeBulkMenu();
-}
-
-function renderBulkMenu() {
-  const menu = document.getElementById('bulkActionMenu');
-  const anyListed   = selectedListed().length > 0;
-  const anyUnlisted = selectedNotListed().length > 0;
-  menu.innerHTML = BULK_ACTIONS.map(a => {
-    let disabled = !!a.disabled;
-    if (a.needs === 'unlisted' && !anyUnlisted) disabled = true;
-    if (a.needs === 'listed'   && !anyListed)   disabled = true;
-    return `<div class="bulk-action-item${disabled ? ' disabled' : ''}" data-action="${a.key}">
-      <span>${a.label}</span>${a.note ? `<span class="bulk-action-item-note">${a.note}</span>` : ''}
-    </div>`;
-  }).join('');
-  menu.querySelectorAll('.bulk-action-item:not(.disabled)').forEach(item => {
-    item.addEventListener('click', () => {
-      closeBulkMenu();
-      openBulkActionModal(item.dataset.action);
-    });
-  });
-}
-
-function toggleBulkMenu() {
-  const chip = document.getElementById('bulkActionChip');
-  const menu = document.getElementById('bulkActionMenu');
-  if (chip.disabled) return;
-  const isOpen = menu.classList.contains('open');
-  closeBulkMenu();
-  if (!isOpen) {
-    renderBulkMenu();
-    menu.classList.add('open');
-    chip.classList.add('open');
-  }
-}
-
-function closeBulkMenu() {
-  document.getElementById('bulkActionMenu')?.classList.remove('open');
-  document.getElementById('bulkActionChip')?.classList.remove('open');
-}
-
-/* ── Bulk action modal — horizontal strip + action-specific fields.
-   Closing/cancelling this modal deliberately never clears _selected. ── */
-function bulkStripHtml() {
-  const assetsById = assetsIndex();
-  return [..._selected.keys()].map(id => {
-    const a = assetsById.get(id);
-    if (!a) return '';
-    const mint = a.template_mint ? `#${a.template_mint}` : '';
-    let extra = '';
-    if (_bulkAction === 'sell') {
-      const listed = _listings.has(id);
-      if (listed) {
-        extra = `<div class="bulk-strip-listed-price">Already listed — skipped</div>`;
-      } else {
-        const price = _selected.get(id) || '';
-        extra = `<div class="bulk-strip-price"><input type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01" class="control-input${!price ? ' missing' : ''}" placeholder="0.00" value="${price}" data-id="${escHtml(id)}" oninput="onBulkPriceInput(this)"><span class="bulk-strip-price-unit">WAX</span></div>`;
-      }
-    } else if (_bulkAction === 'cancel') {
-      const listing = _listings.get(id);
-      extra = listing
-        ? `<div class="bulk-strip-listed-price">${listing.price_wax.toFixed(2)} WAX</div>`
-        : `<div class="bulk-strip-listed-price" style="color:var(--text-secondary)">Not listed — skipped</div>`;
-    } else if (_bulkAction === 'backtokens') {
-      const amt = _selected.get(id) || '';
-      extra = `<div class="bulk-strip-price"><input type="number" min="0.00000001" step="0.00000001" class="control-input${!amt ? ' missing' : ''}" placeholder="0.00000000" value="${amt}" data-id="${escHtml(id)}" oninput="onBulkBackAmountInput(this)"><span class="bulk-strip-price-unit">${escHtml(_backToken)}</span></div>`;
-    }
-    return `
-      <div class="bulk-strip-item">
-        <div class="bulk-strip-thumb">${assetMediaHtml(a)}</div>
-        <button type="button" class="bulk-strip-remove" onclick="removeFromBulkSelection('${escHtml(id)}')" title="Remove">✕</button>
-        <div class="bulk-strip-name" title="${escHtml(a.name || '')}">${escHtml(a.name || 'Unknown')}</div>
-        ${mint ? `<div class="bulk-strip-name">${mint}</div>` : ''}
-        ${extra}
-      </div>`;
-  }).join('');
-}
-
-function openBulkActionModal(action) {
-  closeModal();
-  closeOfferModal();
-  _bulkAction = action;
-  // _selected's per-item VALUE (Sell's price, Back-with-tokens' amount) is
-  // scoped to a single modal session, not to the selection itself — which
-  // ids are selected persists across opens (by design), but a price typed
-  // under "List" has no business pre-filling "Back with tokens", or even
-  // reappearing if you cancel and reopen "List" again. Only the membership
-  // (the keys) survives; every fresh open starts blank.
-  _selected.forEach((_, id) => _selected.set(id, ''));
-  _giftStep = 'confirm';
-  _giftResult = null;
-  _giftMemo = '';
-  renderBulkActionModal();
-  document.getElementById('bulkActionModal').style.display = '';
-  document.getElementById('panelOverlay').style.display = '';
-  document.body.style.overflow = 'hidden';
-  document.getElementById('panelOverlay').addEventListener('click', closeBulkActionModal, { once: true });
-}
-
-function closeBulkActionModal() {
-  // Deliberately does NOT touch _selected — cancelling must preserve selection.
-  _bulkAction = null;
-  const modal = document.getElementById('bulkActionModal');
-  if (modal) modal.style.display = 'none';
-  document.getElementById('panelOverlay').style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-const BULK_MODAL_TITLES = {
-  sell: 'List for sale', transfer: 'Transfer', cancel: 'Cancel listings',
-  burn: 'Burn', backtokens: 'Back with tokens', gift: 'Confirm Gift Link',
-};
-
-function renderBulkActionModal() {
-  const modal = document.getElementById('bulkActionModal');
-  if (!modal || !_bulkAction) return;
-  const notListed = selectedNotListed();
-  const listed    = selectedListed();
-
-  let bodyHtml = `<div class="bulk-strip" id="bulkStrip">${bulkStripHtml()}</div>`;
-
-  if (_bulkAction === 'sell') {
-    const skipNote = listed.length ? `<div class="bl-price-note">${listed.length} already-listed item${listed.length !== 1 ? 's' : ''} will be skipped — use Edit listing on those instead.</div>` : '';
-    bodyHtml = `
-      <div class="bl-price-panel">
-        <div class="bl-price-block">
-          <div class="bl-price-block-label">Fixed price</div>
-          <div class="bl-price-row">
-            <input class="control-input" id="bulkSetAllInput" type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01" placeholder="0.00" oninput="clampPriceInputEl(this)" />
-            <span class="bl-price-unit">WAX</span>
-            <button class="bl-set-all-btn" type="button" onclick="applyBulkFixedPriceToAll()">Apply to all</button>
-          </div>
-        </div>
-        <div class="bl-price-block">
-          <div class="bl-price-block-label">Below floor</div>
-          <div class="bl-price-row">
-            <input class="control-input" id="bulkBelowFloorWaxInput" type="number" min="0" step="0.01" value="0.01" />
-            <span class="bl-price-unit">WAX</span>
-            <button class="bl-set-all-btn" type="button" onclick="applyBulkBelowFloorWax()">Apply to all</button>
-          </div>
-          <div class="bl-price-row">
-            <input class="control-input" id="bulkBelowFloorPctInput" type="number" min="0" max="100" step="0.1" value="1" />
-            <span class="bl-price-unit">%</span>
-            <button class="bl-set-all-btn" type="button" onclick="applyBulkBelowFloorPercent()">Apply to all</button>
-          </div>
-          <div class="bl-price-note" id="bulkFloorApplyNote"></div>
-        </div>
-      </div>
-      ${skipNote}
-      ${bodyHtml}
-      <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkTotal">0.00 WAX</span></div>`;
-  } else if (_bulkAction === 'transfer') {
-    bodyHtml = `
-      ${bodyHtml}
-      <div class="bl-transfer-panel">
-        <label class="control-label" for="bulkRecipientInput">Recipient wallet</label>
-        <input class="control-input" id="bulkRecipientInput" type="text" placeholder="e.g. player1.wam" oninput="onBulkRecipientInput()" autocomplete="off" spellcheck="false" />
-        <label class="control-label" for="bulkMemoInput">Memo (optional)</label>
-        <input class="control-input" id="bulkMemoInput" type="text" placeholder="Bulk transfer on Hoardio." oninput="onBulkMemoInput(this.value)" autocomplete="off" spellcheck="false" />
-        <div class="bl-transfer-warning">⚠️ Transfers are permanent and cannot be undone — double-check the recipient.</div>
-      </div>`;
-  } else if (_bulkAction === 'cancel') {
-    const skipNote = notListed.length ? `<div class="bl-price-note">${notListed.length} not-listed item${notListed.length !== 1 ? 's' : ''} will be skipped.</div>` : '';
-    const total = listed.reduce((s, id) => s + (_listings.get(id)?.price_wax || 0), 0);
-    bodyHtml = `
-      ${skipNote}
-      ${bodyHtml}
-      <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkTotal">${total.toFixed(2)} WAX</span></div>`;
-  } else if (_bulkAction === 'burn') {
-    bodyHtml = `
-      ${bodyHtml}
-      <div class="bulk-warn-text">⚠️ Burning permanently destroys these NFTs. This cannot be undone.</div>
-      <label class="bl-checkbox-label" style="white-space:normal;">
-        <input type="checkbox" id="bulkBurnAck" onchange="updateBulkActionBtn()" />
-        I acknowledge that I want to permanently burn these NFTs.
-      </label>`;
-  } else if (_bulkAction === 'backtokens') {
-    const activeToken = BACK_TOKEN_OPTIONS.find(t => t.symbol === _backToken) || BACK_TOKEN_OPTIONS[0];
-    bodyHtml = `
-      <div class="bl-price-block">
-        <div class="bl-price-block-label">Token</div>
-        <div class="cb-dropdown" id="bulkBackTokenDropdown" style="max-width:160px;">
-          <button class="cb-dropdown-btn" type="button">
-            <span class="cb-label"></span>
-            <span class="cb-arrow">▾</span>
-          </button>
-          <div class="cb-panel"></div>
-        </div>
-      </div>
-      <div class="bl-price-block">
-        <div class="bl-price-block-label">Amount per item</div>
-        <div class="bl-price-row">
-          <input class="control-input" id="bulkBackSetAllInput" type="number" min="0.00000001" step="0.00000001" placeholder="0.00000000" />
-          <span class="bl-price-unit">${escHtml(activeToken.symbol)}</span>
-          <button class="bl-set-all-btn" type="button" onclick="applyBulkBackAmountToAll()">Apply to all</button>
-        </div>
-      </div>
-      ${bodyHtml}
-      <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkBackTotal">0.00000000 ${escHtml(activeToken.symbol)}</span></div>
-      <div class="bl-transfer-warning">⚠️ Backed tokens can only be recovered by burning the NFT. The tokens will only be returned to the wallet that burns the NFT.</div>`;
-  } else if (_bulkAction === 'gift' && _giftStep === 'result' && _giftResult) {
-    // Result screen replaces the strip entirely — once created, the gifted
-    // items are gone from this wallet (escrowed to atomictoolsx), so showing
-    // per-item rows here would be misleading; the link IS the receipt.
-    bodyHtml = `
-      <div class="gift-result">
-        <div class="modal-info-row" style="width:100%; box-sizing:border-box;">
-          <span class="modal-info-label">Link ID</span>
-          <span class="modal-info-val">#${escHtml(_giftResult.linkId)}</span>
-        </div>
-        <div class="gift-qr-wrap">${window.QRCode.generate_qr(_giftResult.url)}</div>
-        <input class="control-input" id="giftLinkInput" type="text" readonly value="${escHtml(_giftResult.url)}" onclick="this.select()" style="width:100%; box-sizing:border-box; margin-bottom:0.65rem;" />
-        <button class="modal-btn modal-btn--list" type="button" style="width:100%;" onclick="copyVal(this,'${escHtml(_giftResult.url)}')">Copy Link</button>
-        <div class="bl-transfer-warning">Share this link with the recipient — anyone who has it can claim these NFTs. You can cancel or regenerate it later from Gift Links.</div>
-        <a class="gift-links-page-link" href="gift-links.html">View all Gift Links →</a>
-      </div>`;
-  } else if (_bulkAction === 'gift') {
-    bodyHtml = `
-      ${bodyHtml}
-      <div class="bulk-warn-text">You are about create a link to transfer the following NFTs to another account. Are you sure you want to continue?</div>
-      <label class="control-label" for="giftMemoInput" style="display:block; margin-top:0.9rem;">Memo (optional)</label>
-      <input class="control-input" id="giftMemoInput" type="text" placeholder="${escHtml(GIFT_MEMO)}" value="${escHtml(_giftMemo)}" oninput="_giftMemo = this.value" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box;" />`;
-  }
-
-  // No footer buttons on the result screen — the QR/link/Copy block above
-  // (with Copy now styled as the one prominent button) is all it needs.
-  // Closing is via the header's ✕ only, deliberately — a big "Done" button
-  // right next to a QR code someone hasn't necessarily copied yet is too
-  // easy to hit by reflex before the link is actually saved anywhere.
-  const isGiftResult = _bulkAction === 'gift' && _giftStep === 'result' && !!_giftResult;
-  const footerHtml = isGiftResult
-    ? ''
-    : `<div class="modal-actions">
-        <button class="modal-btn modal-btn--cancel" id="bulkModalCancel">Cancel</button>
-        <button class="modal-btn modal-btn--list" id="bulkModalSubmit">Submit</button>
-      </div>
-      <div class="bulk-batch-note">${_bulkAction === 'gift' ? '1 wallet signature to create the link' : `1 wallet signature per ${BULK_BATCH_SIZES[_bulkAction] || '?'} items`}</div>`;
-
-  modal.innerHTML = `
-    <div class="modal-header">
-      <span class="modal-title">${isGiftResult ? 'Gift Link Created' : (BULK_MODAL_TITLES[_bulkAction] || 'Bulk action')}</span>
-      <button class="modal-close" id="bulkModalClose" aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body">
-      ${bodyHtml}
-      <div id="bulkModalMsg" class="modal-msg" style="display:none;"></div>
-      ${footerHtml}
-      <div class="bl-progress" id="bulkProgress"></div>
-    </div>`;
-
-  document.getElementById('bulkModalClose').addEventListener('click', closeBulkActionModal);
-  document.getElementById('bulkModalCancel')?.addEventListener('click', closeBulkActionModal);
-  document.getElementById('bulkModalSubmit')?.addEventListener('click', submitBulkAction);
-  initLazyVideos();
-  if (_bulkAction === 'sell') updateBulkTotal();
-  if (_bulkAction === 'backtokens') { renderBulkBackTokenDropdown(); updateBulkBackTotal(); }
-  updateBulkActionBtn(); // no-ops on the result screen — no #bulkModalSubmit there, already self-guarded
-}
-
-// Re-wires the dropdown's open/close toggle each render — the page's one-time
-// startup wiring (see the `.cb-dropdown` forEach near the bottom of this file)
-// only covers dropdowns present at page load, not ones injected later via
-// this modal's innerHTML rebuild.
-function renderBulkBackTokenDropdown() {
-  const container = document.getElementById('bulkBackTokenDropdown');
-  if (!container) return;
-  buildSingleCbDropdown('bulkBackTokenDropdown', BACK_TOKEN_OPTIONS.map(t => ({ value: t.symbol, label: t.symbol })), _backToken, onBulkBackTokenChange);
-  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
-    e.stopPropagation();
-    const panel  = container.querySelector('.cb-panel');
-    const isOpen = panel.classList.contains('open');
-    closeAllCbDropdowns();
-    if (!isOpen) { panel.classList.add('open'); container.querySelector('.cb-dropdown-btn').classList.add('open'); }
-  });
-}
-
-function onBulkBackTokenChange(symbol) {
-  _backToken = symbol;
-  // Per-item amounts were entered against the previous token — clear them
-  // rather than silently reinterpreting a WAX amount as, say, TLM.
-  _selected.forEach((_, id) => _selected.set(id, ''));
-  renderBulkActionModal();
-}
-
-function clampPriceInputEl(el) {
-  const d = el.value.indexOf('.');
-  if (d !== -1 && el.value.length - d > 3) el.value = el.value.slice(0, d + 3);
-}
-
-function onBulkPriceInput(el) {
-  clampPriceInputEl(el);
-  _selected.set(el.dataset.id, el.value);
-  el.classList.toggle('missing', !el.value);
-  updateBulkTotal();
-  updateBulkActionBtn();
-}
-
-function applyBulkFixedPriceToAll() {
-  const val = document.getElementById('bulkSetAllInput').value.trim();
-  if (!val) return;
-  for (const id of selectedNotListed()) _selected.set(id, val);
-  renderBulkActionModal();
-}
-
-function applyBulkBelowFloor(offsetFn) {
-  let cleared = 0, stillLoading = 0;
-  _floorNoListingIds = [];
-  const assetsById = assetsIndex();
-  for (const id of selectedNotListed()) {
-    const a      = assetsById.get(id);
-    const tid    = a?.template?.template_id;
-    const cached = tid != null ? _floorCache[tid] : null;
-    if (!cached?.loaded) { stillLoading++; continue; }
-    if (cached.price == null) { _selected.set(id, ''); _floorNoListingIds.push(id); cleared++; continue; }
-    const price = Math.max(0.01, Math.min(MAX_PRICE_WAX, offsetFn(cached.price)));
-    _selected.set(id, price.toFixed(2));
-  }
-  renderBulkActionModal();
-  const note = document.getElementById('bulkFloorApplyNote');
-  if (note) {
-    const parts = [];
-    if (cleared)      parts.push(`no active listings to base a floor on for ${cleared} item${cleared !== 1 ? 's' : ''} — price cleared, enter one manually or remove ${cleared !== 1 ? 'them' : 'it'}`);
-    if (stillLoading) parts.push(`floor price still loading for ${stillLoading} item${stillLoading !== 1 ? 's' : ''} — try again shortly`);
-    note.innerHTML = parts.length ? `${parts.join('; ')}.` : '';
-  }
-}
-function applyBulkBelowFloorWax() {
-  const offset = parseFloat(document.getElementById('bulkBelowFloorWaxInput').value);
-  if (!isFinite(offset) || offset < 0) return;
-  applyBulkBelowFloor(floor => floor - offset);
-}
-function applyBulkBelowFloorPercent() {
-  const pct = parseFloat(document.getElementById('bulkBelowFloorPctInput').value);
-  if (!isFinite(pct) || pct < 0) return;
-  applyBulkBelowFloor(floor => floor * (1 - pct / 100));
-}
-
-function updateBulkTotal() {
-  const el = document.getElementById('bulkTotal');
-  if (!el || _bulkAction !== 'sell') return;
-  let total = 0;
-  for (const id of selectedNotListed()) {
-    const n = parseFloat(_selected.get(id));
-    if (isFinite(n) && n > 0) total += n;
-  }
-  const usd = _waxUsdRate && total > 0 ? ` ≈ $${(total * _waxUsdRate).toFixed(2)}` : '';
-  el.textContent = `${total.toFixed(2)} WAX${usd}`;
-}
-
-function applyBulkBackAmountToAll() {
-  const val = document.getElementById('bulkBackSetAllInput').value.trim();
-  if (!val) return;
-  for (const id of _selected.keys()) _selected.set(id, val);
-  renderBulkActionModal();
-}
-
-function onBulkBackAmountInput(el) {
-  clampPriceInputEl(el);
-  _selected.set(el.dataset.id, el.value);
-  el.classList.toggle('missing', !el.value);
-  updateBulkBackTotal();
-  updateBulkActionBtn();
-}
-
-// Single row today since only one token is selectable per session (see
-// BACK_TOKEN_OPTIONS) — every _selected amount is already in that one token.
-// If per-card token choice is ever added, this is where it'd need to group
-// by token instead of assuming one.
-function updateBulkBackTotal() {
-  const el = document.getElementById('bulkBackTotal');
-  if (!el || _bulkAction !== 'backtokens') return;
-  let total = 0;
-  for (const amt of _selected.values()) {
-    const n = parseFloat(amt);
-    if (isFinite(n) && n > 0) total += n;
-  }
-  el.textContent = `${total.toFixed(8)} ${_backToken}`;
-}
-
-function onBulkRecipientInput() {
-  const el = document.getElementById('bulkRecipientInput');
-  const { selectionStart, selectionEnd } = el;
-  el.value = el.value.toLowerCase();
-  el.setSelectionRange(selectionStart, selectionEnd);
-  _recipient = el.value;
-  updateBulkActionBtn();
-}
-function onBulkMemoInput(val) { _memo = val; }
-
-function updateBulkActionBtn() {
-  const btn = document.getElementById('bulkModalSubmit');
-  if (!btn) return;
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-
-  if (_bulkAction === 'sell') {
-    const ids = selectedNotListed();
-    const allValid = ids.length > 0 && ids.every(id => {
-      const v = parseFloat(_selected.get(id));
-      return isFinite(v) && v >= 0.01 && v <= MAX_PRICE_WAX;
-    });
-    btn.disabled = _busy || !allValid;
-    btn.textContent = ids.length ? `List ${ids.length} item${ids.length !== 1 ? 's' : ''} for sale` : 'List for sale';
-  } else if (_bulkAction === 'cancel') {
-    const ids = selectedListed();
-    btn.disabled = _busy || ids.length === 0;
-    btn.textContent = ids.length ? `Cancel ${ids.length} listing${ids.length !== 1 ? 's' : ''}` : 'Cancel listings';
-  } else if (_bulkAction === 'transfer') {
-    const recipient = _recipient.trim();
-    const valid = _selected.size > 0 && !!recipient && recipient !== wallet;
-    btn.disabled = _busy || !valid;
-    btn.textContent = recipient ? `Transfer ${_selected.size} item${_selected.size !== 1 ? 's' : ''} to ${recipient}` : 'Transfer';
-  } else if (_bulkAction === 'burn') {
-    const acked = !!document.getElementById('bulkBurnAck')?.checked;
-    btn.disabled = _busy || _selected.size === 0 || !acked;
-    btn.textContent = `Burn ${_selected.size} item${_selected.size !== 1 ? 's' : ''} permanently`;
-    btn.className = 'modal-btn modal-btn--danger';
-  } else if (_bulkAction === 'backtokens') {
-    const ids = [..._selected.keys()];
-    const allValid = ids.length > 0 && ids.every(id => {
-      const v = parseFloat(_selected.get(id));
-      return isFinite(v) && v > 0;
-    });
-    btn.disabled = _busy || !allValid;
-    btn.textContent = `Back ${ids.length} item${ids.length !== 1 ? 's' : ''} with tokens`;
-  } else if (_bulkAction === 'gift') {
-    if (_giftStep === 'result') { btn.disabled = false; btn.textContent = 'Done'; return; }
-    btn.disabled = _busy || _selected.size === 0;
-    btn.textContent = `Create Gift Link (${_selected.size} item${_selected.size !== 1 ? 's' : ''})`;
-  }
-}
-
-function setBulkProgress(msg, type) {
-  const el = document.getElementById('bulkProgress');
-  if (!el) return;
-  el.textContent = msg || '';
-  el.className = 'bl-progress' + (type ? ` is-${type}` : '');
-}
-
-function submitBulkAction() {
-  if (_bulkAction === 'sell')       return bulkList();
-  if (_bulkAction === 'transfer')   return bulkTransfer();
-  if (_bulkAction === 'cancel')     return bulkCancel();
-  if (_bulkAction === 'burn')       return bulkBurn();
-  if (_bulkAction === 'backtokens') return bulkBackTokens();
-  if (_bulkAction === 'gift')       return bulkGift();
-}
-
-/* ── Shared chunked-transact skeleton ── */
-async function runBulkAction(items, batchSize, buildActions, onChunkSuccess) {
-  if (_busy || !items.length) return 0;
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!wallet) return 0;
-
-  _busy = true;
-  updateBulkActionBtn();
-  setBulkProgress('');
-
-  const chunks = [];
-  for (let i = 0; i < items.length; i += batchSize) chunks.push(items.slice(i, i + batchSize));
-
-  let done = 0;
-  for (let ci = 0; ci < chunks.length; ci++) {
-    setBulkProgress(`Waiting for wallet — batch ${ci + 1} of ${chunks.length}…`);
-    const chunk   = chunks[ci];
-    const actions = buildActions(chunk, wallet);
-
-    try {
-      await WaxAuth.transact(actions);
-      onChunkSuccess(chunk);
-      done += chunk.length;
-      updateBulkChip();
-    } catch (err) {
-      _busy = false;
-      updateBulkActionBtn();
-      const msg  = (err?.message || '').toLowerCase();
-      const text = msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`;
-      setBulkProgress(text, 'error');
-      return done;
-    }
-  }
-
-  _busy = false;
-  updateBulkActionBtn();
-  return done;
-}
-
-// Transfer/Burn remove cards from _assets/the DOM outright (unlike List/Cancel,
-// which just patch a card's state in place) — without this, the grid visibly
-// shrinks by however many items were acted on instead of staying "full."
-// Same "keep loading while short and more is available" loop selectFirstN()
-// already uses; naturally skips itself when _hasMore is already false (e.g.
-// a dupes-filtered full scan, where everything's already loaded).
-async function backfillGrid(targetCount) {
-  while (document.querySelectorAll('.inv-card').length < targetCount && _hasMore && !_loading) {
-    await loadAssets(false);
-  }
-}
-
-function clearBulkCardSelectedVisual(assetId) {
-  const card = document.querySelector(`.inv-card[data-id="${assetId}"]`);
-  if (card) {
-    card.classList.remove('selected');
-    const chk = card.querySelector('.inv-card-check');
-    if (chk) chk.textContent = '';
-  }
-}
-
-async function bulkList() {
-  const ids = selectedNotListed().filter(id => {
-    const n = parseFloat(_selected.get(id));
-    return isFinite(n) && n >= 0.01 && n <= MAX_PRICE_WAX;
-  });
-  if (!ids.length) return;
-  const assetsById = assetsIndex();
-
-  const listed = await runBulkAction(ids, BATCH_SIZE_SELL, (chunk, wallet) => {
-    const actions = [];
-    for (const assetId of chunk) {
-      const asset = assetsById.get(assetId);
-      if (!asset) continue;
-      const priceWax     = Math.round(parseFloat(_selected.get(assetId)) * 100) / 100;
-      const listingPrice = `${priceWax.toFixed(8)} WAX`;
-      actions.push(
-        { account: 'atomicmarket', name: 'announcesale', authorization: [{ actor: wallet, permission: 'active' }],
-          data: { seller: wallet, asset_ids: [asset.asset_id], listing_price: listingPrice, settlement_symbol: '8,WAX', maker_marketplace: MAKER } },
-        { account: 'atomicassets', name: 'createoffer', authorization: [{ actor: wallet, permission: 'active' }],
-          data: { sender: wallet, recipient: 'atomicmarket', sender_asset_ids: [asset.asset_id], recipient_asset_ids: [], memo: 'sale' } }
-      );
-    }
-    return actions;
-  }, (chunk) => {
-    for (const assetId of chunk) {
-      const priceWax = Math.round(parseFloat(_selected.get(assetId)) * 100) / 100;
-      _selected.delete(assetId);
-      _listings.set(assetId, { sale_id: null, price_wax: priceWax });
-      patchCard(assetId);
-      clearBulkCardSelectedVisual(assetId);
-    }
-    renderBulkActionModal();
-  });
-
-  if (listed) setBulkProgress(`${listed} item${listed !== 1 ? 's' : ''} listed successfully!`, 'success');
-}
-
-async function bulkCancel() {
-  const ids = selectedListed();
-  if (!ids.length) return;
-  const snapshot = new Map(ids.map(id => [id, _listings.get(id)]));
-
-  const cancelled = await runBulkAction(ids, BATCH_SIZE_CANCEL, (chunk, wallet) => chunk.map(assetId => ({
-    account: 'atomicmarket', name: 'cancelsale', authorization: [{ actor: wallet, permission: 'active' }],
-    data: { sale_id: snapshot.get(assetId).sale_id },
-  })), (chunk) => {
-    for (const assetId of chunk) {
-      const listing = snapshot.get(assetId);
-      if (listing) _cancelledSaleIds.add(String(listing.sale_id));
-      _listings.delete(assetId);
-      _selected.delete(assetId);
-      patchCard(assetId);
-      clearBulkCardSelectedVisual(assetId);
-    }
-    renderBulkActionModal();
-  });
-
-  if (cancelled) {
-    setBulkProgress(`${cancelled} listing${cancelled !== 1 ? 's' : ''} cancelled successfully!`, 'success');
-    fetchListings(window.getWaxAccount ? window.getWaxAccount() : null); // background sync, matches handleCancelListing
-  }
-}
-
-async function bulkTransfer() {
-  const recipient = _recipient.trim();
-  const memo      = _memo.trim() || 'Bulk transfer on Hoardio.';
-  const ids       = [..._selected.keys()];
-  const wallet    = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!recipient || !ids.length || recipient === wallet) return;
-
-  const beforeCount = document.querySelectorAll('.inv-card').length;
-  const moved = await runBulkAction(ids, BATCH_SIZE_TRANSFER, (chunk, w) => [{
-    account: 'atomicassets', name: 'transfer', authorization: [{ actor: w, permission: 'active' }],
-    data: { from: w, to: recipient, asset_ids: chunk, memo },
-  }], (chunk) => {
-    const removed = new Set(chunk);
-    for (const assetId of chunk) {
-      _selected.delete(assetId);
-      document.querySelector(`.inv-card[data-id="${assetId}"]`)?.remove();
-    }
-    _assets = _assets.filter(a => !removed.has(String(a.asset_id)));
-    renderBulkActionModal();
-  });
-
-  if (moved) {
-    setBulkProgress(`${moved} item${moved !== 1 ? 's' : ''} transferred successfully!`, 'success');
-    backfillGrid(beforeCount);
-  }
-}
-
-async function bulkBurn() {
-  const ids = [..._selected.keys()];
-  if (!ids.length) return;
-
-  const beforeCount = document.querySelectorAll('.inv-card').length;
-  const burned = await runBulkAction(ids, BATCH_SIZE_BURN, (chunk, wallet) => chunk.map(assetId => ({
-    account: 'atomicassets', name: 'burnasset', authorization: [{ actor: wallet, permission: 'active' }],
-    data: { asset_owner: wallet, asset_id: assetId },
-  })), (chunk) => {
-    const removed = new Set(chunk);
-    for (const assetId of chunk) {
-      _selected.delete(assetId);
-      _listings.delete(assetId);
-      document.querySelector(`.inv-card[data-id="${assetId}"]`)?.remove();
-    }
-    _assets = _assets.filter(a => !removed.has(String(a.asset_id)));
-    renderBulkActionModal();
-  });
-
-  if (burned) {
-    setBulkProgress(`${burned} item${burned !== 1 ? 's' : ''} burned.`, 'success');
-    backfillGrid(beforeCount);
-  }
-}
-
-// Verified against a real AtomicHub-signed transaction request, not guessed:
-// `backasset` alone is NOT enough — the payer's AtomicAssets deposit balance
-// needs to actually hold the token first. Every chunk's transaction bundles,
-// in order: (1) announcedepo — ensures a balance row exists for this token
-// symbol, (2) <token contract>::transfer to atomicassets with memo "deposit"
-// — funds that balance for exactly this chunk's total, (3) one backasset per
-// item — draws the now-funded balance down to zero. Amounts are summed via
-// integer (smallest-unit) arithmetic, not float addition, so the deposit
-// total always exactly matches what the backasset actions consume.
-async function bulkBackTokens() {
-  const ids = [..._selected.keys()].filter(id => {
-    const n = parseFloat(_selected.get(id));
-    return isFinite(n) && n > 0;
-  });
-  if (!ids.length) return;
-  const token = BACK_TOKEN_OPTIONS.find(t => t.symbol === _backToken) || BACK_TOKEN_OPTIONS[0];
-  const scale = 10 ** token.precision;
-  const fmt   = n => (n / scale).toFixed(token.precision) + ' ' + token.symbol;
-
-  const done = await runBulkAction(ids, BATCH_SIZE_BACKTOKENS, (chunk, wallet) => {
-    const amountsInt = chunk.map(id => Math.round(parseFloat(_selected.get(id)) * scale));
-    const totalInt    = amountsInt.reduce((s, n) => s + n, 0);
-    const actions = [
-      { account: 'atomicassets', name: 'announcedepo', authorization: [{ actor: wallet, permission: 'active' }],
-        data: { owner: wallet, symbol_to_announce: `${token.precision},${token.symbol}` } },
-      { account: token.contract, name: 'transfer', authorization: [{ actor: wallet, permission: 'active' }],
-        data: { from: wallet, to: 'atomicassets', quantity: fmt(totalInt), memo: 'deposit' } },
-    ];
-    chunk.forEach((assetId, i) => {
-      actions.push({
-        account: 'atomicassets', name: 'backasset', authorization: [{ actor: wallet, permission: 'active' }],
-        data: { payer: wallet, asset_owner: wallet, asset_id: assetId, token_to_back: fmt(amountsInt[i]) },
-      });
-    });
-    return actions;
-  }, (chunk) => {
-    for (const assetId of chunk) { _selected.delete(assetId); clearBulkCardSelectedVisual(assetId); }
-    renderBulkActionModal();
-  });
-
-  if (done) setBulkProgress(`Backed ${done} item${done !== 1 ? 's' : ''} with ${token.symbol}.`, 'success');
-}
-
-// atomictoolsx's `links` table has no secondary index on `creator`, so there's
-// no direct "give me my newest link" query — but get_table_rows reads live
-// chain state (no indexer lag, unlike the AtomicMarket/AtomicAssets APIs used
-// elsewhere on this page), so the just-created link is reliably at or near
-// the top of a reverse-order read immediately after the transaction confirms.
-//
-// Matched by exact public key, not (creator, asset_ids) — the key is a fresh
-// random keypair generated for this one link, so it can never collide with
-// any other row, unlike asset_ids (which could in principle match another
-// link if the same wallet ever gifted the identical set of assets twice).
-// A single unlucky read isn't good enough on its own, though: link_id is a
-// counter shared by every wallet using this contract, so a burst of OTHER
-// people's gift links landing in the same second could push ours past a
-// fixed-size window before we look, or the RPC node answering us might be a
-// head block behind. Retry a few times with a short pause rather than
-// accepting one read as final — cheap, and turns a rare miss into a near-
-// certainty without changing what happens on true failure (see bulkGift()'s
-// null-check, which still falls back to "check Gift Links" if every attempt
-// comes up empty).
-async function fetchNewestGiftLinkId(publicKey, attempts = 5, delayMs = 700) {
-  for (let i = 0; i < attempts; i++) {
-    if (i > 0) await new Promise(r => setTimeout(r, delayMs));
-    let rows;
-    try {
-      const res = await fetch(`${CHAIN_RPC}/v1/chain/get_table_rows`, {
-        method: 'POST',
-        body: JSON.stringify({ code: 'atomictoolsx', table: 'links', scope: 'atomictoolsx', limit: 50, reverse: true, json: true }),
-      });
-      ({ rows } = await res.json());
-    } catch { continue; }
-    const match = (rows || []).find(r => r.key === publicKey);
-    if (match) return match.link_id;
-  }
-  return null;
-}
-
-const GIFT_MEMO = 'A fellow collector sent you a gift.';
-let _giftMemo = ''; // typed by the user on the confirm screen; falls back to GIFT_MEMO if left blank
-
-async function bulkGift() {
-  if (_busy) return;
-  const ids = [..._selected.keys()];
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!ids.length || !wallet) return;
-
-  _busy = true;
-  updateBulkActionBtn();
-  setBulkProgress('');
-
-  const { privateKey, publicKey, publicKeyLegacy } = window.GiftCrypto.generateKeyPair();
-  const memo = _giftMemo.trim() || GIFT_MEMO;
-  const beforeCount = document.querySelectorAll('.inv-card').length;
-
-  try {
-    setBulkProgress('Waiting for wallet…');
-    await WaxAuth.transact([
-      { account: 'atomictoolsx', name: 'announcelink', authorization: [{ actor: wallet, permission: 'active' }],
-        data: { creator: wallet, key: publicKey, asset_ids: ids, memo } },
-      { account: 'atomicassets', name: 'transfer', authorization: [{ actor: wallet, permission: 'active' }],
-        data: { from: wallet, to: 'atomictoolsx', asset_ids: ids, memo: 'link' } },
-    ]);
-  } catch (err) {
-    _busy = false;
-    updateBulkActionBtn();
-    const msg  = (err?.message || '').toLowerCase();
-    const text = msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`;
-    setBulkProgress(text, 'error');
-    return;
-  }
-
-  setBulkProgress('Link created — looking up its ID…');
-  let linkId = null;
-  try {
-    linkId = await fetchNewestGiftLinkId(publicKeyLegacy);
-  } catch { /* network hiccup on the lookup — handled by the null-check below */ }
-
-  const removed = new Set(ids);
-  for (const assetId of ids) {
-    _selected.delete(assetId);
-    document.querySelector(`.inv-card[data-id="${assetId}"]`)?.remove();
-  }
-  _assets = _assets.filter(a => !removed.has(String(a.asset_id)));
-  backfillGrid(beforeCount);
-  // bulkGift() doesn't go through runBulkAction() (one link = one atomic
-  // transaction, not chunked) — that's the shared helper's own success path
-  // that normally refreshes this chip, so it has to happen here explicitly
-  // too. Found live: the chip was staying at "N selected" after a successful
-  // gift because of exactly this missing call.
-  updateBulkChip();
-
-  _busy = false;
-
-  if (linkId == null) {
-    // The link genuinely exists on-chain — announcelink+transfer both
-    // succeeded — only the automatic ID lookup failed. Don't fabricate a
-    // broken URL; point at Gift Links instead, where it'll show up once
-    // that page reads the links table directly.
-    setBulkProgress('Link created, but its ID could not be looked up automatically. Check Gift Links to find it.', 'error');
-    updateBulkActionBtn();
-    return;
-  }
-
-  const url = `${location.origin}${location.pathname.replace(/inventory\.html$/, '')}gift-claim.html?id=${linkId}#${privateKey}`;
-  _giftResult = { linkId, url, privateKey };
-  _giftStep = 'result';
-  renderBulkActionModal();
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
 /* Wallet state                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
@@ -4140,18 +2740,13 @@ async function onWalletChange() {
   if (!wallet) {
     document.getElementById('authGate').style.display      = '';
     document.getElementById('toolbar').style.display       = 'none';
-    document.getElementById('bulkToolbar').style.display    = 'none';
     document.getElementById('activityTabs').style.display  = 'none';
     document.getElementById('invGrid').style.display       = 'none';
     document.getElementById('emptyWrap').style.display     = 'none';
     document.getElementById('loadMoreWrap').style.display  = 'none';
-    closeBulkActionModal();
     _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
     _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _listingsFilter = 'all'; _filterText = ''; _sortOrder = 'transferred_desc';
-    _onlyBacked = false; document.getElementById('onlyBackedFilter').checked = false;
     _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _soldAssets.clear(); _collectionsReady = false;
-    _selected.clear(); updateBulkChip();
-    setDupesFiltersAvailability(false);
     renderSortDropdown();
     updateBuyOfferBanner();
     document.getElementById('schemaGroup').style.display  = 'none';
@@ -4165,23 +2760,18 @@ async function onWalletChange() {
   }
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('toolbar').style.display  = '';
-  document.getElementById('bulkToolbar').style.display = '';
   document.getElementById('activityTabs').style.display = '';
   if (_activeWallet !== null && _activeWallet !== wallet) {
     // Different wallet connected mid-session — drop URL filters so stale collection doesn't confuse.
     // _listingsFilter especially can't carry over: _listings is about to be
     // rebuilt for the new wallet, so leaving "only"/"hide" active would
     // filter against an empty/stale set until the fetch below resolves.
-    // Bulk selection is also wallet-specific — stale asset_ids from the
-    // previous wallet must not survive into this one.
     history.replaceState(null, '', location.pathname);
     document.getElementById('searchInput').value = '';
     _listingsFilter = 'all';
     buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
     _sortOrder = SORT_OPTIONS[0].value;
     renderSortDropdown();
-    _selected.clear(); updateBulkChip();
-    closeBulkActionModal();
   } else {
     await readUrlParams();
   }
@@ -4205,15 +2795,9 @@ function clearFilters() {
   _filterMintMin = '';
   _filterMintMax = '';
   _listingsFilter = 'all';
-  _excludeLowestMint = false;
-  _onlyHighestMint   = false;
-  _onlyBacked        = false;
   buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, 'all', onSchemaFilterChange);
   document.getElementById('mintMin').value = '';
   document.getElementById('mintMax').value = '';
-  document.getElementById('excludeLowestMint').checked = false;
-  document.getElementById('onlyHighestMint').checked   = false;
-  document.getElementById('onlyBackedFilter').checked  = false;
   buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
   document.querySelectorAll('#rarityDropdown input[type=checkbox], #cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
   refreshCbLabel(document.getElementById('rarityDropdown'), _selectedRarities, 'All rarities');
@@ -4315,8 +2899,6 @@ function initInfiniteScroll() {
 }
 initInfiniteScroll();
 document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
-document.getElementById('bulkActionChip').addEventListener('click', e => { e.stopPropagation(); toggleBulkMenu(); });
-updateBulkChip();
 
 // Checkbox / single-select dropdown toggle
 document.querySelectorAll('.cb-dropdown').forEach(container => {
@@ -4340,8 +2922,8 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems: [
       { href: 'inventory.html', label: 'Inventory', icon: '📦' },
       { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
+      { href: 'inventory-bulk.html', label: 'Bulk Actions', icon: '📋' },
       { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-      { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
     ],
   });
   onWalletChange();
@@ -4353,7 +2935,6 @@ document.addEventListener('click', e => {
     closeInfoPopup();
   }
   if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllCbDropdowns();
-  if (!e.target.closest('.bulk-action-chip-wrap')) closeBulkMenu();
 });
 </script>
 </body>
