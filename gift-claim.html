@@ -81,8 +81,9 @@
     .empty-hint  { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; }
     .empty-hint a { color: var(--accent-light); text-decoration: underline; }
     .empty-cta {
-      display: inline-block; margin-top: 1.5rem; font-size: 0.88rem;
+      display: block; margin-top: 1.5rem; font-size: 0.88rem;
       font-weight: 700; color: var(--accent-light); text-decoration: none;
+      line-height: 1.5;
     }
     .empty-cta:hover { text-decoration: underline; }
   </style>
@@ -203,7 +204,7 @@ function showEmpty(icon, variant, title, hint) {
     <div class="empty-icon is-${variant}">${icon}</div>
     <div class="empty-title">${escHtml(title)}</div>
     ${hint ? `<div class="empty-hint">${hint}</div>` : ''}
-    <a class="empty-cta" href="index.html">← Back to Hoardio</a>`;
+    <a class="empty-cta" href="inventory.html">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
   el.style.display = '';
 }
 
