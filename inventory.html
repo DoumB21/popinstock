@@ -398,14 +398,17 @@
 
     /* ── Buy offers premium banner ── */
     .buyoffer-banner {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: flex-start; justify-content: space-between;
       gap: 1.25rem; margin-top: 1.25rem; padding: 1.1rem 1.4rem;
       background: linear-gradient(135deg, rgba(240,168,64,0.10) 0%, rgba(240,168,64,0.04) 100%);
       border: 1px solid rgba(240,168,64,0.35); border-radius: 12px; flex-wrap: wrap;
       position: relative;
     }
     .buyoffer-banner.is-hidden { display: none; }
-    .buyoffer-banner-left { display: flex; align-items: center; gap: 0.9rem; }
+    /* Fixed (not content-based) flex-basis so a longer description can't push
+       the fetch button down to its own line on desktop — only genuinely
+       narrow (mobile) widths make it wrap. */
+    .buyoffer-banner-left { display: flex; align-items: center; gap: 0.9rem; flex: 1 1 320px; min-width: 0; }
     .buyoffer-banner-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
     .buyoffer-banner-label {
       font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
@@ -429,10 +432,10 @@
       user-select: none;
     }
     .buyoffer-unlock-link:hover { opacity: 1; text-decoration: underline; }
-    .buyoffer-unlock-row { display: flex; justify-content: flex-end; margin-top: 0.6rem; }
-    .buyoffer-unlock-row.is-hidden { display: none; }
+    .buyoffer-unlock-link.is-hidden { display: none; }
+    .unlock-links-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem 1.4rem; margin-top: 0.6rem; }
     .buyoffer-fetch-btn {
-      padding: 0.55rem 1.25rem;
+      padding: 0.55rem 1.25rem; flex-shrink: 0; align-self: flex-end;
       background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
       border-radius: 8px; color: var(--accent-light); font-size: 0.84rem; font-weight: 700;
       font-family: inherit; cursor: pointer; white-space: nowrap;
@@ -449,6 +452,9 @@
 
     /* ── Card buy offer line ── */
     .inv-card-buyoffer { font-size: 0.69rem; font-weight: 600; color: #22c55e; margin-top: 0.1rem; display: none; align-items: center; gap: 0.35rem; justify-content: space-between; }
+    /* ── Card last sold line ── */
+    .inv-card-lastsold { font-size: 0.69rem; font-weight: 600; color: #7c93e0; margin-top: 0.1rem; display: none; }
+    .inv-card-lastsold-date { font-size: 0.65rem; font-weight: 400; color: #7c93e0; opacity: 0.75; margin-top: 0.05rem; }
     .buyoffer-accept-btn {
       font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.4rem; flex-shrink: 0;
       background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35);
@@ -663,6 +669,38 @@
         <div class="buyoffer-progress-track"><div class="buyoffer-progress-fill" id="buyofferProgressFill"></div></div>
       </div>
     </div>
+    <div class="buyoffer-banner is-hidden" id="floorpriceBanner">
+      <button type="button" class="buyoffer-banner-close" id="floorpriceBannerClose" onclick="toggleFloorPriceBanner(false)" title="Hide">✕</button>
+      <div class="buyoffer-banner-left">
+        <div class="buyoffer-banner-icon">💰</div>
+        <div>
+          <div class="buyoffer-banner-label">Premium Feature</div>
+          <div class="buyoffer-banner-desc">Fetch the lowest active listing across all collections in your wallet. Each card will display its floor price and unlock the <strong>Floor Price (Highest)</strong> sort option.</div>
+          <div class="buyoffer-banner-sub" id="floorpriceBannerSub">Connect your wallet to use this feature.</div>
+        </div>
+      </div>
+      <button type="button" class="buyoffer-fetch-btn" id="floorpriceFetchBtn" onclick="startFloorPriceFetch()" disabled>Fetch Floor Prices →</button>
+      <div class="buyoffer-progress-wrap" id="floorpriceProgressWrap" style="display:none">
+        <div class="buyoffer-progress-label" id="floorpriceProgressLabel">Fetching…</div>
+        <div class="buyoffer-progress-track"><div class="buyoffer-progress-fill" id="floorpriceProgressFill"></div></div>
+      </div>
+    </div>
+    <div class="buyoffer-banner is-hidden" id="lastsoldBanner">
+      <button type="button" class="buyoffer-banner-close" id="lastsoldBannerClose" onclick="toggleLastSoldBanner(false)" title="Hide">✕</button>
+      <div class="buyoffer-banner-left">
+        <div class="buyoffer-banner-icon">🧾</div>
+        <div>
+          <div class="buyoffer-banner-label">Premium Feature</div>
+          <div class="buyoffer-banner-desc">Fetch each template's most recent sale price across all collections in your wallet. Only sales from the <strong>last 6 months</strong> are checked, so templates that haven't sold recently won't get a match. Each card will display its last sold price and unlock the <strong>Last Sold (Highest)</strong> sort option.</div>
+          <div class="buyoffer-banner-sub" id="lastsoldBannerSub">Connect your wallet to use this feature.</div>
+        </div>
+      </div>
+      <button type="button" class="buyoffer-fetch-btn" id="lastsoldFetchBtn" onclick="startLastSoldFetch()" disabled>Fetch Last Sold →</button>
+      <div class="buyoffer-progress-wrap" id="lastsoldProgressWrap" style="display:none">
+        <div class="buyoffer-progress-label" id="lastsoldProgressLabel">Fetching…</div>
+        <div class="buyoffer-progress-track"><div class="buyoffer-progress-fill" id="lastsoldProgressFill"></div></div>
+      </div>
+    </div>
   </div>
 
   <div id="authGate" class="auth-gate" style="display:none;">
@@ -695,8 +733,10 @@
         </div>
       </div>
     </div>
-    <div class="buyoffer-unlock-row" id="buyofferUnlockRow">
-      <div class="buyoffer-unlock-link" onclick="toggleBuyOfferBanner(true)">🔒 Unlock <strong>Buy Offer (Highest)</strong> →</div>
+    <div class="unlock-links-row">
+      <div class="buyoffer-unlock-link" id="buyofferUnlockLink" onclick="toggleBuyOfferBanner(true)">🔒 <strong>Buy Offer (Highest)</strong> →</div>
+      <div class="buyoffer-unlock-link" id="floorpriceUnlockLink" onclick="toggleFloorPriceBanner(true)">🔒 <strong>Floor Price (Highest)</strong> →</div>
+      <div class="buyoffer-unlock-link" id="lastsoldUnlockLink" onclick="toggleLastSoldBanner(true)">🔒 <strong>Last Sold (Highest)</strong> →</div>
     </div>
     <div class="controls-row filter-row">
       <div class="control-group" id="schemaGroup" style="display:none;">
@@ -859,6 +899,8 @@ const SORT_OPTIONS = [
   { value: 'mint_asc',         label: 'Mint (Lowest)',         sort: 'template_mint', order: 'asc'  },
   { value: 'name_asc',         label: 'Alphabetical (A-Z)',    sort: 'name',          order: 'asc'  },
   { value: 'buyoffer_desc',    label: 'Buy Offer (Highest)',  sort: 'transferred',   order: 'desc' },
+  { value: 'floorprice_desc',  label: 'Floor Price (Highest)', sort: 'transferred', order: 'desc' },
+  { value: 'lastsold_desc',   label: 'Last Sold (Highest)',   sort: 'transferred', order: 'desc' },
 ];
 
 const LISTINGS_FILTER_OPTIONS = [
@@ -903,6 +945,18 @@ let _buyOffersBusy         = false;
 let _buyOfferSortedTids    = [];         // template IDs sorted by price desc
 let _buyOfferChunkIdx      = 0;          // next chunk index to fetch
 let _buyOfferBuffer        = [];         // all fetched offer-sorted assets
+let _floorOffers           = {};         // templateId → lowest active listing price (WAX)
+let _floorOffersFetched    = false;
+let _floorOffersBusy       = false;
+let _floorSortedTids       = [];         // template IDs sorted by floor price desc
+let _floorChunkIdx         = 0;          // next chunk index to fetch
+let _floorBuffer           = [];         // all fetched floor-sorted assets
+let _lastSold              = {};         // templateId → most recent sale price (WAX), within LASTSOLD_WINDOW_MS
+let _lastSoldFetched       = false;
+let _lastSoldBusy          = false;
+let _lastSoldSortedTids    = [];         // template IDs sorted by last-sold price desc
+let _lastSoldChunkIdx      = 0;          // next chunk index to fetch
+let _lastSoldBuffer        = [];         // all fetched last-sold-sorted assets
 let _clientPage            = PAGE_SIZE;  // visible asset count in client-side sort mode
 let _listBusy           = false;
 let _listingRoyaltyPct  = 0;
@@ -997,6 +1051,15 @@ async function fetchWaxPrice() {
 function usdTag(wax) {
   if (!_waxUsdRate || wax == null) return '';
   return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>`;
+}
+
+function timeAgo(ms) {
+  const days = Math.floor((Date.now() - ms) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  return `${months} month${months !== 1 ? 's' : ''} ago`;
 }
 
 async function fetchWithRetry(url, retries = 2) {
@@ -1723,10 +1786,11 @@ function renderGrid() {
   empty.style.display = 'none';
   grid.style.display  = '';
 
-  const display = _sortOrder === 'buyoffer_desc' ? list.slice(0, _clientPage) : list;
+  const isClientSorted = _sortOrder === 'buyoffer_desc' || _sortOrder === 'floorprice_desc' || _sortOrder === 'lastsold_desc';
+  const display = isClientSorted ? list.slice(0, _clientPage) : list;
   grid.innerHTML = display.map(cardHtml).join('');
 
-  const displayed = _sortOrder === 'buyoffer_desc' ? list.slice(0, _clientPage) : list;
+  const displayed = isClientSorted ? list.slice(0, _clientPage) : list;
   grid.querySelectorAll('.inv-card').forEach(card => {
     const asset = displayed.find(a => a.asset_id === card.dataset.id);
     if (asset) attachCardEvents(card, asset);
@@ -1751,6 +1815,7 @@ function cardHtml(a) {
         <div class="inv-card-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
         <div class="inv-card-meta">${col}</div>
         ${a.template?.template_id ? `<div class="inv-card-floor" data-floor-tid="${a.template.template_id}"></div>` : ''}
+        ${a.template?.template_id ? `<div class="inv-card-lastsold" data-lastsold-tid="${a.template.template_id}"></div>` : ''}
         ${a.template?.template_id ? `<div class="inv-card-buyoffer" data-buyoffer-tid="${a.template.template_id}"></div>` : ''}
         ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</div>` : ''}
       </div>
@@ -1862,6 +1927,8 @@ async function fetchAllCollections(wallet) {
     _collectionsReady = true;
     updateColFilter();
     updateBuyOfferBanner();
+    updateFloorPriceBanner();
+    updateLastSoldBanner();
   } catch (err) {
     console.error('Failed to fetch collections:', err);
   }
@@ -2073,7 +2140,10 @@ async function loadAssets(reset = false, walletChange = false) {
     }
     loadFloorPricesForCards(batch); // background — doesn't block render
     if (_buyOffersFetched) updateBuyOfferCards();
+    if (_lastSoldFetched) updateLastSoldCards();
     updateBuyOfferBanner();
+    updateFloorPriceBanner();
+    updateLastSoldBanner();
     document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
   } catch (err) {
     console.error('Failed to load inventory:', err);
@@ -2144,6 +2214,195 @@ async function fetchFloorPrice(templateId, collection) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
+/* Floor price (premium bulk unlock)                                          */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function toggleFloorPriceBanner(show) {
+  const banner = document.getElementById('floorpriceBanner');
+  const row    = document.getElementById('floorpriceUnlockLink');
+  if (!banner) return;
+  banner.classList.toggle('is-hidden', !show);
+  if (row) row.classList.toggle('is-hidden', show || _floorOffersFetched);
+  if (show) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updateFloorPriceBanner() {
+  const btn  = document.getElementById('floorpriceFetchBtn');
+  const sub  = document.getElementById('floorpriceBannerSub');
+  const row  = document.getElementById('floorpriceUnlockLink');
+  if (!btn) return;
+  if (row) row.classList.toggle('is-hidden', _floorOffersFetched);
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) {
+    btn.disabled = true;
+    sub.textContent = 'Connect your wallet to use this feature.';
+    return;
+  }
+  if (_floorOffersBusy) return;
+  const n = _collections.size;
+  if (_floorOffersFetched) {
+    const count = Object.keys(_floorOffers).length;
+    sub.textContent = `We found ${count} templates with active listings across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Floor Price (Highest)".`;
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+    btn.textContent = 'Fetch Floor Prices →';
+    // Listing volume per collection tends to run higher than active buy-offer
+    // volume, so this walk is slower than the buy-offer one — wider estimate range.
+    sub.textContent = !_collectionsReady
+      ? 'Detecting collections in your wallet…'
+      : n > 0
+        ? `${n} collection${n !== 1 ? 's' : ''} detected in your wallet — typically takes between ${Math.floor(Math.ceil(n * 0.3) / 5) * 5 || 5} and ${Math.floor(Math.ceil(n * 0.8) / 5) * 5 || 10} seconds.`
+        : 'Load your inventory first.';
+  }
+  btn.disabled = !_collectionsReady || n === 0;
+}
+
+// Sales come back cheapest-first for the whole collection, so the first time a
+// template_id is seen in that stream is its floor — same trick the buy-offer
+// walk below uses in reverse (desc order, keep first-seen = highest offer).
+async function fetchFloorPriceForCollection(col) {
+  const needed = new Set(
+    _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
+           .map(a => String(a.template.template_id))
+  );
+  let page = 1;
+  while (true) {
+    let json;
+    try {
+      const res = await fetch(`${MARKET_API}/atomicmarket/v1/sales?state=1&collection_whitelist=${encodeURIComponent(col)}&sort=price&order=asc&limit=100&page=${page}&symbol=WAX`);
+      json = await res.json();
+    } catch { break; }
+    if (!json.success || !json.data.length) break;
+    for (const sale of json.data) {
+      if (sale.assets?.length !== 1) continue; // bundle listings don't reflect a single template's floor
+      const tid = String(sale.assets[0]?.template?.template_id || '');
+      if (!tid) continue;
+      if (_floorOffers[tid] == null) {
+        const precision = sale.price?.token_precision ?? 8;
+        const price = Number(sale.price.amount) / Math.pow(10, precision);
+        _floorOffers[tid] = price;
+        _floorCache[tid]  = { loaded: true, price };
+      }
+      needed.delete(tid);
+    }
+    if (needed.size === 0 || json.data.length < 100) break;
+    page++;
+    await new Promise(r => setTimeout(r, 300));
+  }
+}
+
+const FLOORPRICE_CHUNK = 200;
+
+async function fetchNextFloorPriceChunk() {
+  const start = _floorChunkIdx * FLOORPRICE_CHUNK;
+  if (start >= _floorSortedTids.length) return false;
+
+  const tids     = _floorSortedTids.slice(start, start + FLOORPRICE_CHUNK);
+  const wallet   = _activeWallet;
+  const colParam = _filterCol !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
+  _floorChunkIdx++;
+
+  let page = 1;
+  while (true) {
+    try {
+      const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      _floorBuffer.push(...json.data);
+      if (json.data.length < 1000) break;
+      page++;
+      await new Promise(r => setTimeout(r, 150));
+    } catch { break; }
+  }
+
+  _floorBuffer.sort((a, b) => {
+    const pa = _floorOffers[String(a.template?.template_id)] ?? -1;
+    const pb = _floorOffers[String(b.template?.template_id)] ?? -1;
+    return pb - pa;
+  });
+  return true;
+}
+
+async function sortByFloorPrice() {
+  _floorSortedTids = Object.entries(_floorOffers)
+    .sort(([, a], [, b]) => b - a)
+    .map(([tid]) => tid);
+  if (!_floorSortedTids.length) return;
+
+  _assets           = [];
+  _floorBuffer      = [];
+  _floorChunkIdx    = 0;
+  _clientPage       = PAGE_SIZE;
+  _autoLoadArmed    = false;
+
+  const prevGrid = document.getElementById('invGrid');
+  prevGrid.querySelectorAll('img').forEach(img => { img.src = ''; });
+  if (_videoObserver) { _videoObserver.disconnect(); _videoObserver = null; }
+  prevGrid.innerHTML = '';
+
+  document.getElementById('loadWrap').style.display     = '';
+  document.getElementById('invGrid').style.display      = 'none';
+  document.getElementById('loadMoreWrap').style.display = 'none';
+
+  let hasMoreChunks = true;
+  while (_floorBuffer.length < PAGE_SIZE && hasMoreChunks) {
+    hasMoreChunks = await fetchNextFloorPriceChunk();
+  }
+  _assets = _floorBuffer;
+
+  document.getElementById('loadWrap').style.display = 'none';
+  renderGrid();
+  initLazyVideos();
+  loadFloorPricesForCards(_assets.slice(0, _clientPage));
+  if (_buyOffersFetched) updateBuyOfferCards();
+  if (_lastSoldFetched) updateLastSoldCards();
+  const hasMore = _assets.length > _clientPage || _floorChunkIdx * FLOORPRICE_CHUNK < _floorSortedTids.length;
+  document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+}
+
+async function startFloorPriceFetch() {
+  if (_floorOffersBusy) return;
+  _floorOffersBusy    = true;
+  _floorOffers        = {};
+  _floorOffersFetched = false;
+
+  const btn       = document.getElementById('floorpriceFetchBtn');
+  const progWrap  = document.getElementById('floorpriceProgressWrap');
+  const progFill  = document.getElementById('floorpriceProgressFill');
+  const progLabel = document.getElementById('floorpriceProgressLabel');
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  renderSortDropdown();
+  progWrap.style.display = 'block';
+  progFill.style.width   = '0%';
+
+  const collections = [..._collections];
+  const total = collections.length;
+  let done = 0;
+
+  const BATCH = 10;
+  for (let i = 0; i < collections.length; i += BATCH) {
+    const batch = collections.slice(i, i + BATCH);
+    await Promise.all(batch.map(col => fetchFloorPriceForCollection(col)));
+    done += batch.length;
+    progFill.style.width   = Math.round((done / total) * 100) + '%';
+    progLabel.textContent  = `Fetching floor prices… ${done} / ${total} collections`;
+    loadFloorPricesForCards(_assets.slice(0, _clientPage)); // refresh visible cards from cache
+    if (i + BATCH < collections.length) await new Promise(r => setTimeout(r, 350));
+  }
+
+  _floorOffersFetched = true;
+  _floorOffersBusy    = false;
+
+  progWrap.style.display = 'none';
+  btn.disabled = false;
+  renderSortDropdown();
+  updateFloorPriceBanner();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
 /* Buy offers (premium)                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
@@ -2171,7 +2430,7 @@ function updateBuyOfferCards() {
 
 function toggleBuyOfferBanner(show) {
   const banner = document.getElementById('buyofferBanner');
-  const row    = document.getElementById('buyofferUnlockRow');
+  const row    = document.getElementById('buyofferUnlockLink');
   if (!banner) return;
   banner.classList.toggle('is-hidden', !show);
   if (row) row.classList.toggle('is-hidden', show || _buyOffersFetched);
@@ -2181,7 +2440,7 @@ function toggleBuyOfferBanner(show) {
 function updateBuyOfferBanner() {
   const btn  = document.getElementById('buyofferFetchBtn');
   const sub  = document.getElementById('buyofferBannerSub');
-  const row  = document.getElementById('buyofferUnlockRow');
+  const row  = document.getElementById('buyofferUnlockLink');
   if (!btn) return;
   if (row) row.classList.toggle('is-hidden', _buyOffersFetched);
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
@@ -2307,6 +2566,7 @@ async function sortByBuyOffer() {
   initLazyVideos();
   loadFloorPricesForCards(_assets.slice(0, _clientPage));
   updateBuyOfferCards();
+  if (_lastSoldFetched) updateLastSoldCards();
   const hasMore = _assets.length > _clientPage || _buyOfferChunkIdx * BUYOFFER_CHUNK < _buyOfferSortedTids.length;
   document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
 }
@@ -2351,6 +2611,218 @@ async function startBuyOfferFetch() {
   btn.disabled = false;
   renderSortDropdown();
   updateBuyOfferBanner();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Last sold (premium bulk unlock)                                            */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+// Sold history for a popular collection can span years — deep pagination
+// (Postgrest-style OFFSET) times out well before we'd reach an old, rarely
+// traded template anyway. Bounding to a rolling window keeps every page of
+// this walk shallow and fast; templates that haven't sold within it just
+// don't get a "last sold" value, same as templates with no active listing/
+// buy offer don't get one in the other two unlocks.
+const LASTSOLD_WINDOW_MS = 180 * 24 * 60 * 60 * 1000; // ~6 months
+
+function updateLastSoldCards() {
+  document.querySelectorAll('[data-lastsold-tid]').forEach(el => {
+    const tid   = el.dataset.lastsoldTid;
+    const entry = _lastSold[tid];
+    if (entry != null) {
+      el.innerHTML = `Last sold: ${entry.price.toFixed(2)} WAX${usdTag(entry.price)}<div class="inv-card-lastsold-date">${timeAgo(entry.soldAt)}</div>`;
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+      el.innerHTML     = '';
+    }
+  });
+}
+
+function toggleLastSoldBanner(show) {
+  const banner = document.getElementById('lastsoldBanner');
+  const row    = document.getElementById('lastsoldUnlockLink');
+  if (!banner) return;
+  banner.classList.toggle('is-hidden', !show);
+  if (row) row.classList.toggle('is-hidden', show || _lastSoldFetched);
+  if (show) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updateLastSoldBanner() {
+  const btn  = document.getElementById('lastsoldFetchBtn');
+  const sub  = document.getElementById('lastsoldBannerSub');
+  const row  = document.getElementById('lastsoldUnlockLink');
+  if (!btn) return;
+  if (row) row.classList.toggle('is-hidden', _lastSoldFetched);
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) {
+    btn.disabled = true;
+    sub.textContent = 'Connect your wallet to use this feature.';
+    return;
+  }
+  if (_lastSoldBusy) return;
+  const n = _collections.size;
+  if (_lastSoldFetched) {
+    const count = Object.keys(_lastSold).length;
+    sub.textContent = `We found a sale within the last 6 months for ${count} template${count !== 1 ? 's' : ''} across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Last Sold (Highest)".`;
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+    btn.textContent = 'Fetch Last Sold →';
+    sub.textContent = !_collectionsReady
+      ? 'Detecting collections in your wallet…'
+      : n > 0
+        ? `${n} collection${n !== 1 ? 's' : ''} detected in your wallet — typically takes between ${Math.floor(Math.ceil(n * 0.2) / 5) * 5 || 5} and ${Math.floor(Math.ceil(n * 0.5) / 5) * 5 || 5} seconds.`
+        : 'Load your inventory first.';
+  }
+  btn.disabled = !_collectionsReady || n === 0;
+}
+
+// Sold sales come back most-recent-first for the whole collection, so the
+// first time a template_id is seen in that stream is its last sale — same
+// keep-first-seen trick the floor-price/buy-offer walks use, just ordered
+// by recency instead of price, and bounded to LASTSOLD_WINDOW_MS via `after`.
+async function fetchLastSoldForCollection(col) {
+  const needed = new Set(
+    _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
+           .map(a => String(a.template.template_id))
+  );
+  const after = Date.now() - LASTSOLD_WINDOW_MS;
+  let page = 1;
+  while (true) {
+    let json;
+    try {
+      const res = await fetch(`${MARKET_API}/atomicmarket/v1/sales?state=3&collection_whitelist=${encodeURIComponent(col)}&sort=updated&order=desc&after=${after}&limit=100&page=${page}&symbol=WAX`);
+      json = await res.json();
+    } catch { break; }
+    if (!json.success || !json.data.length) break;
+    for (const sale of json.data) {
+      if (sale.assets?.length !== 1) continue; // bundle sales don't reflect a single template's price
+      const tid = String(sale.assets[0]?.template?.template_id || '');
+      if (!tid) continue;
+      if (_lastSold[tid] == null) {
+        const precision = sale.price?.token_precision ?? 8;
+        _lastSold[tid] = {
+          price:  Number(sale.price.amount) / Math.pow(10, precision),
+          soldAt: Number(sale.updated_at_time),
+        };
+      }
+      needed.delete(tid);
+    }
+    if (needed.size === 0 || json.data.length < 100) break;
+    page++;
+    await new Promise(r => setTimeout(r, 300));
+  }
+}
+
+const LASTSOLD_CHUNK = 200;
+
+async function fetchNextLastSoldChunk() {
+  const start = _lastSoldChunkIdx * LASTSOLD_CHUNK;
+  if (start >= _lastSoldSortedTids.length) return false;
+
+  const tids     = _lastSoldSortedTids.slice(start, start + LASTSOLD_CHUNK);
+  const wallet   = _activeWallet;
+  const colParam = _filterCol !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
+  _lastSoldChunkIdx++;
+
+  let page = 1;
+  while (true) {
+    try {
+      const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      _lastSoldBuffer.push(...json.data);
+      if (json.data.length < 1000) break;
+      page++;
+      await new Promise(r => setTimeout(r, 150));
+    } catch { break; }
+  }
+
+  _lastSoldBuffer.sort((a, b) => {
+    const pa = _lastSold[String(a.template?.template_id)]?.price ?? -1;
+    const pb = _lastSold[String(b.template?.template_id)]?.price ?? -1;
+    return pb - pa;
+  });
+  return true;
+}
+
+async function sortByLastSold() {
+  _lastSoldSortedTids = Object.entries(_lastSold)
+    .sort(([, a], [, b]) => b.price - a.price)
+    .map(([tid]) => tid);
+  if (!_lastSoldSortedTids.length) return;
+
+  _assets            = [];
+  _lastSoldBuffer     = [];
+  _lastSoldChunkIdx   = 0;
+  _clientPage         = PAGE_SIZE;
+  _autoLoadArmed      = false;
+
+  const prevGrid = document.getElementById('invGrid');
+  prevGrid.querySelectorAll('img').forEach(img => { img.src = ''; });
+  if (_videoObserver) { _videoObserver.disconnect(); _videoObserver = null; }
+  prevGrid.innerHTML = '';
+
+  document.getElementById('loadWrap').style.display     = '';
+  document.getElementById('invGrid').style.display      = 'none';
+  document.getElementById('loadMoreWrap').style.display = 'none';
+
+  let hasMoreChunks = true;
+  while (_lastSoldBuffer.length < PAGE_SIZE && hasMoreChunks) {
+    hasMoreChunks = await fetchNextLastSoldChunk();
+  }
+  _assets = _lastSoldBuffer;
+
+  document.getElementById('loadWrap').style.display = 'none';
+  renderGrid();
+  initLazyVideos();
+  loadFloorPricesForCards(_assets.slice(0, _clientPage));
+  if (_buyOffersFetched) updateBuyOfferCards();
+  updateLastSoldCards();
+  const hasMore = _assets.length > _clientPage || _lastSoldChunkIdx * LASTSOLD_CHUNK < _lastSoldSortedTids.length;
+  document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+}
+
+async function startLastSoldFetch() {
+  if (_lastSoldBusy) return;
+  _lastSoldBusy    = true;
+  _lastSold        = {};
+  _lastSoldFetched = false;
+
+  const btn       = document.getElementById('lastsoldFetchBtn');
+  const progWrap  = document.getElementById('lastsoldProgressWrap');
+  const progFill  = document.getElementById('lastsoldProgressFill');
+  const progLabel = document.getElementById('lastsoldProgressLabel');
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  renderSortDropdown();
+  progWrap.style.display = 'block';
+  progFill.style.width   = '0%';
+
+  const collections = [..._collections];
+  const total = collections.length;
+  let done = 0;
+
+  const BATCH = 10;
+  for (let i = 0; i < collections.length; i += BATCH) {
+    const batch = collections.slice(i, i + BATCH);
+    await Promise.all(batch.map(col => fetchLastSoldForCollection(col)));
+    done += batch.length;
+    progFill.style.width   = Math.round((done / total) * 100) + '%';
+    progLabel.textContent  = `Fetching last sold prices… ${done} / ${total} collections`;
+    updateLastSoldCards();
+    if (i + BATCH < collections.length) await new Promise(r => setTimeout(r, 350));
+  }
+
+  _lastSoldFetched = true;
+  _lastSoldBusy    = false;
+
+  progWrap.style.display = 'none';
+  btn.disabled = false;
+  renderSortDropdown();
+  updateLastSoldBanner();
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -4292,10 +4764,14 @@ async function onWalletChange() {
     _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _listingsFilter = 'all'; _filterText = ''; _sortOrder = 'transferred_desc';
     _onlyBacked = false; document.getElementById('onlyBackedFilter').checked = false;
     _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _soldAssets.clear(); _collectionsReady = false;
+    _floorOffers = {}; _floorOffersFetched = false; _floorOffersBusy = false;
+    _lastSold = {}; _lastSoldFetched = false; _lastSoldBusy = false;
     _selected.clear(); updateBulkChip();
     setDupesFiltersAvailability(false);
     renderSortDropdown();
     updateBuyOfferBanner();
+    updateFloorPriceBanner();
+    updateLastSoldBanner();
     document.getElementById('schemaGroup').style.display  = 'none';
     document.getElementById('rarityGroup').style.display  = 'none';
     document.getElementById('cardIdGroup').style.display  = 'none';
@@ -4390,13 +4866,21 @@ async function onListingsFilterChange(val) {
 }
 function renderSortDropdown() {
   const items = SORT_OPTIONS.map(o => ({
-    value: o.value, label: o.label, disabled: o.value === 'buyoffer_desc' && !_buyOffersFetched,
+    value: o.value,
+    label: o.label,
+    disabled: (o.value === 'buyoffer_desc' && !_buyOffersFetched) ||
+              (o.value === 'floorprice_desc' && !_floorOffersFetched) ||
+              (o.value === 'lastsold_desc' && !_lastSoldFetched),
   }));
   buildSingleCbDropdown('sortDropdown', items, _sortOrder, async val => {
     _sortOrder = val;
     renderSortDropdown();
     if (_sortOrder === 'buyoffer_desc' && _buyOffersFetched) {
       await sortByBuyOffer();
+    } else if (_sortOrder === 'floorprice_desc' && _floorOffersFetched) {
+      await sortByFloorPrice();
+    } else if (_sortOrder === 'lastsold_desc' && _lastSoldFetched) {
+      await sortByLastSold();
     } else {
       loadAssets(true);
     }
@@ -4426,8 +4910,57 @@ async function loadNextChunk() {
       appendCards(batch);
       loadFloorPricesForCards(batch);
       updateBuyOfferCards();
+      if (_lastSoldFetched) updateLastSoldCards();
     }
     const hasMore = _buyOfferBuffer.length > _clientPage || _buyOfferChunkIdx * BUYOFFER_CHUNK < _buyOfferSortedTids.length;
+    document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+  } else if (_sortOrder === 'floorprice_desc') {
+    const btn = document.getElementById('loadMoreBtn');
+    const prev = _clientPage;
+    _clientPage += PAGE_SIZE;
+    if (_clientPage > _floorBuffer.length) {
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      let hasMoreChunks = true;
+      while (_floorBuffer.length < _clientPage && hasMoreChunks) {
+        hasMoreChunks = await fetchNextFloorPriceChunk();
+      }
+      _assets = _floorBuffer;
+      btn.disabled = false;
+      btn.textContent = 'Load more';
+    }
+    const batch = filtered().slice(prev, _clientPage);
+    if (batch.length) {
+      appendCards(batch);
+      loadFloorPricesForCards(batch);
+      if (_buyOffersFetched) updateBuyOfferCards();
+      if (_lastSoldFetched) updateLastSoldCards();
+    }
+    const hasMore = _floorBuffer.length > _clientPage || _floorChunkIdx * FLOORPRICE_CHUNK < _floorSortedTids.length;
+    document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+  } else if (_sortOrder === 'lastsold_desc') {
+    const btn = document.getElementById('loadMoreBtn');
+    const prev = _clientPage;
+    _clientPage += PAGE_SIZE;
+    if (_clientPage > _lastSoldBuffer.length) {
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      let hasMoreChunks = true;
+      while (_lastSoldBuffer.length < _clientPage && hasMoreChunks) {
+        hasMoreChunks = await fetchNextLastSoldChunk();
+      }
+      _assets = _lastSoldBuffer;
+      btn.disabled = false;
+      btn.textContent = 'Load more';
+    }
+    const batch = filtered().slice(prev, _clientPage);
+    if (batch.length) {
+      appendCards(batch);
+      loadFloorPricesForCards(batch);
+      if (_buyOffersFetched) updateBuyOfferCards();
+      updateLastSoldCards();
+    }
+    const hasMore = _lastSoldBuffer.length > _clientPage || _lastSoldChunkIdx * LASTSOLD_CHUNK < _lastSoldSortedTids.length;
     document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
   } else {
     loadAssets(false);
