@@ -8,8 +8,8 @@
    Usage: WalletWidget.mount(navInnerEl, {
      authScript:   'shared/wax-auth.js' | '../shared/wax-auth.js',  // relative to the calling page
      apiScript:    'shared/wax-api.js'  | '../shared/wax-api.js',   // relative to the calling page — lazy-loaded only if window.WaxApi isn't already present, defaults to 'shared/wax-api.js'
-     exploreHref:  'explore.html' | '../explore.html',              // relative to the calling page — cart icon link, defaults to 'explore.html'
-     offersHref:   'trade-offers.html' | '../trade-offers.html',    // relative to the calling page — pending-offers icon link, defaults to 'trade-offers.html'
+     exploreHref:  'explore' | '../explore',              // relative to the calling page — cart icon link, defaults to 'explore'
+     offersHref:   'trade-offers' | '../trade-offers',    // relative to the calling page — pending-offers icon link, defaults to 'trade-offers'
      menuItems:    [{ href, label }, ...],   // e.g. Inventory everywhere, Collector Profile on Funko only
      decorateName: (acc) => 'prefix ',       // optional — reads synchronously-available/cached data only (e.g. Funko's cached tier), never awaited — must not delay paint
      onAccount:    async (acc) => {},        // optional — fire-and-forget background refresh while acc is set (e.g. fetch+cache tier); triggers one re-render on completion, never blocks the current paint
@@ -192,9 +192,9 @@
     opts = opts || {};
     const authScript   = opts.authScript || 'shared/wax-auth.js';
     const apiScript    = opts.apiScript  || 'shared/wax-api.js';
-    const exploreHref  = opts.exploreHref || 'explore.html';
-    const offersHref   = opts.offersHref  || 'trade-offers.html';
-    const profileHref  = opts.profileHref || 'profile.html';
+    const exploreHref  = opts.exploreHref || 'explore';
+    const offersHref   = opts.offersHref  || 'trade-offers';
+    const profileHref  = opts.profileHref || 'profile';
     const menuItems    = opts.menuItems || [];
     const decorateName = opts.decorateName || (() => '');
     const onAccount    = opts.onAccount || null;

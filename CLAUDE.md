@@ -17,6 +17,14 @@ PopInStock is a **static HTML + vanilla JS** collector tool suite for WAX blockc
 
 ---
 
+## URL scheme
+
+`vercel.json` sets `"cleanUrls": true` — every page is served without its `.html` extension (e.g. `funko/wallet.html` is browsed as `/funko/wallet`; a direct hit on the `.html` URL 308-redirects to the clean one). Files on disk keep their `.html` names — only link targets and browser-facing URLs drop it. Every internal `href`/`location`/nav-link reference site-wide must therefore be extensionless; when adding a new page or link, don't write `.html` into it.
+
+`collection.html` and `template.html` additionally get path-style URLs via explicit `rewrites` in vercel.json: `/collection/:name` → `collection.html?collection_name=:name` and `/template/:id` → `template.html?template_id=:id`. The page JS just reads `collection_name`/`template_id` off `location.search` as usual — Vercel populates it from the path segment automatically, no extra parsing needed.
+
+---
+
 ## Folder structure
 
 ```

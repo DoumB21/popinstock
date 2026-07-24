@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wallet Look Up — Funko Digital — Hoardio</title>
   <meta name="description" content="Search any WAX wallet to explore their Funko Digital Pop! collection stats, set completion rankings, and individual card details." />
-  <link rel="canonical" href="https://www.hoardio.com/funko/wallet.html" />
+  <link rel="canonical" href="https://www.hoardio.com/funko/wallet" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/funko/wallet.html" />
+  <meta property="og:url" content="https://www.hoardio.com/funko/wallet" />
   <meta property="og:title" content="Wallet Look Up — Funko Digital — Hoardio" />
   <meta property="og:description" content="Search any WAX wallet to explore their Funko Digital Pop! collection stats, set completion rankings, and individual card details." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -509,7 +509,7 @@
       const maxMint = mint - 1;
       const marketLinks = maxMint >= 1
         ? `<div class="market-links">
-            <a class="market-link market-link--primary" href="../marketplace.html?template_id=${tid}&max_mint=${maxMint}&sort=mint-asc" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>
+            <a class="market-link market-link--primary" href="../marketplace?template_id=${tid}&max_mint=${maxMint}&sort=mint-asc" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>
           </div>`
         : '';
       return `<tr>
@@ -649,7 +649,7 @@
       const masteryRows = dropLbData.filter(r => r.set_type === 'mastery');
 
       const backLink = (initC === c && initS === s)
-        ? `<a class="back-link" href="drop.html?c=${enc(c)}&s=${enc(s)}">← Back to drop page</a>`
+        ? `<a class="back-link" href="drop?c=${enc(c)}&s=${enc(s)}">← Back to drop page</a>`
         : '';
 
       document.getElementById('walletContent').innerHTML = `

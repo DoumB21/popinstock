@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Trade Offers — Hoardio</title>
   <meta name="description" content="Review, accept, and cancel WAX trade offers for your NFT cards — both received and sent." />
-  <link rel="canonical" href="https://www.hoardio.com/trade-offers.html" />
+  <link rel="canonical" href="https://www.hoardio.com/trade-offers" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/trade-offers.html" />
+  <meta property="og:url" content="https://www.hoardio.com/trade-offers" />
   <meta property="og:title" content="Trade Offers — Hoardio" />
   <meta property="og:description" content="Review, accept, and cancel WAX trade offers for your NFT cards — both received and sent." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -294,7 +294,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -309,7 +309,7 @@
       <h1 class="page-title">Trade <span class="accent">Offers</span></h1>
       <p class="page-desc" id="pageDesc">Review and respond to pending offers sent to your WAX wallet.</p>
     </div>
-    <a href="trade-history.html" class="history-link">🕘 Trade History</a>
+    <a href="trade-history" class="history-link">🕘 Trade History</a>
   </div>
 
   <div class="offer-tabs" id="offerTabs">
@@ -341,10 +341,10 @@
 const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
-    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-    { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+    { href: 'inventory', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+    { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+    { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
   ],
 });
 window.addEventListener('wax-auth-change', onWalletChange);
@@ -1130,7 +1130,7 @@ function showState(state) {
 const OFFERS_LIMIT = 100;
 const EMPTY_MSG = {
   received: '<strong>No pending offers</strong>',
-  sent:     '<strong>No pending sent offers</strong>You have no outgoing trade offers awaiting a response. Head back to the <a href="trade-analyzer.html">Trade Analyzer</a>.',
+  sent:     '<strong>No pending sent offers</strong>You have no outgoing trade offers awaiting a response. Head back to the <a href="trade-analyzer">Trade Analyzer</a>.',
 };
 
 function offersUrl(direction, wallet) {

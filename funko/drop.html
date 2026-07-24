@@ -243,7 +243,7 @@
 
     const tableRows = top20.map((e, i) => {
       const pos    = i + 1;
-      const href   = 'wallet.html?w=' + enc(e.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
+      const href   = 'wallet?w=' + enc(e.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
       const setBadge = e.set_number > 1
         ? `<span style="font-size:0.75rem;font-weight:700;color:var(--accent);background:rgba(192,120,40,0.12);border:1px solid rgba(192,120,40,0.3);border-radius:4px;padding:2px 7px;white-space:nowrap">Set #${e.set_number}</span>`
         : '';
@@ -270,7 +270,7 @@
   function renderHoldersTable(holders) {
     if (!holders.length) return '<div class="no-data">No holder data available.</div>';
     const rows = holders.map(h => {
-      const href = 'wallet.html?w=' + enc(h.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
+      const href = 'wallet?w=' + enc(h.wallet) + '&c=' + enc(c) + '&s=' + enc(s);
       const dim = h.is_official ? ' style="opacity:0.45"' : '';
       const official = h.is_official ? ' <span style="font-size:0.78rem;color:#888">(official)</span>' : '';
       const walletCell = nameMap[h.wallet]
@@ -311,7 +311,7 @@
     const root = document.getElementById('pageRoot');
 
     if (!c || !s) {
-      root.innerHTML = '<div class="state state-error">Missing drop parameters. <a href="mint-rankings.html" style="color:var(--accent-light)">← Back to all drops</a></div>';
+      root.innerHTML = '<div class="state state-error">Missing drop parameters. <a href="mint-rankings" style="color:var(--accent-light)">← Back to all drops</a></div>';
       return;
     }
 
@@ -454,7 +454,7 @@
         <div class="drop-header${bannerCid ? ' has-banner' : ''}">
           ${logoHtml}
           <div class="drop-header-info">
-            <a class="back-link" href="mint-rankings.html">← Back to all drops</a>
+            <a class="back-link" href="mint-rankings">← Back to all drops</a>
             <div class="drop-schema-label">${label}${releaseDate ? ' · ' + releaseDate : ''}</div>
             <div class="drop-name">${name}</div>
             <div class="drop-meta">${c}</div>
@@ -493,7 +493,7 @@
         </div>`;
 
     } catch (err) {
-      root.innerHTML = `<div class="state state-error">Failed to load: ${err.message}<br><br><a href="mint-rankings.html" style="color:var(--accent-light)">← Back to all drops</a></div>`;
+      root.innerHTML = `<div class="state state-error">Failed to load: ${err.message}<br><br><a href="mint-rankings" style="color:var(--accent-light)">← Back to all drops</a></div>`;
     }
   }
 

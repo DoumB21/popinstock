@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Trade History — Hoardio</title>
   <meta name="description" content="Review the history of your resolved WAX trade offers — accepted, declined, and cancelled, both received and sent." />
-  <link rel="canonical" href="https://www.hoardio.com/trade-history.html" />
+  <link rel="canonical" href="https://www.hoardio.com/trade-history" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/trade-history.html" />
+  <meta property="og:url" content="https://www.hoardio.com/trade-history" />
   <meta property="og:title" content="Trade History — Hoardio" />
   <meta property="og:description" content="Review the history of your resolved WAX trade offers — accepted, declined, and cancelled, both received and sent." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -181,7 +181,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -196,7 +196,7 @@
       <h1 class="page-title">Trade <span class="accent">History</span></h1>
       <p class="page-desc" id="pageDesc">Resolved offers sent to your WAX wallet — accepted, declined, or expired.</p>
     </div>
-    <a href="trade-offers.html" class="offers-link">🔄 Trade Offers</a>
+    <a href="trade-offers" class="offers-link">🔄 Trade Offers</a>
   </div>
 
   <div class="offer-tabs" id="offerTabs">
@@ -216,7 +216,7 @@
 
   <div id="emptyWrap" class="empty-state" style="display:none;">
     <strong>No trade history</strong>
-    You have no resolved incoming trade offers yet. Head back to <a href="trade-offers.html">Trade Offers</a>.
+    You have no resolved incoming trade offers yet. Head back to <a href="trade-offers">Trade Offers</a>.
   </div>
 
   <div id="offersList" class="offers-list" style="display:none;"></div>
@@ -232,10 +232,10 @@
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
-    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-    { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+    { href: 'inventory', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+    { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+    { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
   ],
 });
 window.addEventListener('wax-auth-change', onWalletChange);
@@ -606,8 +606,8 @@ function showState(state) {
 const PAGE_SIZE   = 10;
 const COUNT_LIMIT = 100;
 const EMPTY_MSG = {
-  received: '<strong>No trade history</strong>You have no resolved incoming trade offers yet. Head back to <a href="trade-offers.html">Trade Offers</a>.',
-  sent:     '<strong>No sent trade history</strong>You have no resolved outgoing trade offers yet. Head back to <a href="trade-offers.html">Trade Offers</a>.',
+  received: '<strong>No trade history</strong>You have no resolved incoming trade offers yet. Head back to <a href="trade-offers">Trade Offers</a>.',
+  sent:     '<strong>No sent trade history</strong>You have no resolved outgoing trade offers yet. Head back to <a href="trade-offers">Trade Offers</a>.',
 };
 
 function offersUrl(direction, wallet, limit, page) {

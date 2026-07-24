@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mining Power Search — Wombat Dungeon Master — Hoardio</title>
   <meta name="description" content="Find the cheapest NFTs by mining power across all Wombat Dungeon Master collections on WAX. Maximize your dungeon mining efficiency." />
-  <link rel="canonical" href="https://www.hoardio.com/wombat/mining-power-search.html" />
+  <link rel="canonical" href="https://www.hoardio.com/wombat/mining-power-search" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/wombat/mining-power-search.html" />
+  <meta property="og:url" content="https://www.hoardio.com/wombat/mining-power-search" />
   <meta property="og:title" content="Mining Power Search — Wombat Dungeon Master — Hoardio" />
   <meta property="og:description" content="Find the cheapest NFTs by mining power across all Wombat Dungeon Master collections on WAX. Maximize your dungeon mining efficiency." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -933,7 +933,7 @@
       if (blockchain !== 'WAX') return '';
       const tid = encodeURIComponent(row.template_id || '');
       const col = encodeURIComponent(row.collection_name || '');
-      return `<a href="../marketplace.html?template_id=${tid}&collection_name=${col}" target="_blank" rel="noopener" class="market-link market-link--primary" title="Buy on Hoardio">
+      return `<a href="../marketplace?template_id=${tid}&collection_name=${col}" target="_blank" rel="noopener" class="market-link market-link--primary" title="Buy on Hoardio">
         <img src="../images/Hoardio_fav.png" alt="Hoardio" width="24" height="24">
         <span class="buy-label">Buy</span>
       </a>`;

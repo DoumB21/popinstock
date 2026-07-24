@@ -9,8 +9,8 @@
 // now; there's no separate inventory-bulk.html or explore-bulk.html page
 // left to link to.
 const GENERIC_NAV_LINKS = [
-  { label: 'Explore', href: 'explore.html' },
-  { label: 'Trade Analyzer', href: 'trade-analyzer.html' },
+  { label: 'Explore', href: 'explore' },
+  { label: 'Trade Analyzer', href: 'trade-analyzer' },
 ];
 
 (function buildGenericNav() {
@@ -19,7 +19,7 @@ const GENERIC_NAV_LINKS = [
   const linksContainer = navInner && navInner.querySelector('.nav-links');
   if (!nav || !navInner || !linksContainer) return;
 
-  const currentPage = location.pathname.split('/').pop() || 'index.html';
+  const currentPage = location.pathname.split('/').pop() || 'index';
   const linksHtml = GENERIC_NAV_LINKS.map(({ label, href }) => `
     <a href="${href}" class="nav-link${currentPage === href ? ' nav-link--active' : ''}">${label}</a>
   `).join('');

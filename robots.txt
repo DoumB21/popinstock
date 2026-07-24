@@ -8,13 +8,13 @@ Disallow: /twitch/data/
 Disallow: /wombat/data/
 
 # Dynamic tool page — requires query parameters to function, no standalone content
-Disallow: /funko/drop.html
+Disallow: /funko/drop
 
 # Not part of the main site
 Disallow: /stats/
 Disallow: /discord/
 
 # Internal tooling — OG banner source file, not a real page
-Disallow: /og-banner.html
+Disallow: /og-banner
 
 Sitemap: https://www.hoardio.com/sitemap.xml

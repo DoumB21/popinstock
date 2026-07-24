@@ -1,5 +1,5 @@
 const NAV_LINKS = [
-  { label: 'Mining Power Search', href: 'mining-power-search.html' },
+  { label: 'Mining Power Search', href: 'mining-power-search' },
 ];
 
 const SECTION_NAME = 'Wombat';
@@ -23,11 +23,11 @@ function buildNav() {
   nav.className = 'site-nav';
   nav.innerHTML = `
     <div class="nav-inner">
-      <a href="../index.html" class="nav-home" title="Back to homepage">
+      <a href="../index" class="nav-home" title="Back to homepage">
         <img src="../images/Hoardio_fav.png" alt="Hoardio" />
       </a>
       <span class="nav-divider"></span>
-      <a href="wombat.html" class="nav-section">${SECTION_NAME}</a>
+      <a href="wombat" class="nav-section">${SECTION_NAME}</a>
       <div class="nav-links">${links}</div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -126,14 +126,14 @@ async function _initWallet() {
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
     apiScript: '../shared/wax-api.js',
-    exploreHref: '../explore.html',
-    offersHref: '../trade-offers.html',
-    profileHref: '../profile.html',
+    exploreHref: '../explore',
+    offersHref: '../trade-offers',
+    profileHref: '../profile',
     menuItems: [
-      { href: '../inventory.html', label: 'Inventory', icon: '📦' },
-      { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
-      { href: '../trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-      { href: '../gift-links.html', label: 'Gift Links', icon: '🎁' },
+      { href: '../inventory', label: 'Inventory', icon: '📦' },
+      { href: '../inventory-activity', label: 'Activity', icon: '🕒' },
+      { href: '../trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: '../gift-links', label: 'Gift Links', icon: '🎁' },
     ],
   });
 }

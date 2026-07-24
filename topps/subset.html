@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Subset — Topps Digital — Hoardio</title>
   <meta name="description" content="View mint rankings, collector standings, and stats for this Topps Digital subset on WAX." />
-  <link rel="canonical" href="https://www.hoardio.com/topps/subset.html" />
+  <link rel="canonical" href="https://www.hoardio.com/topps/subset" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/topps/subset.html" />
+  <meta property="og:url" content="https://www.hoardio.com/topps/subset" />
   <meta property="og:title" content="Subset — Topps Digital — Hoardio" />
   <meta property="og:description" content="View mint rankings, collector standings, and stats for this Topps Digital subset on WAX." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -179,7 +179,7 @@
 
     const tableRows = rows.map((e, i) => {
       const pos = i + 1;
-      const href = 'wallet.html?w=' + enc(e.wallet) + '&c=' + enc(c) + '&s=' + enc(s) + '&subset=' + enc(subset);
+      const href = 'wallet?w=' + enc(e.wallet) + '&c=' + enc(c) + '&s=' + enc(s) + '&subset=' + enc(subset);
       const setBadge = e.set_number > 1
         ? `<span style="font-size:0.75rem;font-weight:700;color:var(--accent);background:rgba(192,120,40,0.12);border:1px solid rgba(192,120,40,0.3);border-radius:4px;padding:2px 7px;white-space:nowrap">Set #${e.set_number}</span>`
         : '';
@@ -208,7 +208,7 @@
   function renderHoldersTable(holders) {
     if (!holders.length) return '<div class="no-data">No holder data available.</div>';
     const rows = holders.map(h => {
-      const href    = 'wallet.html?w=' + enc(h.wallet) + '&c=' + enc(c) + '&s=' + enc(s) + '&subset=' + enc(subset);
+      const href    = 'wallet?w=' + enc(h.wallet) + '&c=' + enc(c) + '&s=' + enc(s) + '&subset=' + enc(subset);
       const dim     = h.is_official ? ' style="opacity:0.45"' : '';
       const official = h.is_official ? ' <span style="font-size:0.78rem;color:#888">(official)</span>' : '';
       return `<tr${dim} onclick="window.location='${href}'">
@@ -246,7 +246,7 @@
     const root = document.getElementById('pageRoot');
 
     if (!c || !s || !subset) {
-      root.innerHTML = '<div class="state state-error">Missing parameters. <a href="mint-rankings.html" style="color:var(--accent-light)">← Back to all subsets</a></div>';
+      root.innerHTML = '<div class="state state-error">Missing parameters. <a href="mint-rankings" style="color:var(--accent-light)">← Back to all subsets</a></div>';
       return;
     }
 
@@ -326,7 +326,7 @@
         <div class="subset-header">
           <img class="subset-logo" src="../images/topps.png" alt="Topps" onerror="this.style.display='none'">
           <div class="subset-header-info">
-            <a class="back-link" href="mint-rankings.html">← Back to all subsets</a>
+            <a class="back-link" href="mint-rankings">← Back to all subsets</a>
             <div class="subset-schema-label">2021 Topps Series 1 Baseball${stats.updated_at ? ' · Updated ' + fmtDate(stats.updated_at) : ''}</div>
             <div class="subset-name">${subset}</div>
             <div class="subset-meta">${c} · ${s}</div>
@@ -358,7 +358,7 @@
         </div>`;
 
     } catch (err) {
-      root.innerHTML = `<div class="state state-error">Failed to load: ${err.message}<br><br><a href="mint-rankings.html" style="color:var(--accent-light)">← Back to all subsets</a></div>`;
+      root.innerHTML = `<div class="state state-error">Failed to load: ${err.message}<br><br><a href="mint-rankings" style="color:var(--accent-light)">← Back to all subsets</a></div>`;
     }
   }
 

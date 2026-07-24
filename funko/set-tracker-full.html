@@ -92,7 +92,7 @@
   <div class="content">
 
     <div class="page-header">
-      <a class="back-link" href="set-tracker.html">← Set Tracker</a>
+      <a class="back-link" href="set-tracker">← Set Tracker</a>
       <div class="page-title">Full Inventory <span class="accent">Scan</span></div>
       <div class="page-subtitle">Scan your wallet against the entire Funko Digital catalog and see every card you're missing.</div>
     </div>
@@ -411,7 +411,7 @@ function getFiltered() {
 
 function buildRows(cards) {
   return cards.map(t => {
-    const link = `../marketplace.html?template_id=${enc(t.template_id)}`;
+    const link = `../marketplace?template_id=${enc(t.template_id)}`;
     return `<tr>
       <td>
         <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>

@@ -640,7 +640,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -826,10 +826,10 @@
   </div>
 
   <div id="activityTabs" class="activity-tabs" style="display:none;">
-    <a class="activity-tab-btn activity-tab-btn--current" href="inventory.html">📦 Inventory</a>
-    <a class="activity-tab-btn" href="inventory-activity.html?tab=purchases">🛒 Purchases</a>
-    <a class="activity-tab-btn" href="inventory-activity.html?tab=sales">💰 Sales</a>
-    <a class="activity-tab-btn" href="inventory-activity.html?tab=transfers">↔️ Transfers</a>
+    <a class="activity-tab-btn activity-tab-btn--current" href="inventory">📦 Inventory</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=purchases">🛒 Purchases</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=sales">💰 Sales</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=transfers">↔️ Transfers</a>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
@@ -4184,7 +4184,7 @@ function renderBulkActionModal() {
         <input class="control-input" id="giftLinkInput" type="text" readonly value="${escHtml(_giftResult.url)}" onclick="this.select()" style="width:100%; box-sizing:border-box; margin-bottom:0.65rem;" />
         <button class="modal-btn modal-btn--list" type="button" style="width:100%;" onclick="copyVal(this,'${escHtml(_giftResult.url)}')">Copy Link</button>
         <div class="bl-transfer-warning">Share this link with the recipient — anyone who has it can claim these NFTs. You can cancel or regenerate it later from Gift Links.</div>
-        <a class="gift-links-page-link" href="gift-links.html">View all Gift Links →</a>
+        <a class="gift-links-page-link" href="gift-links">View all Gift Links →</a>
       </div>`;
   } else if (_bulkAction === 'gift') {
     bodyHtml = `
@@ -4737,7 +4737,7 @@ async function bulkGift() {
     return;
   }
 
-  const url = `${location.origin}${location.pathname.replace(/inventory\.html$/, '')}gift-claim.html?id=${linkId}#${privateKey}`;
+  const url = `${location.origin}${location.pathname.replace(/inventory$/, '')}gift-claim?id=${linkId}#${privateKey}`;
   _giftResult = { linkId, url, privateKey };
   _giftStep = 'result';
   renderBulkActionModal();
@@ -5013,10 +5013,10 @@ document.addEventListener('DOMContentLoaded', () => {
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: 'shared/wax-auth.js',
     menuItems: [
-      { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-      { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-      { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-      { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+      { href: 'inventory', label: 'Inventory', icon: '📦' },
+      { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+      { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
     ],
   });
   onWalletChange();

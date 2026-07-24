@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Set Tracker — Funko Digital — Hoardio</title>
   <meta name="description" content="Track your Funko Digital Pop! collection progress on WAX. Discover which cards you're missing to complete your Royalty and Mastery sets." />
-  <link rel="canonical" href="https://www.hoardio.com/funko/set-tracker.html" />
+  <link rel="canonical" href="https://www.hoardio.com/funko/set-tracker" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/funko/set-tracker.html" />
+  <meta property="og:url" content="https://www.hoardio.com/funko/set-tracker" />
   <meta property="og:title" content="Set Tracker — Funko Digital — Hoardio" />
   <meta property="og:description" content="Track your Funko Digital Pop! collection progress on WAX. Discover which cards you're missing to complete your Royalty and Mastery sets." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -886,7 +886,7 @@
           ? `<span class="rarity-pill ${RARITY_CLASS[t.rarity]}">${t.rarity}</span>`
           : `<span class="rarity-pill">${t.rarity || '—'}</span>`;
         const links = `<div class="market-links">
-          <a class="market-link market-link--primary" href="../marketplace.html?template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>
+          <a class="market-link market-link--primary" href="../marketplace?template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>
         </div>`;
         return `<tr>
           <td>
@@ -920,7 +920,7 @@
 
   function openFullScan() {
     const w = document.getElementById('walletInput').value.trim();
-    location.href = 'set-tracker-full.html' + (w ? '?w=' + encodeURIComponent(w) : '');
+    location.href = 'set-tracker-full' + (w ? '?w=' + encodeURIComponent(w) : '');
   }
 
   function updateTrackBtn() {

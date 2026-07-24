@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Trade Analyzer — Hoardio</title>
   <meta name="description" content="Compare the NFT inventory of up to 5 WAX wallets across Funko Digital, Topps, or any WAX collection. Instantly spot trade opportunities and find missing cards to complete your set." />
-  <link rel="canonical" href="https://www.hoardio.com/trade-analyzer.html" />
+  <link rel="canonical" href="https://www.hoardio.com/trade-analyzer" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/trade-analyzer.html" />
+  <meta property="og:url" content="https://www.hoardio.com/trade-analyzer" />
   <meta property="og:title" content="Trade Analyzer — Hoardio" />
   <meta property="og:description" content="Compare the NFT inventory of up to 5 WAX wallets across Funko Digital, Topps, or any WAX collection. Instantly spot trade opportunities and find missing cards to complete your set." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -667,7 +667,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -710,7 +710,7 @@
     <span class="pending-offers-text">
       You have <strong id="pendingOffersCount">0</strong> pending trade offer(s) waiting for your response.
     </span>
-    <a href="trade-offers.html" class="pending-offers-link">Review offers &#8594;</a>
+    <a href="trade-offers" class="pending-offers-link">Review offers &#8594;</a>
   </div>
 
   <div class="controls-card">
@@ -1919,7 +1919,7 @@
       const linksWrap = document.createElement('div');
       linksWrap.className = 'market-links';
       const buyA = document.createElement('a');
-      buyA.href = `marketplace.html?template_id=${tmpl.templateId}&sort=mint-asc`;
+      buyA.href = `marketplace?template_id=${tmpl.templateId}&sort=mint-asc`;
       buyA.target = '_blank';
       buyA.rel = 'noopener noreferrer';
       buyA.className = 'market-link market-link--primary';
@@ -3042,10 +3042,10 @@
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: 'shared/wax-auth.js',
     menuItems: [
-      { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-      { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-      { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-      { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+      { href: 'inventory', label: 'Inventory', icon: '📦' },
+      { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+      { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
     ],
   });
   window.addEventListener('wax-auth-change', () => {

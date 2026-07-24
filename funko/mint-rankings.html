@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Funko Mint Rankings — Hoardio</title>
   <meta name="description" content="Browse every Funko Digital Pop! drop on WAX. View mint rankings, collector standings, and stats for each series." />
-  <link rel="canonical" href="https://www.hoardio.com/funko/mint-rankings.html" />
+  <link rel="canonical" href="https://www.hoardio.com/funko/mint-rankings" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/funko/mint-rankings.html" />
+  <meta property="og:url" content="https://www.hoardio.com/funko/mint-rankings" />
   <meta property="og:title" content="Funko Mint Rankings — Hoardio" />
   <meta property="og:description" content="Browse every Funko Digital Pop! drop on WAX. View mint rankings, collector standings, and stats for each series." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -224,7 +224,7 @@
       function buildCard(s) {
         const col      = collMap.get(s.collection_name) || {};
         const name     = cleanName(col.display_name || s.collection_name);
-        const href     = 'drop.html?c=' + encodeURIComponent(s.collection_name) + '&s=' + encodeURIComponent(s.schema_name);
+        const href     = 'drop?c=' + encodeURIComponent(s.collection_name) + '&s=' + encodeURIComponent(s.schema_name);
         const avifSrc  = avifSet.has(`${s.collection_name}_${s.schema_name}`)
           ? `images/drops/${s.collection_name}_${s.schema_name}.avif`
           : `images/drops/others/${s.collection_name}_${s.schema_name}.avif`;

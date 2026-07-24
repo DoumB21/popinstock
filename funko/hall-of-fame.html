@@ -286,9 +286,9 @@
       : `<div class="legend-avatar">${wallet[0].toUpperCase()}</div>`;
 
     const nameHtml = username
-      ? `<a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${username}</a>
+      ? `<a class="legend-name" href="wallet?w=${encodeURIComponent(wallet)}">${username}</a>
          <div class="legend-wallet-sub">${wallet}</div>`
-      : `<a class="legend-name" href="wallet.html?w=${encodeURIComponent(wallet)}">${wallet}</a>`;
+      : `<a class="legend-name" href="wallet?w=${encodeURIComponent(wallet)}">${wallet}</a>`;
 
     const dateHtml = date
       ? `<div class="legend-since">Legend since <span class="legend-since-date">${date}</span></div>`

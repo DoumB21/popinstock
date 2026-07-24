@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Claim Your Gift — Hoardio</title>
   <meta name="description" content="Claim NFTs someone gifted you on Hoardio." />
-  <link rel="canonical" href="https://www.hoardio.com/gift-claim.html" />
+  <link rel="canonical" href="https://www.hoardio.com/gift-claim" />
   <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
   <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
   <link rel="stylesheet" href="shared/global.css" />
@@ -98,7 +98,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -204,7 +204,7 @@ function showEmpty(icon, variant, title, hint) {
     <div class="empty-icon is-${variant}">${icon}</div>
     <div class="empty-title">${escHtml(title)}</div>
     ${hint ? `<div class="empty-hint">${hint}</div>` : ''}
-    <a class="empty-cta" href="inventory.html">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
+    <a class="empty-cta" href="inventory">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
   el.style.display = '';
 }
 
@@ -323,8 +323,8 @@ async function handleClaim() {
     document.getElementById('claimCard').innerHTML = `
       <div class="claim-title">🎉 Claimed!</div>
       <p style="color:var(--text-secondary); margin-bottom:1.25rem;">These NFTs are now in your wallet.</p>
-      <a class="claim-btn" style="display:block; text-decoration:none; box-sizing:border-box;" href="inventory.html">View My Inventory</a>
-      <a class="empty-cta" href="inventory.html">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
+      <a class="claim-btn" style="display:block; text-decoration:none; box-sizing:border-box;" href="inventory">View My Inventory</a>
+      <a class="empty-cta" href="inventory">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
   } catch (err) {
     btn.disabled = false;
     const msg = (err?.message || '').toLowerCase();

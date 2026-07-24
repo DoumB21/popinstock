@@ -10,10 +10,10 @@ const SITE_BANNER = null;
 window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
 
 const NAV_LINKS = [
-  { label: 'Mint Rankings', href: 'mint-rankings.html' },
-  { label: 'Wallet Look Up', href: 'wallet.html' },
-  { label: 'Market Overview', href: 'market-overview.html' },
-  { label: 'Set Tracker', href: 'set-tracker.html' },
+  { label: 'Mint Rankings', href: 'mint-rankings' },
+  { label: 'Wallet Look Up', href: 'wallet' },
+  { label: 'Market Overview', href: 'market-overview' },
+  { label: 'Set Tracker', href: 'set-tracker' },
 ];
 
 const SECTION_NAME = 'Funko';
@@ -47,11 +47,11 @@ function buildNav() {
   nav.className = 'site-nav';
   nav.innerHTML = `
     <div class="nav-inner">
-      <a href="../index.html" class="nav-home" title="Back to homepage">
+      <a href="../index" class="nav-home" title="Back to homepage">
         <img src="../images/Hoardio_fav.png" alt="Hoardio" />
       </a>
       <span class="nav-divider"></span>
-      <a href="funko.html" class="nav-section">${SECTION_NAME}</a>
+      <a href="funko" class="nav-section">${SECTION_NAME}</a>
       <div class="nav-links">${links}</div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -169,15 +169,15 @@ async function _initWallet() {
   window._walletWidget = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: '../shared/wax-auth.js',
     apiScript: '../shared/wax-api.js',
-    exploreHref: '../explore.html',
-    offersHref: '../trade-offers.html',
-    profileHref: '../profile.html',
+    exploreHref: '../explore',
+    offersHref: '../trade-offers',
+    profileHref: '../profile',
     menuItems: [
-      { href: 'profile.html', label: 'Collector Profile', icon: '👤' },
-      { href: '../inventory.html', label: 'Inventory', icon: '📦' },
-      { href: '../inventory-activity.html', label: 'Activity', icon: '🕒' },
-      { href: '../trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-      { href: '../gift-links.html', label: 'Gift Links', icon: '🎁' },
+      { href: 'profile', label: 'Collector Profile', icon: '👤' },
+      { href: '../inventory', label: 'Inventory', icon: '📦' },
+      { href: '../inventory-activity', label: 'Activity', icon: '🕒' },
+      { href: '../trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: '../gift-links', label: 'Gift Links', icon: '🎁' },
     ],
     // Reads the cached tier synchronously so the icon appears instantly —
     // onAccount below refreshes it in the background, never blocking paint.

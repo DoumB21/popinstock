@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Template — Hoardio</title>
+  <meta name="description" content="General information for any WAX NFT template — supply, rarity, and market activity." />
+  <link rel="canonical" href="https://www.hoardio.com/template" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/template" />
+  <meta property="og:title" content="Template — Hoardio" />
+  <meta property="og:description" content="General information for any WAX NFT template — supply, rarity, and market activity." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Template — Hoardio" />
+  <meta name="twitter:description" content="General information for any WAX NFT template — supply, rarity, and market activity." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    .template-placeholder {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem 1.5rem;
+      text-align: center; color: var(--text-secondary);
+    }
+    .template-placeholder strong { color: var(--text-primary); }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/wax-auth.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/settings.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title" id="pageTitle">Template</h1>
+    <p class="page-desc" id="pageDesc">General information for a template</p>
+  </div>
+
+  <div id="templateContent" class="template-placeholder">Loading…</div>
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+  'use strict';
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
+  const templateId = new URLSearchParams(location.search).get('template_id');
+  const contentEl = document.getElementById('templateContent');
+  const titleEl = document.getElementById('pageTitle');
+  const descEl = document.getElementById('pageDesc');
+
+  if (!templateId) {
+    contentEl.innerHTML = 'No template specified. Add <strong>?template_id=&lt;id&gt;</strong> to the URL.';
+  } else {
+    titleEl.textContent = `Template #${templateId}`;
+    descEl.textContent = 'Template overview';
+    contentEl.innerHTML = `Data for template <strong>${escapeHtml(templateId)}</strong> coming soon.`;
+  }
+</script>
+
+</body>
+</html>

@@ -11,19 +11,19 @@
 
   <!-- Root / generic tools -->
   <url>
-    <loc>https://www.hoardio.com/explore.html</loc>
+    <loc>https://www.hoardio.com/explore</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/marketplace.html</loc>
+    <loc>https://www.hoardio.com/marketplace</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/trade-analyzer.html</loc>
+    <loc>https://www.hoardio.com/trade-analyzer</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -31,67 +31,67 @@
 
   <!-- Funko section -->
   <url>
-    <loc>https://www.hoardio.com/funko/funko.html</loc>
+    <loc>https://www.hoardio.com/funko/funko</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/redemptions.html</loc>
+    <loc>https://www.hoardio.com/funko/redemptions</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/trade-analyzer.html</loc>
+    <loc>https://www.hoardio.com/funko/trade-analyzer</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/mint-rankings.html</loc>
+    <loc>https://www.hoardio.com/funko/mint-rankings</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/wallet.html</loc>
+    <loc>https://www.hoardio.com/funko/wallet</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/price-history.html</loc>
+    <loc>https://www.hoardio.com/funko/price-history</loc>
     <lastmod>2026-04-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/market-overview.html</loc>
+    <loc>https://www.hoardio.com/funko/market-overview</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/set-tracker.html</loc>
+    <loc>https://www.hoardio.com/funko/set-tracker</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/set-tracker-full.html</loc>
+    <loc>https://www.hoardio.com/funko/set-tracker-full</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/sales-history.html</loc>
+    <loc>https://www.hoardio.com/funko/sales-history</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/funko/hall-of-fame.html</loc>
+    <loc>https://www.hoardio.com/funko/hall-of-fame</loc>
     <lastmod>2026-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -99,31 +99,31 @@
 
   <!-- Topps section -->
   <url>
-    <loc>https://www.hoardio.com/topps/topps.html</loc>
+    <loc>https://www.hoardio.com/topps/topps</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/topps/trade-analyzer.html</loc>
+    <loc>https://www.hoardio.com/topps/trade-analyzer</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/topps/mint-rankings.html</loc>
+    <loc>https://www.hoardio.com/topps/mint-rankings</loc>
     <lastmod>2026-04-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/topps/subset.html</loc>
+    <loc>https://www.hoardio.com/topps/subset</loc>
     <lastmod>2026-04-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/topps/wallet.html</loc>
+    <loc>https://www.hoardio.com/topps/wallet</loc>
     <lastmod>2026-04-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -131,13 +131,13 @@
 
   <!-- Wombat section -->
   <url>
-    <loc>https://www.hoardio.com/wombat/wombat.html</loc>
+    <loc>https://www.hoardio.com/wombat/wombat</loc>
     <lastmod>2026-04-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/wombat/mining-power-search.html</loc>
+    <loc>https://www.hoardio.com/wombat/mining-power-search</loc>
     <lastmod>2026-04-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -145,13 +145,13 @@
 
   <!-- Twitch section -->
   <url>
-    <loc>https://www.hoardio.com/twitch/twitch.html</loc>
+    <loc>https://www.hoardio.com/twitch/twitch</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.hoardio.com/twitch/monthly-stats.html</loc>
+    <loc>https://www.hoardio.com/twitch/monthly-stats</loc>
     <lastmod>2026-03-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

@@ -418,7 +418,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -1567,7 +1567,7 @@ function cardHtml(sale) {
   const colDisplay = asset.collection?.name || col;
   const schemaName = asset.schema?.schema_name || '';
   const cardid     = data.cardid || asset.template?.immutable_data?.cardid || '';
-  const href       = `marketplace.html?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
+  const href       = `marketplace?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
 
   // Hover-tooltip/click-popup data, read back off the card element by
   // cardDataFromEl() rather than kept in a parallel JS array.
@@ -2505,10 +2505,10 @@ function connectWallet() {
 const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
-    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-    { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+    { href: 'inventory', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+    { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+    { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
   ],
 });
 window.addEventListener('wax-auth-change', () => {

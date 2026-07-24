@@ -223,7 +223,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -250,7 +250,7 @@
       <div class="section">
         <div class="section-heading">Featured</div>
         <div class="featured-list">
-          <a href="explore.html" class="card card--explore">
+          <a href="explore" class="card card--explore">
             <div class="card-icon">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
@@ -263,7 +263,7 @@
             <div class="card-arrow">↗</div>
           </a>
 
-          <a href="inventory.html" class="card card--inventory">
+          <a href="inventory" class="card card--inventory">
             <div class="card-icon">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
@@ -276,7 +276,7 @@
             <div class="card-arrow">↗</div>
           </a>
 
-          <a href="trade-analyzer.html" class="card card--trade">
+          <a href="trade-analyzer" class="card card--trade">
             <div class="card-icon">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
@@ -297,7 +297,7 @@
         <div class="grid">
 
           <!-- Funko NFTs -->
-          <a href="funko/funko.html" class="card card--funko">
+          <a href="funko/funko" class="card card--funko">
             <div class="card-icon">
               <img src="images/funko-icon.png" alt="Funko" />
             </div>
@@ -309,7 +309,7 @@
           </a>
 
           <!-- Topps NFTs -->
-          <a href="topps/topps.html" class="card card--topps">
+          <a href="topps/topps" class="card card--topps">
             <div class="card-icon">
               <img src="images/topps.png" alt="Topps" style="width:42px;height:42px;object-fit:contain;" />
             </div>
@@ -321,7 +321,7 @@
           </a>
 
           <!-- Wombat Dungeon Master -->
-          <a href="wombat/wombat.html" class="card card--wombat">
+          <a href="wombat/wombat" class="card card--wombat">
             <div class="card-icon">
               <img src="images/wombat-icon.png" alt="Wombat" />
             </div>
@@ -341,7 +341,7 @@
         <div class="grid">
 
           <!-- Twitch -->
-          <a href="twitch/twitch.html" class="card card--twitch">
+          <a href="twitch/twitch" class="card card--twitch">
             <div class="card-icon">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
@@ -400,10 +400,10 @@
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
-    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-    { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+    { href: 'inventory', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+    { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+    { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
   ],
 });
 </script>

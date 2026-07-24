@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Topps Mint Rankings — Hoardio</title>
   <meta name="description" content="Browse Topps Digital subsets on WAX. View mint rankings, collector standings, and stats for each subset." />
-  <link rel="canonical" href="https://www.hoardio.com/topps/mint-rankings.html" />
+  <link rel="canonical" href="https://www.hoardio.com/topps/mint-rankings" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hoardio.com/topps/mint-rankings.html" />
+  <meta property="og:url" content="https://www.hoardio.com/topps/mint-rankings" />
   <meta property="og:title" content="Topps Mint Rankings — Hoardio" />
   <meta property="og:description" content="Browse Topps Digital subsets on WAX. View mint rankings, collector standings, and stats for each subset." />
   <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
@@ -132,7 +132,7 @@
         totalSubsets += subsets.length;
 
         const cards = subsets.map(subset => {
-          const href = 'subset.html?c=' + encodeURIComponent(drop.collection)
+          const href = 'subset?c=' + encodeURIComponent(drop.collection)
             + '&s=' + encodeURIComponent(drop.schema)
             + '&subset=' + encodeURIComponent(subset);
           const searchKey = [subset, drop.collection, drop.schema, drop.displayname].join(' ').toLowerCase();

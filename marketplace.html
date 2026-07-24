@@ -438,7 +438,7 @@
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-home" title="Back to homepage">
+    <a href="index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -661,10 +661,10 @@ function onMintFilterChange() {
 const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: [
-    { href: 'inventory.html', label: 'Inventory', icon: '📦' },
-    { href: 'inventory-activity.html', label: 'Activity', icon: '🕒' },
-    { href: 'trade-offers.html', label: 'Trade Offers', icon: '🔄' },
-    { href: 'gift-links.html', label: 'Gift Links', icon: '🎁' },
+    { href: 'inventory', label: 'Inventory', icon: '📦' },
+    { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
+    { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+    { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
   ],
 });
 window.addEventListener('wax-auth-change', () => { refreshBuyButtons(); fetchAndRenderOwned(); });
@@ -949,7 +949,7 @@ function renderListings() {
 
   if (!allListings.length) {
     const invLinkHtml = (isFunko && cardId)
-      ? `<a href="inventory.html?col=${enc(collectionName)}&schema=${enc(schemaName)}&cardid=${enc(cardId)}" target="_blank" rel="noopener" class="mp-owned-inv-link" style="display:block;margin-top:0.75rem;font-size:0.85rem">List one for sale from your inventory ↗</a>`
+      ? `<a href="inventory?col=${enc(collectionName)}&schema=${enc(schemaName)}&cardid=${enc(cardId)}" target="_blank" rel="noopener" class="mp-owned-inv-link" style="display:block;margin-top:0.75rem;font-size:0.85rem">List one for sale from your inventory ↗</a>`
       : '';
     section.innerHTML = `<div class="no-results" style="text-align:center">No listings available for this card right now.${invLinkHtml}</div>`;
     return;
@@ -1049,7 +1049,7 @@ async function fetchAndRenderOwned() {
     const mintStr = assets.slice(0, 5).map(a => a.template_mint).join(' - ');
 
     const invLink = isFunko
-      ? `<a href="inventory.html?col=${enc(collectionName)}&schema=${enc(schemaName)}&cardid=${enc(cardId)}" target="_blank" rel="noopener" class="mp-owned-inv-link">List one for sale from your inventory ↗</a>`
+      ? `<a href="inventory?col=${enc(collectionName)}&schema=${enc(schemaName)}&cardid=${enc(cardId)}" target="_blank" rel="noopener" class="mp-owned-inv-link">List one for sale from your inventory ↗</a>`
       : '';
     slot.innerHTML = `
       <div class="mp-owned">
