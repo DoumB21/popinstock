@@ -276,7 +276,8 @@
       border: none;
       border-radius: 10px 0 0 10px;
       padding: 1.1rem 0.55rem;
-      cursor: pointer;
+      cursor: grab;
+      touch-action: none;
       font-weight: 700;
       font-size: 0.78rem;
       writing-mode: vertical-lr;
@@ -291,6 +292,9 @@
     .trade-tab   { background: linear-gradient(180deg, var(--accent-light), var(--accent)); color: #fff; }
     .traders-tab { background: linear-gradient(180deg, #60a5fa, #3b82f6); color: #fff; }
     .trade-tab:hover, .traders-tab:hover { opacity: 0.88; }
+    .side-tabs-group--dragging { transition: none; }
+    .side-tabs-group--dragging .trade-tab,
+    .side-tabs-group--dragging .traders-tab { cursor: grabbing; opacity: 0.92; }
     .trade-count-badge {
       background: #fff;
       color: var(--accent);
@@ -851,8 +855,10 @@
   </div>
 </main>
 
-<!-- Side Tabs -->
-<div class="side-tabs-group">
+<!-- Side Tabs — draggable vertically so the pair can be slid out of the way
+     of content it would otherwise cover (mouse on desktop, touch on mobile).
+     Horizontal position always stays pinned to the right edge. -->
+<div class="side-tabs-group" id="sideTabsGroup">
   <button id="tradeTab" class="trade-tab" onclick="toggleSidebar()">
     Trade<span id="tradeCountBadge" class="trade-count-badge">0</span>
   </button>
@@ -860,6 +866,90 @@
     Traders<span id="tradersCountBadge" class="trade-count-badge">0</span>
   </button>
 </div>
+<script>
+(function initDraggableSideTabs() {
+  const group = document.getElementById('sideTabsGroup');
+  const STORAGE_KEY = 'trade_analyzer_tabs_top_v1';
+  const TOP_MARGIN = 76;   // clears the sticky nav
+  const BOTTOM_MARGIN = 16;
+  const DRAG_THRESHOLD = 6; // px of movement before a press counts as a drag, not a click
+
+  function clamp(top) {
+    const max = window.innerHeight - group.offsetHeight - BOTTOM_MARGIN;
+    return Math.min(Math.max(top, TOP_MARGIN), Math.max(TOP_MARGIN, max));
+  }
+
+  function applyTop(top, persist) {
+    group.style.top = clamp(top) + 'px';
+    group.style.transform = 'none';
+    if (persist) {
+      try { localStorage.setItem(STORAGE_KEY, String(parseFloat(group.style.top))); } catch {}
+    }
+  }
+
+  // Restore saved position before first paint so there's no jump.
+  const saved = parseFloat(localStorage.getItem(STORAGE_KEY));
+  if (!Number.isNaN(saved)) applyTop(saved, false);
+
+  // Re-clamp on viewport changes (resize, mobile rotation) so it can't end
+  // up off-screen or behind the nav.
+  window.addEventListener('resize', () => {
+    const current = parseFloat(getComputedStyle(group).top);
+    if (!Number.isNaN(current)) applyTop(current, false);
+  });
+
+  let dragging = false;
+  let moved = false;
+  let startY = 0;
+  let startTop = 0;
+  let suppressNextClick = false;
+
+  group.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // left-click / primary touch only
+    dragging = true;
+    moved = false;
+    startY = e.clientY;
+    startTop = group.getBoundingClientRect().top;
+    // Capture on the actual pressed element (not `group`) — capturing on an
+    // ancestor retargets the compatibility click event to it, which knocks
+    // the button's own onclick out of the event path and it stops firing.
+    e.target.setPointerCapture(e.pointerId);
+  });
+
+  group.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dy = e.clientY - startY;
+    if (!moved && Math.abs(dy) > DRAG_THRESHOLD) {
+      moved = true;
+      group.classList.add('side-tabs-group--dragging');
+    }
+    if (moved) applyTop(startTop + dy, false);
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    group.classList.remove('side-tabs-group--dragging');
+    if (moved) {
+      applyTop(parseFloat(getComputedStyle(group).top), true);
+      suppressNextClick = true; // a real drag just happened — don't let it also fire the tab's onclick
+    }
+  }
+  group.addEventListener('pointerup', endDrag);
+  group.addEventListener('pointercancel', endDrag);
+
+  // Buttons have onclick="toggleSidebar()"/"toggleTradersSidebar()" — swallow
+  // the click that follows a drag's pointerup, in the capture phase so it
+  // never reaches those handlers.
+  group.addEventListener('click', (e) => {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+})();
+</script>
 
 <!-- Trade Sidebar -->
 <div id="tradeSidebar" class="trade-sidebar">
