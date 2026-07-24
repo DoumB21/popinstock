@@ -989,15 +989,137 @@ const BULK_BATCH_SIZES = {
   burn: BATCH_SIZE_BURN, backtokens: BATCH_SIZE_BACKTOKENS,
 };
 
-// Tokens offered in "Back with tokens." Only WAX for now — reading which
-// tokens (and how much of each) a wallet actually holds, across whatever
-// contracts issue them, is future work (flagged explicitly, not guessed at
-// here). The dropdown/data shape below is already built to take more entries
-// once that lookup exists, so adding a token later is just adding a row.
+// Fallback shown in "Back with tokens" before the wallet's real holdings
+// load, or if that lookup fails entirely — WAX is always a safe default
+// since it's the one token every WAX account can hold.
 const BACK_TOKEN_OPTIONS = [
   { symbol: 'WAX', contract: 'eosio.token', precision: 8 },
 ];
 let _backToken = BACK_TOKEN_OPTIONS[0].symbol;
+
+// Public Hyperion history nodes — this is the only kind of WAX API that can
+// answer "every token this account holds, across every contract" (plain
+// chain RPC can't: get_currency_balance requires already knowing the
+// contract). Tried in order with a short timeout; first one to answer wins.
+// Verified live against real accounts before shipping — indexing depth
+// varies noticeably between public operators, so only nodes that returned
+// complete-looking holdings are listed.
+const WALLET_TOKEN_ENDPOINTS = [
+  'https://api.waxsweden.org',
+  'https://wax.eosphere.io',
+  'https://wax.eosdac.io',
+];
+const WALLET_TOKEN_TIMEOUT = 8000;
+
+let _walletTokens        = null;  // [{symbol, contract, precision, amount}] for the connected wallet, or null until loaded
+let _walletTokensWallet  = null;  // which account _walletTokens belongs to — refetch on wallet switch
+let _walletTokensLoading = false;
+
+// What the "Back with tokens" dropdown actually offers: the wallet's real,
+// currently-held (non-zero) tokens once loaded, falling back to WAX-only
+// before that resolves or if it fails outright — the feature still works
+// either way, just with fewer options.
+function backTokenOptions() {
+  return (_walletTokens && _walletTokens.length) ? _walletTokens : BACK_TOKEN_OPTIONS;
+}
+function activeBackToken() {
+  const opts = backTokenOptions();
+  return opts.find(t => t.symbol === _backToken) || opts[0];
+}
+
+// AtomicAssets only accepts a small, contract-admin-controlled whitelist of
+// tokens for backing assets — NOT arbitrary tokens a wallet happens to hold.
+// Confirmed live from the contract's own `config` singleton table (below):
+// on WAX mainnet today that whitelist is exactly WAX and PGL. Trying to back
+// with anything else fails on-chain with "The specified symbol is not
+// supported" — an assert in the contract's receive_token_transfer/backasset
+// logic against config.supported_tokens (verified against the real
+// atomicassets.cpp source). This site can't widen that list — only the
+// atomicassets contract account itself can, via its own addconftoken action.
+// Fetched live rather than hardcoded so if WAX Team ever whitelists another
+// token, it shows up here with no code change needed.
+async function fetchSupportedBackTokens() {
+  try {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_table_rows`, {
+      method: 'POST',
+      body: JSON.stringify({ code: 'atomicassets', table: 'config', scope: 'atomicassets', json: true, limit: 1 }),
+    });
+    const { rows } = await res.json();
+    const list = rows?.[0]?.supported_tokens;
+    if (!Array.isArray(list)) return null;
+    return list.map(t => {
+      const [precision, symbol] = t.sym.split(',');
+      return { symbol, contract: t.contract, precision: parseInt(precision, 10) };
+    });
+  } catch { return null; } // chain RPC unreachable — caller keeps the WAX-only fallback
+}
+
+async function _fetchTokensFrom(base, account) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WALLET_TOKEN_TIMEOUT);
+  try {
+    const res = await fetch(`${base}/v2/state/get_tokens?account=${encodeURIComponent(account)}`, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return Array.isArray(json.tokens) ? json.tokens : null;
+  } catch { return null; } // timed out, network error, or bad JSON
+  finally { clearTimeout(timer); }
+}
+
+// Queried in parallel and merged (not "first response wins") — verified live
+// that public Hyperion operators vary a lot in indexing completeness (one
+// returned 5 tokens for an account that actually holds 50+ per another
+// node). Taking only the first successful response would silently under-
+// report holdings depending on which node happened to answer first; the
+// union across all of them is the only way to get a complete picture.
+async function fetchWalletTokens(account) {
+  const results = await Promise.allSettled(WALLET_TOKEN_ENDPOINTS.map(base => _fetchTokensFrom(base, account)));
+  const merged = new Map(); // key: "symbol@contract" — same token can't collide across providers
+  let anySucceeded = false;
+  for (const r of results) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    anySucceeded = true;
+    for (const t of r.value) {
+      // skip entries the indexer itself couldn't resolve (seen on some
+      // providers for tokens whose ABI doesn't expose the accounts table
+      // the usual way) and zero balances — nothing to back with those.
+      if (t.error || !(t.amount > 0) || !Number.isInteger(t.precision)) continue;
+      const key = `${t.symbol}@${t.contract}`;
+      if (!merged.has(key)) merged.set(key, { symbol: t.symbol, contract: t.contract, precision: t.precision, amount: t.amount });
+    }
+  }
+  if (!anySucceeded) return null; // every node failed — caller keeps the WAX-only fallback
+  return [...merged.values()].sort((a, b) => a.symbol === 'WAX' ? -1 : b.symbol === 'WAX' ? 1 : a.symbol.localeCompare(b.symbol));
+}
+
+// Lazily fetches once per connected wallet (not on every modal open) and
+// re-renders the modal when it resolves so the dropdown fills in with real
+// balances — the modal opens instantly on the WAX-only fallback either way.
+async function loadWalletTokensIfNeeded(wallet) {
+  if (!wallet || _walletTokensLoading || _walletTokensWallet === wallet) return;
+  _walletTokensLoading = true;
+  _walletTokensWallet = wallet;
+  const [held, supported] = await Promise.all([fetchWalletTokens(wallet), fetchSupportedBackTokens()]);
+  _walletTokensLoading = false;
+  // Need BOTH: what the wallet holds, and what AtomicAssets will actually
+  // accept — offering the wallet's full held-token list regardless of the
+  // whitelist is exactly what caused "symbol is not supported" failures.
+  if (held && supported && supported.length) {
+    const supportedKeys = new Set(supported.map(t => `${t.symbol}@${t.contract}`));
+    const usable = held.filter(t => supportedKeys.has(`${t.symbol}@${t.contract}`));
+    if (usable.length) {
+      _walletTokens = usable;
+      // Currently-selected token may no longer be valid (e.g. wallet
+      // switched, or the previous selection was the WAX-only fallback
+      // default) — fall back to the new list's first entry rather than
+      // pointing at nothing.
+      if (!usable.some(t => t.symbol === _backToken)) _backToken = usable[0].symbol;
+    }
+    // else: wallet holds nothing on the supported list — keep the WAX-only
+    // fallback rather than showing an empty dropdown.
+  }
+  if (_bulkAction === 'backtokens') renderBulkActionModal();
+}
 let _recipient  = '';
 let _memo       = '';
 let _busy       = false;            // bulk-action transaction in flight
@@ -4020,7 +4142,10 @@ function bulkStripHtml() {
         : `<div class="bulk-strip-listed-price" style="color:var(--text-secondary)">Not listed — skipped</div>`;
     } else if (_bulkAction === 'backtokens') {
       const amt = _selected.get(id) || '';
-      extra = `<div class="bulk-strip-price"><input type="number" min="0.00000001" step="0.00000001" class="control-input${!amt ? ' missing' : ''}" placeholder="0.00000000" value="${amt}" data-id="${escHtml(id)}" oninput="onBulkBackAmountInput(this)"><span class="bulk-strip-price-unit">${escHtml(_backToken)}</span></div>`;
+      const tok = activeBackToken();
+      const step = (10 ** -tok.precision).toFixed(tok.precision);
+      const placeholder = tok.precision > 0 ? '0.' + '0'.repeat(tok.precision) : '0';
+      extra = `<div class="bulk-strip-price"><input type="number" min="${step}" step="${step}" class="control-input${!amt ? ' missing' : ''}" placeholder="${placeholder}" value="${amt}" data-id="${escHtml(id)}" oninput="onBulkBackAmountInput(this)"><span class="bulk-strip-price-unit">${escHtml(_backToken)}</span></div>`;
     }
     return `
       <div class="bulk-strip-item">
@@ -4047,6 +4172,10 @@ function openBulkActionModal(action) {
   _giftStep = 'confirm';
   _giftResult = null;
   _giftMemo = '';
+  if (action === 'backtokens') {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    loadWalletTokensIfNeeded(wallet); // fire-and-forget — re-renders itself once it resolves
+  }
   renderBulkActionModal();
   document.getElementById('bulkActionModal').style.display = '';
   document.getElementById('panelOverlay').style.display = '';
@@ -4147,10 +4276,16 @@ function renderBulkActionModal() {
         I acknowledge that I want to permanently burn these NFTs.
       </label>`;
   } else if (_bulkAction === 'backtokens') {
-    const activeToken = BACK_TOKEN_OPTIONS.find(t => t.symbol === _backToken) || BACK_TOKEN_OPTIONS[0];
+    const activeToken  = activeBackToken();
+    const step         = (10 ** -activeToken.precision).toFixed(activeToken.precision);
+    const placeholder  = activeToken.precision > 0 ? '0.' + '0'.repeat(activeToken.precision) : '0';
+    const loadingHint  = _walletTokensLoading ? '<span class="bl-price-block-label" style="font-weight:400; text-transform:none; opacity:0.7;"> &mdash; loading your tokens&hellip;</span>' : '';
+    const balanceHint  = (!_walletTokensLoading && typeof activeToken.amount === 'number')
+      ? `<div class="bl-price-note">Balance: ${activeToken.amount.toFixed(activeToken.precision)} ${escHtml(activeToken.symbol)}</div>`
+      : '';
     bodyHtml = `
       <div class="bl-price-block">
-        <div class="bl-price-block-label">Token</div>
+        <div class="bl-price-block-label">Token${loadingHint}</div>
         <div class="cb-dropdown" id="bulkBackTokenDropdown" style="max-width:160px;">
           <button class="cb-dropdown-btn" type="button">
             <span class="cb-label"></span>
@@ -4158,17 +4293,19 @@ function renderBulkActionModal() {
           </button>
           <div class="cb-panel"></div>
         </div>
+        ${balanceHint}
       </div>
       <div class="bl-price-block">
         <div class="bl-price-block-label">Amount per item</div>
         <div class="bl-price-row">
-          <input class="control-input" id="bulkBackSetAllInput" type="number" min="0.00000001" step="0.00000001" placeholder="0.00000000" />
+          <input class="control-input" id="bulkBackSetAllInput" type="number" min="${step}" step="${step}" placeholder="${placeholder}" oninput="clampAmountInputEl(this, ${activeToken.precision})" />
           <span class="bl-price-unit">${escHtml(activeToken.symbol)}</span>
           <button class="bl-set-all-btn" type="button" onclick="applyBulkBackAmountToAll()">Apply to all</button>
         </div>
       </div>
       ${bodyHtml}
-      <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkBackTotal">0.00000000 ${escHtml(activeToken.symbol)}</span></div>
+      <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkBackTotal">${(0).toFixed(activeToken.precision)} ${escHtml(activeToken.symbol)}</span></div>
+      <div class="bl-price-note" id="bulkBackInsufficientNote" style="display:none;"></div>
       <div class="bl-transfer-warning">⚠️ Backed tokens can only be recovered by burning the NFT. The tokens will only be returned to the wallet that burns the NFT.</div>`;
   } else if (_bulkAction === 'gift' && _giftStep === 'result' && _giftResult) {
     // Result screen replaces the strip entirely — once created, the gifted
@@ -4236,7 +4373,10 @@ function renderBulkActionModal() {
 function renderBulkBackTokenDropdown() {
   const container = document.getElementById('bulkBackTokenDropdown');
   if (!container) return;
-  buildSingleCbDropdown('bulkBackTokenDropdown', BACK_TOKEN_OPTIONS.map(t => ({ value: t.symbol, label: t.symbol })), _backToken, onBulkBackTokenChange);
+  // Symbol only in the dropdown itself — the balance for whichever one is
+  // active is shown separately just below it (see balanceHint).
+  const items = backTokenOptions().map(t => ({ value: t.symbol, label: t.symbol }));
+  buildSingleCbDropdown('bulkBackTokenDropdown', items, _backToken, onBulkBackTokenChange);
   container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
     e.stopPropagation();
     const panel  = container.querySelector('.cb-panel');
@@ -4257,6 +4397,14 @@ function onBulkBackTokenChange(symbol) {
 function clampPriceInputEl(el) {
   const d = el.value.indexOf('.');
   if (d !== -1 && el.value.length - d > 3) el.value = el.value.slice(0, d + 3);
+}
+
+// Same idea as clampPriceInputEl but for an arbitrary token precision (0-8
+// decimals) instead of WAX's fixed 2dp sell-price formatting — backing
+// tokens can be any precision depending on which token the wallet holds.
+function clampAmountInputEl(el, precision) {
+  const d = el.value.indexOf('.');
+  if (d !== -1 && el.value.length - d - 1 > precision) el.value = el.value.slice(0, d + 1 + precision);
 }
 
 function onBulkPriceInput(el) {
@@ -4327,26 +4475,37 @@ function applyBulkBackAmountToAll() {
 }
 
 function onBulkBackAmountInput(el) {
-  clampPriceInputEl(el);
+  clampAmountInputEl(el, activeBackToken().precision);
   _selected.set(el.dataset.id, el.value);
   el.classList.toggle('missing', !el.value);
   updateBulkBackTotal();
   updateBulkActionBtn();
 }
 
-// Single row today since only one token is selectable per session (see
-// BACK_TOKEN_OPTIONS) — every _selected amount is already in that one token.
-// If per-card token choice is ever added, this is where it'd need to group
-// by token instead of assuming one.
+// Single row today since only one token is selectable per session — every
+// _selected amount is already in that one token. If per-card token choice
+// is ever added, this is where it'd need to group by token instead of
+// assuming one.
 function updateBulkBackTotal() {
   const el = document.getElementById('bulkBackTotal');
   if (!el || _bulkAction !== 'backtokens') return;
+  const token = activeBackToken();
   let total = 0;
   for (const amt of _selected.values()) {
     const n = parseFloat(amt);
     if (isFinite(n) && n > 0) total += n;
   }
-  el.textContent = `${total.toFixed(8)} ${_backToken}`;
+  el.textContent = `${total.toFixed(token.precision)} ${token.symbol}`;
+
+  // Only checkable once real wallet balances are loaded (the WAX-only
+  // fallback has no `amount` field) — catches an over-budget total before
+  // it reaches the chain instead of letting backasset's own assert fail it.
+  const note = document.getElementById('bulkBackInsufficientNote');
+  if (note) {
+    const over = typeof token.amount === 'number' && total > token.amount;
+    note.style.display = over ? '' : 'none';
+    if (over) note.textContent = `Exceeds your available balance of ${token.amount.toFixed(token.precision)} ${token.symbol}.`;
+  }
 }
 
 function onBulkRecipientInput() {
@@ -4392,7 +4551,11 @@ function updateBulkActionBtn() {
       const v = parseFloat(_selected.get(id));
       return isFinite(v) && v > 0;
     });
-    btn.disabled = _busy || !allValid;
+    const token = activeBackToken();
+    let total = 0;
+    for (const amt of _selected.values()) { const n = parseFloat(amt); if (isFinite(n) && n > 0) total += n; }
+    const overBudget = typeof token.amount === 'number' && total > token.amount;
+    btn.disabled = _busy || !allValid || overBudget;
     btn.textContent = `Back ${ids.length} item${ids.length !== 1 ? 's' : ''} with tokens`;
   } else if (_bulkAction === 'gift') {
     if (_giftStep === 'result') { btn.disabled = false; btn.textContent = 'Done'; return; }
@@ -4607,7 +4770,7 @@ async function bulkBackTokens() {
     return isFinite(n) && n > 0;
   });
   if (!ids.length) return;
-  const token = BACK_TOKEN_OPTIONS.find(t => t.symbol === _backToken) || BACK_TOKEN_OPTIONS[0];
+  const token = activeBackToken(); // real contract/precision for whichever token the wallet actually holds — not assumed to be eosio.token
   const scale = 10 ** token.precision;
   const fmt   = n => (n / scale).toFixed(token.precision) + ' ' + token.symbol;
 
