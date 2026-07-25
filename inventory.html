@@ -39,6 +39,16 @@
     .mint-range-inputs .control-input { flex: 1; min-width: 0; }
     .range-sep { color: var(--text-secondary); flex-shrink: 0; }
     #cardIdGroup { max-width: 175px; }
+    /* Subtle accent wash so the whole attribute-filter row (Rarity, Card ID,
+       and every smart-generated attribute) reads as its own group, visually
+       distinct from the core Schema/Mint/Show-all row above it. */
+    #dynamicFilterRow .cb-dropdown-btn { background: rgba(192,120,40,0.07); border-color: rgba(192,120,40,0.18); }
+    .too-many-attrs-msg {
+      flex: 1 1 100%;
+      font-size: 0.85rem; color: var(--text-secondary);
+      background: rgba(192,120,40,0.07); border: 1px solid rgba(192,120,40,0.18);
+      border-radius: 10px; padding: 0.65rem 0.9rem;
+    }
     /* .clear-filters-btn and the checkbox-dropdown component (.cb-dropdown,
        .cb-dropdown-btn, .cb-label, .cb-arrow, .cb-panel, .cb-item) live in
        shared/global.css now — no page-specific overrides needed here. */
@@ -774,7 +784,7 @@
       <div class="control-group" id="rarityGroup" style="display:none;">
         <div class="cb-dropdown" id="rarityDropdown">
           <button class="cb-dropdown-btn" type="button">
-            <span class="cb-label">All rarities</span>
+            <span class="cb-label">Rarity</span>
             <span class="cb-arrow">▾</span>
           </button>
           <div class="cb-panel"></div>
@@ -783,12 +793,14 @@
       <div class="control-group" id="cardIdGroup" style="display:none;">
         <div class="cb-dropdown" id="cardIdDropdown">
           <button class="cb-dropdown-btn" type="button">
-            <span class="cb-label">All card IDs</span>
+            <span class="cb-label">Card ID</span>
             <span class="cb-arrow">▾</span>
           </button>
           <div class="cb-panel"></div>
         </div>
       </div>
+      <div id="tooManyAttrsMsg" class="too-many-attrs-msg" style="display:none;">This collection has too many attributes. Select a schema to view the relevant filters.</div>
+      <div id="scanningAttrsMsg" class="too-many-attrs-msg" style="display:none;">Scanning this schema's attributes — this collection stores traits per-item rather than per-card, so it takes a moment the first time.</div>
     </div>
     <!-- Checkboxes + bulk-action controls — deliberately the LAST row no
          matter how many dynamic attribute filters end up above it, so these
@@ -928,12 +940,23 @@ let _filterCol           = 'all';
 let _filterSchema        = 'all';
 const _selectedRarities  = new Set();
 const _selectedCardIds   = new Set();
+const _selectedDynamicFilters = {};  // attribute field name → Set of selected values (smart-generated filters)
+let _dynamicFieldGroups  = [];       // field names currently rendered as extra dropdowns in #dynamicFilterRow
 let _filterMintMin       = '';
 let _filterMintMax       = '';
 let _listingsFilter      = 'all'; // 'all' | 'only' | 'hide'
 let _debounceTimer       = null;
 const _schemaCache       = {};  // collection_name → [schema_name, ...]
-const _templateCache     = {};  // collection_name → [{template_id, schema_name, rarity, cardid}]
+const _schemaFormatCache = {};  // collection_name → { schema_name → [{name, type}, ...] } — from the same /schemas call, free
+const _schemaAssetCountCache = {}; // collection_name → { schema_name → assets count } — also free from the /schemas call
+const _templateCache     = {};  // collection_name → [{template_id, schema_name, data: {immutable_data fields}}]
+// PFP-style schemas (see isAssetLevelAttrSchema) keep template immutable_data
+// empty and put real trait data on each individual asset instead — confirmed
+// live against a real project (warcxbananas/astralape). Cached per
+// `${collection}::${schema}` key once scanned, so it's a one-time cost per
+// session per schema, same lifetime as every other cache here.
+const _assetAttrCache        = {}; // cache key → [merged asset .data, ...]
+const _assetAttrFetchPromises = {}; // cache key → in-flight Promise, so concurrent callers share one fetch
 let _collections      = new Set();
 let _collectionNames  = new Map();  // collection_name → display name
 let _collectionCounts = new Map();  // collection_name → asset count
@@ -1638,6 +1661,14 @@ async function fetchSchemasForCollection(collection) {
     const url  = `${atomicApi()}/atomicassets/v1/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
     const res  = await fetchWithRetry(url);
     const json = await res.json();
+    const formats = {};
+    const assetCounts = {};
+    for (const s of (json.data || [])) {
+      formats[s.schema_name] = s.format || [];
+      assetCounts[s.schema_name] = s.assets || 0;
+    }
+    _schemaFormatCache[collection] = formats;
+    _schemaAssetCountCache[collection] = assetCounts;
     const schemas = (json.data || []).map(s => s.schema_name).sort();
     _schemaCache[collection] = schemas;
     return schemas;
@@ -1678,6 +1709,10 @@ function onSchemaFilterChange(val) {
   const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
   for (const r of [..._selectedRarities]) if (!availRarities.has(r)) _selectedRarities.delete(r);
   for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
+  for (const field of Object.keys(_selectedDynamicFilters)) {
+    const avail = new Set(getAvailableValues(_filterCol, schema, field));
+    for (const v of [..._selectedDynamicFilters[field]]) if (!avail.has(v)) _selectedDynamicFilters[field].delete(v);
+  }
   refreshFilterDropdowns();
   loadAssets(true);
 }
@@ -1696,8 +1731,7 @@ async function fetchTemplatesForCollection(collection) {
         all.push({
           template_id: t.template_id,
           schema_name: t.schema?.schema_name || '',
-          rarity:      t.immutable_data?.rarity  || '',
-          cardid:      t.immutable_data?.cardid != null ? String(t.immutable_data.cardid) : '',
+          data:        t.immutable_data || {},
         });
       }
       if (json.data.length < 1000) break;
@@ -1709,9 +1743,13 @@ async function fetchTemplatesForCollection(collection) {
 }
 
 function getAvailableValues(collection, schema, field) {
-  const templates = _templateCache[collection] || [];
-  const pool = schema && schema !== 'all' ? templates.filter(t => t.schema_name === schema) : templates;
-  const vals = new Set(pool.map(t => t[field]).filter(Boolean));
+  const pool = attrPoolFor(collection, schema && schema !== 'all' ? schema : null);
+  // Junk-shaped values (URL/CID/free-text-length) are filtered here too, not
+  // just at field-qualification time — a field can qualify via one schema
+  // whose own values are clean, but this pools every schema's values
+  // together, and a *different* schema's junk value for the same field name
+  // would otherwise still show up in the checkbox list.
+  const vals = new Set(pool.map(t => t.data?.[field]).filter(v => v !== undefined && v !== null && v !== '').map(String).filter(v => !isJunkFieldValue(v)));
   if (field === 'rarity') {
     const ORDER = ['Common','Uncommon','Rare','Epic','Legendary','Mythic','Grail','Ultra','Series','Royalty','1 of 1'];
     return [...vals].sort((a, b) => {
@@ -1874,7 +1912,14 @@ function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange)
   if (!container) return;
   const group = container.closest('.control-group');
   const panel = container.querySelector('.cb-panel');
-  if (items.length === 0) { if (group) group.style.display = 'none'; refreshDynamicFilterRowVisibility(); return; }
+  // A filter with a single possible value can't actually narrow anything —
+  // every asset already matches it, so it's just dead space. Applies to
+  // every dropdown built through here: Rarity/Card ID (which never go
+  // through the smart generator's own cardinality check) and every
+  // smart-generated attribute (redundant there — fieldQualifies already
+  // excludes distinctCount <= 1 — but a single source of truth is safer than
+  // relying on two separate checks staying in sync).
+  if (items.length <= 1) { if (group) group.style.display = 'none'; refreshDynamicFilterRowVisibility(); return; }
   if (group) group.style.display = '';
   refreshDynamicFilterRowVisibility();
   panel.innerHTML = items.map(v =>
@@ -1893,24 +1938,474 @@ function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange)
 function refreshFilterDropdowns() {
   const col    = _filterCol;
   const schema = _filterSchema !== 'all' ? _filterSchema : null;
-  populateCbDropdown('rarityDropdown', getAvailableValues(col, schema, 'rarity'), _selectedRarities, 'All rarities', () => loadAssets(true));
-  populateCbDropdown('cardIdDropdown', getAvailableValues(col, schema, 'cardid'), _selectedCardIds,  'All card IDs', () => loadAssets(true));
+  populateCbDropdown('rarityDropdown', getAvailableValues(col, schema, 'rarity'), _selectedRarities, 'Rarity', () => loadAssets(true));
+  populateCbDropdown('cardIdDropdown', getAvailableValues(col, schema, 'cardid'), _selectedCardIds,  'Card ID', () => loadAssets(true));
+  refreshDynamicAttributeFilters();
+}
+
+/* ── Smart attribute filter generator ─────────────────────────────────────
+   Rarity/Card ID are dedicated, hardcoded filters (every collection tends
+   to have them and they get special sort/display treatment). Everything
+   else in a schema's immutable_data is collection-specific — there's no
+   hand-maintained list. Instead: a field qualifies as a filter if its
+   values repeat (low cardinality relative to template count) rather than
+   being near-unique per template (names, descriptions, media links).
+   A cheap type-based pass runs first using the `format` array AtomicAssets
+   already returns from /schemas (image/ipfs fields are never useful as a
+   filter regardless of cardinality), then the cardinality check itself. */
+const DYNAMIC_FIELD_EXCLUDE_NAMES = new Set(['rarity', 'cardid']); // already dedicated filters
+const DYNAMIC_FIELD_EXCLUDE_TYPES = new Set(['image', 'ipfs']);
+const DYNAMIC_FIELD_MAX_DISTINCT  = 40;
+const DYNAMIC_FIELD_MAX_RATIO     = 0.5; // distinct values / template count
+const DYNAMIC_FIELD_MAX_VALUE_LEN = 50;  // longer than this reads as free text (description/bio), not a facet value
+const URL_PATTERN = /^https?:\/\//i;
+// Bare IPFS content hashes, unprefixed by a gateway URL — CIDv0 (`Qm...`,
+// base58, 46 chars) and CIDv1 (`b...`, base32, 59+ chars). A real collection
+// declared its `video` field as type `string` (should've been `ipfs`) in
+// several schemas, and the raw CIDs were short/varied enough to sneak past
+// both the type exclude (wrong declared type) and the length check (46
+// chars, under the 50 cap) — content-sniffing the value shape catches what
+// the declared type lied about.
+const IPFS_CID_PATTERN = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58,})$/;
+
+// Catches fields the type/cardinality checks miss — a schema can declare a
+// URL or long free-text field as plain `string`, and a website/social link
+// repeated verbatim across a handful of templates can still pass the
+// cardinality test. One junk-shaped value in the pool is enough to disregard
+// the whole field, same as a real user request that flagged Description and
+// Website fields showing up as filters.
+function isJunkFieldValue(v) {
+  const s = String(v).trim();
+  return s.length > DYNAMIC_FIELD_MAX_VALUE_LEN || URL_PATTERN.test(s) || IPFS_CID_PATTERN.test(s);
+}
+
+// Maps field name -> Set of declared types across the relevant schema(s).
+// When pooling multiple schemas (schema === null), the same field name can
+// be declared with different types by different schemas — e.g. one real
+// collection had `backimg` as `image` in 7 schemas but `string` in an 8th.
+// A single name -> type map would let a last-write-wins collision silently
+// defeat the media-type exclude, so every declared type is tracked and the
+// field is excluded if ANY of them is a hard-excluded type.
+//
+// `liveSchemaNames` (schemas actually present in the template pool) — not
+// every schema declared by /schemas — bounds this: a collection can declare
+// a schema (with its own attribute format) that has zero templates behind
+// it, a dead leftover from testing/setup. Its fields can't reach
+// candidateNames either way (that set is built from the pool, not from
+// schema declarations), but letting a dead schema's type quirks still shape
+// the exclusion map for a same-named live field is needless noise, so it's
+// left out entirely.
+function getFieldTypesForCollection(collection, schema, liveSchemaNames) {
+  const map = new Map();
+  const formats = _schemaFormatCache[collection] || {};
+  const schemaNames = schema ? [schema] : liveSchemaNames;
+  for (const sn of schemaNames) for (const f of (formats[sn] || [])) {
+    if (!map.has(f.name)) map.set(f.name, new Set());
+    map.get(f.name).add(f.type);
+  }
+  return map;
+}
+
+function collectCandidateNames(pool) {
+  const names = new Set();
+  for (const t of pool) for (const k of Object.keys(t.data || {})) names.add(k);
+  return names;
+}
+
+/* ── PFP-style (asset-level attribute) schemas ────────────────────────────
+   Most collections bake their attributes into the template — one template
+   per distinct card design, minted N times. Generative PFP collections
+   often do the opposite: one template per schema (sometimes truly empty,
+   sometimes carrying only boilerplate text), with every real trait
+   randomized onto each individual asset's own immutable_data instead.
+   Confirmed live against two independent real projects:
+     - warcxbananas/astralape: its only template's immutable_data is
+       literally `{}`, but each of its 6,697 assets carries its own ~19
+       trait fields (Glow, Bones, Pendant, Eyes Color, ...).
+     - waxapes/waxtribe: its only template is NOT empty — it has 2 fields
+       (`full_ownership`, `tribal_treasury`), but both are >200-character
+       legal/rights boilerplate text, not traits. The 22 real traits (Base,
+       Eyes, Nose, Mouth, Clothes, Fur Color, ...) are on the assets, same
+       as astralape. A "template has zero fields at all" check misses this
+       — it needs to be "zero *real* fields", same junk/type filtering the
+       rest of the generator already does.
+   The whole generator above reads template data, so for this class of
+   schema it sees nothing (or only junk) — this section adds a
+   schema-scoped fallback that reads real asset data instead, but ONLY once
+   a specific schema is selected (never pooled across "All schemas" —
+   scanning a whole collection's assets on every page load would be far too
+   expensive; scanning one schema, once, cached for the session, is cheap). */
+
+function assetAttrCacheKey(collection, schema) { return collection + '::' + schema; }
+
+// Pure/sync — no network. Empty templates (astralape) and junk-only
+// templates (waxtribe) both count as "no real fields" — same junk-value and
+// type exclusion the main generator uses, so a template that legitimately
+// has even one good facet field is never mistaken for asset-level. Gated on
+// assets > 0 so a schema with nothing real AND nothing minted isn't scanned
+// for nothing.
+function isAssetLevelAttrSchema(collection, schema) {
+  if (!schema) return false;
+  const templates = (_templateCache[collection] || []).filter(t => t.schema_name === schema);
+  if (templates.length === 0) return false;
+  const assetCount = (_schemaAssetCountCache[collection] || {})[schema] || 0;
+  if (assetCount === 0) return false;
+  const junkNames  = collectJunkFieldNamesFromPool(templates);
+  const fieldTypes = getFieldTypesForCollection(collection, schema, null);
+  const hasRealField = [...collectCandidateNames(templates)].some(name => {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkNames.has(name)) return false;
+    const types = fieldTypes.get(name);
+    return !(types && [...types].some(t => DYNAMIC_FIELD_EXCLUDE_TYPES.has(t)));
+  });
+  return !hasRealField;
+}
+
+// Fast, bounded scan of a schema's assets, reading each asset's `.data` —
+// the AtomicAssets API's own pre-merged view (template immutable_data +
+// asset immutable_data + asset mutable_data, asset-level wins), confirmed
+// live to be present on the bulk /assets endpoint, not just single-asset
+// lookups. Pages fetched in parallel batches, each request seeded to a
+// different node from ATOMIC_ENDPOINTS, so a scan is a handful of
+// round-trips instead of dozens of sequential ones. Capped at
+// ASSET_SCAN_MAX_PAGES (20,000 assets) — comfortably above a typical 10k
+// PFP drop; beyond that this is a representative sample, not exhaustive,
+// same tradeoff explore.html's rarity scan already makes. Memoized via a
+// shared in-flight promise so concurrent callers (e.g. re-renders firing
+// while the scan is still running) never trigger a duplicate fetch.
+const ASSET_SCAN_PAGE_LIMIT = 1000;
+const ASSET_SCAN_BATCH_SIZE = 8;
+const ASSET_SCAN_MAX_PAGES  = 20;
+
+function fetchAssetDataForSchema(collection, schema) {
+  const key = assetAttrCacheKey(collection, schema);
+  if (_assetAttrCache[key]) return Promise.resolve(_assetAttrCache[key]);
+  if (_assetAttrFetchPromises[key]) return _assetAttrFetchPromises[key];
+
+  const promise = (async () => {
+    const all = [];
+    let page = 1;
+    let done = false;
+    while (!done && page <= ASSET_SCAN_MAX_PAGES) {
+      const batchPages = [];
+      for (let i = 0; i < ASSET_SCAN_BATCH_SIZE && page + i <= ASSET_SCAN_MAX_PAGES; i++) batchPages.push(page + i);
+      const results = await Promise.all(batchPages.map((p, i) => {
+        const base = ATOMIC_ENDPOINTS[i % ATOMIC_ENDPOINTS.length];
+        const url  = `${base}/atomicassets/v1/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`;
+        return fetchWithRetry(url).then(res => res.json()).catch(() => ({ success: false, data: [] }));
+      }));
+      for (const json of results) {
+        if (!json.success || !json.data || !json.data.length) { done = true; continue; }
+        for (const a of json.data) all.push(a.data || {});
+        if (json.data.length < ASSET_SCAN_PAGE_LIMIT) done = true;
+      }
+      page += ASSET_SCAN_BATCH_SIZE;
+    }
+    _assetAttrCache[key] = all;
+    delete _assetAttrFetchPromises[key];
+    return all;
+  })();
+  _assetAttrFetchPromises[key] = promise;
+  return promise;
+}
+
+// Resolves the {data} pool the generator reads from for a given
+// collection+schema — templates normally, or the cached per-asset scan for
+// a detected PFP-style schema once that scan has completed (empty array
+// before then; the caller is responsible for triggering the fetch and
+// re-rendering when it resolves — see refreshDynamicAttributeFilters).
+function attrPoolFor(collection, schema) {
+  if (isAssetLevelAttrSchema(collection, schema)) {
+    const assetData = _assetAttrCache[assetAttrCacheKey(collection, schema)];
+    return (assetData || []).map(d => ({ data: d }));
+  }
+  const templates = _templateCache[collection] || [];
+  return schema ? templates.filter(t => t.schema_name === schema) : templates;
+}
+
+// A field with even one junk-shaped value ANYWHERE in the collection (any
+// schema, not just wherever it happens to be evaluated) is disregarded
+// entirely as a filter, everywhere — not just cleaned up in the schemas
+// where it's dirty. User's call: a 50+ character value reads as a
+// description, not a facet, and its presence anywhere means the field was
+// never meant to be a filter, even where its other values are individually
+// short and clean (e.g. `project` — clean short labels in most schemas, but
+// one schema's 74-character value disqualifies the field collection-wide).
+function collectJunkFieldNamesFromPool(pool) {
+  const junk = new Set();
+  for (const t of pool) {
+    for (const [k, v] of Object.entries(t.data || {})) {
+      if (junk.has(k) || v === undefined || v === null || v === '') continue;
+      if (isJunkFieldValue(v)) junk.add(k);
+    }
+  }
+  return junk;
+}
+
+function collectJunkFieldNames(collection) {
+  return collectJunkFieldNamesFromPool(_templateCache[collection] || []);
+}
+
+function fieldQualifies(pool, name, fieldTypes) {
+  const types = fieldTypes.get(name);
+  if (types && [...types].some(t => DYNAMIC_FIELD_EXCLUDE_TYPES.has(t))) return false;
+  const values = pool.map(t => t.data?.[name]).filter(v => v !== undefined && v !== null && v !== '');
+  const distinctCount = new Set(values.map(String)).size;
+  if (distinctCount <= 1 || distinctCount > DYNAMIC_FIELD_MAX_DISTINCT) return false;
+  // Ratio is against templates that actually carry this field (values.length),
+  // not the whole pool — a field only 5 of a collection's 48 templates even
+  // declare would otherwise look like great cardinality (5/48) purely because
+  // it's rare, when among the templates that do have it, it's fully unique
+  // (5/5) and useless as a filter.
+  if (distinctCount / values.length > DYNAMIC_FIELD_MAX_RATIO) return false;
+  return true;
+}
+
+// A single schema is evaluated directly against its own pool. "All schemas"
+// runs two passes and a field qualifies if EITHER one passes — the two real
+// shapes a field can have across a collection's schemas pull in opposite
+// directions, and neither pass alone catches both:
+//  - Pooled pass: does the field work as a filter over the flattened
+//    cross-schema value set? Catches a field that's constant (or near it)
+//    within any single schema but meaningfully varies *across* schemas — e.g.
+//    `type` declared in 8 schemas where every template in a given schema
+//    shares one value, so no single schema's own cardinality check can pass,
+//    but the union across schemas is a clean ~10-value category list.
+//  - Per-schema pass: does the field work as a filter within any one schema
+//    on its own? Catches the opposite shape — a field with plenty of good
+//    variety inside one schema, but whose combined distinct-value count
+//    balloons past the cap once every other schema's differently-scoped
+//    values get merged in — e.g. `race` meaning a different cast of
+//    characters in each of 3 schemas.
+// Either way, the dropdown's actual values (getAvailableValues, unaffected by
+// this) always pool across every schema, so picking "All schemas" shows the
+// full combined value list and narrowing to one schema shrinks it — only the
+// field-qualifies decision is special-cased here, never the values shown.
+function computeDynamicFields(collection, schema) {
+  // Single schema: pool is templates normally, or a completed asset scan for
+  // a detected PFP-style schema (attrPoolFor) — either way, same logic from
+  // here, junk/type/cardinality checks don't care where the pool came from.
+  if (schema) {
+    const pool = attrPoolFor(collection, schema);
+    if (pool.length === 0) return [];
+    const junkFieldNames = collectJunkFieldNamesFromPool(pool);
+    const fieldTypes = getFieldTypesForCollection(collection, schema, null);
+    const result = [];
+    for (const name of collectCandidateNames(pool)) {
+      if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkFieldNames.has(name)) continue;
+      if (fieldQualifies(pool, name, fieldTypes)) result.push(name);
+    }
+    return result.sort((a, b) => a.localeCompare(b));
+  }
+
+  // "All schemas" always reads templates — never triggers an asset scan (see
+  // the PFP section above for why: pooled scanning would mean fetching every
+  // asset of every schema in the collection on every page load).
+  // Runs two passes and a field qualifies if EITHER one passes — the two
+  // real shapes a field can have across a collection's schemas pull in
+  // opposite directions, and neither pass alone catches both:
+  //  - Pooled pass: does the field work as a filter over the flattened
+  //    cross-schema value set? Catches a field that's constant (or near it)
+  //    within any single schema but meaningfully varies *across* schemas —
+  //    e.g. `type` declared in 8 schemas where every template in a given
+  //    schema shares one value, so no single schema's own cardinality check
+  //    can pass, but the union across schemas is a clean ~10-value list.
+  //  - Per-schema pass: does the field work as a filter within any one
+  //    schema on its own? Catches the opposite shape — a field with plenty
+  //    of good variety inside one schema, but whose combined distinct-value
+  //    count balloons past the cap once every other schema's
+  //    differently-scoped values get merged in — e.g. `race` meaning a
+  //    different cast of characters in each of 3 schemas.
+  // Either way, the dropdown's actual values (getAvailableValues, unaffected
+  // by this) always pool across every schema, so picking "All schemas" shows
+  // the full combined value list and narrowing to one schema shrinks it —
+  // only the field-qualifies decision is special-cased, never the values.
+  const templates = _templateCache[collection] || [];
+  if (templates.length === 0) return [];
+
+  const junkFieldNames = collectJunkFieldNames(collection);
+  const liveSchemaNames = [...new Set(templates.map(t => t.schema_name))];
+  const result = new Set();
+
+  const pooledFieldTypes = getFieldTypesForCollection(collection, null, liveSchemaNames);
+  for (const name of collectCandidateNames(templates)) {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkFieldNames.has(name)) continue;
+    if (fieldQualifies(templates, name, pooledFieldTypes)) result.add(name);
+  }
+
+  for (const sn of liveSchemaNames) {
+    const schemaPool = templates.filter(t => t.schema_name === sn);
+    const fieldTypes = getFieldTypesForCollection(collection, sn, null);
+    for (const name of collectCandidateNames(schemaPool)) {
+      if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || result.has(name) || junkFieldNames.has(name)) continue;
+      if (fieldQualifies(schemaPool, name, fieldTypes)) result.add(name);
+    }
+  }
+  return [...result].sort((a, b) => a.localeCompare(b));
+}
+
+function fieldLabel(name) {
+  const spaced = name.replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function dynFieldDomId(field) {
+  return 'dynField_' + field.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function ensureDynamicFieldGroup(field) {
+  const groupId = dynFieldDomId(field) + 'Group';
+  let group = document.getElementById(groupId);
+  if (group) return group;
+  group = document.createElement('div');
+  group.className = 'control-group';
+  group.id = groupId;
+  group.style.display = 'none';
+  const label = escHtml(fieldLabel(field));
+  group.innerHTML = `
+    <div class="cb-dropdown" id="${dynFieldDomId(field)}Dropdown">
+      <button class="cb-dropdown-btn" type="button">
+        <span class="cb-label">${label}</span>
+        <span class="cb-arrow">▾</span>
+      </button>
+      <div class="cb-panel"></div>
+    </div>`;
+  document.getElementById('dynamicFilterRow').appendChild(group);
+  // Injected after the page's one-time `.cb-dropdown` startup wiring already
+  // ran (see the forEach near the bottom of this file), so this group needs
+  // its own open/close click handler — same pattern as renderBulkBackTokenDropdown.
+  const container = group.querySelector('.cb-dropdown');
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel  = container.querySelector('.cb-panel');
+    const isOpen = panel.classList.contains('open');
+    closeAllCbDropdowns();
+    if (!isOpen) { panel.classList.add('open'); container.querySelector('.cb-dropdown-btn').classList.add('open'); }
+  });
+  return group;
+}
+
+function removeDynamicFieldGroup(field) {
+  document.getElementById(dynFieldDomId(field) + 'Group')?.remove();
+  delete _selectedDynamicFilters[field];
+}
+
+function clearDynamicFieldGroups() {
+  for (const field of _dynamicFieldGroups) removeDynamicFieldGroup(field);
+  _dynamicFieldGroups = [];
+}
+
+// PFP-style collections (every trait baked directly into the schema, no
+// pruning needed) can generate dozens of qualifying attributes at once —
+// more filters than anyone can usefully scan, and expensive-looking clutter
+// for something that's supposed to declutter. Capped only in "All schemas"
+// mode: once a specific schema is picked, every field is known to be
+// relevant to it, so the cap doesn't apply no matter how many there are.
+const DYNAMIC_FIELD_MAX_COUNT_UNSCOPED = 10;
+
+function refreshDynamicAttributeFilters() {
+  const col    = _filterCol;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+
+  // PFP-style schema (see isAssetLevelAttrSchema) and its asset scan hasn't
+  // completed yet — trigger it (memoized, so a scan already in flight is
+  // shared, not duplicated) and re-render once it resolves. computeDynamicFields
+  // already returns [] while the scan is pending (attrPoolFor sees no cached
+  // data yet), so the row just stays empty/hidden until this fires, plus the
+  // scanning message below to explain why.
+  const scanning = col !== 'all' && schema && isAssetLevelAttrSchema(col, schema) && !_assetAttrCache[assetAttrCacheKey(col, schema)];
+  if (scanning) {
+    fetchAssetDataForSchema(col, schema).then(() => {
+      if (_filterCol === col && (_filterSchema !== 'all' ? _filterSchema : null) === schema) refreshDynamicAttributeFilters();
+    });
+  }
+  const scanMsgEl = document.getElementById('scanningAttrsMsg');
+  if (scanMsgEl) scanMsgEl.style.display = scanning ? '' : 'none';
+
+  let fields = col !== 'all' ? computeDynamicFields(col, schema) : [];
+
+  const tooMany = !schema && fields.length > DYNAMIC_FIELD_MAX_COUNT_UNSCOPED;
+  if (tooMany) fields = [];
+  const msgEl = document.getElementById('tooManyAttrsMsg');
+  if (msgEl) msgEl.style.display = tooMany ? '' : 'none';
+
+  for (const prev of _dynamicFieldGroups) if (!fields.includes(prev)) removeDynamicFieldGroup(prev);
+  _dynamicFieldGroups = fields;
+
+  for (const field of fields) {
+    ensureDynamicFieldGroup(field);
+    if (!_selectedDynamicFilters[field]) _selectedDynamicFilters[field] = new Set();
+    populateCbDropdown(
+      dynFieldDomId(field) + 'Dropdown',
+      getAvailableValues(col, schema, field),
+      _selectedDynamicFilters[field],
+      fieldLabel(field),
+      () => loadAssets(true)
+    );
+  }
+  refreshDynamicFilterRowVisibility();
 }
 
 function computeTemplateWhitelist() {
   if (_filterCol === 'all') return null;
   const templates = _templateCache[_filterCol];
   if (!templates) return null;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  // Asset-level-attribute schemas (see isAssetLevelAttrSchema) share one
+  // template across every asset — narrowing by template_id can't express
+  // "only assets with Glow=Traiton" at all, and would wrongly filter
+  // everything out (every template.data is {} for these). loadAssets()
+  // routes these through loadAssetsAttrFilter (client-side, against each
+  // asset's own data) instead, so the dynamic-field narrowing below is
+  // skipped entirely here — rarity/cardid are template-level and unaffected.
+  const isAssetLevel = schema && isAssetLevelAttrSchema(_filterCol, schema);
   const hasRarity = _selectedRarities.size > 0;
   const hasCardId = _selectedCardIds.size > 0;
-  if (!hasRarity && !hasCardId) return null;
-  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const activeDynFields = isAssetLevel ? [] : Object.entries(_selectedDynamicFilters).filter(([, set]) => set.size > 0);
+  if (!hasRarity && !hasCardId && activeDynFields.length === 0) return null;
   const ids = templates
     .filter(t => !schema || t.schema_name === schema)
-    .filter(t => !hasRarity || _selectedRarities.has(t.rarity))
-    .filter(t => !hasCardId || _selectedCardIds.has(t.cardid))
+    .filter(t => !hasRarity || _selectedRarities.has(String(t.data?.rarity ?? '')))
+    .filter(t => !hasCardId || _selectedCardIds.has(String(t.data?.cardid ?? '')))
+    .filter(t => activeDynFields.every(([field, set]) => set.has(String(t.data?.[field] ?? ''))))
     .map(t => t.template_id);
   return ids.length > 0 ? ids.join(',') : 'EMPTY';
+}
+
+// A generative collection can have a template per unique design (a real
+// example: 10,001 templates, of which 5,000 alone match one common trait
+// value) — computeTemplateWhitelist's id list can get large enough to blow
+// any reasonable URL length limit long before it blows the id-count cap
+// anyone would guess. Past this, don't build a template_whitelist param at
+// all; fall back to fetching unfiltered and filtering client-side instead
+// (see filterByActiveAttrs / loadAssetsAttrFilter) — same mechanism already
+// built for asset-level-attribute schemas, reused here for a different
+// reason but the same underlying problem: the server-side whitelist
+// approach doesn't scale to every collection shape.
+const TEMPLATE_WHITELIST_MAX_IDS = 300;
+
+function safeWhitelist(whitelist) {
+  if (!whitelist || whitelist === 'EMPTY') return whitelist;
+  return whitelist.split(',').length > TEMPLATE_WHITELIST_MAX_IDS ? null : whitelist;
+}
+
+// Client-side equivalent of computeTemplateWhitelist's own narrowing,
+// applied directly against each fetched asset's merged `.data` — needed
+// whenever a server-side template_whitelist isn't used, whether because the
+// schema is asset-level-attribute (no template_id can express the filter at
+// all) or because the whitelist would be too large for a URL (safeWhitelist
+// above). Safe to apply even when the whitelist WAS used server-side too —
+// every asset already satisfies these conditions in that case, so this is a
+// no-op filter, not a correctness risk.
+function filterByActiveAttrs(assets) {
+  const hasRarity = _selectedRarities.size > 0;
+  const hasCardId = _selectedCardIds.size > 0;
+  const activeDynFields = Object.entries(_selectedDynamicFilters).filter(([, set]) => set.size > 0);
+  if (!hasRarity && !hasCardId && activeDynFields.length === 0) return assets;
+  return assets.filter(a => {
+    if (hasRarity && !_selectedRarities.has(String(a.data?.rarity ?? ''))) return false;
+    if (hasCardId && !_selectedCardIds.has(String(a.data?.cardid ?? ''))) return false;
+    return activeDynFields.every(([field, set]) => set.has(String(a.data?.[field] ?? '')));
+  });
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -2040,6 +2535,7 @@ function onColFilterChange(val) {
   _filterSchema = 'all';
   _selectedRarities.clear();
   _selectedCardIds.clear();
+  clearDynamicFieldGroups();
   setSchemaFilterAvailability(false);
   document.getElementById('rarityGroup').style.display = 'none';
   document.getElementById('cardIdGroup').style.display = 'none';
@@ -2054,6 +2550,7 @@ function onColFilterChange(val) {
     fetchSchemasForCollection(col).then(schemas => {
       if (_filterCol !== col) return;
       if (schemas.length >= 1) updateSchemaFilter(schemas);
+      refreshDynamicAttributeFilters(); // re-run now that field types (image/ipfs exclusion) are available
     });
     fetchTemplatesForCollection(col).then(() => {
       if (_filterCol !== col) return;
@@ -2125,6 +2622,9 @@ function syncUrl() {
   if (_filterSchema !== 'all') p.set('schema', _filterSchema);
   if (_selectedRarities.size)  p.set('rarity', [..._selectedRarities].join(','));
   if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
+  for (const [field, set] of Object.entries(_selectedDynamicFilters)) {
+    if (set.size) p.set('dyn_' + field, [...set].join(','));
+  }
   if (_filterMintMin)          p.set('mintMin', _filterMintMin);
   if (_filterMintMax)          p.set('mintMax', _filterMintMax);
   if (_listingsFilter !== 'all') p.set('listed', _listingsFilter);
@@ -2143,6 +2643,12 @@ async function readUrlParams() {
   (p.get('rarity') || '').split(',').filter(Boolean).forEach(r => _selectedRarities.add(r));
   _selectedCardIds.clear();
   (p.get('cardid') || '').split(',').filter(Boolean).forEach(c => _selectedCardIds.add(c));
+  clearDynamicFieldGroups();
+  for (const [key, val] of p.entries()) {
+    if (!key.startsWith('dyn_')) continue;
+    const field = key.slice(4);
+    _selectedDynamicFilters[field] = new Set(val.split(',').filter(Boolean));
+  }
   _filterMintMin = p.get('mintMin') || '';
   _filterMintMax = p.get('mintMax') || '';
   const listedParam = p.get('listed');
@@ -2160,9 +2666,11 @@ async function readUrlParams() {
     fetchSchemasForCollection(col).then(schemas => {
       if (_filterCol !== col) return;
       if (schemas.length >= 1) updateSchemaFilter(schemas);
+      refreshDynamicAttributeFilters();
     });
-    // Template cache MUST be ready before loadAssets if rarity/cardid filters are active
-    if (_selectedRarities.size > 0 || _selectedCardIds.size > 0) {
+    // Template cache MUST be ready before loadAssets if rarity/cardid/dynamic filters are active
+    const hasDynFromUrl = Object.values(_selectedDynamicFilters).some(s => s.size > 0);
+    if (_selectedRarities.size > 0 || _selectedCardIds.size > 0 || hasDynFromUrl) {
       await fetchTemplatesForCollection(col);
       if (_filterCol === col) refreshFilterDropdowns();
     } else {
@@ -2206,6 +2714,7 @@ async function loadAssets(reset = false, walletChange = false) {
   }
   if (reset && _excludeLowestMint && _filterCol !== 'all') return loadAssetsFullScan(whitelistForDupes);
   if (reset && _onlyHighestMint   && _filterCol !== 'all') return loadAssetsOnlyHighest(whitelistForDupes);
+  if (reset && needsClientSideAttrFilter(whitelistForDupes)) return loadAssetsAttrFilter(whitelistForDupes);
 
   _loading = true;
   const loadMoreBtn = document.getElementById('loadMoreBtn');
@@ -2243,7 +2752,7 @@ async function loadAssets(reset = false, walletChange = false) {
 
     const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
     const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${encodeURIComponent(_filterSchema)}`       : '';
-    const whitelist      = computeTemplateWhitelist(); // 'EMPTY' already handled above
+    const whitelist      = safeWhitelist(computeTemplateWhitelist()); // 'EMPTY' already handled above; oversized already routed to loadAssetsAttrFilter, this is a defensive backstop
     const whitelistParam = whitelist ? `&template_whitelist=${whitelist}` : '';
     const mintMinParam   = _filterMintMin ? `&min_template_mint=${_filterMintMin}` : '';
     const mintMaxParam   = _filterMintMax ? `&max_template_mint=${_filterMintMax}` : '';
@@ -3842,8 +4351,9 @@ async function selectAllMatchingFilters() {
   if (_filterCol === 'all' || _loading) return;
 
   if (!_excludeLowestMint && !_onlyHighestMint && _hasMore) {
-    const whitelist = computeTemplateWhitelist();
-    if (whitelist === 'EMPTY') return;
+    const whitelistRaw = computeTemplateWhitelist();
+    if (whitelistRaw === 'EMPTY') return;
+    const whitelist = safeWhitelist(whitelistRaw); // defensive backstop — _hasMore=false already routes an oversized whitelist away from here in practice
 
     _loading = true;
     const btn = document.getElementById('selectAllMatchBtn');
@@ -3851,7 +4361,7 @@ async function selectAllMatchingFilters() {
 
     try {
       const all = await fetchAllMatchingAssets(whitelist, n => { if (btn) btn.textContent = `Loading ${n.toLocaleString()}…`; });
-      _assets  = filterByMintRange(all);
+      _assets  = filterByMintRange(filterByActiveAttrs(all));
       _hasMore = false;
     } catch (err) {
       console.error('selectAllMatchingFilters:', err);
@@ -4003,9 +4513,10 @@ async function runDupesScan(whitelist, computeResult) {
 }
 
 async function loadAssetsFullScan(whitelist) {
-  const count = await runDupesScan(whitelist, all => {
+  const count = await runDupesScan(safeWhitelist(whitelist), all => {
+    const pool = filterByActiveAttrs(all); // no-op if the whitelist already covered it server-side; required if it was dropped for size
     const lowestByTemplate = new Map();
-    for (const a of all) {
+    for (const a of pool) {
       const tid = a.template?.template_id;
       if (!tid) continue;
       const mint = Number(a.template_mint);
@@ -4014,15 +4525,16 @@ async function loadAssetsFullScan(whitelist) {
       if (!cur || mint < cur.mint) lowestByTemplate.set(tid, { mint, asset_id: a.asset_id });
     }
     const excludeIds = new Set([...lowestByTemplate.values()].map(v => String(v.asset_id)));
-    return { assets: filterByMintRange(all).filter(a => !excludeIds.has(String(a.asset_id))), count: excludeIds.size };
+    return { assets: filterByMintRange(pool).filter(a => !excludeIds.has(String(a.asset_id))), count: excludeIds.size };
   });
   if (count !== undefined) _excludedLowestCount = count;
 }
 
 async function loadAssetsOnlyHighest(whitelist) {
-  const count = await runDupesScan(whitelist, all => {
+  const count = await runDupesScan(safeWhitelist(whitelist), all => {
+    const pool = filterByActiveAttrs(all);
     const groupsByTemplate = new Map();
-    for (const a of all) {
+    for (const a of pool) {
       const tid = a.template?.template_id;
       if (!tid) continue;
       const mint = Number(a.template_mint);
@@ -4037,9 +4549,28 @@ async function loadAssetsOnlyHighest(whitelist) {
       for (const item of group) if (item.mint > highest.mint) highest = item;
       keepIds.add(String(highest.asset_id));
     }
-    return { assets: filterByMintRange(all).filter(a => keepIds.has(String(a.asset_id))), count: keepIds.size };
+    return { assets: filterByMintRange(pool).filter(a => keepIds.has(String(a.asset_id))), count: keepIds.size };
   });
   if (count !== undefined) _onlyHighestCount = count;
+}
+
+// Same full-scan-then-filter shape as loadAssetsFullScan/loadAssetsOnlyHighest
+// above, triggered by loadAssets whenever a server-side template_whitelist
+// either can't express the active filters (asset-level-attribute schemas —
+// see isAssetLevelAttrSchema) or would be too large for a URL (see
+// safeWhitelist/TEMPLATE_WHITELIST_MAX_IDS) — either way, filterByActiveAttrs
+// does the real narrowing against each fetched asset's own merged `.data`.
+function needsClientSideAttrFilter(whitelist) {
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  if (schema && isAssetLevelAttrSchema(_filterCol, schema) && Object.values(_selectedDynamicFilters).some(s => s.size > 0)) return true;
+  return !!whitelist && whitelist !== 'EMPTY' && whitelist.split(',').length > TEMPLATE_WHITELIST_MAX_IDS;
+}
+
+async function loadAssetsAttrFilter(whitelist) {
+  await runDupesScan(safeWhitelist(whitelist), all => {
+    const filtered = filterByMintRange(filterByActiveAttrs(all));
+    return { assets: filtered, count: filtered.length };
+  });
 }
 
 /* ── Bulk-action chip + menu ── */
@@ -4959,7 +5490,7 @@ async function onWalletChange() {
     document.getElementById('loadMoreWrap').style.display  = 'none';
     closeBulkActionModal();
     _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
-    _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); _filterMintMin = ''; _filterMintMax = ''; _listingsFilter = 'all'; _filterText = ''; _sortOrder = 'transferred_desc';
+    _filterCol = 'all'; _filterSchema = 'all'; _selectedRarities.clear(); _selectedCardIds.clear(); clearDynamicFieldGroups(); _filterMintMin = ''; _filterMintMax = ''; _listingsFilter = 'all'; _filterText = ''; _sortOrder = 'transferred_desc';
     _onlyBacked = false; document.getElementById('onlyBackedFilter').checked = false;
     _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _soldAssets.clear(); _collectionsReady = false;
     _floorOffers = {}; _floorOffersFetched = false; _floorOffersBusy = false;
@@ -5019,6 +5550,7 @@ function clearFilters() {
   _filterSchema = 'all';
   _selectedRarities.clear();
   _selectedCardIds.clear();
+  for (const set of Object.values(_selectedDynamicFilters)) set.clear();
   _filterMintMin = '';
   _filterMintMax = '';
   _listingsFilter = 'all';
@@ -5033,8 +5565,9 @@ function clearFilters() {
   document.getElementById('onlyBackedFilter').checked  = false;
   buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
   document.querySelectorAll('#rarityDropdown input[type=checkbox], #cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
-  refreshCbLabel(document.getElementById('rarityDropdown'), _selectedRarities, 'All rarities');
-  refreshCbLabel(document.getElementById('cardIdDropdown'), _selectedCardIds, 'All card IDs');
+  refreshCbLabel(document.getElementById('rarityDropdown'), _selectedRarities, 'Rarity');
+  refreshCbLabel(document.getElementById('cardIdDropdown'), _selectedCardIds, 'Card ID');
+  refreshDynamicAttributeFilters();
   loadAssets(true);
 }
 
