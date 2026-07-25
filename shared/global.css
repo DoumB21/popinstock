@@ -864,11 +864,24 @@ body::before {
 .explore-toolbar .control-input { background: var(--bg); }
 .cb-dropdown-btn:hover,
 .cb-dropdown-btn.open { border-color: rgba(192,120,40,0.5); }
-.cb-dropdown-btn.has-selection { border-color: rgba(240,168,64,0.45); color: var(--accent-light); }
+.cb-dropdown-btn.has-selection { border-color: rgba(240,168,64,0.45); color: var(--accent-light); padding-right: 2.1rem; }
 .cb-dropdown-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .cb-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .cb-arrow { font-size: 0.7rem; opacity: 0.55; transition: transform 0.15s; flex-shrink: 0; }
 .cb-dropdown-btn.open .cb-arrow { transform: rotate(180deg); }
+.cb-dropdown-btn.has-selection .cb-arrow { display: none; }
+/* Clears every checkbox in a multi-select .cb-dropdown directly from the
+   closed control — mirrors .cb-combo-clear on the Collection combo. Only
+   shown once something's selected (toggled alongside .has-selection in
+   refreshCbLabel); replaces the arrow in that state rather than sitting
+   next to it, so the reserved padding above only has one icon to fit. */
+.cb-dropdown-clear {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 0.78rem; cursor: pointer; padding: 0.25rem; line-height: 1;
+  border-radius: 4px; transition: color 0.15s;
+}
+.cb-dropdown-clear:hover { color: var(--accent-light); }
 .cb-panel {
   display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
   background: #16161f; border: 1px solid rgba(255,255,255,0.12);
