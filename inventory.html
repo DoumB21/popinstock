@@ -752,6 +752,7 @@
             <span class="cb-label">All schemas</span>
             <span class="cb-arrow">▾</span>
           </button>
+          <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel"></div>
         </div>
       </div>
@@ -1687,20 +1688,20 @@ function setSchemaFilterAvailability(enabled) {
   if (!enabled) {
     _filterSchema = 'all';
     _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
-    buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+    buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
   }
 }
 
 function updateSchemaFilter(schemas) {
   _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...schemas.map(s => ({ value: s, label: s }))];
-  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
   const btn = document.querySelector('#schemaDropdown .cb-dropdown-btn');
   if (btn) btn.disabled = false;
 }
 
 function onSchemaFilterChange(val) {
   _filterSchema = val;
-  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
   const schema = _filterSchema !== 'all' ? _filterSchema : null;
   const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
   for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
@@ -1860,7 +1861,13 @@ function renderCbItemsInto(listEl, items, currentValue, onSelect) {
   });
 }
 
-function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+// clearValue is optional — only dropdowns where one specific value genuinely
+// means "no filter" (Schema's 'all') should get the has-selection accent +
+// clear-X treatment. Omitted by every other caller (listingsFilterDropdown,
+// bulkBackTokenDropdown, sortDropdown) since their values are all equally
+// "real" choices, not an off-state — same distinction already drawn for the
+// multi-select .cb-dropdown-clear convention.
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect, clearValue) {
   const container = document.getElementById(containerId);
   const labelEl = container.querySelector('.cb-label');
   const panel   = container.querySelector('.cb-panel');
@@ -1873,6 +1880,24 @@ function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
       onSelect(item.dataset.val);
     });
   });
+  if (clearValue === undefined) return;
+  const hasSelection = currentValue !== clearValue;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', hasSelection);
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (!clearBtn) return;
+  clearBtn.style.display = hasSelection ? '' : 'none';
+  // Wired once — the button itself isn't rebuilt by this function (only
+  // .cb-label/.cb-panel are), so re-wiring on every call would stack
+  // duplicate listeners. Same _wired-flag guard used for the multi-select
+  // clear-X (see populateCbDropdown).
+  if (!clearBtn._wired) {
+    clearBtn._wired = true;
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      closeAllCbDropdowns();
+      onSelect(clearValue);
+    });
+  }
 }
 
 /* ── Combobox — a type-to-search input that doubles as the trigger. `items[0]`
@@ -5704,7 +5729,7 @@ function clearFilters() {
   _excludeLowestMint = false;
   _onlyHighestMint   = false;
   _onlyBacked        = false;
-  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, 'all', onSchemaFilterChange);
+  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, 'all', onSchemaFilterChange, 'all');
   document.getElementById('mintMin').value = '';
   document.getElementById('mintMax').value = '';
   document.getElementById('excludeLowestMint').checked = false;

@@ -85,6 +85,16 @@
     }
     .price-row { display: flex; align-items: center; gap: 0.4rem; }
     .price-inp { flex: 1; min-width: 0; }
+
+    /* Loading / "too many attributes" status messages inside the dynamic
+       attribute filter block — accent-tinted so they read as "something is
+       happening" rather than getting lost among the plain-text filter
+       labels around them (same tint convention as .col-chip above). */
+    .dyn-attrs-msg {
+      font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4;
+      background: rgba(192,120,40,0.1); border: 1px solid rgba(192,120,40,0.3);
+      border-radius: 8px; padding: 0.6rem 0.75rem;
+    }
     .price-sep { color: var(--text-secondary); font-size: 0.82rem; flex-shrink: 0; }
     .sort-row { display: flex; gap: 0.4rem; }
     .clear-filters-btn { width: 100%; }
@@ -476,19 +486,39 @@
           <span class="cb-label">All schemas</span>
           <span class="cb-arrow">▼</span>
         </button>
+        <button type="button" class="cb-dropdown-clear" id="schemaClear" style="display:none" title="Clear">✕</button>
         <div class="cb-panel" id="schemaPanel"></div>
       </div>
+    </div>
+
+    <!-- Loading/"too many attributes" status for the smart-generated
+         filters below — kept right under Schema (before Rarity) so it's
+         seen immediately after narrowing the schema, while the filters
+         themselves render after Rarity (a popular, high-priority filter
+         that should stay near the top regardless of how many generated
+         attribute filters a collection produces). -->
+    <div class="filter-section hidden" id="secDynMsg">
+      <div id="dynAttrsMsg"></div>
     </div>
 
     <div class="filter-section hidden" id="secRarity">
       <span class="filter-label">Rarity</span>
       <div class="cb-dropdown" id="rarityDd">
         <button class="cb-dropdown-btn" id="rarityTrigger" type="button">
-          <span class="cb-label">All rarities</span>
+          <span class="cb-label">Rarity</span>
           <span class="cb-arrow">▼</span>
         </button>
+        <button type="button" class="cb-dropdown-clear" id="rarityClear" style="display:none" title="Clear">✕</button>
         <div class="cb-panel" id="rarityPanel"></div>
       </div>
+    </div>
+
+    <!-- Smart-generated attribute filters (see computeDynAttrFieldsSingleSchema/
+         computeDynAttrFieldsPooled). Works with or without a schema picked.
+         Hidden/cleared independently of showFilters()/hideFilters()'s
+         FILTER_SECTIONS group. -->
+    <div class="filter-section hidden" id="secDynAttrs">
+      <div id="dynAttrsList"></div>
     </div>
 
     <div class="filter-section hidden" id="secPrice">
@@ -650,6 +680,11 @@ let _col        = null;   // {collection_name, name, img} or {isCatalog:true, co
 let _drop       = '';     // '' or 'collection|schema' — only meaningful when _col.isCatalog
 let _schema     = '';
 let _rarity     = '';     // single value — the sales API only matches data:text.rarity exactly
+// Smart-generated per-schema attribute filters — single-select, same
+// exact-match constraint as _rarity (see computeDynAttrFields below).
+// {field_name: value}, only ever populated once a specific schema is picked.
+let _dynFilters = {};
+let _dynGen     = 0; // bumped on every schema change to stale-guard the async field-generation fetch
 let _minP = '', _maxP = '', _minMint = '', _maxMint = '';
 let _bundle  = 'single'; // 'all'/'bundle' disabled in the UI until bundle display + buy flow exist
 let _sortBy  = 'price';
@@ -965,13 +1000,16 @@ async function selectCollection(c) {
   $name.textContent = _col.name;
   $colChip.style.display = 'flex';
 
-  _rarity = ''; _schema = ''; _nameFilter = '';
+  _rarity = ''; _schema = ''; _nameFilter = ''; _dynFilters = {};
   _ownedTemplateIds = null; // new collection scope — stale for the one just left
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  setDdActive('schemaDd', false);
   document.getElementById('schemaPanel').innerHTML = '';
-  document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+  document.querySelector('#rarityDd .cb-label').textContent = 'Rarity';
+  setDdActive('rarityDd', false);
   document.getElementById('rarityPanel').innerHTML = '';
+  refreshDynAttrFilters(); // kicks off the unscoped (pooled) attribute scan immediately — no schema picked yet
 
   showFilters();
   pushUrl();
@@ -984,15 +1022,18 @@ async function selectCollection(c) {
 
 document.getElementById('colChipClear').addEventListener('click', clearCollection);
 function clearCollection() {
-  _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = '';
+  _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = ''; _dynFilters = {};
   _ownedTemplateIds = null;
   $colChip.style.display = 'none';
   $colSearch.value = '';
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  setDdActive('schemaDd', false);
   document.getElementById('schemaPanel').innerHTML = '';
-  document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+  document.querySelector('#rarityDd .cb-label').textContent = 'Rarity';
+  setDdActive('rarityDd', false);
   document.getElementById('rarityPanel').innerHTML = '';
+  refreshDynAttrFilters();
   hideFilters();
   pushUrl();
   resetResults();
@@ -1015,6 +1056,8 @@ function hideFilters() {
   document.getElementById('exploreToolbar').classList.remove('visible');
   document.getElementById('blToolbar').style.display = 'none';
   document.getElementById('secDrop').classList.add('hidden');
+  document.getElementById('secDynMsg').classList.add('hidden');
+  document.getElementById('secDynAttrs').classList.add('hidden');
   document.getElementById('schemaTrigger').disabled = false;
   document.getElementById('funkoCatalogBtn').classList.remove('hidden');
   updateCartBarVisible();
@@ -1079,7 +1122,7 @@ async function selectFunkoCatalog({ restoring = false } = {}) {
   _col = { isCatalog: true, collection_name: cat.allCollections, name: 'Funko Catalog', img: '' };
 
   if (!restoring) {
-    _rarity = ''; _schema = ''; _drop = ''; _nameFilter = '';
+    _rarity = ''; _schema = ''; _drop = ''; _nameFilter = ''; _dynFilters = {};
     document.getElementById('nameSearch').value = '';
   }
 
@@ -1091,9 +1134,11 @@ async function selectFunkoCatalog({ restoring = false } = {}) {
   $colChip.style.display = 'flex';
 
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  setDdActive('schemaDd', false);
   document.getElementById('schemaPanel').innerHTML = '';
   buildDropDropdown(cat.dropOptions);
   buildRarityDropdown(cat.rarities); // static list from sort_order.json — no live template scan
+  refreshDynAttrFilters(); // catalog mode never supports dynamic attribute filters — hides the section
 
   showFilters();
   pushUrl();
@@ -1110,6 +1155,17 @@ async function loadSchemas(base) {
   if (!_col) return;
   try {
     const data = await WaxApi.apiFetch(`${base || WaxApi.aaBase()}/schemas?collection_name=${_col.collection_name}&limit=100`);
+    // Captured for free from the same call — feeds the dynamic attribute
+    // generator's type-exclude pass (formats) and PFP/asset-level-attribute
+    // detection (asset counts, see isAssetLevelAttrSchema).
+    const formats = {};
+    const assetCounts = {};
+    (data || []).forEach(s => {
+      formats[s.schema_name] = (s.format || []).map(f => ({ name: (f.name || '').toLowerCase(), type: f.type }));
+      assetCounts[s.schema_name] = s.assets || 0;
+    });
+    _dynSchemaFormatCache[_col.collection_name] = formats;
+    _dynSchemaAssetCountCache[_col.collection_name] = assetCounts;
     buildSchemaDropdown((data || []).map(s => s.schema_name));
   } catch {
     buildSchemaDropdown([]);
@@ -1122,21 +1178,44 @@ function buildSchemaDropdown(schemas) {
     ...schemas.map(s => `<div class="cb-item${_schema === s ? ' active' : ''}" data-val="${escHtml(s)}"><span>${escHtml(s)}</span></div>`)
   ].join('');
   document.querySelector('#schemaDd .cb-label').textContent = _schema || 'All schemas';
+  setDdActive('schemaDd', !!_schema);
   panel.querySelectorAll('.cb-item').forEach(item => {
     item.addEventListener('click', () => {
       _schema = item.dataset.val;
       _rarity = '';
+      _dynFilters = {};
       closeAllDd();
       document.querySelector('#schemaDd .cb-label').textContent = _schema || 'All schemas';
+      setDdActive('schemaDd', !!_schema);
       panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _schema));
-      document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+      document.querySelector('#rarityDd .cb-label').textContent = 'Rarity';
+      setDdActive('rarityDd', false);
       document.getElementById('rarityPanel').innerHTML = '';
-      pushUrl(); resetResults(); loadRarityOptions(); loadMore();
+      pushUrl(); resetResults(); loadRarityOptions(); loadMore(); refreshDynAttrFilters();
     });
   });
 }
 document.getElementById('schemaTrigger').addEventListener('click', () => toggleDd('schemaDd'));
+document.getElementById('schemaClear').addEventListener('click', e => {
+  e.stopPropagation(); // defensive — sibling of schemaTrigger, not a descendant, so this was never going to reopen the panel anyway
+  _schema = ''; _rarity = ''; _dynFilters = {};
+  document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  setDdActive('schemaDd', false);
+  document.getElementById('schemaPanel').querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === ''));
+  document.querySelector('#rarityDd .cb-label').textContent = 'Rarity';
+  setDdActive('rarityDd', false);
+  document.getElementById('rarityPanel').innerHTML = '';
+  pushUrl(); resetResults(); loadRarityOptions(); loadMore(); refreshDynAttrFilters();
+});
 document.getElementById('rarityTrigger').addEventListener('click', () => toggleDd('rarityDd'));
+document.getElementById('rarityClear').addEventListener('click', e => {
+  e.stopPropagation(); // defensive — it's a sibling of rarityTrigger, not a descendant, so this was never going to reopen the panel anyway
+  _rarity = '';
+  document.querySelector('#rarityDd .cb-label').textContent = 'Rarity';
+  setDdActive('rarityDd', false);
+  document.getElementById('rarityPanel').querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === ''));
+  pushUrl(); resetResults(); loadMore();
+});
 
 async function loadRarityOptions(base) {
   const col = _col?.collection_name;
@@ -1161,22 +1240,495 @@ async function loadRarityOptions(base) {
   } catch {}
   buildRarityDropdown([...rarities].sort((a, b) => a.localeCompare(b)));
 }
+// Toggled on a single-select .cb-dropdown-btn whenever it has a real value
+// picked — with potentially a dozen-plus generated attribute filters on
+// screen at once, a plain label isn't enough to scan which ones are
+// actually narrowing results. See .dyn-active in this page's <style> block.
+function setDdActive(ddId, active) {
+  const wrap = document.getElementById(ddId);
+  wrap?.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', active);
+  const clearBtn = wrap?.querySelector('.cb-dropdown-clear');
+  if (clearBtn) clearBtn.style.display = active ? '' : 'none';
+}
+
 function buildRarityDropdown(rarities) {
   const panel = document.getElementById('rarityPanel');
   panel.innerHTML = [
-    `<div class="cb-item${!_rarity ? ' active' : ''}" data-val=""><span>All rarities</span></div>`,
+    `<div class="cb-item${!_rarity ? ' active' : ''}" data-val=""><span>Rarity</span></div>`,
     ...rarities.map(r => `<div class="cb-item${_rarity === r ? ' active' : ''}" data-val="${escHtml(r)}"><span>${escHtml(r)}</span></div>`)
   ].join('');
-  document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'All rarities';
+  document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'Rarity';
+  setDdActive('rarityDd', !!_rarity);
   panel.querySelectorAll('.cb-item').forEach(item => {
     item.addEventListener('click', () => {
       _rarity = item.dataset.val;
       closeAllDd();
-      document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'All rarities';
+      document.querySelector('#rarityDd .cb-label').textContent = _rarity || 'Rarity';
+      setDdActive('rarityDd', !!_rarity);
       panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _rarity));
       pushUrl(); resetResults(); loadMore();
     });
   });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Smart-generated attribute filters                                          */
+/* Ported from inventory.html's dynamic-filter generator (see project memory   */
+/* "smart-filter-generator"), adapted for Explore's real differences:          */
+/*  - Single-select only, applied server-side via data:text.<field>=<value>    */
+/*    on /sales — that endpoint has no OR/multi-value match, same constraint   */
+/*    Rarity above already lives under. Confirmed live (see project memory)   */
+/*    that this same param also matches correctly against PFP/asset-level     */
+/*    trait data, not just template data — /sales already returns each        */
+/*    listing's asset with its own merged .data, and the filter param reads    */
+/*    that same merged view. So PFP schemas need no special-casing on the      */
+/*    filtering side at all — only on the dropdown-population side, since a    */
+/*    PFP schema's template data is empty/junk and the real values live on     */
+/*    individual assets (see isAssetLevelAttrSchema/fetchAssetDataForSchema).  */
+/*  - No case-insensitive value canonicalization: the dropdown must send the   */
+/*    exact raw stored value back to the server, so merging "common"/"Common" */
+/*    for display would risk silently missing whichever raw casing didn't get */
+/*    picked as canonical (Inventory can canonicalize safely because it       */
+/*    matches client-side against its own already-fetched pool, not via a     */
+/*    server exact-match param).                                              */
+/*                                                                             */
+/* Two modes, mirroring inventory.html's own single-schema vs "All schemas"    */
+/* split:                                                                     */
+/*  - A specific schema selected: exhaustive per-schema template fetch         */
+/*    (fetchTemplatesForSchema), qualified directly against that one pool.     */
+/*  - No schema selected ("All schemas" / not yet narrowed): most people don't */
+/*    know or care what schema an item they recognize belongs to, so filters   */
+/*    have to work here too, not just once a schema is picked. Uses a SAMPLED  */
+/*    multi-page fetch (fetchTemplatesSampled), same cost/tradeoff already     */
+/*    accepted for the Rarity dropdown's own unscoped scan above — not         */
+/*    exhaustive for very large collections. Qualification runs Inventory's    */
+/*    pooled-OR-per-schema dual pass (computeDynAttrFieldsPooled) since the     */
+/*    two real shapes that motivated it there (Race needing per-schema         */
+/*    isolation, Type needing cross-schema pooling) apply here identically.    */
+/*    A DYNAMIC_FIELD_MAX_COUNT_UNSCOPED cap + message avoids dumping dozens   */
+/*    of filters on screen for a many-schema collection.                      */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const _dynSchemaFormatCache     = {}; // collection_name → { schema_name → [{name, type}, ...] }
+const _dynSchemaAssetCountCache = {}; // collection_name → { schema_name → assets count } — also free from the /schemas call
+const _dynTemplateCache = {}; // "collection::schema" → [{template_id, schema_name, data}, ...] (exhaustive)
+const _dynPooledCache   = {}; // collection_name → [{template_id, schema_name, data}, ...] (sampled, unscoped)
+const _dynAssetCache         = {}; // "collection::schema" → [{schema_name, data}, ...] — PFP/asset-level schemas only
+const _dynAssetFetchPromises = {}; // "collection::schema" → in-flight Promise, dedupes concurrent scan triggers
+
+const DYNAMIC_FIELD_EXCLUDE_NAMES = new Set(['rarity']); // already a dedicated filter above
+const DYNAMIC_FIELD_EXCLUDE_TYPES = new Set(['image', 'ipfs']);
+const DYNAMIC_FIELD_MAX_DISTINCT  = 40;
+const DYNAMIC_FIELD_MAX_RATIO     = 0.5;  // distinct values / templates-that-carry-this-field
+const DYNAMIC_FIELD_MAX_VALUE_LEN = 50;   // longer than this reads as free text, not a facet value
+const DYNAMIC_FIELD_MAX_COUNT_UNSCOPED = 10; // above this, unscoped mode shows a message instead of the filters
+const URL_PATTERN      = /^https?:\/\//i;
+const IPFS_CID_PATTERN = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58,})$/;
+const DATE_FIELD_WORDS = new Set(['date', 'dates', 'datetime']);
+
+function dynNormalizeData(raw) {
+  const out = {};
+  for (const [k, v] of Object.entries(raw || {})) {
+    const key = k.toLowerCase();
+    const val = typeof v === 'string' ? v.trim() : v;
+    if (out[key] === undefined || out[key] === null || out[key] === '') out[key] = val;
+  }
+  return out;
+}
+
+// data:text.<field>=<value> on /sales is case-sensitive on the FIELD NAME
+// too (confirmed live: data:text.glow=Traiton → 0 results, data:text.Glow=
+// Traiton → 5) — not just the value. Field keys get lowercased everywhere
+// else (dynNormalizeData, above) so a field declared with inconsistent
+// casing across schemas doesn't show up as two separate filters (same
+// rationale as inventory.html's normalizeFieldData). That means the
+// original casing has to be tracked separately and substituted back in
+// only when building the actual server query — see fetchSalesPage.
+// collection_name → Map(normalizedName -> rawName as actually stored),
+// first-seen-wins (same convention as dynNormalizeData itself).
+const _dynRawFieldNames = {};
+function captureRawFieldNames(collection, raw) {
+  let map = _dynRawFieldNames[collection];
+  if (!map) { map = new Map(); _dynRawFieldNames[collection] = map; }
+  for (const k of Object.keys(raw || {})) {
+    const norm = k.toLowerCase();
+    if (!map.has(norm)) map.set(norm, k);
+  }
+}
+
+function isJunkFieldValue(v) {
+  const s = String(v).trim();
+  return s.length > DYNAMIC_FIELD_MAX_VALUE_LEN || URL_PATTERN.test(s) || IPFS_CID_PATTERN.test(s);
+}
+
+function isDateFieldName(name) {
+  const words = String(name)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  return words.some(w => DATE_FIELD_WORDS.has(w));
+}
+
+function fieldLabel(name) {
+  const spaced = name.replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function dynFieldDomId(field) {
+  return 'dyn_' + field.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+async function fetchTemplatesForSchema(collection, schema) {
+  const key = collection + '::' + schema;
+  if (_dynTemplateCache[key]) return _dynTemplateCache[key];
+  const all = [];
+  let page = 1;
+  while (true) {
+    let data;
+    try {
+      data = await WaxApi.apiFetch(`${WaxApi.aaBase()}/templates?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&has_assets=true&limit=1000&page=${page}`);
+    } catch { break; }
+    if (!data || !data.length) break;
+    for (const t of data) {
+      captureRawFieldNames(collection, t.immutable_data);
+      all.push({ template_id: t.template_id, schema_name: schema, data: dynNormalizeData(t.immutable_data) });
+    }
+    if (data.length < 1000) break;
+    page++;
+  }
+  _dynTemplateCache[key] = all;
+  return all;
+}
+
+// Unscoped ("All schemas") pool — same sampling shape as loadRarityOptions
+// above (page 1 direct, then up to 9 more pages in parallel across nodes if
+// page 1 was full), generalized to capture every field instead of just
+// rarity. Not exhaustive for very large collections — same accepted tradeoff
+// as the existing Rarity scan.
+async function fetchTemplatesSampled(collection) {
+  if (_dynPooledCache[collection]) return _dynPooledCache[collection];
+  const all = [];
+  const pageUrl = (b, page) => `${b}/templates?collection_name=${encodeURIComponent(collection)}&has_assets=true&limit=1000&page=${page}`;
+  const toEntry = t => {
+    captureRawFieldNames(collection, t.immutable_data);
+    return { template_id: t.template_id, schema_name: t.schema?.schema_name || '', data: dynNormalizeData(t.immutable_data) };
+  };
+  try {
+    const first = await WaxApi.apiFetch(pageUrl(WaxApi.aaBase(), 1));
+    (first || []).forEach(t => all.push(toEntry(t)));
+    if ((first || []).length === 1000) {
+      const bases = WaxApi.aaBases(3);
+      const pages = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const rest = await Promise.all(
+        pages.map((p, i) => raced(WaxApi.apiFetch(pageUrl(bases[i % bases.length], p)), 4000).catch(() => []))
+      );
+      for (const batch of rest) (batch || []).forEach(t => all.push(toEntry(t)));
+    }
+  } catch {}
+  _dynPooledCache[collection] = all;
+  return all;
+}
+
+// schemaNames: a single schema name, or an array (pooled mode) — a field name
+// can be declared with different types across schemas (see inventory.html's
+// `backimg` case), so every declared type across the given schema(s) is
+// tracked and the caller excludes on ANY hard-excluded type, not just the
+// last one seen.
+function dynGetFieldTypes(collection, schemaNames) {
+  const map = new Map();
+  const formats = _dynSchemaFormatCache[collection] || {};
+  const names = Array.isArray(schemaNames) ? schemaNames : [schemaNames];
+  for (const sn of names) for (const f of (formats[sn] || [])) {
+    if (!map.has(f.name)) map.set(f.name, new Set());
+    map.get(f.name).add(f.type);
+  }
+  return map;
+}
+
+function collectCandidateNames(pool) {
+  const names = new Set();
+  for (const t of pool) for (const k of Object.keys(t.data || {})) names.add(k);
+  return names;
+}
+
+function collectJunkFieldNamesFromPool(pool) {
+  const junk = new Set();
+  for (const t of pool) {
+    for (const [k, v] of Object.entries(t.data || {})) {
+      if (junk.has(k)) continue;
+      if (isDateFieldName(k)) { junk.add(k); continue; }
+      if (v === undefined || v === null || v === '') continue;
+      if (isJunkFieldValue(v)) junk.add(k);
+    }
+  }
+  return junk;
+}
+
+function fieldQualifies(pool, name, fieldTypes) {
+  const types = fieldTypes.get(name);
+  if (types && [...types].some(t => DYNAMIC_FIELD_EXCLUDE_TYPES.has(t))) return false;
+  const values = pool.map(t => t.data?.[name]).filter(v => v !== undefined && v !== null && v !== '');
+  const distinctCount = new Set(values.map(v => String(v).toLowerCase())).size;
+  if (distinctCount <= 1 || distinctCount > DYNAMIC_FIELD_MAX_DISTINCT) return false;
+  if (distinctCount / values.length > DYNAMIC_FIELD_MAX_RATIO) return false;
+  return true;
+}
+
+function computeDynAttrFieldsSingleSchema(pool, collection, schema) {
+  if (pool.length === 0) return [];
+  const junkFieldNames = collectJunkFieldNamesFromPool(pool);
+  const fieldTypes = dynGetFieldTypes(collection, schema);
+  const result = [];
+  for (const name of collectCandidateNames(pool)) {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkFieldNames.has(name)) continue;
+    if (fieldQualifies(pool, name, fieldTypes)) result.push(name);
+  }
+  return result.sort((a, b) => a.localeCompare(b));
+}
+
+/* ── PFP-style (asset-level attribute) schemas ────────────────────────────
+   Most collections bake their attributes into the template — one template
+   per distinct card design. Generative PFP collections often do the
+   opposite: one (often empty, or junk-boilerplate-only) template per
+   schema, with every real trait randomized onto each individual asset's own
+   immutable_data instead. Ported from inventory.html's version (see project
+   memory "smart-filter-generator", Seventh/Eighth follow-ups) — only the
+   dropdown-population side needs this; FILTERING already works unchanged
+   (confirmed live, see the comment block above) since /sales returns and
+   matches against each listing's own merged per-asset data regardless. */
+
+// Pure/sync, no network — templates for this schema must already be
+// fetched (fetchTemplatesForSchema) before this is called. A template with
+// even one real (non-junk, non-excluded-type) field is never mistaken for
+// asset-level, so a schema with genuine template-level content (the common
+// case) is unaffected. Gated on assets > 0 so a schema with nothing real
+// and nothing minted isn't scanned for nothing.
+function isAssetLevelAttrSchema(collection, schema) {
+  const templates = _dynTemplateCache[collection + '::' + schema] || [];
+  if (templates.length === 0) return false;
+  const assetCount = (_dynSchemaAssetCountCache[collection] || {})[schema] || 0;
+  if (assetCount === 0) return false;
+  const junkNames  = collectJunkFieldNamesFromPool(templates);
+  const fieldTypes = dynGetFieldTypes(collection, schema);
+  const hasRealField = [...collectCandidateNames(templates)].some(name => {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkNames.has(name)) return false;
+    const types = fieldTypes.get(name);
+    return !(types && [...types].some(t => DYNAMIC_FIELD_EXCLUDE_TYPES.has(t)));
+  });
+  return !hasRealField;
+}
+
+// Bounded scan of a schema's assets, reading each asset's own `.data` (the
+// AtomicAssets API's pre-merged view — same field already confirmed present
+// on /sales results). Paged in parallel batches across different nodes.
+// Capped at ASSET_SCAN_MAX_PAGES (20,000 assets) — a representative sample
+// beyond that, same tradeoff fetchTemplatesSampled already accepts for
+// unscoped mode. Memoized via a shared in-flight promise so a fast
+// re-render never triggers a duplicate scan.
+const ASSET_SCAN_PAGE_LIMIT = 1000;
+const ASSET_SCAN_BATCH_SIZE = 8;
+const ASSET_SCAN_MAX_PAGES  = 20;
+
+function fetchAssetDataForSchema(collection, schema) {
+  const key = collection + '::' + schema;
+  if (_dynAssetCache[key]) return Promise.resolve(_dynAssetCache[key]);
+  if (_dynAssetFetchPromises[key]) return _dynAssetFetchPromises[key];
+
+  const promise = (async () => {
+    const all = [];
+    let page = 1;
+    let done = false;
+    while (!done && page <= ASSET_SCAN_MAX_PAGES) {
+      const batchPages = [];
+      for (let i = 0; i < ASSET_SCAN_BATCH_SIZE && page + i <= ASSET_SCAN_MAX_PAGES; i++) batchPages.push(page + i);
+      const bases = WaxApi.aaBases(batchPages.length);
+      const results = await Promise.all(batchPages.map((p, i) =>
+        WaxApi.apiFetch(`${bases[i % bases.length]}/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`)
+          .catch(() => null)
+      ));
+      for (const data of results) {
+        if (!data || !data.length) { done = true; continue; }
+        for (const a of data) {
+          captureRawFieldNames(collection, a.data);
+          all.push({ schema_name: schema, data: dynNormalizeData(a.data || {}) });
+        }
+        if (data.length < ASSET_SCAN_PAGE_LIMIT) done = true;
+      }
+      page += ASSET_SCAN_BATCH_SIZE;
+    }
+    _dynAssetCache[key] = all;
+    delete _dynAssetFetchPromises[key];
+    return all;
+  })();
+  _dynAssetFetchPromises[key] = promise;
+  return promise;
+}
+
+// Unscoped ("All schemas") qualification — runs two passes over the sampled
+// pool and a field qualifies if EITHER passes, same dual-pass logic
+// inventory.html's computeDynamicFields uses and for the same two real
+// reasons (see project memory "smart-filter-generator", fourth follow-up):
+//  - Pooled pass: catches a field that's constant within any single schema
+//    but meaningfully varies across schemas (e.g. `type` declared in 8
+//    schemas, each template in a given schema sharing one value).
+//  - Per-schema pass: catches a field with plenty of variety inside one
+//    schema whose combined cross-schema distinct-value count balloons past
+//    the cap once every other schema's values merge in (e.g. `race` meaning
+//    a different cast of characters per schema).
+// Junk-value scope matches inventory.html too: the pooled pass checks junk
+// against the whole sampled pool (a bad value pooled in from anywhere
+// legitimately fails that pass), the per-schema pass checks junk only
+// against that one schema's own slice (one bad template in one schema must
+// not poison the field for every other schema that declares it cleanly).
+function computeDynAttrFieldsPooled(collection) {
+  const pool = _dynPooledCache[collection] || [];
+  if (pool.length === 0) return [];
+  const liveSchemaNames = [...new Set(pool.map(t => t.schema_name))];
+  const result = new Set();
+
+  const pooledJunkFieldNames = collectJunkFieldNamesFromPool(pool);
+  const pooledFieldTypes = dynGetFieldTypes(collection, liveSchemaNames);
+  for (const name of collectCandidateNames(pool)) {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || pooledJunkFieldNames.has(name)) continue;
+    if (fieldQualifies(pool, name, pooledFieldTypes)) result.add(name);
+  }
+
+  for (const sn of liveSchemaNames) {
+    const schemaPool = pool.filter(t => t.schema_name === sn);
+    const fieldTypes = dynGetFieldTypes(collection, sn);
+    const schemaJunkFieldNames = collectJunkFieldNamesFromPool(schemaPool);
+    for (const name of collectCandidateNames(schemaPool)) {
+      if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || result.has(name) || schemaJunkFieldNames.has(name)) continue;
+      if (fieldQualifies(schemaPool, name, fieldTypes)) result.add(name);
+    }
+  }
+  return [...result].sort((a, b) => a.localeCompare(b));
+}
+
+function dynFieldValues(pool, field) {
+  const raw = pool.map(t => t.data?.[field]).filter(v => v !== undefined && v !== null && v !== '').map(String).filter(v => !isJunkFieldValue(v));
+  return [...new Set(raw)].sort((a, b) => {
+    const na = parseInt(a, 10), nb = parseInt(b, 10);
+    return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b);
+  });
+}
+
+function dynFieldGroupHtml(field) {
+  const id = dynFieldDomId(field);
+  const label = escHtml(fieldLabel(field));
+  return `
+    <div class="filter-section">
+      <span class="filter-label">${label}</span>
+      <div class="cb-dropdown" id="${id}Dd">
+        <button class="cb-dropdown-btn" id="${id}Trigger" type="button">
+          <span class="cb-label">${label}</span>
+          <span class="cb-arrow">▼</span>
+        </button>
+        <button type="button" class="cb-dropdown-clear" id="${id}Clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="${id}Panel"></div>
+      </div>
+    </div>`;
+}
+
+function wireDynFieldDropdown(field, pool) {
+  const id = dynFieldDomId(field);
+  const panel = document.getElementById(id + 'Panel');
+  const values = dynFieldValues(pool, field);
+  const labelDefault = fieldLabel(field); // no "All " prefix — matches inventory.html's convention for generated fields
+  const render = () => {
+    const cur = _dynFilters[field] || '';
+    panel.innerHTML = [
+      `<div class="cb-item${!cur ? ' active' : ''}" data-val=""><span>${escHtml(labelDefault)}</span></div>`,
+      ...values.map(v => `<div class="cb-item${cur === v ? ' active' : ''}" data-val="${escHtml(v)}"><span>${escHtml(v)}</span></div>`)
+    ].join('');
+    document.querySelector(`#${id}Dd .cb-label`).textContent = cur || labelDefault;
+    setDdActive(id + 'Dd', !!cur);
+  };
+  render();
+  document.getElementById(id + 'Trigger').addEventListener('click', () => toggleDd(id + 'Dd'));
+  panel.addEventListener('click', e => {
+    const item = e.target.closest('.cb-item');
+    if (!item) return;
+    const val = item.dataset.val;
+    if (val) _dynFilters[field] = val; else delete _dynFilters[field];
+    closeAllDd();
+    render();
+    pushUrl(); resetResults(); loadMore();
+  });
+  document.getElementById(id + 'Clear').addEventListener('click', e => {
+    e.stopPropagation(); // defensive — sibling of the trigger button, not a descendant, so this was never going to reopen the panel anyway
+    delete _dynFilters[field];
+    render();
+    pushUrl(); resetResults(); loadMore();
+  });
+}
+
+// Triggered on every schema selection change (including collection select,
+// clear, and URL restore) — runs whether or not a schema is picked, so
+// people who recognize an NFT but don't know/care what schema it's in still
+// get attribute filters. Stale-guarded by _dynGen since either fetch can
+// outlive a fast follow-up schema switch.
+async function refreshDynAttrFilters() {
+  const $msgSec = document.getElementById('secDynMsg');
+  const $msg    = document.getElementById('dynAttrsMsg');
+  const $sec    = document.getElementById('secDynAttrs');
+  const $list   = document.getElementById('dynAttrsList');
+  const myGen = ++_dynGen;
+
+  if (!_col || _col.isCatalog) {
+    $msg.innerHTML = ''; $msgSec.classList.add('hidden');
+    $list.innerHTML = ''; $sec.classList.add('hidden');
+    return;
+  }
+
+  // Message lives right below Schema (above Rarity); the actual filter
+  // dropdowns render below Rarity — see the HTML comment above #secDynMsg
+  // for why they're split apart.
+  $msgSec.classList.remove('hidden');
+  $msg.innerHTML = '<div class="dyn-attrs-msg">Loading attributes…</div>';
+  $list.innerHTML = '';
+  $sec.classList.add('hidden');
+
+  const collection = _col.collection_name, schema = _schema;
+  let pool, fields;
+
+  if (schema) {
+    const templatePool = await fetchTemplatesForSchema(collection, schema);
+    if (myGen !== _dynGen) return; // schema changed again mid-fetch
+    if (isAssetLevelAttrSchema(collection, schema)) {
+      $msg.innerHTML = '<div class="dyn-attrs-msg">Scanning item attributes — this collection stores traits per-item rather than per-card…</div>';
+      pool = await fetchAssetDataForSchema(collection, schema);
+      if (myGen !== _dynGen) return; // schema changed again mid-scan
+    } else {
+      pool = templatePool;
+    }
+    fields = computeDynAttrFieldsSingleSchema(pool, collection, schema);
+  } else {
+    pool = await fetchTemplatesSampled(collection);
+    if (myGen !== _dynGen) return; // schema/collection changed again mid-fetch
+    fields = computeDynAttrFieldsPooled(collection);
+  }
+
+  for (const f of Object.keys(_dynFilters)) if (!fields.includes(f)) delete _dynFilters[f];
+
+  if (!schema && fields.length > DYNAMIC_FIELD_MAX_COUNT_UNSCOPED) {
+    $msg.innerHTML = '<div class="dyn-attrs-msg">This collection has a lot of attributes. Pick a schema above to narrow down the filters shown.</div>';
+    $list.innerHTML = ''; $sec.classList.add('hidden');
+    return;
+  }
+
+  $msg.innerHTML = ''; $msgSec.classList.add('hidden');
+
+  if (fields.length === 0) {
+    $list.innerHTML = '';
+    $sec.classList.add('hidden');
+    return;
+  }
+
+  $sec.classList.remove('hidden');
+  $list.innerHTML = fields.map(dynFieldGroupHtml).join('');
+  fields.forEach(f => wireDynFieldDropdown(f, pool));
 }
 
 let _priceT = null;
@@ -1253,7 +1805,7 @@ document.getElementById('nameSearch').addEventListener('input', function () {
 });
 
 function clearFilters() {
-  _schema = ''; _rarity = '';
+  _schema = ''; _rarity = ''; _dynFilters = {};
   _minP = ''; _maxP = ''; _minMint = ''; _maxMint = '';
   _bundle = 'single';
   _sortBy = 'price'; _sortOrd = 'asc';
@@ -1271,9 +1823,12 @@ function clearFilters() {
   renderSortOrderDd();
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
+  setDdActive('schemaDd', false);
   document.getElementById('schemaPanel').innerHTML = '';
-  document.querySelector('#rarityDd .cb-label').textContent = 'All rarities';
+  document.querySelector('#rarityDd .cb-label').textContent = 'Rarity';
+  setDdActive('rarityDd', false);
   document.getElementById('rarityPanel').innerHTML = '';
+  refreshDynAttrFilters();
 
   pushUrl();
   resetResults();
@@ -1427,6 +1982,20 @@ function fetchSalesPage(page) {
   // see the Listing Type dropdown comment above.
   url += '&max_assets=1';
   if (_rarity) url += `&data:text.rarity=${encodeURIComponent(_rarity)}`;
+  // Smart-generated attribute filters — same exact-match constraint as
+  // Rarity above. The FIELD NAME is also case-sensitive server-side
+  // (confirmed live: data:text.glow= matches nothing, data:text.Glow=
+  // matches) — field keys are normalized to lowercase everywhere else
+  // (dynNormalizeData) to merge same-field-different-casing declarations
+  // across schemas, so the original stored casing has to be looked back up
+  // here rather than sent as-is. Falls back to the normalized name itself
+  // if nothing was ever captured for it (shouldn't happen once a filter is
+  // active — the field can't be selected without its pool having been
+  // fetched first — but a plain fallback is harmless either way).
+  for (const [field, val] of Object.entries(_dynFilters)) {
+    const rawField = _dynRawFieldNames[col]?.get(field) || field;
+    url += `&data:text.${encodeURIComponent(rawField)}=${encodeURIComponent(val)}`;
+  }
   // Catalog-wide scope joins every Funko collection into one collection_name
   // IN-list (70+ values) — AtomicMarket's default 6s market timeout isn't
   // enough for that query to complete (measured 20-26s for sort=price),
@@ -2412,6 +2981,7 @@ function pushUrl() {
   }
   if (_schema)  p.set('schema', _schema);
   if (_rarity)  p.set('rarity', _rarity);
+  for (const [field, val] of Object.entries(_dynFilters)) p.set('dyn_' + field, val);
   if (_minP)    p.set('minP',   _minP);
   if (_maxP)    p.set('maxP',   _maxP);
   if (_minMint) p.set('minMint', _minMint);
@@ -2431,6 +3001,8 @@ async function restoreFromUrl() {
 
   _schema     = p.get('schema')  || '';
   _rarity     = p.get('rarity')  || '';
+  _dynFilters = {};
+  for (const [key, val] of p.entries()) if (key.startsWith('dyn_') && val) _dynFilters[key.slice(4)] = val;
   _minP       = p.get('minP')    || '';
   _maxP       = p.get('maxP')    || '';
   _minMint    = p.get('minMint') || '';
@@ -2479,8 +3051,13 @@ async function restoreFromUrl() {
     showFilters();
     resetResults();
     const [b1, b2] = WaxApi.aaBases(2);
-    loadSchemas(b1);
+    // Schema is awaited here (unlike selectCollection/clearFilters, where
+    // _schema always starts empty) because a restored URL can already carry
+    // a schema + dyn_ filters — refreshDynAttrFilters needs _dynSchemaFormatCache
+    // populated (set inside loadSchemas) before its type-exclude pass runs.
+    await loadSchemas(b1);
     loadRarityOptions(b2);
+    refreshDynAttrFilters();
     loadMore();
   } catch {
     const $empty = document.getElementById('emptyState');
