@@ -711,11 +711,9 @@
   <div id="toolbar" class="controls-card" style="display:none;">
     <div class="controls-row">
       <div class="control-group">
-        <label class="control-label">Search</label>
         <input id="searchInput" type="search" class="control-input" placeholder="Search by name…" autocomplete="off" />
       </div>
       <div class="control-group control-group--wide">
-        <label class="control-label">Collection</label>
         <div class="cb-combo" id="colCombo">
           <input type="text" class="cb-combo-input" id="colComboInput" autocomplete="off" spellcheck="false">
           <button type="button" class="cb-combo-clear" id="colComboClear" style="display:none" title="Clear">✕</button>
@@ -723,7 +721,6 @@
         </div>
       </div>
       <div class="control-group control-group--narrow">
-        <label class="control-label">Sort by</label>
         <div class="cb-dropdown" id="sortDropdown">
           <button class="cb-dropdown-btn" type="button">
             <span class="cb-label">Transferred (Newest)</span>
@@ -739,18 +736,42 @@
       <div class="buyoffer-unlock-link" id="lastsoldUnlockLink" onclick="toggleLastSoldBanner(true)">🔒 <strong>Last Sold (Highest)</strong> →</div>
     </div>
     <div class="controls-row filter-row">
-      <div class="control-group" id="schemaGroup" style="display:none;">
-        <label class="control-label">Schema</label>
+      <div class="control-group" id="schemaGroup">
         <div class="cb-dropdown" id="schemaDropdown">
-          <button class="cb-dropdown-btn" type="button">
+          <button class="cb-dropdown-btn" type="button" disabled title="Select a collection to enable this filter">
             <span class="cb-label">All schemas</span>
             <span class="cb-arrow">▾</span>
           </button>
           <div class="cb-panel"></div>
         </div>
       </div>
+      <div class="control-group">
+        <div class="mint-range-inputs">
+          <input id="mintMin" type="number" class="control-input" placeholder="Min mint" min="1" />
+          <span class="range-sep">—</span>
+          <input id="mintMax" type="number" class="control-input" placeholder="Max mint" min="1" />
+        </div>
+      </div>
+      <div class="control-group control-group--narrow">
+        <div class="cb-dropdown" id="listingsFilterDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">Show all</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Collection/schema-attribute filters (Rarity, Card ID, and future
+         smart-generated attributes) — deliberately a separate row below the
+         core filters above. Schema/Mint/etc. are fields every asset always
+         has, so their position must never shift; these are attribute-driven,
+         only exist for some collections/schemas, and come and go as the
+         selection changes — this row (not the core one) is where that
+         churn is contained. Hidden entirely via refreshDynamicFilterRowVisibility()
+         when none of its children currently have anything to show. -->
+    <div class="controls-row filter-row" id="dynamicFilterRow" style="display:none;">
       <div class="control-group" id="rarityGroup" style="display:none;">
-        <label class="control-label">Rarity</label>
         <div class="cb-dropdown" id="rarityDropdown">
           <button class="cb-dropdown-btn" type="button">
             <span class="cb-label">All rarities</span>
@@ -760,7 +781,6 @@
         </div>
       </div>
       <div class="control-group" id="cardIdGroup" style="display:none;">
-        <label class="control-label">Card ID</label>
         <div class="cb-dropdown" id="cardIdDropdown">
           <button class="cb-dropdown-btn" type="button">
             <span class="cb-label">All card IDs</span>
@@ -769,37 +789,25 @@
           <div class="cb-panel"></div>
         </div>
       </div>
-      <div class="control-group">
-        <label class="control-label">Mint range</label>
-        <div class="mint-range-inputs">
-          <input id="mintMin" type="number" class="control-input" placeholder="Min" min="1" />
-          <span class="range-sep">—</span>
-          <input id="mintMax" type="number" class="control-input" placeholder="Max" min="1" />
-        </div>
-      </div>
+    </div>
+    <!-- Checkboxes + bulk-action controls — deliberately the LAST row no
+         matter how many dynamic attribute filters end up above it, so these
+         stay right above the card grid, easy to reach, instead of getting
+         buried under however many filters a given collection generates. -->
+    <div class="controls-row filter-row" id="bottomActionsRow">
       <div class="control-group control-group--narrow">
-        <label class="control-label">Assets</label>
-        <div class="cb-dropdown" id="listingsFilterDropdown">
-          <button class="cb-dropdown-btn" type="button">
-            <span class="cb-label">Show all</span>
-            <span class="cb-arrow">▾</span>
-          </button>
-          <div class="cb-panel"></div>
-        </div>
-      </div>
-      <div class="control-group control-group--narrow" id="dupesGroup">
-        <label class="control-label">Duplicates</label>
         <label class="bl-checkbox-label" id="excludeLowestLabel" title="Select a collection to enable this filter">
           <input type="checkbox" id="excludeLowestMint" disabled />
           Exclude lowest mint
         </label>
+      </div>
+      <div class="control-group control-group--narrow">
         <label class="bl-checkbox-label" id="onlyHighestLabel" title="Select a collection to enable this filter">
           <input type="checkbox" id="onlyHighestMint" disabled />
           Only highest mint
         </label>
       </div>
       <div class="control-group control-group--narrow">
-        <label class="control-label">Backed</label>
         <label class="bl-checkbox-label">
           <input type="checkbox" id="onlyBackedFilter" />
           Only backed NFTs
@@ -826,10 +834,10 @@
   </div>
 
   <div id="activityTabs" class="activity-tabs" style="display:none;">
-    <a class="activity-tab-btn activity-tab-btn--current" href="inventory">📦 Inventory</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=purchases">🛒 Purchases</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=sales">💰 Sales</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=transfers">↔️ Transfers</a>
+    <a class="activity-tab-btn activity-tab-btn--current" href="inventory">Inventory</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=purchases">Purchases</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=sales">Sales</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=transfers">Transfers</a>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
@@ -1641,11 +1649,25 @@ async function fetchSchemasForCollection(collection) {
 
 let _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
 
+// Schema (unlike Rarity/Card ID) is a core protocol field every asset has,
+// so its slot in the filter row is permanent — never hidden, just disabled
+// until a collection is selected and its schema list has loaded.
+function setSchemaFilterAvailability(enabled) {
+  const btn = document.querySelector('#schemaDropdown .cb-dropdown-btn');
+  if (!btn) return;
+  btn.disabled = !enabled;
+  if (!enabled) {
+    _filterSchema = 'all';
+    _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
+    buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  }
+}
+
 function updateSchemaFilter(schemas) {
-  const group = document.getElementById('schemaGroup');
   _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...schemas.map(s => ({ value: s, label: s }))];
   buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
-  if (group) group.style.display = '';
+  const btn = document.querySelector('#schemaDropdown .cb-dropdown-btn');
+  if (btn) btn.disabled = false;
 }
 
 function onSchemaFilterChange(val) {
@@ -1836,13 +1858,25 @@ function buildCbCombo(comboId, items, currentValue, onSelect) {
   });
 }
 
+// The dynamic-attribute row (Rarity, Card ID, and future smart-generated
+// filters) is only as tall as it needs to be — hidden entirely rather than
+// left as an empty bordered gap when none of its children currently have
+// anything to show for the selected collection/schema.
+function refreshDynamicFilterRowVisibility() {
+  const row = document.getElementById('dynamicFilterRow');
+  if (!row) return;
+  const anyVisible = [...row.children].some(el => el.style.display !== 'none');
+  row.style.display = anyVisible ? '' : 'none';
+}
+
 function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const group = container.closest('.control-group');
   const panel = container.querySelector('.cb-panel');
-  if (items.length === 0) { if (group) group.style.display = 'none'; return; }
+  if (items.length === 0) { if (group) group.style.display = 'none'; refreshDynamicFilterRowVisibility(); return; }
   if (group) group.style.display = '';
+  refreshDynamicFilterRowVisibility();
   panel.innerHTML = items.map(v =>
     `<label class="cb-item"><input type="checkbox" value="${escHtml(v)}"${selectedSet.has(v) ? ' checked' : ''}><span>${escHtml(v)}</span></label>`
   ).join('');
@@ -2006,9 +2040,10 @@ function onColFilterChange(val) {
   _filterSchema = 'all';
   _selectedRarities.clear();
   _selectedCardIds.clear();
-  document.getElementById('schemaGroup').style.display = 'none';
+  setSchemaFilterAvailability(false);
   document.getElementById('rarityGroup').style.display = 'none';
   document.getElementById('cardIdGroup').style.display = 'none';
+  refreshDynamicFilterRowVisibility();
   buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
   setDupesFiltersAvailability(_filterCol !== 'all');
   const selAllBtn = document.getElementById('selectAllMatchBtn');
@@ -4935,9 +4970,10 @@ async function onWalletChange() {
     updateBuyOfferBanner();
     updateFloorPriceBanner();
     updateLastSoldBanner();
-    document.getElementById('schemaGroup').style.display  = 'none';
+    setSchemaFilterAvailability(false);
     document.getElementById('rarityGroup').style.display  = 'none';
     document.getElementById('cardIdGroup').style.display  = 'none';
+    refreshDynamicFilterRowVisibility();
     document.getElementById('mintMin').value = '';
     document.getElementById('mintMax').value = '';
     buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
