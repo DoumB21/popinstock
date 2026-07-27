@@ -264,7 +264,6 @@ const LIMIT = 100;
 const OPENABLE_PACK_TEMPLATE_IDS = new Set([
   '237610','262834','237606','238045','261936','261937','295134','295135'
 ]);
-const ATOMIC_MARKET = 'https://wax.atomichub.io/market';
 
 /* ── State ── */
 const state = {
@@ -619,7 +618,7 @@ function buildCardTable(rows, append) {
         <div class="cell-card-name">${row.cardid != null ? row.cardid + ' — ' : ''}${row.name||'—'}</div>
         <div style="margin-top:3px;display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
           <span class="rarity-pill ${RARITY_CLASS[row.rarity]||''}">${row.rarity||'—'}</span>
-          <a class="template-link" href="https://wax.atomichub.io/explorer/template/wax-mainnet/${enc(row.template_id)}" target="_blank" rel="noopener noreferrer">View template #${row.template_id}</a>
+          <a class="template-link" href="../template?template_id=${enc(row.template_id)}">View template #${row.template_id}</a>
         </div>
       </td>
       <td>
