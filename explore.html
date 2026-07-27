@@ -461,6 +461,10 @@
         <span class="col-chip-name" id="colChipName"></span>
         <button class="col-chip-clear" id="colChipClear" title="Clear">✕</button>
       </div>
+      <div class="col-chip" id="tplChip" style="margin-top:0.4rem;">
+        <span class="col-chip-name" id="tplChipName"></span>
+        <button class="col-chip-clear" id="tplChipClear" title="Clear template filter">✕</button>
+      </div>
       <button type="button" class="catalog-mode-btn" id="funkoCatalogBtn">
         <img src="images/funko-icon.png" alt="" />
         <span>Browse the Funko catalog</span>
@@ -690,6 +694,11 @@ let _bundle  = 'single'; // 'all'/'bundle' disabled in the UI until bundle displ
 let _sortBy  = 'price';
 let _sortOrd = 'asc';
 let _nameFilter = '';
+// Set only via an incoming ?template_id= deep link (template.html's "View on
+// Explore" button) — pins the listings query to that exact template. Cleared
+// whenever the visitor manually picks a different collection or clears
+// filters; not exposed as a regular sidebar filter control, just the chip.
+let _templateId = '';
 // Wallet name typed into the "Hide assets owned by wallet" field —
 // lowercased, trimmed. Empty by default (filter off) — deliberately never
 // auto-fills from the connected wallet, so the filter never activates
@@ -831,6 +840,16 @@ document.addEventListener('mousedown', e => {
 const $colSearch = document.getElementById('colSearch');
 const $colSugs   = document.getElementById('colSuggestions');
 const $colChip   = document.getElementById('colChip');
+const $tplChip   = document.getElementById('tplChip');
+
+document.getElementById('tplChipClear').addEventListener('click', clearTemplateFilter);
+function clearTemplateFilter() {
+  _templateId = '';
+  $tplChip.style.display = 'none';
+  pushUrl();
+  resetResults();
+  loadMore();
+}
 
 let _debT = null;
 $colSearch.addEventListener('input', () => {
@@ -1001,6 +1020,7 @@ async function selectCollection(c) {
   $colChip.style.display = 'flex';
 
   _rarity = ''; _schema = ''; _nameFilter = ''; _dynFilters = {};
+  _templateId = ''; $tplChip.style.display = 'none';
   _ownedTemplateIds = null; // new collection scope — stale for the one just left
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
@@ -1023,6 +1043,7 @@ async function selectCollection(c) {
 document.getElementById('colChipClear').addEventListener('click', clearCollection);
 function clearCollection() {
   _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = ''; _dynFilters = {};
+  _templateId = ''; $tplChip.style.display = 'none';
   _ownedTemplateIds = null;
   $colChip.style.display = 'none';
   $colSearch.value = '';
@@ -1123,6 +1144,7 @@ async function selectFunkoCatalog({ restoring = false } = {}) {
 
   if (!restoring) {
     _rarity = ''; _schema = ''; _drop = ''; _nameFilter = ''; _dynFilters = {};
+    _templateId = ''; $tplChip.style.display = 'none';
     document.getElementById('nameSearch').value = '';
   }
 
@@ -1973,6 +1995,7 @@ function fetchSalesPage(page) {
   url += `&sort=${_sortBy}&order=${_sortOrd}&limit=100&page=${page}`;
   if (schema)      url += `&schema_name=${encodeURIComponent(schema)}`;
   if (_nameFilter) url += `&name=${encodeURIComponent(_nameFilter)}`;
+  if (_templateId) url += `&template_id=${encodeURIComponent(_templateId)}`;
   if (_minP)       url += `&min_price=${parseFloat(_minP)}`;
   if (_maxP)       url += `&max_price=${parseFloat(_maxP)}`;
   if (_minMint)    url += `&min_template_mint=${parseInt(_minMint, 10)}`;
@@ -2806,9 +2829,9 @@ function copyVal(btn, text) {
 const _copyIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 
 // Shared by both the hover tooltip and the click-persisted popup — they only
-// differ in the header. The copy buttons/AtomicHub link are inert during
-// hover (.hover-tooltip is pointer-events:none) and only actually clickable
-// once pinned via a click.
+// differ in the header. The Collection/Template links and copy buttons are
+// inert during hover (.hover-tooltip is pointer-events:none) and only
+// actually clickable once pinned via a click.
 function renderTooltipBody(d, supply, owned) {
   const loading = !supply && !owned;
   const dash    = loading ? '…' : '—';
@@ -2823,12 +2846,12 @@ function renderTooltipBody(d, supply, owned) {
   return `
     <div class="tt-heading">Attributes</div>
     <div class="tt-section" style="margin-bottom:0.5rem">
-      ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.collectionName)}</span></div>` : ''}
+      ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.collection ? `<a href="collection/${encodeURIComponent(d.collection)}" style="color:var(--accent-light);text-decoration:none" title="View collection page">${escHtml(d.collectionName)}</a>` : escHtml(d.collectionName)}</span></div>` : ''}
       ${d.schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${escHtml(d.schema)}</span></div>` : ''}
       ${d.rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${escHtml(d.rarity)}</span></span></div>` : ''}
       ${d.cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${escHtml(d.cardid)}</span></div>` : ''}
       ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${escHtml(d.assetId)}<button class="copy-btn" onclick="copyVal(this,'${escHtml(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
-      ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${escHtml(d.templateId)}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${escHtml(d.templateId)}<button class="copy-btn" onclick="copyVal(this,'${escHtml(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
+      ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="template/${escHtml(d.templateId)}" style="color:var(--accent-light);text-decoration:none" title="View template page">#${escHtml(d.templateId)}</a><button class="copy-btn" onclick="copyVal(this,'${escHtml(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
     </div>
     <div class="tt-divider"></div>
     <div class="tt-heading">Supply</div>
@@ -2979,6 +3002,7 @@ function pushUrl() {
   } else if (_col) {
     p.set('col', _col.collection_name);
   }
+  if (_templateId) p.set('template_id', _templateId);
   if (_schema)  p.set('schema', _schema);
   if (_rarity)  p.set('rarity', _rarity);
   for (const [field, val] of Object.entries(_dynFilters)) p.set('dyn_' + field, val);
@@ -2996,8 +3020,9 @@ function pushUrl() {
 
 async function restoreFromUrl() {
   const p = new URLSearchParams(location.search);
-  const colName = p.get('col');
-  if (!colName) return;
+  let colName = p.get('col');
+  const tplId = p.get('template_id') || '';
+  if (!colName && !tplId) return;
 
   _schema     = p.get('schema')  || '';
   _rarity     = p.get('rarity')  || '';
@@ -3010,6 +3035,32 @@ async function restoreFromUrl() {
   _sortBy     = p.get('sort')    || 'price';
   _sortOrd    = p.get('order')   || 'asc';
   _nameFilter = p.get('name')    || '';
+  _templateId = '';
+
+  // A bare ?template_id= link (template.html's "View on Explore" button)
+  // arrives with no collection at all — template_id is globally unique
+  // across the whole AtomicAssets contract, so one lookup resolves it.
+  let tplInfo = null;
+  if (tplId) {
+    try {
+      const rows = await WaxApi.apiFetch(`${WaxApi.aaBase()}/templates?ids=${encodeURIComponent(tplId)}&limit=1`);
+      tplInfo = rows?.[0] || null;
+      if (!tplInfo) throw new Error('Template not found');
+      if (!colName) colName = tplInfo.collection?.collection_name;
+      _templateId = tplId;
+    } catch {
+      const $empty = document.getElementById('emptyState');
+      $empty.innerHTML = `
+        <div class="empty-state-icon">⚠️</div>
+        <h2>Couldn't load this template</h2>
+        <p>The link may be broken, or the WAX API is temporarily unreachable.</p>
+        <button type="button" class="retry-btn" id="retryRestoreBtn" style="margin-top:1rem">Try again</button>`;
+      $empty.style.display = '';
+      document.getElementById('retryRestoreBtn').addEventListener('click', restoreFromUrl);
+      return;
+    }
+  }
+  if (!colName) return;
 
   renderSortByDd();
   renderSortOrderDd();
@@ -3023,6 +3074,10 @@ async function restoreFromUrl() {
     _drop = p.get('drop') || '';
     try {
       await selectFunkoCatalog({ restoring: true });
+      if (_templateId) {
+        document.getElementById('tplChipName').textContent = tplInfo?.name ? `Template: ${tplInfo.name}` : `Template #${_templateId}`;
+        $tplChip.style.display = 'flex';
+      }
     } catch {
       const $empty = document.getElementById('emptyState');
       $empty.innerHTML = `
@@ -3047,6 +3102,11 @@ async function restoreFromUrl() {
     else { $img.style.display = 'none'; }
     $name.textContent = _col.name;
     $colChip.style.display = 'flex';
+
+    if (_templateId) {
+      document.getElementById('tplChipName').textContent = tplInfo?.name ? `Template: ${tplInfo.name}` : `Template #${_templateId}`;
+      $tplChip.style.display = 'flex';
+    }
 
     showFilters();
     resetResults();

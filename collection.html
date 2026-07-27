@@ -3,6 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- The /collection/:name rewrite makes the browser treat this page as one
+       directory level deeper than every other root-level page here, so every
+       relative asset path below needs a "../" prefix in that case — but only
+       when the site is mounted at the domain root would a plain <base> tag
+       be safe to rely on (true in production, false for e.g. a local IIS app
+       mounted at /popinstock/). Rather than a <base> tag (Chrome's
+       speculative preload scanner reads the raw HTML for <link>/<script src>
+       ahead of when a document.write'd <base> actually takes effect, so it
+       still fires one wrong-path request per asset first), the affected
+       tags themselves are written out below with the prefix already baked
+       in — the scanner never sees an unprefixed relative href to begin
+       with. document.write here is intentional and safe: it runs
+       synchronously during initial parse, before the parser reaches
+       anything that depends on it. -->
+  <script>
+    var _p = /\/collection\/[^/]+\/?$/.test(location.pathname) ? '../' : '';
+    document.write(
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.ico" sizes="any" />' +
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.png" type="image/png" />' +
+      '<link rel="stylesheet" href="' + _p + 'shared/global.css" />' +
+      '<script src="' + _p + 'shared/supabase-config.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-auth.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>'
+    );
+  </script>
   <title>Collection — Hoardio</title>
   <meta name="description" content="General information for any WAX NFT collection — stats, schemas, and market activity." />
   <link rel="canonical" href="https://www.hoardio.com/collection" />
@@ -15,9 +42,6 @@
   <meta name="twitter:title" content="Collection — Hoardio" />
   <meta name="twitter:description" content="General information for any WAX NFT collection — stats, schemas, and market activity." />
   <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
-  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
-  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
-  <link rel="stylesheet" href="shared/global.css" />
   <style>
     .collection-placeholder {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -25,36 +49,301 @@
       text-align: center; color: var(--text-secondary);
     }
     .collection-placeholder strong { color: var(--text-primary); }
+
+    /* ── Header ── */
+    /* Optional — only shown when the collection's own data.images.banner_1920x500
+       IPFS field is set (most collections don't set one; the header degrades
+       to the plain no-banner layout below when absent, unchanged from before). */
+    /* Full-bleed: break out of .page-main's 1280px max-width/centering to
+       span the actual viewport width, same look as funko/drop.html's own
+       banner — that page just gets this for free by not using .page-main
+       at all, so here it's done with the standard "100vw + recenter"
+       full-bleed trick instead. overflow-x:hidden on <html> (this page
+       only, not global.css) guards against the 100vw-includes-scrollbar
+       quirk some browsers have, which would otherwise add a few pixels of
+       horizontal scroll. */
+    html { overflow-x: hidden; }
+    .coll-banner {
+      position: relative; left: 50%; right: 50%;
+      margin-left: -50vw; margin-right: -50vw; width: 100vw;
+      aspect-ratio: 1920 / 400; max-height: 220px; overflow: hidden;
+      background: var(--bg-card);
+      /* .page-main has 2.5rem of top padding (1.75rem under 540px, see
+         global.css) — cancel it out so the banner sits flush against the
+         nav instead of leaving a gap above it. */
+      margin-top: -2.5rem;
+      /* Pulls the header content up into the banner's own faded lower
+         portion — matches funko/drop.html's own ratio (-160px overlap on
+         its 200px banner, ~80%) rather than an arbitrary smaller value. */
+      margin-bottom: -175px;
+    }
+    .coll-banner img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.6; }
+    /* Same fade recipe as funko/drop.html's .drop-banner-fade — darkens
+       toward the bottom and blends into the page background color, so
+       whatever overlaps the banner's lower edge (the logo here) reads
+       cleanly regardless of how bright/busy the source image is. */
+    .coll-banner-fade {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(10,10,15,0.2) 0%, rgba(10,10,15,0.5) 50%, var(--bg) 100%);
+    }
+    @media (max-width: 540px) {
+      /* aspect-ratio scales the banner down a lot at mobile widths (~78px
+         tall at 375px wide) — the desktop overlap would swallow the whole
+         banner and then some, so mobile keeps the older, smaller overlap. */
+      .coll-banner { margin-top: -1.75rem; margin-bottom: -40px; }
+    }
+    .coll-header { display: flex; gap: 1.25rem; align-items: flex-start; margin-bottom: 1.25rem; position: relative; }
+    /* funko/drop.html's own header uses padding:1.5rem unconditionally —
+       its content container happens to use the same 1.5rem too, so its
+       banner-vs-no-banner cases end up visually identical by coincidence.
+       This page's .page-main already gives the no-banner case that same
+       1.5rem, so adding it again there would double the inset — scoped to
+       the with-banner case only, which is the one actually being matched. */
+    .coll-header--with-banner { padding-left: 1.5rem; }
+    .coll-header--with-banner .coll-logo { box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+    .coll-logo {
+      width: 84px; height: 84px; border-radius: 14px; object-fit: cover;
+      background: var(--bg-card); border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .coll-header-info { min-width: 0; flex: 1; }
+    .coll-sub { color: var(--text-secondary); font-size: 0.92rem; margin: 0.15rem 0 0.6rem; }
+    .coll-sub a { color: var(--accent-light); text-decoration: none; }
+    .coll-sub a:hover { text-decoration: underline; }
+    .coll-desc { color: var(--text-secondary); font-size: 0.95rem; max-width: 760px; margin: 0 0 0.6rem; }
+    .coll-desc strong { color: var(--text-primary); }
+    .coll-desc a { color: var(--accent-light); text-decoration: none; }
+    .coll-desc a:hover { text-decoration: underline; }
+    .coll-links { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.88rem; }
+    .coll-links a { color: var(--accent-light); text-decoration: none; }
+    .coll-links a:hover { text-decoration: underline; }
+
+    /* global.css's .stat-value (1.4rem) wraps "20,804.99 WAX"-style values
+       onto a second line inside a ~140-160px .stat-card column — scoped
+       override (not touched in global.css, which other pages also use)
+       just for this page's stats-grid: a touch smaller + nowrap so the
+       unit never wraps, with a slightly wider min column to match. */
+    #statsGrid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+    #statsGrid .stat-value { font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Tabs (same visual family as inventory-activity.html's .act-tabs,
+       adapted: no "current page" link tab here, every tab is an in-page
+       client-side swap since this page has no separate URLs to route to). ── */
+    .coll-tabs { display: flex; gap: 0.5rem; margin: 1.25rem 0 1.25rem; flex-wrap: wrap; }
+    .coll-tab-btn {
+      flex: 1; min-width: 110px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.6rem 0.9rem; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary); font-size: 0.92rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .coll-tab-btn:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .coll-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+    .coll-tab-count { opacity: 0.7; font-weight: 400; }
+
+    /* ── Overview tab ── */
+    .coll-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
+    .coll-section-title:first-child { margin-top: 0; }
+    .top-sales-row { display: flex; gap: 0.9rem; overflow-x: auto; padding-bottom: 0.4rem; }
+    .top-sale-card {
+      flex: 0 0 150px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .top-sale-img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--bg); display: block; }
+    .top-sale-body { padding: 0.55rem 0.65rem; }
+    .top-sale-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-sale-price { color: var(--accent-light); font-size: 0.85rem; font-weight: 700; }
+    .top-sale-usd { color: var(--text-secondary); font-size: 0.78rem; font-weight: 400; display: block; min-height: 1.1em; }
+    .top-sale-date { color: var(--text-secondary); font-size: 0.76rem; margin-top: 0.15rem; }
+    /* margin-top here rather than relying on .coll-section-title's own
+       top margin — "Top Sellers"/"Top Buyers" are each the first (only)
+       child of their own column div, so the shared :first-child rule
+       (meant only to zero the gap above "Top Sales" at the very top of the
+       tab) was unintentionally zeroing theirs too, collapsing the gap
+       above this whole section to nothing. */
+    .overview-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.75rem; }
+    .overview-cols .coll-section-title { margin-top: 0; }
+    @media (max-width: 720px) { .overview-cols { grid-template-columns: 1fr; } }
+
+    /* ── Leaderboard-style tables (same convention as funko/drop.html, topps/subset.html) ── */
+    .rank-cell { font-weight: 700; color: var(--text-secondary); font-size: 0.88rem; white-space: nowrap; }
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+    .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
+
+    /* ── Template hover tooltip — same pattern/classes as inventory.html's
+       .hover-tooltip (copied, not shared — that page's own comment notes
+       this is page-local by convention here too), widened since a
+       template's full immutable_data field list runs longer than an
+       asset card's curated summary. Reference for the "look at every field
+       at a glance" idea: AtomicHub's own template hover popup. ── */
+    .tpl-tooltip {
+      /* pointer-events: none means the user can never scroll this thing —
+         it must be tall/wide enough that a template's full field list fits
+         without needing to, rather than relying on the overflow-y: auto
+         that's still here as a last-resort clip for the rare template with
+         an unusually huge attribute list. */
+      position: fixed; z-index: 300; width: 360px; max-height: min(640px, 80vh); overflow-y: auto;
+      background: #16161f; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 0.85rem 1rem;
+      pointer-events: none; box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      font-size: 0.78rem;
+    }
+    .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
+    .tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+    .tt-label { color: var(--text-secondary); }
+    .tt-val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tt-val--wrap { white-space: normal; text-align: left; font-weight: 400; max-width: none; }
+    .tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.55rem 0; }
+    .tt-heading { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem; }
+
+    /* ── Templates / Schemas grid ── */
+    .coll-toolbar { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .coll-toolbar .search-input { flex: 1; min-width: 200px; }
+    .coll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+    .coll-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .coll-card-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .coll-card-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .coll-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
+    .coll-card-body { padding: 0.65rem 0.75rem; }
+    .coll-card-name { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .coll-card-sub { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.1rem; }
+    .coll-card-sub--burned { min-height: 1.15em; }
+    a.coll-card-link { text-decoration: none; color: inherit; display: block; }
+
+    /* ── Holders table ── */
+    .holders-search-wrap { margin-bottom: 1rem; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
-  <script src="shared/supabase-config.js"></script>
-  <script src="shared/wax-auth.js"></script>
-  <script src="shared/wax-api.js"></script>
-  <script src="shared/settings.js"></script>
-  <script src="shared/wallet-widget.js"></script>
 </head>
 <body>
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index" class="nav-home" title="Back to homepage">
-      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    <a href="#" class="nav-home" id="navHomeLink" title="Back to homepage">
+      <img src="" alt="Hoardio" id="navHomeImg" />
     </a>
     <span class="nav-divider"></span>
     <div class="nav-links"></div>
   </div>
 </nav>
-<script src="shared/generic-nav.js"></script>
+<script>
+  document.getElementById('navHomeLink').href = _p + 'index';
+  document.getElementById('navHomeImg').src = _p + 'images/Hoardio_fav.png';
+  document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
+</script>
+<script>
+  // generic-nav.js itself builds .nav-links/.nav-mobile with plain relative
+  // hrefs ("explore", "trade-analyzer") — it has no idea this page can sit
+  // one directory level deeper than every other page it's shared with, so
+  // those need the same _p prefix as everything else here. This script tag
+  // runs after the one above (script execution order — including whatever
+  // it document.write'd — is document order), i.e. after generic-nav.js has
+  // already built those links, so there's something to fix up yet.
+  if (_p) {
+    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
+      a.setAttribute('href', _p + a.getAttribute('href'));
+    });
+  }
+</script>
+<script>
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: _p + 'shared/wax-auth.js',
+    apiScript: _p + 'shared/wax-api.js',
+    exploreHref: _p + 'explore',
+    offersHref: _p + 'trade-offers',
+    menuItems: [
+      { href: _p + 'inventory', label: 'Inventory', icon: '📦' },
+      { href: _p + 'inventory-activity', label: 'Activity', icon: '🕒' },
+      { href: _p + 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: _p + 'gift-links', label: 'Gift Links', icon: '🎁' },
+    ],
+  });
+</script>
 
 <main class="page-main">
-  <div class="page-header">
-    <h1 class="page-title" id="pageTitle">Collection</h1>
-    <p class="page-desc" id="pageDesc">General information for a WAX collection</p>
+
+  <div id="loadingMsg" class="collection-placeholder">Loading…</div>
+  <div id="noParamMsg" class="collection-placeholder" style="display:none;">
+    No collection specified. Add <strong>?collection_name=&lt;name&gt;</strong> to the URL.
+  </div>
+  <div id="notFoundMsg" class="collection-placeholder" style="display:none;"></div>
+
+  <div id="collWrap" style="display:none;">
+    <div id="collBanner" class="coll-banner" style="display:none;">
+      <img id="collBannerImg" alt="" />
+      <div class="coll-banner-fade"></div>
+    </div>
+    <div id="collHeader" class="coll-header">
+      <img id="collLogo" class="coll-logo" alt="" />
+      <div class="coll-header-info">
+        <h1 class="page-title" id="collTitle">Collection</h1>
+        <div class="coll-sub" id="collSub"></div>
+        <p class="coll-desc" id="collDesc"></p>
+        <div class="coll-links" id="collLinks"></div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div class="coll-tabs" id="collTabs">
+      <button type="button" class="coll-tab-btn active" data-tab="overview">Overview</button>
+      <button type="button" class="coll-tab-btn" data-tab="templates">Templates<span class="coll-tab-count" id="templatesTabCount"></span></button>
+      <button type="button" class="coll-tab-btn" data-tab="schemas">Schemas<span class="coll-tab-count" id="schemasTabCount"></span></button>
+      <button type="button" class="coll-tab-btn" data-tab="holders">Holders<span class="coll-tab-count" id="holdersTabCount"></span></button>
+    </div>
+
+    <div id="tabOverview" class="coll-tab-panel">
+      <div class="coll-section-title">Top Sales (All-Time)</div>
+      <div class="top-sales-row" id="topSalesRow"><div class="collection-placeholder">Loading…</div></div>
+      <div class="overview-cols">
+        <div>
+          <div class="coll-section-title">Top Sellers</div>
+          <div class="table-wrap" id="topSellersWrap"><div class="collection-placeholder">Loading…</div></div>
+        </div>
+        <div>
+          <div class="coll-section-title">Top Buyers</div>
+          <div class="table-wrap" id="topBuyersWrap"><div class="collection-placeholder">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabTemplates" class="coll-tab-panel" style="display:none;">
+      <div class="coll-toolbar">
+        <input class="search-input" id="templateSearch" type="text" placeholder="Search loaded templates…" autocomplete="off" spellcheck="false" />
+        <div class="cb-dropdown" id="templateSortDropdown" style="max-width:200px;">
+          <button class="cb-dropdown-btn" type="button"><span class="cb-label"></span><span class="cb-arrow">▾</span></button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+      <div class="coll-grid" id="templatesGrid"></div>
+      <div id="templatesLoadMoreWrap" style="display:none; text-align:center; padding:1.5rem 0 0.5rem;">
+        <button id="templatesLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
+    </div>
+
+    <div id="tabSchemas" class="coll-tab-panel" style="display:none;">
+      <div class="coll-grid" id="schemasGrid"><div class="collection-placeholder">Loading…</div></div>
+    </div>
+
+    <div id="tabHolders" class="coll-tab-panel" style="display:none;">
+      <div class="holders-search-wrap">
+        <input class="search-input" id="holdersSearch" type="text" placeholder="Search loaded holders…" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box;" />
+      </div>
+      <div class="table-wrap" id="holdersWrap"></div>
+      <div id="holdersLoadMoreWrap" style="display:none; text-align:center; padding:1.5rem 0 0.5rem;">
+        <button id="holdersLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
+    </div>
   </div>
 
-  <div id="collectionContent" class="collection-placeholder">Loading…</div>
 </main>
+
+<div id="tplTooltip" class="tpl-tooltip" style="display:none;"></div>
 
 <footer>
   &copy; 2026 Hoardio &mdash; All rights reserved.
@@ -62,24 +351,549 @@
 </footer>
 
 <script>
-  'use strict';
+'use strict';
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+
+// Some collection creators write their description as lightweight markdown
+// (bold + links), e.g. nerdsuniteus's actual on-chain text uses "**bold**"
+// and "[label](url)". This is NOT a general markdown renderer — just these
+// two patterns, plus preserved line breaks. Escapes first (neutralizing any
+// raw HTML in the source text), then only ever introduces new <strong>/<a>
+// tags for patterns that matched our own safelist regexes — link targets
+// are restricted to http(s) URLs so a description couldn't inject a
+// javascript: URL even if it tried.
+function renderDescription(text) {
+  if (!text) return '';
+  let html = escHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+  return html.replace(/\n/g, '<br>');
+}
+function onImgError(el) {
+  const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+  const hash = el.dataset.ipfsHash;
+  if (hash && idx < IPFS_GATEWAY_LIST.length) {
+    el.dataset.gwIdx = String(idx);
+    setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1000);
+    return;
   }
+  el.outerHTML = '<div class="coll-card-img-ph">?</div>';
+}
+function fmtWax(raw, precision) {
+  const n = Number(raw) / (10 ** (precision ?? 8));
+  if (!isFinite(n)) return '—';
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' WAX';
+}
+// Abbreviated variant for the header stat tile — full-precision numbers on
+// a very large/active collection (e.g. Alien Worlds' 300M+ WAX volume)
+// overflow the fixed-width .stat-card, so this tile alone uses compact
+// notation once the value crosses 1M.
+function fmtWaxCompact(raw, precision) {
+  const n = Number(raw) / (10 ** (precision ?? 8));
+  if (!isFinite(n)) return '—';
+  // Combined with " WAX", the full-precision form only reliably fits the
+  // stat tile up to ~4 figures (confirmed live: 146,909.46 WAX truncated
+  // with an ellipsis at the tile's font size) — abbreviate well before that
+  // point rather than let nowrap fall back to truncating a real number.
+  if (n >= 1e6) return (n / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M WAX';
+  if (n >= 1e3) return (n / 1e3).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'K WAX';
+  return fmtWax(raw, precision);
+}
+function fmtCompactInt(raw) {
+  const n = Number(raw);
+  if (!isFinite(n)) return '—';
+  if (n >= 1e6) return (n / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
+  return n.toLocaleString();
+}
+function fmtDate(msStr) {
+  const n = Number(msStr);
+  if (!isFinite(n) || !n) return '';
+  return new Date(n).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+// Same table + Accept-Profile:funko header pattern as marketplace.html's
+// Sales History tab. Returns { 'YYYY-MM-DD': usd_per_wax }, missing dates
+// simply absent (no rate recorded yet, or Supabase unreachable) rather
+// than throwing — callers should treat a missing entry as "skip the $ tag".
+async function fetchHistoricalWaxUsdRates(dates) {
+  const unique = [...new Set(dates)].filter(Boolean);
+  if (!unique.length) return {};
+  try {
+    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Accept-Profile': 'funko' };
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/wax_usd_rates?rate_date=in.(${unique.join(',')})&select=rate_date,usd_per_wax`, { headers });
+    const rows = await r.json();
+    return Object.fromEntries((rows || []).map(row => [row.rate_date, row.usd_per_wax]));
+  } catch { return {}; }
+}
+function rankClass(rank) { return rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : ''; }
 
-  const collectionName = new URLSearchParams(location.search).get('collection_name');
-  const contentEl = document.getElementById('collectionContent');
-  const titleEl = document.getElementById('pageTitle');
-  const descEl = document.getElementById('pageDesc');
-
-  if (!collectionName) {
-    contentEl.innerHTML = 'No collection specified. Add <strong>?collection_name=&lt;name&gt;</strong> to the URL.';
-  } else {
-    titleEl.textContent = collectionName;
-    descEl.textContent = 'Collection overview';
-    contentEl.innerHTML = `Data for <strong>${escapeHtml(collectionName)}</strong> coming soon.`;
+/* ── Minimal single-select cb-dropdown plumbing (same pattern used by
+   inventory.html / inventory-activity.html / profile.html — copied rather
+   than shared, matching how those pages already do it). Only the
+   single-select variant is needed here, so the combo-search wiring those
+   pages also have is intentionally left out. ── */
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => { closeAllCbDropdowns(); onSelect(item.dataset.val); });
+  });
+  const btn = container.querySelector('.cb-dropdown-btn');
+  if (!btn._wired) {
+    btn._wired = true;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = panel.classList.contains('open');
+      closeAllCbDropdowns();
+      if (!isOpen) { panel.classList.add('open'); btn.classList.add('open'); }
+    });
   }
+}
+document.addEventListener('click', closeAllCbDropdowns);
+
+/* ── Page state ── */
+// The ?collection_name= query param is how production actually gets here
+// (Vercel's /collection/:name rewrite maps to collection.html?collection_name=:name,
+// invisibly — the address bar stays on the clean path). This is kept as the
+// primary source. The path-segment fallback below means the page also works
+// correctly if that param never arrives for any reason — e.g. a local IIS
+// setup where this project is nested under an extra path segment
+// (http://localhost/PopInStock/collection/x) that the local web.config's
+// rewrite rule wasn't written to account for — without ever needing the
+// query string to show up in the visible URL either way.
+function getCollectionNameFromUrl() {
+  const qp = new URLSearchParams(location.search).get('collection_name');
+  if (qp) return qp;
+  const m = location.pathname.match(/\/collection\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const collectionName = getCollectionNameFromUrl();
+let _collInfo = null;
+
+/* ── Tabs ── */
+const _loadedTabs = { overview: false, templates: false, schemas: false, holders: false };
+function setActiveTab(tab) {
+  document.querySelectorAll('.coll-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.coll-tab-panel').forEach(p => p.style.display = (p.id === 'tab' + tab[0].toUpperCase() + tab.slice(1)) ? '' : 'none');
+  if (!_loadedTabs[tab]) {
+    _loadedTabs[tab] = true;
+    if (tab === 'overview') loadOverview();
+    if (tab === 'templates') loadTemplates(true);
+    if (tab === 'schemas') loadSchemas();
+    if (tab === 'holders') loadHolders(true);
+  }
+}
+document.querySelectorAll('.coll-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+});
+
+/* ── Header + stats ── */
+async function loadHeader() {
+  const aa = WaxApi.aaBase();
+  const mkt = WaxApi.marketBase();
+
+  let info, stats, marketStats;
+  try {
+    [info, stats] = await Promise.all([
+      WaxApi.apiFetch(`${aa}/collections/${encodeURIComponent(collectionName)}`),
+      WaxApi.apiFetch(`${aa}/collections/${encodeURIComponent(collectionName)}/stats`),
+    ]);
+  } catch {
+    document.getElementById('loadingMsg').style.display = 'none';
+    const el = document.getElementById('notFoundMsg');
+    el.style.display = '';
+    el.innerHTML = `Could not find a collection named <strong>${escHtml(collectionName)}</strong>.`;
+    return;
+  }
+  try {
+    marketStats = await WaxApi.apiFetch(`${mkt}/stats/collections?symbol=WAX&collection_name=${encodeURIComponent(collectionName)}`);
+  } catch { marketStats = null; }
+
+  document.getElementById('templatesTabCount').textContent = ` (${Number(stats.templates).toLocaleString()})`;
+  document.getElementById('schemasTabCount').textContent = ` (${Number(stats.schemas).toLocaleString()})`;
+  // Holders has no count in /collections/stats — a dedicated count=true
+  // request is cheap (no rows returned, just the total) and doesn't block
+  // the rest of the header from rendering while it resolves.
+  WaxApi.apiFetch(`${aa}/accounts?collection_name=${encodeURIComponent(collectionName)}&count=true`)
+    .then(n => { document.getElementById('holdersTabCount').textContent = ` (${Number(n).toLocaleString()})`; })
+    .catch(() => {});
+
+  _collInfo = info;
+  const volumeRow = marketStats?.results?.[0];
+
+  document.title = `${info.name || collectionName} — Hoardio`;
+  document.getElementById('collLogo').src = info.img ? toMediaUrl(info.img) : 'images/Hoardio_fav.png';
+  document.getElementById('collTitle').textContent = info.name || collectionName;
+
+  // Optional wide banner — data.images is a JSON string most collections
+  // never set (null), same field AtomicHub reads for its own header image.
+  try {
+    const images = JSON.parse(info.data?.images || 'null');
+    if (images?.banner_1920x500) {
+      document.getElementById('collBannerImg').src = toMediaUrl(images.banner_1920x500);
+      document.getElementById('collBanner').style.display = '';
+      document.getElementById('collHeader').classList.add('coll-header--with-banner');
+    }
+  } catch {}
+
+  const created = fmtDate(info.created_at_time);
+  document.getElementById('collSub').innerHTML =
+    `${escHtml(collectionName)} &middot; by ${escHtml(info.author)}` +
+    (created ? ` &middot; created ${created}` : '') +
+    ` &middot; ${(info.market_fee * 100).toFixed(2)}% royalty`;
+
+  document.getElementById('collDesc').innerHTML = renderDescription(info.data?.description);
+
+  const links = [];
+  links.push(`<a href="${_p}explore?col=${encodeURIComponent(collectionName)}">View on Market</a>`);
+  if (info.data?.url) links.push(`<a href="${escHtml(info.data.url)}" target="_blank" rel="noopener">Website ↗</a>`);
+  try {
+    const socials = JSON.parse(info.data?.socials || '{}');
+    if (socials.twitter)  links.push(`<a href="https://twitter.com/${escHtml(socials.twitter)}" target="_blank" rel="noopener">Twitter ↗</a>`);
+    if (socials.discord)  links.push(`<a href="https://discord.gg/${escHtml(socials.discord)}" target="_blank" rel="noopener">Discord ↗</a>`);
+    if (socials.telegram) links.push(`<a href="https://t.me/${escHtml(socials.telegram)}" target="_blank" rel="noopener">Telegram ↗</a>`);
+  } catch {}
+  document.getElementById('collLinks').innerHTML = links.join('');
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${fmtCompactInt(stats.assets)}</div><div class="stat-label">Assets</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtCompactInt(stats.burned)}</div><div class="stat-label">Burned</div></div>
+    <div class="stat-card"><div class="stat-value">${Number(stats.templates).toLocaleString()}</div><div class="stat-label">Templates</div></div>
+    <div class="stat-card"><div class="stat-value">${Number(stats.schemas).toLocaleString()}</div><div class="stat-label">Schemas</div></div>
+    <div class="stat-card"><div class="stat-value">${volumeRow ? fmtWaxCompact(volumeRow.volume) : '—'}</div><div class="stat-label">All-Time Volume</div></div>
+    <div class="stat-card"><div class="stat-value">${volumeRow ? fmtCompactInt(volumeRow.sales) : '—'}</div><div class="stat-label">All-Time Sales</div></div>
+  `;
+
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('collWrap').style.display = '';
+  setActiveTab('overview');
+}
+
+/* ── Overview tab ── */
+async function loadOverview() {
+  const mkt = WaxApi.marketBase();
+
+  // Top 5 all-time sales by price. /v1/sales already returns full nested
+  // asset/template data (name+img), so no separate resolve step is needed —
+  // fetch a few extra and drop (a) bundle sales (assets.length > 1), since a
+  // bundle's price covers multiple NFTs and isn't a fair "top sale" figure
+  // (same bundle-filtering lesson as the bulk-pagination work elsewhere),
+  // and (b) sales actually LISTED in a currency other than WAX (e.g. a
+  // USD-denominated listing settled to a WAX amount at sale time — that
+  // converted figure is a currency-conversion artifact of whatever the
+  // exchange rate happened to be at settlement, not a real "someone paid
+  // N WAX" figure, which is exactly why AtomicHub's own Top Sales excludes
+  // these too — confirmed live: alien.worlds' actual #1 by raw WAX amount
+  // was a listing_symbol:"USD" sale AtomicHub's UI simply never showed).
+  (async () => {
+    const row = document.getElementById('topSalesRow');
+    try {
+      const sales = await WaxApi.apiFetch(`${mkt}/sales?collection_name=${encodeURIComponent(collectionName)}&symbol=WAX&state=3&sort=price&order=desc&limit=20`);
+      const top = (sales || []).filter(s => s.assets?.length === 1 && s.listing_symbol === 'WAX').slice(0, 5);
+      if (!top.length) { row.innerHTML = `<div class="collection-placeholder">No sales yet.</div>`; return; }
+
+      // Historical WAX/USD rate at time of sale — same wax_usd_rates table
+      // + Accept-Profile:funko header pattern already used by marketplace.html's
+      // Sales History tab (not Funko-specific data, just where that table
+      // happens to live). One batched query for all 5 dates, not five calls.
+      const rateByDate = await fetchHistoricalWaxUsdRates(top.map(s => new Date(Number(s.updated_at_time)).toISOString().slice(0, 10)));
+
+      row.innerHTML = top.map(sale => {
+        const tmpl = sale.assets[0].template;
+        const name = tmpl?.immutable_data?.name || sale.assets[0].name || 'Unnamed';
+        const img  = tmpl?.immutable_data?.img;
+        const media = img
+          ? `<img class="top-sale-img" src="${escHtml(toMediaUrl(img))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(img)}" data-gw-idx="0" onerror="onImgError(this)">`
+          : `<div class="top-sale-img coll-card-img-ph" style="display:flex;align-items:center;justify-content:center;">?</div>`;
+        const dateStr = new Date(Number(sale.updated_at_time)).toISOString().slice(0, 10);
+        const rate = rateByDate[dateStr];
+        const waxAmount = Number(sale.price.amount) / (10 ** sale.price.token_precision);
+        const usdStr = rate ? `≈ $${(waxAmount * rate).toFixed(2)}` : '';
+        return `<div class="top-sale-card">${media}<div class="top-sale-body">
+          <div class="top-sale-name" title="${escHtml(name)}">${escHtml(name)}</div>
+          <div class="top-sale-price">${fmtWax(sale.price.amount)}</div>
+          <div class="top-sale-usd">${usdStr}</div>
+          <div class="top-sale-date">${fmtDate(sale.updated_at_time)}</div>
+        </div></div>`;
+      }).join('');
+    } catch { row.innerHTML = `<div class="collection-placeholder">Could not load top sales.</div>`; }
+  })();
+
+  // Top sellers / buyers leaderboards.
+  async function loadLeaderboard(sortField, wrapId) {
+    const wrap = document.getElementById(wrapId);
+    try {
+      const res = await WaxApi.apiFetch(`${mkt}/stats/accounts?symbol=WAX&collection_name=${encodeURIComponent(collectionName)}&sort=${sortField}&limit=10`);
+      const rows = res?.results || [];
+      if (!rows.length) { wrap.innerHTML = `<div class="collection-placeholder">No data yet.</div>`; return; }
+      wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Volume</th></tr></thead><tbody>
+        ${rows.map((r, i) => `<tr>
+          <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
+          <td class="wallet-cell">${escHtml(r.account)}</td>
+          <td class="col-r">${fmtWax(sortField === 'sell_volume' ? r.sell_volume : r.buy_volume)}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+    } catch { wrap.innerHTML = `<div class="collection-placeholder">Could not load.</div>`; }
+  }
+  loadLeaderboard('sell_volume', 'topSellersWrap');
+  loadLeaderboard('buy_volume', 'topBuyersWrap');
+}
+
+/* ── Templates tab ── */
+// The AtomicAssets /templates endpoint only accepts sort=name or
+// sort=created (confirmed live — sort=issued_supply is a 400). "Most
+// issued" is therefore a client-side-only re-sort of whatever's already
+// loaded (see renderTemplatesGrid), not a server refetch — same spirit as
+// the "search loaded templates" box below it.
+const TEMPLATE_SORTS = [
+  { value: 'created', label: 'Newest' },
+  { value: 'name', label: 'Name (A-Z)' },
+  { value: 'issued_supply', label: 'Most issued' },
+];
+let _templateSort = 'created';
+let _templatePage = 1;
+let _templatesAll = [];
+let _templatesDone = false;
+let _templatesBusy = false;
+
+function onTemplateSortChange(val) {
+  _templateSort = val;
+  buildSingleCbDropdown('templateSortDropdown', TEMPLATE_SORTS, _templateSort, onTemplateSortChange);
+  if (val === 'issued_supply') renderTemplatesGrid();
+  else loadTemplates(true);
+}
+function onTemplateSearchInput() { renderTemplatesGrid(); }
+
+async function loadTemplates(reset) {
+  if (_templatesBusy) return;
+  if (reset) { _templatePage = 1; _templatesAll = []; _templatesDone = false; }
+  if (_templatesDone) return;
+  _templatesBusy = true;
+
+  buildSingleCbDropdown('templateSortDropdown', TEMPLATE_SORTS, _templateSort, onTemplateSortChange);
+
+  const sort  = _templateSort === 'name' ? 'name' : 'created';
+  const order = _templateSort === 'name' ? 'asc' : 'desc';
+  const aa = WaxApi.aaBase();
+  try {
+    const rows = await WaxApi.apiFetch(`${aa}/templates?collection_name=${encodeURIComponent(collectionName)}&page=${_templatePage}&limit=100&sort=${sort}&order=${order}`);
+    if (!rows.length || rows.length < 100) _templatesDone = true;
+    _templatesAll.push(...rows);
+    _templatePage++;
+  } catch {
+    document.getElementById('templatesGrid').innerHTML = `<div class="collection-placeholder">Could not load templates.</div>`;
+    _templatesBusy = false;
+    return;
+  }
+  _templatesBusy = false;
+  renderTemplatesGrid();
+  document.getElementById('templatesLoadMoreWrap').style.display = _templatesDone ? 'none' : '';
+}
+
+function renderTemplatesGrid() {
+  const q = document.getElementById('templateSearch').value.trim().toLowerCase();
+  let items = q ? _templatesAll.filter(t => (t.immutable_data?.name || t.name || '').toLowerCase().includes(q)) : _templatesAll;
+  if (_templateSort === 'issued_supply') items = [...items].sort((a, b) => Number(b.issued_supply) - Number(a.issued_supply));
+  const grid = document.getElementById('templatesGrid');
+  if (!items.length) { grid.innerHTML = `<div class="collection-placeholder">No templates found.</div>`; return; }
+  grid.innerHTML = items.map(t => {
+    const name = t.immutable_data?.name || t.name || `#${t.template_id}`;
+    const img  = t.immutable_data?.img;
+    const media = img
+      ? `<img src="${escHtml(toMediaUrl(img))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(img)}" data-gw-idx="0" onerror="onImgError(this)">`
+      : `<div class="coll-card-img-ph">?</div>`;
+    const supply = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} / ${t.max_supply}` : `${t.issued_supply} minted`;
+    return `<a class="coll-card-link" href="${_p}template/${t.template_id}">
+      <div class="coll-card">
+        <div class="coll-card-img-wrap" data-tpl-id="${t.template_id}">${media}</div>
+        <div class="coll-card-body">
+          <div class="coll-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
+          <div class="coll-card-sub">#${t.template_id} &middot; ${escHtml(supply)}</div>
+        </div>
+      </div>
+    </a>`;
+  }).join('');
+
+  // Hover-only, scoped to the image itself (not the name/mint-count body,
+  // and not the whole card-link) — same scoping reasoning as inventory.html's
+  // asset-card tooltip: hovering the parts someone's about to click shouldn't
+  // pop a tooltip in the way of that click.
+  grid.querySelectorAll('.coll-card-img-wrap').forEach(el => {
+    const t = items.find(x => String(x.template_id) === el.dataset.tplId);
+    if (!t) return;
+    el.addEventListener('mouseenter', () => scheduleTemplateTooltip(el, t));
+    el.addEventListener('mouseleave', cancelTemplateTooltip);
+  });
+}
+
+/* ── Template hover tooltip ── */
+let _tplTooltipTimer = null;
+
+function scheduleTemplateTooltip(el, t) {
+  cancelTemplateTooltip();
+  _tplTooltipTimer = setTimeout(() => showTemplateTooltip(el, t), 350);
+}
+function cancelTemplateTooltip() {
+  clearTimeout(_tplTooltipTimer);
+  _tplTooltipTimer = null;
+  document.getElementById('tplTooltip').style.display = 'none';
+}
+function positionTemplateTooltip(el) {
+  const tip  = document.getElementById('tplTooltip');
+  const rect = el.getBoundingClientRect();
+  const TW   = 360;
+  const TH   = tip.offsetHeight || 200;
+  let left = rect.right + 10;
+  if (left + TW > window.innerWidth - 8) left = rect.left - TW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + TH > window.innerHeight - 8) top = window.innerHeight - TH - 8;
+  if (top < 8) top = 8;
+  tip.style.left = left + 'px';
+  tip.style.top  = top  + 'px';
+}
+function showTemplateTooltip(el, t) {
+  document.getElementById('tplTooltip').innerHTML = renderTemplateTooltip(t);
+  document.getElementById('tplTooltip').style.display = '';
+  positionTemplateTooltip(el);
+}
+function renderTemplateTooltip(t) {
+  const supply  = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} (Max: ${t.max_supply})` : `${t.issued_supply} minted`;
+  const img     = t.immutable_data?.img;
+  const created = t.created_at_time ? new Date(Number(t.created_at_time)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  // Every custom field the template defines, same "show it all" idea as
+  // AtomicHub's own hover popup — img/name are already shown above, so
+  // skip those two specifically. Longer values (e.g. a description) wrap
+  // on their own line instead of being squeezed into a right-aligned cell.
+  // Exclude by schema field TYPE (image/ipfs), not just the literal "img"
+  // key — some schemas have a second media field (e.g. alien.worlds land
+  // templates' "backimg") that isn't worth showing as a raw IPFS hash
+  // either. AtomicHub's own popup hides these the same way.
+  const mediaFields = new Set((t.schema?.format || []).filter(f => f.type === 'image' || f.type === 'ipfs').map(f => f.name));
+  const fields = Object.entries(t.immutable_data || {}).filter(([k]) => k !== 'name' && !mediaFields.has(k));
+
+  return `
+    <div style="display:flex; gap:0.7rem; margin-bottom:0.65rem;">
+      ${img
+        ? `<img src="${escHtml(toMediaUrl(img))}" alt="" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--bg);flex-shrink:0;">`
+        : ''}
+      <div style="min-width:0;">
+        <div class="tt-heading" style="margin-bottom:0.1rem;">Template ID</div>
+        <div style="font-size:0.95rem;font-weight:700;color:var(--accent-light);">#${t.template_id}</div>
+      </div>
+    </div>
+    <div class="tt-section" style="margin-bottom:0.5rem">
+      ${t.schema?.schema_name ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${escHtml(t.schema.schema_name)}</span></div>` : ''}
+      <div class="tt-row"><span class="tt-label">Issued Supply</span><span class="tt-val">${escHtml(supply)}</span></div>
+    </div>
+    ${fields.length ? `<div class="tt-divider"></div><div class="tt-section">${fields.map(([k, v]) => {
+      const val = String(v);
+      return val.length > 40
+        ? `<div style="margin-bottom:0.3rem;"><div class="tt-label" style="margin-bottom:0.1rem;">${escHtml(k)}</div><div class="tt-val tt-val--wrap">${escHtml(val.slice(0, 200))}${val.length > 200 ? '…' : ''}</div></div>`
+        : `<div class="tt-row"><span class="tt-label">${escHtml(k)}</span><span class="tt-val">${escHtml(val)}</span></div>`;
+    }).join('')}</div>` : ''}
+    ${created ? `<div class="tt-divider"></div><div style="font-size:0.68rem;color:var(--text-secondary);text-align:right;">Created: ${escHtml(created)}</div>` : ''}
+  `;
+}
+
+document.getElementById('templatesLoadMoreBtn').addEventListener('click', () => loadTemplates(false));
+document.getElementById('templateSearch').addEventListener('input', onTemplateSearchInput);
+
+/* ── Schemas tab ── */
+async function loadSchemas() {
+  const aa = WaxApi.aaBase();
+  const grid = document.getElementById('schemasGrid');
+  let stats;
+  try { stats = await WaxApi.apiFetch(`${aa}/collections/${encodeURIComponent(collectionName)}/stats`); } catch { stats = null; }
+  const burnedBySchema = new Map((stats?.burned_by_schema || []).map(b => [b.schema_name, b.burned]));
+
+  try {
+    const rows = await WaxApi.apiFetch(`${aa}/schemas?collection_name=${encodeURIComponent(collectionName)}&limit=100`);
+    if (!rows.length) { grid.innerHTML = `<div class="collection-placeholder">No schemas found.</div>`; return; }
+    grid.innerHTML = rows.map(s => {
+      const burned = burnedBySchema.get(s.schema_name) || 0;
+      return `<div class="coll-card">
+          <div class="coll-card-body">
+            <div class="coll-card-name">${escHtml(s.schema_name)}</div>
+            <div class="coll-card-sub">${Number(s.assets || 0).toLocaleString()} assets</div>
+            <div class="coll-card-sub coll-card-sub--burned">${burned ? burned.toLocaleString() + ' burned' : ''}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch { grid.innerHTML = `<div class="collection-placeholder">Could not load schemas.</div>`; }
+}
+
+/* ── Holders tab ── */
+let _holdersPage = 1;
+let _holdersAll = [];
+let _holdersDone = false;
+let _holdersBusy = false;
+
+async function loadHolders(reset) {
+  if (_holdersBusy) return;
+  if (reset) { _holdersPage = 1; _holdersAll = []; _holdersDone = false; }
+  if (_holdersDone) return;
+  _holdersBusy = true;
+
+  const aa = WaxApi.aaBase();
+  try {
+    const rows = await WaxApi.apiFetch(`${aa}/accounts?collection_name=${encodeURIComponent(collectionName)}&page=${_holdersPage}&limit=100&sort=assets`);
+    if (!rows.length || rows.length < 100) _holdersDone = true;
+    _holdersAll.push(...rows);
+    _holdersPage++;
+  } catch {
+    document.getElementById('holdersWrap').innerHTML = `<div class="collection-placeholder">Could not load holders.</div>`;
+    _holdersBusy = false;
+    return;
+  }
+  _holdersBusy = false;
+  renderHoldersTable();
+  document.getElementById('holdersLoadMoreWrap').style.display = _holdersDone ? 'none' : '';
+}
+
+function renderHoldersTable() {
+  const q = document.getElementById('holdersSearch').value.trim().toLowerCase();
+  const items = q ? _holdersAll.filter(h => h.account.toLowerCase().includes(q)) : _holdersAll;
+  const wrap = document.getElementById('holdersWrap');
+  if (!items.length) { wrap.innerHTML = `<div class="collection-placeholder">No holders found.</div>`; return; }
+  wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead><tbody>
+    ${items.map((h, i) => `<tr>
+      <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
+      <td class="wallet-cell">${escHtml(h.account)}</td>
+      <td class="col-r">${Number(h.assets).toLocaleString()}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+document.getElementById('holdersLoadMoreBtn').addEventListener('click', () => loadHolders(false));
+document.getElementById('holdersSearch').addEventListener('input', renderHoldersTable);
+
+/* ── Init ── */
+if (!collectionName) {
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('noParamMsg').style.display = '';
+} else {
+  loadHeader();
+}
 </script>
 
 </body>

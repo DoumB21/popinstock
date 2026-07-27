@@ -1427,6 +1427,7 @@ function renderInfoContent(asset, supply, owned) {
   const rarity   = d.rarity || t.rarity || '';
   const rClass   = RARITY_CLASS[rarity] || '';
   const colName  = asset.collection?.name || asset.collection?.collection_name || '';
+  const colSlug  = asset.collection?.collection_name || '';
   const schema   = asset.schema?.schema_name || '';
   const cardid   = d.cardid || t.cardid || null;
   const issued   = supply?.issued ?? null;
@@ -1442,12 +1443,12 @@ function renderInfoContent(asset, supply, owned) {
     </div>
     <div class="tt-heading">Attributes</div>
     <div class="tt-section" style="margin-bottom:0.5rem">
-      ${colName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${colName}</span></div>` : ''}
+      ${colName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${colSlug ? `<a href="collection/${encodeURIComponent(colSlug)}" style="color:var(--accent-light);text-decoration:none" title="View collection page">${colName}</a>` : colName}</span></div>` : ''}
       ${schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${schema}</span></div>` : ''}
       ${rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${rarity}</span></span></div>` : ''}
       ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
       ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${asset.asset_id}<button class="copy-btn" onclick="copyVal(this,'${asset.asset_id}')" title="Copy asset ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
-      ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="https://wax.atomichub.io/explorer/template/wax-mainnet/${asset.template.template_id}" target="_blank" rel="noopener" style="color:var(--accent-light);font-size:0.7rem;text-decoration:none;opacity:0.8;line-height:1" title="View on AtomicHub">↗</a>#${asset.template.template_id}<button class="copy-btn" onclick="copyVal(this,'${asset.template.template_id}')" title="Copy template ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
+      ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="template/${asset.template.template_id}" style="color:var(--accent-light);text-decoration:none" title="View template page">#${asset.template.template_id}</a><button class="copy-btn" onclick="copyVal(this,'${asset.template.template_id}')" title="Copy template ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
       <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${fmtBackedTokens(asset)}</span></div>
     </div>
     <div class="tt-divider"></div>
