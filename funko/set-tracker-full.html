@@ -411,7 +411,7 @@ function getFiltered() {
 
 function buildRows(cards) {
   return cards.map(t => {
-    const link = `../marketplace?template_id=${enc(t.template_id)}`;
+    const link = `../explore?template_id=${enc(t.template_id)}`;
     return `<tr>
       <td>
         <div class="cell-card-name">${t.cardid != null ? t.cardid + ' — ' : ''}${t.name}</div>

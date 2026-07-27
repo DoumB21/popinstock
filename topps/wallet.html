@@ -379,7 +379,7 @@
       const sch = encodeURIComponent(tpl.schema_name || '');
       const marketLinks = maxMint >= 1
         ? `<div class="market-links">
-            <a class="market-link market-link--primary" href="../marketplace?template_id=${tid}&max_mint=${maxMint}&sort=mint-asc" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>
+            <a class="market-link market-link--primary" href="../explore?template_id=${tid}&maxMint=${maxMint}&sort=template_mint&order=asc" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>
           </div>`
         : '';
       return `<tr>

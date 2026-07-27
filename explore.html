@@ -2257,7 +2257,7 @@ function cardHtml(sale) {
   const colDisplay = asset.collection?.name || col;
   const schemaName = asset.schema?.schema_name || '';
   const cardid     = data.cardid || asset.template?.immutable_data?.cardid || '';
-  const href       = `marketplace?template_id=${encodeURIComponent(tid)}&collection_name=${encodeURIComponent(col)}`;
+  const href       = `explore?template_id=${encodeURIComponent(tid)}`;
 
   // Hover-tooltip/click-popup data, read back off the card element by
   // cardDataFromEl() rather than kept in a parallel JS array.

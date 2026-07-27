@@ -932,8 +932,7 @@
     function buildMarketLinks(row, blockchain) {
       if (blockchain !== 'WAX') return '';
       const tid = encodeURIComponent(row.template_id || '');
-      const col = encodeURIComponent(row.collection_name || '');
-      return `<a href="../marketplace?template_id=${tid}&collection_name=${col}" target="_blank" rel="noopener" class="market-link market-link--primary" title="Buy on Hoardio">
+      return `<a href="../explore?template_id=${tid}" target="_blank" rel="noopener" class="market-link market-link--primary" title="Buy on Hoardio">
         <img src="../images/Hoardio_fav.png" alt="Hoardio" width="24" height="24">
         <span class="buy-label">Buy</span>
       </a>`;

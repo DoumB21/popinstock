@@ -603,7 +603,7 @@ function buildCardTable(rows, append) {
     const col = row.collection_name;
     const sch = row.schema_name;
 
-    const linksHtml = `<a class="market-link market-link--primary" href="../marketplace?template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>`;
+    const linksHtml = `<a class="market-link market-link--primary" href="../explore?template_id=${enc(tid)}" target="_blank" rel="noopener noreferrer" title="Buy on Hoardio"><img src="../images/Hoardio_fav.png" alt="Hoardio"><span class="buy-label">Buy</span></a>`;
 
     const circ = row.in_circulation;
     const issued = row.issued_supply;
