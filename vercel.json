@@ -16,7 +16,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/collection/:name", "destination": "/collection.html?collection_name=:name" },
-    { "source": "/template/:id", "destination": "/template.html?template_id=:id" }
+    { "source": "/collection/:name", "destination": "/collection?collection_name=:name" },
+    { "source": "/template/:id", "destination": "/template?template_id=:id" }
   ]
 }
