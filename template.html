@@ -18,7 +18,8 @@
       '<script src="' + _p + 'shared/wax-auth.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
-      '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>'
+      '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>'
     );
   </script>
   <title>Template — Hoardio</title>
@@ -49,14 +50,14 @@
       background: var(--bg-card); border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
     }
-    .tpl-main-img-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    .tpl-main-img-wrap img, .tpl-main-img-wrap video { width: 100%; height: 100%; object-fit: contain; }
     .tpl-thumbs { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
     .tpl-thumb {
       width: 48px; height: 48px; border-radius: 8px; overflow: hidden; cursor: pointer;
       background: var(--bg-card); border: 1px solid var(--border);
     }
     .tpl-thumb.active { border-color: var(--accent-light); }
-    .tpl-thumb img { width: 100%; height: 100%; object-fit: contain; }
+    .tpl-thumb img, .tpl-thumb video { width: 100%; height: 100%; object-fit: contain; }
     .tpl-info { flex: 1; min-width: 280px; }
     .tpl-name { font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 800; margin-bottom: 0.4rem; }
     .tpl-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; margin-bottom: 1rem; }
@@ -64,6 +65,8 @@
     .tpl-info-val { font-size: 0.95rem; font-weight: 600; margin-top: 0.1rem; }
     .tpl-info-val a { color: var(--accent-light); text-decoration: none; }
     .tpl-info-val a:hover { text-decoration: underline; }
+    .tpl-supply-tag { cursor: default; }
+    .tpl-droppp-icon { color: #fff; vertical-align: -3px; margin-left: 1px; }
     .tpl-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
     .tpl-badge--yes { background: rgba(74,222,128,0.15); color: #4ade80; }
     .tpl-badge--no { background: rgba(248,113,113,0.15); color: #f87171; }
@@ -131,12 +134,12 @@
     .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
     .tpl-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
     .tpl-card-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
-    .tpl-card-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .tpl-card-img-wrap img, .tpl-card-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .tpl-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
     .tpl-card-body { padding: 0.55rem 0.7rem; }
     .tpl-card-mint { font-size: 0.72rem; color: var(--text-secondary); }
     .tpl-card-owner { font-size: 0.85rem; color: var(--accent-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tpl-card-burned { font-size: 0.72rem; color: #f87171; }
+    .tpl-card-burned { font-size: 0.72rem; color: #f87171; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -194,7 +197,7 @@
   <div id="tplWrap" style="display:none;">
     <div class="tpl-header">
       <div class="tpl-gallery">
-        <div class="tpl-main-img-wrap"><img id="tplMainImg" alt="" /></div>
+        <div class="tpl-main-img-wrap" id="tplMainImgWrap"></div>
         <div class="tpl-thumbs" id="tplThumbs"></div>
       </div>
       <div class="tpl-info">
@@ -223,6 +226,10 @@
           <div>
             <div class="tpl-info-label">Burnable / Transferable</div>
             <div class="tpl-info-val" id="tplFlags"></div>
+          </div>
+          <div>
+            <div class="tpl-info-label">In Circulation</div>
+            <div class="tpl-info-val" id="tplCirculation"></div>
           </div>
         </div>
         <div class="tpl-listing-box">
@@ -266,7 +273,7 @@
 
     <div class="tpl-section-title">NFTs Using This Template <span id="tplAssetsCount"></span></div>
     <div class="tpl-toolbar">
-      <input class="search-input" id="tplAssetSearch" type="text" placeholder="Search loaded assets by owner…" autocomplete="off" spellcheck="false" />
+      <input class="search-input" id="tplAssetSearch" type="text" placeholder="Search by exact wallet name…" autocomplete="off" autocapitalize="off" spellcheck="false" />
       <label class="tpl-burned-toggle"><input type="checkbox" id="tplShowBurned" /> Show burned</label>
       <div class="cb-dropdown" id="tplAssetSortDropdown" style="max-width:210px;">
         <button class="cb-dropdown-btn" type="button"><span class="cb-label"></span><span class="cb-arrow">▾</span></button>
@@ -298,10 +305,49 @@
 
 const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
 
+// Inlined (not <img src="images/droppp.svg">) so its fill="currentColor"
+// actually picks up .tpl-droppp-icon's CSS color — an externally-loaded SVG
+// image renders in its own isolated context and ignores page CSS entirely.
+// Also sidesteps needing the _p nested-route prefix for an asset path.
+const DROPPP_ICON_SVG = `<svg class="tpl-droppp-icon" width="20" height="16" viewBox="0 0 37 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M33.4784 17.572C32.6999 20.9992 29.5523 23.2843 26.1545 23.0965L29.2384 9.41558C30.5845 9.96339 31.7273 10.907 32.5291 12.1565C33.567 13.7744 33.9042 15.6976 33.4784 17.572ZM21.4493 29.151C20.781 29.5728 19.9882 29.7091 19.217 29.5336C17.6286 29.1728 16.6288 27.5869 16.9885 25.9984L19.5783 14.5549C20.3397 11.2024 23.3228 8.88859 26.5825 8.88859C26.6893 8.88859 26.7967 8.89173 26.9041 8.89684L22.7557 27.3009C22.5817 28.072 22.118 28.729 21.4493 29.151ZM9.14576 23.1036L13.2945 4.69918C13.4683 3.92824 13.9321 3.2711 14.6007 2.84927C15.2694 2.42728 16.0621 2.29139 16.8332 2.46669C18.4215 2.82734 19.4212 4.4134 19.0617 6.00193L16.4718 17.4452C15.6857 20.9076 12.5298 23.2624 9.14576 23.1036ZM3.52072 19.8435C2.48281 18.2257 2.14557 16.3025 2.57136 14.4281C3.34955 11.0009 6.4971 8.71581 9.89514 8.90347L6.81141 22.5844C5.46529 22.0367 4.32216 21.093 3.52072 19.8435ZM34.5421 10.8652C33.1554 8.70381 31.0062 7.22296 28.4905 6.69542C25.7884 6.12864 23.0863 6.81152 20.9814 8.35141L21.3937 6.52953C22.0441 3.65605 20.2357 0.787357 17.3626 0.134827C15.968 -0.181957 14.5338 0.0637524 13.3245 0.826935C12.1151 1.59012 11.2761 2.77859 10.9618 4.17336L10.4271 6.5447C5.73755 6.08428 1.31083 9.18434 0.23993 13.8987C-0.328993 16.4029 0.121693 18.9728 1.50855 21.1347C2.89507 23.2963 5.04429 24.7771 7.56008 25.3045C8.19678 25.4381 8.83332 25.5022 9.4621 25.5022C11.502 25.5022 13.4599 24.8269 15.0687 23.6505L14.6568 25.4702C14.0066 28.3439 15.8149 31.2127 18.6881 31.8654C19.0852 31.9555 19.4854 32 19.8828 32C20.881 32 21.861 31.7188 22.7259 31.173C23.9352 30.4098 24.7744 29.2213 25.0889 27.8266L25.6235 25.4554C30.3159 25.9161 34.74 22.8156 35.8107 18.1014C36.3795 15.597 35.9289 13.0271 34.5421 10.8652Z" fill="currentColor"/></svg>`;
+
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+
+// Template Attributes values often carry URLs — either markdown-style
+// [label](url) (confirmed live in real Funko descriptions, e.g. "[redeem at
+// Droppp](https://droppp.io/redemptions)") or a bare URL as the whole field
+// (e.g. "end user license agreement": "https://digital.funko.com/eula/").
+// Scans the raw string manually (not escape-then-regex) so the link text/
+// href are built from the real URL, with every non-matched segment run
+// through escHtml individually — avoids the double-escaping/double-linking
+// trap of running two separate regex passes over already-substituted HTML.
+// External links: target=_blank + ↗, same convention as everywhere else on
+// this site (see feedback_link_style_conventions).
+function linkifyValue(raw) {
+  const str = String(raw ?? '');
+  const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g;
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = re.exec(str))) {
+    out += escHtml(str.slice(last, m.index));
+    if (m[1] !== undefined) {
+      out += `<a href="${escHtml(m[2])}" target="_blank" rel="noopener" style="color:var(--accent-light);text-decoration:none">${escHtml(m[1])} ↗</a>`;
+    } else {
+      let url = m[3];
+      let trail = '';
+      const t = url.match(/[.,;:!?]+$/);
+      if (t) { trail = t[0]; url = url.slice(0, -trail.length); }
+      out += `<a href="${escHtml(url)}" target="_blank" rel="noopener" style="color:var(--accent-light);text-decoration:none">${escHtml(url)} ↗</a>${escHtml(trail)}`;
+    }
+    last = re.lastIndex;
+  }
+  out += escHtml(str.slice(last));
+  return out;
+}
 function onImgError(el) {
   const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
   const hash = el.dataset.ipfsHash;
@@ -312,6 +358,55 @@ function onImgError(el) {
   }
   el.outerHTML = '<div class="tpl-card-img-ph">?</div>';
 }
+
+// Same best-effort media resolution as explore.html's resolveMedia() —
+// video before the generic image fallback, since AtomicAssets schemas
+// frequently declare a video field typed "image" (storage type != content
+// type), which a naive "any image-typed field" scan would grab first.
+function resolveMedia(asset) {
+  const data   = asset.data || asset.template?.immutable_data || {};
+  const fields = asset.schema?.format || [];
+  const looksLikeVideo = name => /video|animat/i.test(name);
+
+  if (data.img)   return { kind: 'img',   url: toMediaUrl(data.img) };
+  if (data.video) return { kind: 'video', url: toMediaUrl(data.video) };
+  if (data.image) return { kind: 'img',   url: toMediaUrl(data.image) };
+
+  for (const f of fields) {
+    if ((f.type === 'ipfs' || looksLikeVideo(f.name)) && data[f.name]) {
+      return { kind: 'video', url: toMediaUrl(data[f.name]) };
+    }
+  }
+  for (const f of fields) {
+    if (f.type === 'image' && !looksLikeVideo(f.name) && data[f.name]) {
+      return { kind: 'img', url: toMediaUrl(data[f.name]) };
+    }
+  }
+  return null;
+}
+
+// Same lazy-load/unload pattern as explore.html/inventory.html — playing
+// every video in a batch of grid cards at once is a known perf problem on
+// this site (see project_video_quality_and_perf memory).
+let _tplVideoObserver = new IntersectionObserver(entries => {
+  for (const entry of entries) {
+    const v = entry.target;
+    if (entry.isIntersecting) {
+      if (v.dataset.src && !v.src) { v.src = v.dataset.src; v.load(); }
+      if (!window.getReduceMotion?.()) v.play().catch(() => {});
+    } else {
+      v.pause();
+      if (v.src) { v.removeAttribute('src'); v.load(); }
+    }
+  }
+}, { rootMargin: '150px' });
+function observeTplVideos(root) {
+  root.querySelectorAll('video[data-src]:not([data-obs])').forEach(v => {
+    v.dataset.obs = '1';
+    _tplVideoObserver.observe(v);
+  });
+}
+
 function fmtWax(raw, precision) {
   const n = Number(raw) / (10 ** (precision ?? 8));
   if (!isFinite(n)) return '—';
@@ -420,6 +515,11 @@ async function loadHeader() {
 
   let stats, priceStats, lowestListing;
   try { stats = await WaxApi.apiFetch(`${aa}/templates/${encodeURIComponent(_collectionName)}/${templateId}/stats`); } catch { stats = null; }
+  // Funko-only — resolves null for any other collection. Same
+  // funko_market_prices/funko.templates dp_locked_count precedence as
+  // marketplace.html, ported via shared/asset-popup.js so this logic lives
+  // in exactly one place.
+  const funkoSupply = await AssetPopup.fetchDropppLocked(templateId);
   try {
     const res = await WaxApi.apiFetch(`${mkt}/prices/templates?collection_name=${encodeURIComponent(_collectionName)}&template_id=${templateId}&symbol=WAX`);
     priceStats = res?.[0] || null;
@@ -467,26 +567,46 @@ async function loadHeader() {
 
   document.title = `${tpl.name || 'Template #' + templateId} — Hoardio`;
 
+  // Video-first, same convention as marketplace.html's hero — a template
+  // with a video field is showing its richest media, not a fallback.
+  // Several Funko schemas ship video-only (no `img` key at all, e.g.
+  // AVATAR-S2 series), so `<img id="tplMainImg">` unconditionally in the
+  // markup and only ever setting `.src` from `img`/`backimg` (the old
+  // approach here) left the hero blank for every one of those — same
+  // video-detection gap explore.html's resolveMedia() and marketplace.html
+  // already had to solve. Fixed by building the hero element dynamically
+  // instead of assuming it's always an <img>.
   const img     = tpl.immutable_data?.img;
+  const video   = tpl.immutable_data?.video;
   const backimg = tpl.immutable_data?.backimg;
-  const mainImgEl = document.getElementById('tplMainImg');
-  const setMainImg = (hash) => {
-    mainImgEl.src = toMediaUrl(hash);
-    mainImgEl.dataset.ipfsHash = hash;
-    mainImgEl.dataset.gwIdx = '0';
-    mainImgEl.onerror = () => onImgError(mainImgEl);
+  const mainWrap = document.getElementById('tplMainImgWrap');
+  const setMainMedia = (hash, kind) => {
+    if (kind === 'video') {
+      const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+      mainWrap.innerHTML = `<video ${autoplay} loop muted playsinline><source src="${escHtml(toMediaUrl(hash))}" type="video/mp4"></video>`;
+    } else {
+      mainWrap.innerHTML = `<img alt="" src="${escHtml(toMediaUrl(hash))}" data-ipfs-hash="${escHtml(hash)}" data-gw-idx="0" onerror="onImgError(this)">`;
+    }
   };
-  if (img) setMainImg(img);
-  const thumbs = [img, backimg].filter(Boolean);
-  if (thumbs.length > 1) {
-    document.getElementById('tplThumbs').innerHTML = thumbs.map((h, i) =>
-      `<div class="tpl-thumb${i === 0 ? ' active' : ''}" data-hash="${escHtml(h)}"><img src="${escHtml(toMediaUrl(h))}" alt="" loading="lazy"></div>`
+  const mediaItems = [
+    video   ? { hash: video,   kind: 'video' } : null,
+    img     ? { hash: img,     kind: 'image' } : null,
+    backimg ? { hash: backimg, kind: 'image' } : null,
+  ].filter(Boolean);
+  if (mediaItems.length) setMainMedia(mediaItems[0].hash, mediaItems[0].kind);
+  if (mediaItems.length > 1) {
+    document.getElementById('tplThumbs').innerHTML = mediaItems.map((m, i) =>
+      `<div class="tpl-thumb${i === 0 ? ' active' : ''}" data-hash="${escHtml(m.hash)}" data-kind="${m.kind}">${
+        m.kind === 'video'
+          ? `<video muted loop playsinline preload="metadata"><source src="${escHtml(toMediaUrl(m.hash))}" type="video/mp4"></video>`
+          : `<img src="${escHtml(toMediaUrl(m.hash))}" alt="" loading="lazy">`
+      }</div>`
     ).join('');
     document.querySelectorAll('.tpl-thumb').forEach(el => {
       el.addEventListener('click', () => {
         document.querySelectorAll('.tpl-thumb').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
-        setMainImg(el.dataset.hash);
+        setMainMedia(el.dataset.hash, el.dataset.kind);
       });
     });
   }
@@ -497,8 +617,19 @@ async function loadHeader() {
   document.getElementById('tplSchema').textContent = tpl.schema?.schema_name || '';
   const burned = stats ? Number(stats.burned) : 0;
   tplIssuedSupply = Number(tpl.issued_supply);
-  document.getElementById('tplIssued').textContent = burned > 0 ? `${tplIssuedSupply.toLocaleString()} (${burned.toLocaleString()} burned)` : tplIssuedSupply.toLocaleString();
+  const dpLocked = funkoSupply?.dpLocked ?? 0;
+  // Burned and Droppp-locked both live inline with Issued Supply (not
+  // separate grid cells — a "Locked (Droppp)" cell landing in the grid's
+  // right column went unnoticed, see feedback) so every supply number is
+  // visible together at a glance.
+  const supplyTags = [];
+  if (burned > 0) supplyTags.push(`<span class="tpl-supply-tag" title="Burned assets">${burned.toLocaleString()}🔥</span>`);
+  if (funkoSupply?.isFunko) supplyTags.push(`<span class="tpl-supply-tag" title="Locked on Droppp">${dpLocked.toLocaleString()} ${DROPPP_ICON_SVG}</span>`);
+  document.getElementById('tplIssued').innerHTML = supplyTags.length
+    ? `${tplIssuedSupply.toLocaleString()} (${supplyTags.join(' + ')})`
+    : tplIssuedSupply.toLocaleString();
   document.getElementById('tplMax').textContent = tpl.max_supply && tpl.max_supply !== '0' ? Number(tpl.max_supply).toLocaleString() : 'Unlimited';
+  document.getElementById('tplCirculation').textContent = Math.max(0, tplIssuedSupply - burned - dpLocked).toLocaleString();
   document.getElementById('tplFlags').innerHTML =
     `<span class="tpl-badge ${tpl.is_burnable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${tpl.is_burnable ? 'Burnable' : 'Not burnable'}</span> ` +
     `<span class="tpl-badge ${tpl.is_transferable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${tpl.is_transferable ? 'Transferable' : 'Not transferable'}</span>`;
@@ -514,7 +645,7 @@ async function loadHeader() {
   // summary which filters out image/ipfs-typed fields).
   const attrsBody = document.getElementById('tplAttrsBody');
   attrsBody.innerHTML = Object.entries(tpl.immutable_data || {}).map(([k, v]) =>
-    `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${escHtml(String(v))}</td></tr>`
+    `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
   ).join('') || '<tr><td>No attributes</td></tr>';
 
   // Prefer the actual highest-priced sale record over priceStats.max for
@@ -787,10 +918,31 @@ const ASSET_SORTS = [
   { value: 'name-asc', label: 'Alphabetical (A-Z)' },
 ];
 let _assetSort = 'created-desc';
-let _assetsPage = 1;
 let _assetsAll = [];
+let _assetsPage = 1;
 let _assetsDone = false;
 let _assetsBusy = false;
+
+// Page size, not a hard cap — "Load more" still exists, it just fetches
+// (and *appends*, never rebuilds) another 5-row batch at a time. A
+// template with thousands of video-heavy assets (common on Funko drops)
+// crashed the tab once the grid grew into the hundreds via repeated "Load
+// more" clicks, because the old renderAssetsGrid() rebuilt the WHOLE grid
+// (every already-loaded <video> included) from scratch on every call —
+// dozens of those re-entering the lazy-load IntersectionObserver's
+// rootMargin band at once during a fast scroll meant dozens of simultaneous
+// video decodes. Fixed by only ever inserting the newly-fetched batch
+// (insertAdjacentHTML), never touching cards already in the DOM. Column
+// count comes from the grid's own resolved `auto-fill` track list (works
+// even before any cards exist, since it depends only on container width)
+// so a "page" is exactly 5 rows at any viewport width, not a guessed
+// constant.
+const PREVIEW_ROWS = 4;
+function assetPreviewLimit() {
+  const grid = document.getElementById('tplAssetsGrid');
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+  return (cols || 4) * PREVIEW_ROWS;
+}
 
 function onAssetSortChange(val) {
   _assetSort = val;
@@ -798,62 +950,119 @@ function onAssetSortChange(val) {
   loadAssets(true);
 }
 
+// Burned assets have owner:null on AtomicAssets (confirmed live) — with
+// "Show burned" off this filters server-side via burned=false instead of
+// over-fetching then discarding client-side, which is what let "Created
+// (Newest)" default to a nearly-empty-looking grid: the newest assets on a
+// redemption-driven Funko drop are disproportionately the ones already
+// burned for physical redemption, so a client-side filter over a small
+// fixed batch could leave far fewer than 5 rows even though plenty of
+// non-burned assets exist further down the list.
+//
+// A non-empty search box switches to an exact owner= lookup instead of a
+// substring filter over whatever happened to already be loaded — that old
+// behavior returned nothing for a real wallet that just hadn't appeared in
+// the first small batch yet, even though the API can answer "does this
+// exact wallet hold any copies" directly. AtomicAssets' owner= param is
+// exact-match only (confirmed live, no substring/prefix support), which is
+// why the input is now framed as "exact wallet name" and lowercased on
+// input like every other wallet-name field on this site.
+function buildAssetsUrl(page) {
+  const [sort, order] = _assetSort.split('-');
+  const q = document.getElementById('tplAssetSearch').value.trim();
+  const showBurned = document.getElementById('tplShowBurned').checked;
+  let url = `${WaxApi.aaBase()}/assets?template_id=${templateId}&page=${page}&limit=${assetPreviewLimit()}&sort=${sort}&order=${order}`;
+  if (q) url += `&owner=${encodeURIComponent(q)}`;
+  else if (!showBurned) url += `&burned=false`;
+  return url;
+}
+
 async function loadAssets(reset) {
   if (_assetsBusy) return;
-  if (reset) { _assetsPage = 1; _assetsAll = []; _assetsDone = false; }
+  if (reset) { _assetsAll = []; _assetsPage = 1; _assetsDone = false; }
   if (_assetsDone) return;
   _assetsBusy = true;
+  const btn = document.getElementById('tplAssetsLoadMoreBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
 
   buildSingleCbDropdown('tplAssetSortDropdown', ASSET_SORTS, _assetSort, onAssetSortChange);
 
-  const [sort, order] = _assetSort.split('-');
-  const aa = WaxApi.aaBase();
+  const limit = assetPreviewLimit();
+  let rows;
   try {
-    const rows = await WaxApi.apiFetch(`${aa}/assets?template_id=${templateId}&page=${_assetsPage}&limit=100&sort=${sort}&order=${order}`);
-    if (!rows.length || rows.length < 100) _assetsDone = true;
-    _assetsAll.push(...rows);
-    _assetsPage++;
+    rows = await WaxApi.apiFetch(buildAssetsUrl(_assetsPage));
   } catch {
-    document.getElementById('tplAssetsGrid').innerHTML = `<div class="collection-placeholder">Could not load assets.</div>`;
     _assetsBusy = false;
+    if (reset) document.getElementById('tplAssetsGrid').innerHTML = `<div class="collection-placeholder">Could not load assets.</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Load more'; }
     return;
   }
+  rows = rows || [];
+  if (rows.length < limit) _assetsDone = true;
+  _assetsAll.push(...rows);
+  _assetsPage++;
   _assetsBusy = false;
+
   // The real issued supply, not how many rows happen to be loaded so far —
   // "(100+)" after the first page reads as a real (and wrong) total for a
   // template with e.g. 2M+ issued (confirmed live: template 298612).
   document.getElementById('tplAssetsCount').textContent = tplIssuedSupply != null ? `(${fmtCompactInt(tplIssuedSupply)})` : '';
-  renderAssetsGrid();
+  renderAssetsGrid(rows, reset);
   document.getElementById('tplAssetsLoadMoreWrap').style.display = _assetsDone ? 'none' : '';
+  if (btn) { btn.disabled = false; btn.textContent = 'Load more'; }
 }
 
-function renderAssetsGrid() {
-  const q = document.getElementById('tplAssetSearch').value.trim().toLowerCase();
-  const showBurned = document.getElementById('tplShowBurned').checked;
-  let items = _assetsAll.filter(a => showBurned || a.owner);
-  if (q) items = items.filter(a => (a.owner || '').toLowerCase().includes(q));
+function assetCardHtml(a) {
+  const media = resolveMedia(a);
+  let mediaHtml;
+  if (media?.kind === 'video') {
+    mediaHtml = `<video data-src="${escHtml(media.url)}" muted loop playsinline preload="none"></video>`;
+  } else if (media?.kind === 'img') {
+    const ipfsHash = media.url.startsWith(IPFS_GATEWAY_LIST[0]) ? media.url.slice(IPFS_GATEWAY_LIST[0].length) : '';
+    mediaHtml = `<img src="${escHtml(media.url)}" alt="" loading="lazy" data-ipfs-hash="${escHtml(ipfsHash)}" data-gw-idx="0" onerror="onImgError(this)">`;
+  } else {
+    mediaHtml = `<div class="tpl-card-img-ph">?</div>`;
+  }
+  return `<div class="tpl-card">
+    <div class="tpl-card-img-wrap">${mediaHtml}</div>
+    <div class="tpl-card-body">
+      <div class="tpl-card-mint">Mint #${a.template_mint}</div>
+      ${a.owner
+        ? `<div class="tpl-card-owner" title="${escHtml(a.owner)}">${escHtml(a.owner)}</div>`
+        : (() => {
+            const label = a.burned_by_account ? `Burned by ${a.burned_by_account}` : 'Burned';
+            return `<div class="tpl-card-burned" title="${escHtml(label)}">${escHtml(label)}</div>`;
+          })()}
+    </div>
+  </div>`;
+}
+
+// `newItems` is only the just-fetched batch — `replace` (a fresh search/
+// sort/filter) rebuilds the grid from just that batch, otherwise ("Load
+// more") it's appended after whatever's already rendered so existing cards
+// (and their lazy-video observers) are never touched.
+function renderAssetsGrid(newItems, replace) {
   const grid = document.getElementById('tplAssetsGrid');
-  if (!items.length) { grid.innerHTML = `<div class="collection-placeholder">No assets found.</div>`; return; }
-  grid.innerHTML = items.map(a => {
-    const img = a.data?.img || a.immutable_data?.img;
-    const media = img
-      ? `<img src="${escHtml(toMediaUrl(img))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(img)}" data-gw-idx="0" onerror="onImgError(this)">`
-      : `<div class="tpl-card-img-ph">?</div>`;
-    return `<div class="tpl-card">
-      <div class="tpl-card-img-wrap">${media}</div>
-      <div class="tpl-card-body">
-        <div class="tpl-card-mint">Mint #${a.template_mint}</div>
-        ${a.owner
-          ? `<div class="tpl-card-owner" title="${escHtml(a.owner)}">${escHtml(a.owner)}</div>`
-          : `<div class="tpl-card-burned">Burned</div>`}
-      </div>
-    </div>`;
-  }).join('');
+  if (replace) {
+    if (!newItems.length) { grid.innerHTML = `<div class="collection-placeholder">No assets found.</div>`; return; }
+    grid.innerHTML = newItems.map(assetCardHtml).join('');
+  } else if (newItems.length) {
+    grid.insertAdjacentHTML('beforeend', newItems.map(assetCardHtml).join(''));
+  }
+  observeTplVideos(grid);
 }
 
 document.getElementById('tplAssetsLoadMoreBtn').addEventListener('click', () => loadAssets(false));
-document.getElementById('tplAssetSearch').addEventListener('input', renderAssetsGrid);
-document.getElementById('tplShowBurned').addEventListener('change', renderAssetsGrid);
+
+let _assetSearchT = null;
+document.getElementById('tplAssetSearch').addEventListener('input', function () {
+  const { selectionStart, selectionEnd } = this;
+  this.value = this.value.toLowerCase();
+  this.setSelectionRange(selectionStart, selectionEnd);
+  clearTimeout(_assetSearchT);
+  _assetSearchT = setTimeout(() => loadAssets(true), 400);
+});
+document.getElementById('tplShowBurned').addEventListener('change', () => loadAssets(true));
 
 /* ── Accounts holding this Template ── */
 let _holdersPage = 1;

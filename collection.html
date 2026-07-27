@@ -174,31 +174,10 @@
     .rank-3 { color: #cd7f32; }
     .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
 
-    /* ── Template hover tooltip — same pattern/classes as inventory.html's
-       .hover-tooltip (copied, not shared — that page's own comment notes
-       this is page-local by convention here too), widened since a
-       template's full immutable_data field list runs longer than an
-       asset card's curated summary. Reference for the "look at every field
-       at a glance" idea: AtomicHub's own template hover popup. ── */
-    .tpl-tooltip {
-      /* pointer-events: none means the user can never scroll this thing —
-         it must be tall/wide enough that a template's full field list fits
-         without needing to, rather than relying on the overflow-y: auto
-         that's still here as a last-resort clip for the rare template with
-         an unusually huge attribute list. */
-      position: fixed; z-index: 300; width: 360px; max-height: min(640px, 80vh); overflow-y: auto;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; padding: 0.85rem 1rem;
-      pointer-events: none; box-shadow: 0 8px 32px rgba(0,0,0,0.55);
-      font-size: 0.78rem;
-    }
-    .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
-    .tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
-    .tt-label { color: var(--text-secondary); }
-    .tt-val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tt-val--wrap { white-space: normal; text-align: left; font-weight: 400; max-width: none; }
-    .tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.55rem 0; }
-    .tt-heading { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem; }
+    /* ── Template hover tooltip: now uses the canonical .hover-tooltip/
+       .tt-* classes in shared/global.css (same box this page pioneered the
+       360px/80vh sizing on — inventory.html/explore.html's asset popups
+       were widened to match, see shared/asset-popup.js). ── */
 
     /* ── Templates / Schemas grid ── */
     .coll-toolbar { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -343,7 +322,7 @@
 
 </main>
 
-<div id="tplTooltip" class="tpl-tooltip" style="display:none;"></div>
+<div id="tplTooltip" class="hover-tooltip" style="display:none;"></div>
 
 <footer>
   &copy; 2026 Hoardio &mdash; All rights reserved.

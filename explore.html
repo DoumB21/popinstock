@@ -126,7 +126,7 @@
     .explore-name-search { flex: 1; min-width: 160px; }
     .explore-ctrl-group { display: flex; gap: 0.4rem; flex-shrink: 0; }
     .explore-ctrl-group .cb-dropdown-btn { width: auto; }
-    .explore-ctrl-group .cb-panel { min-width: 130px; }
+    .explore-ctrl-group .cb-panel { min-width: 170px; }
 
     .empty-state { text-align: center; padding: 5rem 2rem; color: var(--text-secondary); }
     .empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
@@ -151,6 +151,73 @@
       border-radius: 50%; animation: rot 0.65s linear infinite; margin-right: 0.35rem;
     }
     @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* ── Listings / Sales History mode tabs ── */
+    .ex-mode-tabs { display: none; gap: 0.5rem; margin-bottom: 0.9rem; }
+    .ex-mode-tabs.visible { display: flex; }
+    .ex-mode-tab {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
+      border-radius: 8px; padding: 0.55rem 1.1rem;
+      font-size: 0.85rem; font-weight: 700; color: var(--accent-light);
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .ex-mode-tab:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .ex-mode-tab.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+
+    /* ── Sales History list — AtomicHub-style cards, ported from
+       inventory-activity.html's Sales tab so both pages share the same
+       "clean list with a thumbnail + labeled fields" look. ── */
+    .act-list { display: flex; flex-direction: column; gap: 0.7rem; }
+    .act-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1rem 1.25rem;
+      display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+      transition: border-color 0.2s;
+    }
+    .act-card:hover { border-color: var(--border-hover); }
+    .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+    .act-card-thumb {
+      width: 72px; height: 72px; flex-shrink: 0; border-radius: 10px;
+      background: rgba(255,255,255,0.03); overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .act-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .act-card-thumb-ph { color: var(--text-secondary); font-size: 1.3rem; opacity: 0.3; }
+    .act-card-txlink {
+      font-size: 0.68rem; font-weight: 600; color: var(--accent-light);
+      text-decoration: none; white-space: nowrap;
+    }
+    .act-card-txlink:hover { text-decoration: underline; }
+    .act-card-txlink.is-unavailable { color: var(--text-secondary); cursor: default; pointer-events: none; text-decoration: none; }
+    .act-card-cols { flex: 1; display: flex; gap: 2.5rem; flex-wrap: wrap; min-width: 0; }
+    .sc-fields {
+      display: grid; grid-template-columns: max-content max-content;
+      column-gap: 0.75rem; row-gap: 0.3rem; align-items: baseline;
+    }
+    .sc-fields--meta { margin-left: auto; }
+    .sc-label { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-secondary); }
+    .sc-value {
+      font-size: 0.86rem; font-weight: 600; color: var(--text-primary);
+      max-width: 16rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sc-name { font-weight: 700; }
+    .sc-name-link { color: inherit; text-decoration: none; }
+    .sc-name-link:hover { color: var(--accent-light); text-decoration: underline; }
+    .sc-price { color: var(--accent-light); }
+    .sc-wallet { color: var(--accent-light); }
+
+    @media (max-width: 700px) {
+      .act-card { padding: 0.9rem; gap: 0.85rem; }
+      .act-card-cols { gap: 1.25rem; }
+      .sc-fields--meta { margin-left: 0; }
+      .sc-value { max-width: 11rem; }
+    }
 
     /* ── Cards grid ── */
     .bl-grid {
@@ -352,51 +419,9 @@
     .bl-select-first-label { font-size: 0.82rem; color: var(--text-secondary); }
     .bl-select-first-input { width: 44px; box-sizing: border-box; padding: 0.38rem 0.4rem; font-size: 0.82rem; text-align: center; }
 
-    /* ── Hover tooltip (ported from inventory.html/explore.html) ── */
-    .hover-tooltip {
-      position: fixed; z-index: 300; width: 200px;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; padding: 0.85rem 1rem;
-      pointer-events: none;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
-      font-size: 0.78rem;
-    }
-    .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
-    .tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
-    .tt-label { color: var(--text-secondary); }
-    .tt-val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    .tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.6rem 0; }
-    .tt-heading {
-      font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem;
-    }
-    .tt-red    { color: #f87171; }
-    .tt-purple { color: #a78bfa; }
-    .tt-orange { color: var(--accent-light); }
-    .tt-val-copiable { display: inline-flex; align-items: center; gap: 4px; }
-    .copy-btn {
-      background: none; border: none; padding: 0 1px; cursor: pointer;
-      color: var(--text-secondary); font-size: 0.72rem; line-height: 1;
-      opacity: 0.55; transition: opacity 0.15s, color 0.15s; flex-shrink: 0; vertical-align: middle;
-    }
-    .copy-btn:hover { opacity: 1; color: var(--accent-light); }
-    .copy-btn.copied { color: #4ade80; opacity: 1; }
-    @media (hover: none) {
-      .hover-tooltip { display: none !important; }
-    }
-    .info-popup {
-      position: fixed; z-index: 301; width: 240px;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 12px; padding: 0.9rem 1rem 0.85rem;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.65);
-      font-size: 0.78rem;
-    }
-    .info-popup-close {
-      background: none; border: none; color: var(--text-secondary);
-      cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
-      flex-shrink: 0; transition: color 0.15s;
-    }
-    .info-popup-close:hover { color: var(--text-primary); }
+    /* ── Info popup / hover tooltip: canonical .hover-tooltip/.info-popup/
+       .tt-* rules now live in shared/global.css (shared/asset-popup.js
+       owns the DOM + wiring). ── */
 
     /* ── Mobile — no separate tray column anymore, cart bar is just a
        normal block in .explore-main's document flow on every viewport. ── */
@@ -423,6 +448,7 @@
   <script src="shared/settings.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
+  <script src="shared/asset-popup.js"></script>
 </head>
 <body>
 
@@ -576,22 +602,20 @@
   <!-- ── Main ── -->
   <main class="explore-main">
 
+    <div class="ex-mode-tabs" id="exModeTabs">
+      <button type="button" class="ex-mode-tab active" data-mode="listings">Listings</button>
+      <button type="button" class="ex-mode-tab" data-mode="history">Sales History</button>
+    </div>
+
     <div class="explore-toolbar" id="exploreToolbar">
       <input type="text" id="nameSearch" class="explore-name-search control-input" placeholder="Search by name…" autocomplete="off" spellcheck="false" />
       <div class="explore-ctrl-group">
         <div class="cb-dropdown" id="sortByDd">
           <button class="cb-dropdown-btn" id="sortByTrigger" type="button">
-            <span class="cb-label">Price</span>
+            <span class="cb-label">Price (Lowest)</span>
             <span class="cb-arrow">▼</span>
           </button>
           <div class="cb-panel" id="sortByPanel"></div>
-        </div>
-        <div class="cb-dropdown" id="sortOrderDd">
-          <button class="cb-dropdown-btn" id="sortOrderTrigger" type="button">
-            <span class="cb-label">Asc</span>
-            <span class="cb-arrow">▼</span>
-          </button>
-          <div class="cb-panel" id="sortOrderPanel"></div>
         </div>
       </div>
     </div>
@@ -641,6 +665,7 @@
       <div class="status-text">Loading listings…</div>
     </div>
     <div class="bl-grid" id="cardsGrid"></div>
+    <div class="act-list" id="historyList" style="display:none"></div>
     <div id="loadMoreWrap" style="display:none; text-align:center; padding:2rem 0 1rem;">
       <button id="loadMoreBtn" class="load-more-btn">Load more</button>
     </div>
@@ -649,9 +674,6 @@
 </div><!-- .explore-layout -->
 </div><!-- .content -->
 </div><!-- .page -->
-
-<div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
-<div id="cardInfoPopup" class="info-popup" style="display:none;"></div>
 
 <footer>
   &copy; 2026 Hoardio &mdash; All rights reserved.
@@ -694,6 +716,11 @@ let _bundle  = 'single'; // 'all'/'bundle' disabled in the UI until bundle displ
 let _sortBy  = 'price';
 let _sortOrd = 'asc';
 let _nameFilter = '';
+// 'listings' (state=1, buy/cart UI) or 'history' (state=3, read-only AtomicHub-
+// style sale records) — same collection/schema/rarity/price/mint filters
+// drive both, only the AtomicMarket `state` param and the render/target
+// container differ. See loadMore()/fetchSalesQueryPage().
+let _mode = 'listings';
 // Set only via an incoming ?template_id= deep link (template.html's "View on
 // Explore" button) — pins the listings query to that exact template. Cleared
 // whenever the visitor manually picks a different collection or clears
@@ -758,6 +785,10 @@ function usdTag(wax) {
   return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsd).toFixed(2)}</span>`;
 }
 function rcls(r) { return RARITY_CSS[(r || '').toLowerCase()] || ''; }
+function fmtDateTime(ms) {
+  if (!ms) return '';
+  return new Date(Number(ms)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 async function fetchWaxUsd() {
   try {
@@ -1043,6 +1074,7 @@ async function selectCollection(c) {
 document.getElementById('colChipClear').addEventListener('click', clearCollection);
 function clearCollection() {
   _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = ''; _dynFilters = {};
+  _mode = 'listings';
   _templateId = ''; $tplChip.style.display = 'none';
   _ownedTemplateIds = null;
   $colChip.style.display = 'none';
@@ -1065,24 +1097,51 @@ const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle
 function showFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
   document.getElementById('exploreToolbar').classList.add('visible');
-  document.getElementById('blToolbar').style.display = '';
   document.getElementById('secDrop').classList.toggle('hidden', !_col?.isCatalog);
   document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
   document.getElementById('funkoCatalogBtn').classList.toggle('hidden', !!_col?.isCatalog);
-  updateCartBarVisible();
   updateHideOwnedAvailability();
+  applyModeVisibility();
 }
 function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('exploreToolbar').classList.remove('visible');
-  document.getElementById('blToolbar').style.display = 'none';
   document.getElementById('secDrop').classList.add('hidden');
   document.getElementById('secDynMsg').classList.add('hidden');
   document.getElementById('secDynAttrs').classList.add('hidden');
   document.getElementById('schemaTrigger').disabled = false;
   document.getElementById('funkoCatalogBtn').classList.remove('hidden');
+  applyModeVisibility();
+}
+
+// Reconciles every piece of UI that depends on _mode (grid vs. list
+// container, cart bar, select-first toolbar, hide-owned filter, tab
+// highlight) in one place — called after showFilters()/hideFilters() (which
+// run on every collection select/clear regardless of mode) and from
+// setMode() itself.
+function applyModeVisibility() {
+  const hist = _mode === 'history';
+  document.getElementById('exModeTabs').classList.toggle('visible', !!_col);
+  document.querySelectorAll('.ex-mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === _mode));
+  document.getElementById('cardsGrid').style.display = hist ? 'none' : '';
+  document.getElementById('historyList').style.display = hist ? '' : 'none';
+  document.getElementById('blToolbar').style.display = (!_col || hist) ? 'none' : '';
+  document.getElementById('secHideOwned').classList.toggle('hidden', !_col || hist);
   updateCartBarVisible();
 }
+
+function setMode(mode) {
+  if (_mode === mode || !_col) return;
+  _mode = mode;
+  renderSortByDd(); // "Date listed"/"Date sold" label depends on _mode
+  applyModeVisibility();
+  pushUrl();
+  resetResults();
+  loadMore();
+}
+document.querySelectorAll('.ex-mode-tab').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
 
 /* ── Funko catalog mode ── */
 function cleanName(name) {
@@ -1769,20 +1828,25 @@ function onMintChange() {
 document.getElementById('minMint').addEventListener('input', function () { _minMint = this.value.trim(); onMintChange(); });
 document.getElementById('maxMint').addEventListener('input', function () { _maxMint = this.value.trim(); onMintChange(); });
 
+// `options` may be a static array or a zero-arg function returning one —
+// the latter lets a dropdown's choices/labels depend on state that changes
+// after init (e.g. Sort By's "Date listed"/"Date sold" label, which depends
+// on _mode) without needing a whole separate dropdown instance per state.
 function initStaticDropdown(ddId, options, getValue, onSelect) {
   const root  = document.getElementById(ddId);
   const label = root.querySelector('.cb-label');
   const panel = root.querySelector('.cb-panel');
   function render() {
+    const opts = typeof options === 'function' ? options() : options;
     const cur = getValue();
-    panel.innerHTML = options.map(o =>
+    panel.innerHTML = opts.map(o =>
       `<div class="cb-item${o.value===cur?' active':''}${o.disabled?' disabled':''}" data-val="${o.value}">
         <span>${o.label}</span>${o.disabled ? '<span class="cb-item-tag">Soon</span>' : ''}
       </div>`
     ).join('');
-    label.textContent = (options.find(o => o.value === cur) || options[0]).label;
+    label.textContent = (opts.find(o => o.value === cur) || opts[0]).label;
     panel.querySelectorAll('.cb-item').forEach((item, i) => {
-      if (options[i].disabled) return; // inert — not wired to onSelect at all
+      if (opts[i].disabled) return; // inert — not wired to onSelect at all
       item.addEventListener('click', () => {
         closeAllDd();
         onSelect(item.dataset.val);
@@ -1808,16 +1872,34 @@ const renderBundleDd = initStaticDropdown('bundleDd', [
   { value: 'bundle', label: 'Bundles only',       disabled: true },
 ], () => _bundle, v => { _bundle = v; pushUrl(); resetResults(); loadMore(); });
 
-const renderSortByDd = initStaticDropdown('sortByDd', [
-  { value: 'price',         label: 'Price' },
-  { value: 'created',       label: 'Date listed' },
-  { value: 'template_mint', label: 'Mint #' },
-], () => _sortBy, v => { _sortBy = v; pushUrl(); resetResults(); loadMore(); });
-
-const renderSortOrderDd = initStaticDropdown('sortOrderDd', [
-  { value: 'asc',  label: 'Asc' },
-  { value: 'desc', label: 'Desc' },
-], () => _sortOrd, v => { _sortOrd = v; pushUrl(); resetResults(); loadMore(); });
+// Single combined Field+Direction dropdown, matching the "Price (Highest)"/
+// "Mint # (Lowest)" convention used by every other sort control on the site
+// (inventory-activity.html, marketplace.html, etc.) instead of Explore's old
+// two-dropdown Sort By + Asc/Desc pair. `_sortBy`/`_sortOrd` stay the
+// underlying state (and URL params) unchanged — only the UI control and its
+// value encoding (`${field}_${order}`) are new. 'created' means "date
+// listed" on the Listings tab and "date sold" on Sales History (mapped to
+// sort=updated for that query in fetchSalesQueryPage) — same option/state,
+// just the label text swaps per _mode.
+function sortDdOptions() {
+  const dateLabel = _mode === 'history' ? 'Sale Date' : 'Listings';
+  return [
+    { value: 'created_desc',       label: `${dateLabel} (Newest)` },
+    { value: 'created_asc',        label: `${dateLabel} (Oldest)` },
+    { value: 'price_desc',         label: 'Price (Highest)' },
+    { value: 'price_asc',          label: 'Price (Lowest)' },
+    { value: 'template_mint_desc', label: 'Mint # (Highest)' },
+    { value: 'template_mint_asc',  label: 'Mint # (Lowest)' },
+  ];
+}
+const renderSortByDd = initStaticDropdown('sortByDd', sortDdOptions, () => `${_sortBy}_${_sortOrd}`, v => {
+  // lastIndexOf, not split/indexOf — 'template_mint' itself contains an
+  // underscore, so only the trailing _asc/_desc suffix may be split off.
+  const i = v.lastIndexOf('_');
+  _sortBy = v.slice(0, i);
+  _sortOrd = v.slice(i + 1);
+  pushUrl(); resetResults(); loadMore();
+});
 
 let _nameT = null;
 document.getElementById('nameSearch').addEventListener('input', function () {
@@ -1842,7 +1924,6 @@ function clearFilters() {
   document.getElementById('maxMint').value = '';
   renderBundleDd();
   renderSortByDd();
-  renderSortOrderDd();
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
   setDdActive('schemaDd', false);
@@ -1868,7 +1949,7 @@ document.getElementById('clearFiltersBtn').addEventListener('click', clearFilter
 // same heavy-scope handling fetchSalesPage uses for sales, for a filter
 // that's a nice-to-have rather than core.
 function hideOwnedActive() {
-  return !!_hideOwnedWallet && !_col?.isCatalog;
+  return !!_hideOwnedWallet && !_col?.isCatalog && _mode === 'listings';
 }
 
 // Also re-run on wax-auth-change (connect/disconnect) so the 👛 fill button
@@ -1943,6 +2024,7 @@ function resetResults() {
   _shownN = 0; _apiPage = 1; _apiDone = false; _busy = false; _autoLoadArmed = false;
   _videoObserver?.disconnect();
   document.getElementById('cardsGrid').innerHTML = '';
+  document.getElementById('historyList').innerHTML = '';
   document.getElementById('loadMoreWrap').style.display = 'none';
   document.getElementById('resultsStatus').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
@@ -1987,12 +2069,17 @@ function effectiveScope() {
   return { col: _col.collection_name, schema: _schema };
 }
 
-function fetchSalesPage(page) {
+// state=1 (active listings, Listings tab) and state=3 (sold, Sales History
+// tab) take the exact same collection/schema/rarity/price/mint filters — the
+// only real differences are the `state` value and, for the shared "Date"
+// sort option, which timestamp it means (created = listed, updated = sold).
+function fetchSalesQueryPage(page, state) {
   const { col, schema } = effectiveScope();
   const base = WaxApi.marketBase().replace('/v1', '/v2');
-  let url = `${base}/sales?state=1&symbol=WAX`;
+  const sortField = (state === 3 && _sortBy === 'created') ? 'updated' : _sortBy;
+  let url = `${base}/sales?state=${state}&symbol=WAX`;
   url += `&collection_name=${encodeURIComponent(col)}`;
-  url += `&sort=${_sortBy}&order=${_sortOrd}&limit=100&page=${page}`;
+  url += `&sort=${sortField}&order=${_sortOrd}&limit=100&page=${page}`;
   if (schema)      url += `&schema_name=${encodeURIComponent(schema)}`;
   if (_nameFilter) url += `&name=${encodeURIComponent(_nameFilter)}`;
   if (_templateId) url += `&template_id=${encodeURIComponent(_templateId)}`;
@@ -2026,14 +2113,18 @@ function fetchSalesPage(page) {
   const heavyScope = col.includes(',');
   return WaxApi.apiFetch(url, heavyScope ? { timeout: 30000 } : undefined).then(data => data || []);
 }
+function fetchSalesPage(page)        { return fetchSalesQueryPage(page, 1); }
+function fetchSalesHistoryPage(page) { return fetchSalesQueryPage(page, 3); }
 
 async function loadMore() {
   if (!_col || _busy) return;
   _busy = true;
   const myGen = _gen;
+  const mode  = _mode;
+  const isHist = mode === 'history';
 
   const $btn      = document.getElementById('loadMoreBtn');
-  const $grid     = document.getElementById('cardsGrid');
+  const $grid     = document.getElementById(isHist ? 'historyList' : 'cardsGrid');
   const $status   = document.getElementById('resultsStatus');
   const $loadWrap = document.getElementById('exLoadWrap');
 
@@ -2050,11 +2141,12 @@ async function loadMore() {
   const BATCH_SIZE         = 3;
   let pagesLoaded = 0;
   let hadError    = false;
+  const fetchFn = isHist ? fetchSalesHistoryPage : fetchSalesPage;
 
   while (_queue.length < PAGE_SIZE && !_apiDone && pagesLoaded < MAX_PAGES_PER_CALL) {
     const n = Math.min(BATCH_SIZE, MAX_PAGES_PER_CALL - pagesLoaded);
     const pageNums = Array.from({ length: n }, (_, i) => _apiPage + i);
-    const results  = await Promise.allSettled(pageNums.map(fetchSalesPage));
+    const results  = await Promise.allSettled(pageNums.map(fetchFn));
     if (myGen !== _gen) return;
 
     const firstFailIdx = results.findIndex(r => r.status === 'rejected');
@@ -2083,15 +2175,20 @@ async function loadMore() {
     _sales.push(...batch);
     const frag = document.createDocumentFragment();
     for (const sale of batch) {
-      _saleAmountById.set(String(sale.sale_id), {
-        amount: String(sale.price?.amount || '0'),
-        assetIds: (sale.assets || []).map(a => String(a.asset_id)),
-      });
       const wrap = document.createElement('div');
-      wrap.innerHTML = cardHtml(sale).trim();
-      const card = wrap.firstElementChild;
-      attachCardEvents(card, sale);
-      frag.appendChild(card);
+      if (isHist) {
+        wrap.innerHTML = historyCardHtml(sale).trim();
+        frag.appendChild(wrap.firstElementChild);
+      } else {
+        _saleAmountById.set(String(sale.sale_id), {
+          amount: String(sale.price?.amount || '0'),
+          assetIds: (sale.assets || []).map(a => String(a.asset_id)),
+        });
+        wrap.innerHTML = cardHtml(sale).trim();
+        const card = wrap.firstElementChild;
+        attachCardEvents(card, sale);
+        frag.appendChild(card);
+      }
     }
     $grid.appendChild(frag);
     _shownN += batch.length;
@@ -2100,18 +2197,19 @@ async function loadMore() {
 
   $loadWrap.style.display = 'none';
   $status.style.display = '';
+  const noun = isHist ? 'sale' : 'listing';
   if (_shownN === 0 && hadError) {
     $status.textContent = '';
     $grid.innerHTML = `<div class="results-error">
-      <div>Couldn't load listings right now — the marketplace didn't respond.</div>
+      <div>Couldn't load ${isHist ? 'sales history' : 'listings'} right now — the marketplace didn't respond.</div>
       <button type="button" class="retry-btn" onclick="loadMore()">Try again</button>
     </div>`;
   } else if (_shownN === 0 && _apiDone) {
     $status.textContent = '';
-    $grid.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-secondary);font-size:0.88rem">No listings found for the selected filters.</div>';
+    $grid.innerHTML = `<div style="padding:3rem;text-align:center;color:var(--text-secondary);font-size:0.88rem">No ${isHist ? 'past sales' : 'listings'} found for the selected filters.</div>`;
   } else {
     $status.textContent = _shownN
-      ? `${_shownN} listing${_shownN !== 1 ? 's' : ''} shown${(!_apiDone || _queue.length) ? ' — more available' : ''}${hadError ? ' — some results may be missing, try again' : ''}`
+      ? `${_shownN} ${noun}${_shownN !== 1 ? 's' : ''} shown${(!_apiDone || _queue.length) ? ' — more available' : ''}${hadError ? ' — some results may be missing, try again' : ''}`
       : '';
   }
 
@@ -2172,6 +2270,8 @@ function cardHtml(sale) {
     'data-rarity':          data.rarity || '',
     'data-cardid':          cardid,
     'data-name':            asset.name || data.name || '',
+    'data-owner':           asset.owner || '',
+    'data-backed':          JSON.stringify(asset.backed_tokens || []),
   };
   const ttAttrs = Object.entries(ttData).map(([k, v]) => `${k}="${escHtml(String(v))}"`).join(' ');
 
@@ -2207,49 +2307,123 @@ function cardHtml(sale) {
   </div>`;
 }
 
-// Card body click opens the persistent info popup (matches inventory.html's
-// pattern) — ignored when the click landed on Buy/Cart/View, so those keep
-// working normally instead of also opening/closing the popup underneath
-// them. Cart button gets its own listener here (not inline onclick) since
-// attachCardEvents already closes over the real `sale` object at render
-// time — no need for a separate sale_id -> sale lookup map just for this.
+// Card body click opens the persistent info popup — ignored when the click
+// landed on Buy/Cart/View, so those keep working normally (handled generi-
+// cally by AssetPopup.wire()). Cart button gets its own listener here (not
+// inline onclick) since attachCardEvents already closes over the real
+// `sale` object at render time — no need for a separate sale_id -> sale
+// lookup map just for this.
 function attachCardEvents(card, sale) {
-  // Hover tooltip only triggers over the image itself — the whole card used
-  // to fire it, which meant hovering the Buy/Cart/View buttons (inside the
-  // same card) to click them also popped the tooltip in the way.
   const imgEl = card.querySelector('.bl-card-img');
-  const maybeScheduleTooltip = () => {
-    if (document.getElementById('cardInfoPopup').style.display !== 'none') return;
-    scheduleTooltip(card);
-  };
-  imgEl.addEventListener('mouseenter', maybeScheduleTooltip);
-  imgEl.addEventListener('mouseleave', cancelTooltip);
-  card.addEventListener('click', e => {
-    if (e.target.closest('a, button')) return;
-    if (_infoAssetId === card.dataset.assetId && document.getElementById('cardInfoPopup').style.display !== 'none') {
-      closeInfoPopup();
-    } else {
-      openInfoPopup(card);
-    }
-  });
+  const chk   = card.querySelector('.bl-card-check');
+  _assetPopup.wire(card, cardDataFromEl(card), { hoverEl: imgEl, pauseElements: chk ? [chk] : [] });
 
   const cartBtn = card.querySelector('.cart-btn');
   if (cartBtn) cartBtn.addEventListener('click', () => toggleSelect(sale, card));
 
-  // The circle now acts exactly like the Cart button (just a smaller target
+  // The circle acts exactly like the Cart button (just a smaller target
   // reachable without scrolling to the card's footer) — same toggle, same
-  // handler. It sits inside imgEl, so reaching it still counts as hovering
-  // the image; cancel the tooltip on entry so it doesn't pop up right as
-  // you're about to click, and resume once the cursor moves back onto plain
-  // image (still within imgEl, so imgEl's own mouseenter won't refire to do
-  // this for us).
-  const chk = card.querySelector('.bl-card-check');
-  if (chk) {
-    chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(sale, card); });
-    chk.addEventListener('mouseenter', cancelTooltip);
-    chk.addEventListener('mouseleave', maybeScheduleTooltip);
-  }
+  // handler.
+  if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(sale, card); });
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Sales History — read-only AtomicHub-style list card, ported from           */
+/* inventory-activity.html's Sales tab. No Buy/Cart here (these are already   */
+/* sold), no hover/click info popup (every field it would show is already on */
+/* the card) — just a thumbnail + the sale's own record fields.               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function historyCardHtml(sale) {
+  const asset = sale.assets?.[0] || {};
+  const data  = asset.data || asset.template?.immutable_data || {};
+  const name  = escHtml(asset.name || data.name || 'Unknown');
+  const media = resolveMedia(asset);
+  const mint  = asset.template_mint ? `#${asset.template_mint}` : '—';
+  const tid   = asset.template?.template_id;
+  const col   = asset.collection?.collection_name || _col?.collection_name || '';
+  const colDisplay  = asset.collection?.name || col;
+  const precision   = sale.price?.token_precision ?? 8;
+  const wax = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+
+  let mediaHtml;
+  if (media?.kind === 'video') {
+    mediaHtml = `<video data-src="${escHtml(media.url)}" muted loop playsinline preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+  } else if (media?.kind === 'img') {
+    const ipfsHash = media.url.startsWith(IPFS_GW) ? media.url.slice(IPFS_GW.length) : '';
+    mediaHtml = `<img src="${escHtml(media.url)}" alt="${name}" loading="lazy" data-ipfs-hash="${escHtml(ipfsHash)}" data-gw-idx="0" onerror="onCardImgError(this)">`;
+  } else {
+    mediaHtml = '<div class="act-card-thumb-ph">?</div>';
+  }
+
+  // Same-tab internal link, no arrow — matches the site-wide convention for
+  // in-app nav links (Collection/Template links elsewhere on this page).
+  const nameHtml = tid
+    ? `<a href="template?template_id=${encodeURIComponent(tid)}" class="sc-name-link">${name}</a>`
+    : name;
+
+  return `<div class="act-card">
+    <div class="act-card-thumb-wrap">
+      <div class="act-card-thumb">${mediaHtml}</div>
+      <a class="act-card-txlink tx-link" href="#" data-sale-id="${sale.sale_id}" target="_blank" rel="noopener">View transaction ↗</a>
+    </div>
+    <div class="act-card-cols">
+      <div class="sc-fields">
+        <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
+        <span class="sc-label">NFT</span><span class="sc-value sc-name">${nameHtml}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(colDisplay)}</span>
+        <span class="sc-label">Price</span><span class="sc-value sc-price">${fmtWax(wax)}${usdTag(wax)}</span>
+      </div>
+      <div class="sc-fields sc-fields--meta">
+        <span class="sc-label">Listing ID</span><span class="sc-value">#${sale.sale_id}</span>
+        <span class="sc-label">Sold</span><span class="sc-value">${fmtDateTime(sale.updated_at_time)}</span>
+        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${escHtml(sale.seller)}</span>
+        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${escHtml(sale.buyer)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Resolves a sale's actual blockchain txid on demand (AtomicMarket's /sales
+// records don't carry one) via the sale's own event log — same lazy,
+// cached-on-click pattern as inventory-activity.html's Sales tab. Always
+// wants the most recent log entry (order=desc): every sale reaching this
+// list is state=3 (sold), so that's always the purchasesale event.
+const _histTxidCache = new Map();
+async function resolveSaleTxid(saleId) {
+  if (_histTxidCache.has(saleId)) return _histTxidCache.get(saleId);
+  let txid = null;
+  try {
+    const logs = await WaxApi.apiFetch(`${WaxApi.marketBase()}/sales/${saleId}/logs?limit=1&order=desc`);
+    txid = logs?.[0]?.txid || null;
+  } catch { /* non-fatal */ }
+  _histTxidCache.set(saleId, txid);
+  return txid;
+}
+async function onSaleTxLinkClick(link) {
+  if (link.dataset.loading === '1') return;
+  link.dataset.loading = '1';
+  const original = link.textContent;
+  link.textContent = 'Loading…';
+  const txid = await resolveSaleTxid(link.dataset.saleId);
+  delete link.dataset.loading;
+  if (!txid) {
+    link.textContent = 'Transaction unavailable';
+    link.classList.add('is-unavailable');
+    return;
+  }
+  link.href = `https://waxblock.io/transaction/${txid}`;
+  link.dataset.resolved = '1';
+  link.textContent = original;
+  window.open(link.href, '_blank', 'noopener');
+}
+document.getElementById('historyList').addEventListener('click', e => {
+  const link = e.target.closest('.tx-link[data-sale-id]');
+  if (link && link.dataset.resolved !== '1') {
+    e.preventDefault();
+    onSaleTxLinkClick(link);
+  }
+});
 
 // Keeps the corner checkmark, the card border, and the Cart button's
 // label/color all in sync in one place — every selection-changing call site
@@ -2414,7 +2588,7 @@ function loadCartFromStorage() {
 // — otherwise a returning visitor with a saved cart would see no sign of it
 // until they picked a collection again.
 function updateCartBarVisible() {
-  document.getElementById('cartBar').classList.toggle('visible', !!_col || _selected.size > 0);
+  document.getElementById('cartBar').classList.toggle('visible', _mode === 'listings' && (!!_col || _selected.size > 0));
 }
 
 function trayThumbHtml(asset) {
@@ -2768,16 +2942,17 @@ function refreshBuyButtons() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/* Hover tooltip + click info popup — ported from inventory.html/explore.html */
+/* Hover tooltip + click info popup — shared/asset-popup.js                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-const _supplyCache = {};
-const _ownedCache  = {};
-let _tooltipTimer    = null;
-let _tooltipAssetId  = null;
-let _infoAssetId     = null; // click-opened popup — persists until dismissed, unlike the hover tooltip
+const _assetPopup = AssetPopup.mount({
+  aaBase: WaxApi.aaBase,
+  apiFetch: WaxApi.apiFetch,
+});
 
 function cardDataFromEl(cardEl) {
+  let backedTokens = [];
+  try { backedTokens = JSON.parse(cardEl.dataset.backed || '[]'); } catch {}
   return {
     assetId:        cardEl.dataset.assetId,
     templateId:     cardEl.dataset.templateId,
@@ -2785,210 +2960,14 @@ function cardDataFromEl(cardEl) {
     collectionName: cardEl.dataset.collectionName,
     schema:         cardEl.dataset.schema,
     rarity:         cardEl.dataset.rarity,
+    rarityClass:    rcls(cardEl.dataset.rarity),
     cardid:         cardEl.dataset.cardid,
     name:           cardEl.dataset.name,
+    owner:          cardEl.dataset.owner,
+    backedTokens,
   };
 }
 
-function scheduleTooltip(cardEl) {
-  cancelTooltip();
-  _tooltipTimer = setTimeout(() => showTooltip(cardEl), 350);
-}
-
-function cancelTooltip() {
-  clearTimeout(_tooltipTimer);
-  _tooltipTimer   = null;
-  _tooltipAssetId = null;
-  document.getElementById('hoverTooltip').style.display = 'none';
-}
-
-function positionTooltip(cardEl) {
-  const tip  = document.getElementById('hoverTooltip');
-  const rect = cardEl.getBoundingClientRect();
-  const TW   = 216;
-  const TH   = tip.offsetHeight || 170;
-  let left = rect.right + 10;
-  if (left + TW > window.innerWidth - 8) left = rect.left - TW - 10;
-  if (left < 8) left = 8;
-  let top = rect.top;
-  if (top + TH > window.innerHeight - 8) top = window.innerHeight - TH - 8;
-  if (top < 8) top = 8;
-  tip.style.left = left + 'px';
-  tip.style.top  = top  + 'px';
-}
-
-function copyVal(btn, text) {
-  navigator.clipboard.writeText(String(text)).then(() => {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1200);
-  }).catch(() => {});
-}
-
-const _copyIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-
-// Shared by both the hover tooltip and the click-persisted popup — they only
-// differ in the header. The Collection/Template links and copy buttons are
-// inert during hover (.hover-tooltip is pointer-events:none) and only
-// actually clickable once pinned via a click.
-function renderTooltipBody(d, supply, owned) {
-  const loading = !supply && !owned;
-  const dash    = loading ? '…' : '—';
-  const fmt     = n => n != null ? Number(n).toLocaleString() : dash;
-
-  const issued = supply?.issued ?? null;
-  const circ   = supply?.circ   ?? null;
-  const locked = supply?.locked ?? 0;
-  const burned = issued != null && circ != null ? issued - circ : null;
-  const rClass = rcls(d.rarity);
-
-  return `
-    <div class="tt-heading">Attributes</div>
-    <div class="tt-section" style="margin-bottom:0.5rem">
-      ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.collection ? `<a href="collection/${encodeURIComponent(d.collection)}" style="color:var(--accent-light);text-decoration:none" title="View collection page">${escHtml(d.collectionName)}</a>` : escHtml(d.collectionName)}</span></div>` : ''}
-      ${d.schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${escHtml(d.schema)}</span></div>` : ''}
-      ${d.rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${escHtml(d.rarity)}</span></span></div>` : ''}
-      ${d.cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${escHtml(d.cardid)}</span></div>` : ''}
-      ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${escHtml(d.assetId)}<button class="copy-btn" onclick="copyVal(this,'${escHtml(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
-      ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="template/${escHtml(d.templateId)}" style="color:var(--accent-light);text-decoration:none" title="View template page">#${escHtml(d.templateId)}</a><button class="copy-btn" onclick="copyVal(this,'${escHtml(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-heading">Supply</div>
-    <div class="tt-section">
-      <div class="tt-row"><span class="tt-label">Issued</span><span class="tt-val">${fmt(issued)}</span></div>
-      ${burned > 0 || supply?.showBurned || supply?.funko || loading ? `<div class="tt-row"><span class="tt-label">Burned</span><span class="tt-val tt-red">${fmt(burned)}</span></div>` : ''}
-      ${locked > 0 || supply?.funko ? `<div class="tt-row"><span class="tt-label">Locked (Droppp)</span><span class="tt-val tt-purple">${fmt(locked)}</span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-heading">You</div>
-    <div class="tt-section">
-      <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
-      ${owned?.count > 0 ? `<div class="tt-row"><span class="tt-label">Lowest mint</span><span class="tt-val tt-orange">#${Number(owned.lowestMint).toLocaleString()}</span></div>` : ''}
-    </div>`;
-}
-
-function renderTooltip(d, supply, owned) {
-  return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${escHtml(d.name || 'Unknown')}</div>${renderTooltipBody(d, supply, owned)}`;
-}
-
-function renderInfoPopup(d, supply, owned) {
-  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
-    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${escHtml(d.name || 'Unknown')}</div>
-    <button class="info-popup-close" onclick="closeInfoPopup()">✕</button>
-  </div>${renderTooltipBody(d, supply, owned)}`;
-}
-
-async function showTooltip(cardEl) {
-  const d = cardDataFromEl(cardEl);
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  _tooltipAssetId = d.assetId;
-
-  const tip = document.getElementById('hoverTooltip');
-  tip.innerHTML = renderTooltip(d, null, null);
-  tip.style.display = '';
-  positionTooltip(cardEl);
-
-  const [supply, owned] = await Promise.all([
-    d.templateId ? fetchSupply(d.templateId, d.collection) : Promise.resolve(null),
-    d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
-  ]);
-
-  if (_tooltipAssetId !== d.assetId) return; // moved on to a different card (or dismissed) since this fetch started
-  tip.innerHTML = renderTooltip(d, supply, owned);
-  positionTooltip(cardEl);
-}
-
-function closeInfoPopup() {
-  _infoAssetId = null;
-  document.getElementById('cardInfoPopup').style.display = 'none';
-}
-
-function positionInfoPopup(cardEl) {
-  const popup = document.getElementById('cardInfoPopup');
-  const rect  = cardEl.getBoundingClientRect();
-  const PW    = 256;
-  const PH    = popup.offsetHeight || 320;
-  let left = rect.right + 10;
-  if (left + PW > window.innerWidth - 8) left = rect.left - PW - 10;
-  if (left < 8) left = 8;
-  let top = rect.top;
-  if (top + PH > window.innerHeight - 8) top = window.innerHeight - PH - 8;
-  if (top < 8) top = 8;
-  popup.style.left = left + 'px';
-  popup.style.top  = top  + 'px';
-}
-
-async function openInfoPopup(cardEl) {
-  cancelTooltip(); // don't show both at once
-  const d = cardDataFromEl(cardEl);
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  _infoAssetId = d.assetId;
-
-  const popup = document.getElementById('cardInfoPopup');
-  popup.innerHTML = renderInfoPopup(d, null, null);
-  popup.style.display = '';
-  positionInfoPopup(cardEl);
-
-  const [supply, owned] = await Promise.all([
-    d.templateId ? fetchSupply(d.templateId, d.collection) : Promise.resolve(null),
-    d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
-  ]);
-
-  if (_infoAssetId !== d.assetId) return;
-  popup.innerHTML = renderInfoPopup(d, supply, owned);
-  positionInfoPopup(cardEl);
-}
-
-document.addEventListener('click', e => {
-  const popup = document.getElementById('cardInfoPopup');
-  if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.bl-card')) {
-    closeInfoPopup();
-  }
-});
-
-// Funko templates get the richer Supabase-backed numbers (matches
-// inventory.html); any other collection falls through to the generic
-// on-chain stats endpoint, which works for every WAX collection.
-function fetchSupply(templateId, collectionName) {
-  if (_supplyCache[templateId]) return _supplyCache[templateId];
-  _supplyCache[templateId] = (async () => {
-    try {
-      const url = `${SUPABASE_URL}/rest/v1/templates?select=issued_supply,in_circulation,dp_locked_count&template_id=eq.${templateId}`;
-      const res = await fetch(url, {
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Accept-Profile': 'funko' },
-      });
-      if (res.ok) {
-        const rows = await res.json();
-        const r = Array.isArray(rows) ? rows[0] : null;
-        if (r) return { issued: r.issued_supply ?? null, circ: r.in_circulation ?? null, locked: r.dp_locked_count ?? 0, funko: true };
-      }
-    } catch { /* fall through */ }
-    try {
-      if (!collectionName) return null;
-      const s      = await WaxApi.apiFetch(`${WaxApi.aaBase()}/templates/${encodeURIComponent(collectionName)}/${templateId}/stats`);
-      const issued = s?.assets != null ? Number(s.assets) : null;
-      const burned = s?.burned != null ? Number(s.burned) : 0;
-      const circ   = issued != null ? issued - burned : null;
-      return issued != null ? { issued, circ, locked: 0, showBurned: true } : null;
-    } catch { return null; }
-  })();
-  return _supplyCache[templateId];
-}
-
-function fetchOwned(wallet, templateId) {
-  const key = `${wallet}:${templateId}`;
-  if (_ownedCache[key]) return _ownedCache[key];
-  _ownedCache[key] = (async () => {
-    try {
-      const rows = await WaxApi.apiFetch(`${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_id=${templateId}&sort=template_mint&order=asc&limit=500`);
-      const data = rows || [];
-      return { count: data.length, lowestMint: data[0]?.template_mint ?? null };
-    } catch { return { count: 0, lowestMint: null }; }
-  })();
-  return _ownedCache[key];
-}
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* URL sync                                                                   */
@@ -3014,6 +2993,7 @@ function pushUrl() {
   if (_sortBy !== 'price')  p.set('sort',  _sortBy);
   if (_sortOrd !== 'asc')   p.set('order', _sortOrd);
   if (_nameFilter) p.set('name', _nameFilter);
+  if (_mode !== 'listings') p.set('tab', _mode);
   const qs = p.toString();
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
@@ -3035,6 +3015,7 @@ async function restoreFromUrl() {
   _sortBy     = p.get('sort')    || 'price';
   _sortOrd    = p.get('order')   || 'asc';
   _nameFilter = p.get('name')    || '';
+  _mode       = p.get('tab') === 'history' ? 'history' : 'listings';
   _templateId = '';
 
   // A bare ?template_id= link (template.html's "View on Explore" button)
@@ -3063,7 +3044,6 @@ async function restoreFromUrl() {
   if (!colName) return;
 
   renderSortByDd();
-  renderSortOrderDd();
   if (_minP) document.getElementById('minPrice').value = _minP;
   if (_maxP) document.getElementById('maxPrice').value = _maxP;
   if (_minMint) document.getElementById('minMint').value = _minMint;

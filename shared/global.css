@@ -1023,6 +1023,64 @@ body::before {
 .r-redeemable { color: #888;    border-color: rgba(136, 136, 136, 0.25); background: rgba(136, 136, 136, 0.06); }
 .r-pack       { color: #94a3b8; border-color: rgba(148, 163, 184, 0.35); background: rgba(148, 163, 184, 0.08); }
 
+/* ── Asset info popup (shared/asset-popup.js) — hover tooltip + click-
+   persisted popup, used by inventory.html and explore.html's card grids.
+   Sized to match collection.html's template hover tooltip (.tpl-tooltip
+   used the same class names before this consolidation — a template's full
+   field list needs the room, and per-asset popups grew enough fields
+   (Attributes/Supply/You/Backed tokens/Owner) to want the same size). ── */
+.hover-tooltip {
+  position: fixed; z-index: 300; width: 360px; max-height: min(640px, 80vh); overflow-y: auto;
+  background: #16161f; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; padding: 0.85rem 1rem;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  font-size: 0.78rem;
+}
+/* No real hover on touch devices — without this a tap can leave the
+   tooltip stuck open with nothing to dismiss it (it's pointer-events:none,
+   so it can't even absorb its own dismissing tap). */
+@media (hover: none) {
+  .hover-tooltip { display: none !important; }
+}
+.info-popup {
+  position: fixed; z-index: 301; width: 360px; max-height: min(640px, 80vh); overflow-y: auto;
+  background: #16161f; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px; padding: 0.9rem 1rem 0.85rem;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65);
+  font-size: 0.78rem;
+}
+.info-popup-close {
+  background: none; border: none; color: var(--text-secondary);
+  cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
+  flex-shrink: 0; transition: color 0.15s;
+}
+.info-popup-close:hover { color: var(--text-primary); }
+.tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
+.tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.tt-label { color: var(--text-secondary); }
+.tt-val {
+  font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums;
+  text-align: right; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tt-val--wrap { white-space: normal; text-align: left; font-weight: 400; max-width: none; }
+.tt-val-copiable { display: inline-flex; align-items: center; gap: 4px; }
+.copy-btn {
+  background: none; border: none; padding: 0 1px; cursor: pointer;
+  color: var(--text-secondary); font-size: 0.72rem; line-height: 1;
+  opacity: 0.55; transition: opacity 0.15s, color 0.15s; flex-shrink: 0; vertical-align: middle;
+}
+.copy-btn:hover { opacity: 1; color: var(--accent-light); }
+.copy-btn.copied { color: #4ade80; opacity: 1; }
+.tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.6rem 0; }
+.tt-heading {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem;
+}
+.tt-red    { color: #f87171; }
+.tt-purple { color: #a78bfa; }
+.tt-orange { color: var(--accent-light); }
+
 
 /* ── Table base ── */
 .table-wrap {

@@ -368,43 +368,9 @@
       .inv-grid { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.6rem; }
     }
 
-    /* ── Info popup (click) ── */
-    .info-popup {
-      position: fixed; z-index: 301; width: 240px;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 12px; padding: 0.9rem 1rem 0.85rem;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.65);
-      font-size: 0.78rem;
-    }
-    .info-popup-close {
-      background: none; border: none; color: var(--text-secondary);
-      cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
-      flex-shrink: 0; transition: color 0.15s;
-    }
-    .info-popup-close:hover { color: var(--text-primary); }
-    /* ── Hover tooltip ── */
-    .hover-tooltip {
-      position: fixed; z-index: 300; width: 200px;
-      background: #16161f; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; padding: 0.85rem 1rem;
-      pointer-events: none;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
-      font-size: 0.78rem;
-    }
-    .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
-    .tt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
-    .tt-label { color: var(--text-secondary); }
-    .tt-val { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    .tt-val-copiable { display:inline-flex; align-items:center; gap:4px; }
-    .copy-btn { background:none; border:none; padding:0 1px; cursor:pointer; color:var(--text-secondary); font-size:0.72rem; line-height:1; opacity:0.55; transition:opacity 0.15s, color 0.15s; flex-shrink:0; vertical-align:middle; }
-    .copy-btn:hover { opacity:1; color:var(--accent-light); }
-    .copy-btn.copied { color:#4ade80; opacity:1; }
-    .tt-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.6rem 0; }
-    .tt-heading { font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.1em; color: var(--text-secondary); opacity: 0.55; margin-bottom: 0.3rem; }
-    .tt-red    { color: #f87171; }
-    .tt-purple { color: #a78bfa; }
-    .tt-orange { color: var(--accent-light); }
+    /* ── Info popup / hover tooltip: canonical .hover-tooltip/.info-popup/
+       .tt-* rules now live in shared/global.css (shared/asset-popup.js
+       owns the DOM + wiring). ── */
 
     /* ── Buy offers premium banner ── */
     .buyoffer-banner {
@@ -643,6 +609,7 @@
   <script src="shared/supabase-config.js"></script>
   <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
+  <script src="shared/asset-popup.js"></script>
   <script src="shared/gift-crypto.js"></script>
   <script src="shared/qrcode.js"></script>
 </head>
@@ -873,8 +840,6 @@
 <div id="listingModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
 <div id="acceptOfferModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
 <div id="bulkActionModal" class="listing-modal" style="display:none;" role="dialog" aria-modal="true"></div>
-<div id="hoverTooltip" class="hover-tooltip" style="display:none;"></div>
-<div id="infoPopup" class="info-popup" style="display:none;"></div>
 <div id="cardActionMenu" class="card-action-menu" style="display:none;"></div>
 
 <script>
@@ -993,8 +958,6 @@ const MARKET_FEE    = 0.02;
 const ECOSYSTEM_FEE = 0.01;
 let _acceptBusy      = false;
 let _activeWallet    = null;    // tracks last connected wallet; null = fresh page load
-const _supplyCache   = {};          // templateId → Promise<supply>
-const _ownedCache    = {};          // `${wallet}:${tid}` → Promise<owned>
 let _pendingReload   = false;       // a filter changed while _loading was already true — see finishLoading()
 
 // ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──
@@ -1352,15 +1315,6 @@ function patchCard(assetId) {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function attachCardEvents(card, asset) {
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('a, button')) return; // List/Edit button and the select checkbox handle their own clicks
-    if (_infoAsset?.asset_id === asset.asset_id && document.getElementById('infoPopup').style.display !== 'none') {
-      closeInfoPopup();
-    } else {
-      openInfoPopup(card, asset);
-    }
-  });
-
   const btn = card.querySelector('.inv-card-btn');
   if (btn) btn.addEventListener('click', e => { e.stopPropagation(); openModal(asset); });
 
@@ -1370,280 +1324,51 @@ function attachCardEvents(card, asset) {
   const chk = card.querySelector('.inv-card-check');
   if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(asset.asset_id, card); });
 
-  // Scoped to the image itself, not the whole card — matches explore.html's
-  // fix for the same problem: hovering the title/List-Edit button/checkbox
-  // to click them used to also pop the tooltip in the way.
+  // Hover/click info popup — shared/asset-popup.js. Scoped to the image
+  // itself, not the whole card, so hovering the title/List-Edit button/
+  // checkbox to click them doesn't also pop the tooltip in the way; the
+  // checkbox is a pauseElement since it sits inside the image area.
   const imgEl = card.querySelector('.inv-card-img');
-  const maybeScheduleTooltip = () => {
-    if (document.getElementById('listingModal').style.display !== 'none') return;
-    if (document.getElementById('acceptOfferModal').style.display !== 'none') return;
-    if (document.getElementById('infoPopup').style.display !== 'none') return;
-    scheduleTooltip(card, asset);
+  _assetPopup.wire(card, assetPopupData(asset), {
+    hoverEl: imgEl,
+    pauseElements: chk ? [chk] : [],
+    shouldSuppressHover: () =>
+      document.getElementById('listingModal').style.display !== 'none' ||
+      document.getElementById('acceptOfferModal').style.display !== 'none',
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Info popup / hover tooltip — shared/asset-popup.js                        */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const _assetPopup = AssetPopup.mount({
+  aaBase: () => atomicApi() + '/atomicassets/v1',
+  apiFetch: url => fetchWithRetry(url).then(r => r.json()).then(j => j.data),
+});
+function closeInfoPopup() { _assetPopup.close(); }
+function copyVal(btn, text) { AssetPopup.copyVal(btn, text); }
+
+// Maps this page's asset representation onto AssetPopup's page-agnostic
+// data contract — kept in one place so the popup content only has to be
+// written once (shared/asset-popup.js) instead of once per render mode.
+function assetPopupData(asset) {
+  const d      = normalizeFieldData(asset.data);
+  const t      = normalizeFieldData(asset.template?.immutable_data);
+  const rarity = d.rarity || t.rarity || '';
+  return {
+    assetId: asset.asset_id,
+    templateId: asset.template?.template_id,
+    collection: asset.collection?.collection_name || '',
+    collectionName: asset.collection?.name || _collectionNames.get(asset.collection?.collection_name) || asset.collection?.collection_name || '',
+    schema: asset.schema?.schema_name || '',
+    rarity,
+    rarityClass: RARITY_CLASS[rarity] || '',
+    cardid: d.cardid || t.cardid || null,
+    name: asset.name || 'Unknown',
+    owner: asset.owner || '',
+    backedTokens: asset.backed_tokens || [],
   };
-  imgEl.addEventListener('mouseenter', maybeScheduleTooltip);
-  imgEl.addEventListener('mouseleave', cancelTooltip);
-
-  // The checkbox sits inside imgEl, so reaching it still counts as hovering
-  // the image — without this, the tooltip pops up right as you're about to
-  // click the checkbox, in the way. Cancel on entry, resume once the cursor
-  // moves off it and back onto plain image (still within imgEl, so imgEl's
-  // own mouseenter won't refire to do this for us).
-  if (chk) {
-    chk.addEventListener('mouseenter', cancelTooltip);
-    chk.addEventListener('mouseleave', maybeScheduleTooltip);
-  }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* Info popup (click)                                                         */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-function closeInfoPopup() {
-  _infoAsset = null;
-  document.getElementById('infoPopup').style.display = 'none';
-}
-
-function positionInfoPopup(cardEl) {
-  const popup = document.getElementById('infoPopup');
-  const rect  = cardEl.getBoundingClientRect();
-  const PW    = 256;
-  const PH    = popup.offsetHeight || 320;
-  let left = rect.right + 10;
-  if (left + PW > window.innerWidth - 8) left = rect.left - PW - 10;
-  if (left < 8) left = 8;
-  let top = rect.top;
-  if (top + PH > window.innerHeight - 8) top = window.innerHeight - PH - 8;
-  if (top < 8) top = 8;
-  popup.style.left = left + 'px';
-  popup.style.top  = top  + 'px';
-}
-
-function renderInfoContent(asset, supply, owned) {
-  const loading  = !supply && !owned;
-  const dash     = loading ? '…' : '—';
-  const fmt      = n => n != null ? Number(n).toLocaleString() : dash;
-  const d        = normalizeFieldData(asset.data);
-  const t        = normalizeFieldData(asset.template?.immutable_data);
-  const rarity   = d.rarity || t.rarity || '';
-  const rClass   = RARITY_CLASS[rarity] || '';
-  const colName  = asset.collection?.name || asset.collection?.collection_name || '';
-  const colSlug  = asset.collection?.collection_name || '';
-  const schema   = asset.schema?.schema_name || '';
-  const cardid   = d.cardid || t.cardid || null;
-  const issued   = supply?.issued ?? null;
-  const circ     = supply?.circ   ?? null;
-  const locked   = supply?.locked ?? 0;
-  const burned   = issued != null && circ != null ? issued - circ : null;
-  const listing  = _listings.get(String(asset.asset_id));
-
-  return `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
-      <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${asset.name || 'Unknown'}</div>
-      <button class="info-popup-close" onclick="closeInfoPopup()">✕</button>
-    </div>
-    <div class="tt-heading">Attributes</div>
-    <div class="tt-section" style="margin-bottom:0.5rem">
-      ${colName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${colSlug ? `<a href="collection/${encodeURIComponent(colSlug)}" style="color:var(--accent-light);text-decoration:none" title="View collection page">${colName}</a>` : colName}</span></div>` : ''}
-      ${schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${schema}</span></div>` : ''}
-      ${rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${rarity}</span></span></div>` : ''}
-      ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
-      ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${asset.asset_id}<button class="copy-btn" onclick="copyVal(this,'${asset.asset_id}')" title="Copy asset ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
-      ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="template/${asset.template.template_id}" style="color:var(--accent-light);text-decoration:none" title="View template page">#${asset.template.template_id}</a><button class="copy-btn" onclick="copyVal(this,'${asset.template.template_id}')" title="Copy template ID"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${fmtBackedTokens(asset)}</span></div>
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-heading">Supply</div>
-    <div class="tt-section">
-      <div class="tt-row"><span class="tt-label">Issued</span><span class="tt-val">${fmt(issued)}</span></div>
-      ${burned > 0 || supply?.showBurned || supply?.funko || loading ? `<div class="tt-row"><span class="tt-label">Burned</span><span class="tt-val tt-red">${fmt(burned)}</span></div>` : ''}
-      ${locked > 0 || supply?.funko ? `<div class="tt-row"><span class="tt-label">Locked (Droppp)</span><span class="tt-val tt-purple">${fmt(locked)}</span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-heading">You</div>
-    <div class="tt-section">
-      <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
-      ${owned?.count > 0 ? `<div class="tt-row"><span class="tt-label">Lowest mint</span><span class="tt-val tt-orange">#${Number(owned.lowestMint).toLocaleString()}</span></div>` : ''}
-    </div>
-  `;
-}
-
-async function openInfoPopup(cardEl, asset) {
-  cancelTooltip();
-  _infoAsset = asset;
-  const popup = document.getElementById('infoPopup');
-  popup.innerHTML = renderInfoContent(asset, null, null);
-  positionInfoPopup(cardEl);
-  popup.style.display = '';
-
-  const tid    = asset.template?.template_id;
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-
-  const [supply, owned] = await Promise.all([
-    tid ? fetchSupply(tid, asset) : Promise.resolve(null),
-    tid && wallet ? fetchOwned(wallet, tid) : Promise.resolve(null),
-  ]);
-
-  if (_infoAsset?.asset_id !== asset.asset_id) return;
-  popup.innerHTML = renderInfoContent(asset, supply, owned);
-  positionInfoPopup(cardEl);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* Hover tooltip                                                              */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-let _tooltipTimer = null;
-let _tooltipAsset = null;
-let _infoAsset    = null;
-
-function copyVal(btn, text) {
-  navigator.clipboard.writeText(String(text)).then(() => {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1200);
-  }).catch(() => {});
-}
-
-function scheduleTooltip(cardEl, asset) {
-  cancelTooltip();
-  _tooltipTimer = setTimeout(() => showTooltip(cardEl, asset), 350);
-}
-
-function cancelTooltip() {
-  clearTimeout(_tooltipTimer);
-  _tooltipTimer = null;
-  _tooltipAsset = null;
-  document.getElementById('hoverTooltip').style.display = 'none';
-}
-
-function positionTooltip(cardEl) {
-  const tip  = document.getElementById('hoverTooltip');
-  const rect = cardEl.getBoundingClientRect();
-  const TW   = 216;
-  const TH   = tip.offsetHeight || 170;
-  let left = rect.right + 10;
-  if (left + TW > window.innerWidth - 8) left = rect.left - TW - 10;
-  if (left < 8) left = 8;
-  let top = rect.top;
-  if (top + TH > window.innerHeight - 8) top = window.innerHeight - TH - 8;
-  if (top < 8) top = 8;
-  tip.style.left = left + 'px';
-  tip.style.top  = top  + 'px';
-}
-
-function renderTooltip(asset, supply, owned) {
-  const loading = !supply && !owned;
-  const dash    = loading ? '…' : '—';
-  const fmt     = n => n != null ? Number(n).toLocaleString() : dash;
-
-  const issued = supply?.issued ?? null;
-  const circ   = supply?.circ   ?? null;
-  const locked = supply?.locked ?? 0;
-  const burned = issued != null && circ != null ? issued - circ : null;
-
-  const d       = normalizeFieldData(asset.data);
-  const t       = normalizeFieldData(asset.template?.immutable_data);
-  const rarity  = d.rarity || t.rarity || '';
-  const rClass  = RARITY_CLASS[rarity] || '';
-  const colName = asset.collection?.name || _collectionNames.get(asset.collection?.collection_name) || asset.collection?.collection_name || '';
-  const schema  = asset.schema?.schema_name || '';
-
-  const cardid = d.cardid || t.cardid || null;
-
-  return `
-    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${asset.name || 'Unknown'}</div>
-    <div class="tt-heading">Attributes</div>
-    <div class="tt-section" style="margin-bottom:0.5rem">
-      ${colName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val" style="text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${colName}</span></div>` : ''}
-      ${schema  ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${schema}</span></div>` : ''}
-      ${rarity  ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${rClass}" style="font-size:0.62rem;padding:1px 7px">${rarity}</span></span></div>` : ''}
-      ${cardid  ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${cardid}</span></div>` : ''}
-      ${asset.asset_id ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val">#${asset.asset_id}</span></div>` : ''}
-      ${asset.template?.template_id ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val">#${asset.template.template_id}</span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${fmtBackedTokens(asset)}</span></div>
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-heading">Supply</div>
-    <div class="tt-section">
-      <div class="tt-row"><span class="tt-label">Issued</span><span class="tt-val">${fmt(issued)}</span></div>
-      ${burned > 0 || supply?.showBurned || supply?.funko || loading ? `<div class="tt-row"><span class="tt-label">Burned</span><span class="tt-val tt-red">${fmt(burned)}</span></div>` : ''}
-      ${locked > 0 || supply?.funko ? `<div class="tt-row"><span class="tt-label">Locked (Droppp)</span><span class="tt-val tt-purple">${fmt(locked)}</span></div>` : ''}
-      <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-heading">You</div>
-    <div class="tt-section">
-      <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
-      ${owned?.count > 0 ? `<div class="tt-row"><span class="tt-label">Lowest mint</span><span class="tt-val tt-orange">#${Number(owned.lowestMint).toLocaleString()}</span></div>` : ''}
-    </div>`;
-}
-
-async function showTooltip(cardEl, asset) {
-  const tid    = asset.template?.template_id;
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  _tooltipAsset = asset.asset_id;
-
-  const tip = document.getElementById('hoverTooltip');
-  tip.innerHTML = renderTooltip(asset, null, null);
-  positionTooltip(cardEl);
-  tip.style.display = '';
-
-  const [supply, owned] = await Promise.all([
-    tid    ? fetchSupply(tid, asset)   : Promise.resolve(null),
-    tid && wallet ? fetchOwned(wallet, tid) : Promise.resolve(null),
-  ]);
-
-  if (_tooltipAsset !== asset.asset_id) return;
-  tip.innerHTML = renderTooltip(asset, supply, owned);
-  positionTooltip(cardEl);
-}
-
-function fetchSupply(templateId, asset) {
-  if (_supplyCache[templateId]) return _supplyCache[templateId];
-  _supplyCache[templateId] = (async () => {
-    // Try Supabase — if row exists it's a Funko template; show all 4 supply values
-    try {
-      const url  = `${SUPABASE_URL}/rest/v1/templates?select=issued_supply,in_circulation,dp_locked_count&template_id=eq.${templateId}`;
-      const res  = await fetch(url, { headers: SB_HEADERS });
-      if (res.ok) {
-        const rows = await res.json();
-        const r    = Array.isArray(rows) ? rows[0] : null;
-        if (r) return { issued: r.issued_supply ?? null, circ: r.in_circulation ?? null, locked: r.dp_locked_count ?? 0, funko: true };
-      }
-    } catch { /* fall through */ }
-    // Blockchain fallback — non-Funko collection: issued, burned, in circulation
-    try {
-      const col = asset?.collection?.collection_name;
-      if (!col) return null;
-      const url  = `${atomicApi()}/atomicassets/v1/templates/${encodeURIComponent(col)}/${templateId}/stats`;
-      const res  = await fetchWithRetry(url);
-      if (!res.ok) return null;
-      const json = await res.json();
-      const s      = json.data;
-      const issued = s?.assets != null ? Number(s.assets) : null;
-      const burned = s?.burned != null ? Number(s.burned) : 0;
-      const circ   = issued != null ? issued - burned : null;
-      return issued != null ? { issued, circ, locked: 0, showBurned: true } : null;
-    } catch { return null; }
-  })();
-  return _supplyCache[templateId];
-}
-
-function fetchOwned(wallet, templateId) {
-  const key = `${wallet}:${templateId}`;
-  if (_ownedCache[key]) return _ownedCache[key];
-  _ownedCache[key] = (async () => {
-    try {
-      const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_id=${templateId}&sort=template_mint&order=asc&limit=500`;
-      const res  = await fetchWithRetry(url);
-      const json = await res.json();
-      const data = json.data || [];
-      return { count: data.length, lowestMint: data[0]?.template_mint ?? null };
-    } catch { return { count: 0, lowestMint: null }; }
-  })();
-  return _ownedCache[key];
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -4153,16 +3878,6 @@ function fmtWax(n) {
     .replace(/(\.\d{2})0+$/, '$1');
 }
 
-// AtomicAssets' /assets response always includes backed_tokens (empty array
-// when there's none) regardless of any query param — confirmed live, no
-// extra fetch needed. Not WAX-specific: shows whatever token(s) actually
-// back the asset, could be more than one.
-function fmtBackedTokens(asset) {
-  const tokens = asset?.backed_tokens;
-  if (!tokens || !tokens.length) return 'None';
-  return tokens.map(t => `${fmtWax(Number(t.amount) / (10 ** t.token_precision))} ${t.token_symbol}`).join(', ');
-}
-
 function onPriceInput(el) {
   const d = el.value.indexOf('.');
   if (d !== -1 && el.value.length - d > 3) el.value = el.value.slice(0, d + 3);
@@ -4417,7 +4132,7 @@ function selectedListed()    { return [..._selected.keys()].filter(id => _listin
 // same reasoning as bulkBackTokens — avoids float drift) — what actually
 // comes back to the wallet when these NFTs are burned. Most items back with
 // a single token, but nothing stops a mix, so this totals per symbol and
-// joins them like fmtBackedTokens does for a single card.
+// joins them, same idea as AssetPopup's single-card fmtBackedTokens.
 function bulkBurnTokenTotal() {
   const assetsById = assetsIndex();
   const totals = new Map(); // symbol -> { amountInt, precision }
@@ -5682,7 +5397,7 @@ async function onWalletChange() {
     document.getElementById('mintMin').value = '';
     document.getElementById('mintMax').value = '';
     buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
-    Object.keys(_ownedCache).forEach(k => delete _ownedCache[k]);
+    _assetPopup.clearOwnedCache();
     return;
   }
   document.getElementById('authGate').style.display = 'none';
@@ -5927,10 +5642,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('click', e => {
-  const popup = document.getElementById('infoPopup');
-  if (popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.inv-card')) {
-    closeInfoPopup();
-  }
   if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllCbDropdowns();
   if (!e.target.closest('.bulk-action-chip-wrap')) closeBulkMenu();
   if (!e.target.closest('.inv-card-dots-btn') && !e.target.closest('#cardActionMenu')) closeCardActionMenu();
