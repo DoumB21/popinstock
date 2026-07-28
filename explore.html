@@ -1366,6 +1366,7 @@ async function selectCollection(c) {
   setDdActive('rarityDd', false);
   document.getElementById('rarityPanel').innerHTML = '';
   refreshDynAttrFilters(); // kicks off the unscoped (pooled) attribute scan immediately — no schema picked yet
+  renderSortByDd(); // _mode/_sortBy carry over from whatever was active — just make sure the label matches
 
   showFilters();
   pushUrl();
@@ -1380,6 +1381,10 @@ document.getElementById('colChipClear').addEventListener('click', clearCollectio
 function clearCollection() {
   _col = null; _schema = ''; _rarity = ''; _nameFilter = ''; _drop = ''; _dynFilters = {};
   _mode = 'listings';
+  // Mode is forced back to Listings above — sort must follow the same
+  // per-tab default setMode() would apply, or it's left stuck on whatever
+  // History had (e.g. "Sale Date (Newest)" showing under the Listings tab).
+  _sortBy = 'price'; _sortOrd = 'asc';
   _templateId = ''; $tplChip.style.display = 'none';
   _ownedTemplateIds = null;
   $colChip.style.display = 'none';
@@ -1392,6 +1397,7 @@ function clearCollection() {
   setDdActive('rarityDd', false);
   document.getElementById('rarityPanel').innerHTML = '';
   refreshDynAttrFilters();
+  renderSortByDd();
   hideFilters();
   pushUrl();
   resetResults();
@@ -1439,6 +1445,10 @@ function applyModeVisibility() {
 function setMode(mode) {
   if (_mode === mode || !_col) return;
   _mode = mode;
+  // Each tab has its own sensible default sort — Sale Date (Newest) for a
+  // chronological sales feed, Price (Lowest) for browsing listings.
+  _sortBy  = mode === 'history' ? 'created' : 'price';
+  _sortOrd = mode === 'history' ? 'desc'    : 'asc';
   renderSortByDd(); // "Date listed"/"Date sold" label depends on _mode
   applyModeVisibility();
   pushUrl();
@@ -3698,10 +3708,12 @@ async function restoreFromUrl() {
   _maxP       = p.get('maxP')    || '';
   _minMint    = p.get('minMint') || '';
   _maxMint    = p.get('maxMint') || '';
-  _sortBy     = p.get('sort')    || 'price';
-  _sortOrd    = p.get('order')   || 'asc';
-  _nameFilter = p.get('name')    || '';
   _mode       = p.get('tab') === 'history' ? 'history' : 'listings';
+  // Same per-tab default as setMode() — only kicks in when the URL doesn't
+  // already carry an explicit sort (e.g. a shared link with a chosen sort).
+  _sortBy     = p.get('sort')  || (_mode === 'history' ? 'created' : 'price');
+  _sortOrd    = p.get('order') || (_mode === 'history' ? 'desc'    : 'asc');
+  _nameFilter = p.get('name')    || '';
   _templateId = '';
 
   // A bare ?template_id= link (template.html's "View on Explore" button)
