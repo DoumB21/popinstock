@@ -65,17 +65,18 @@
     .col-chip-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.25rem; flex-shrink: 0; }
     .col-chip-clear:hover { color: var(--text-primary); }
 
-    .catalog-mode-btn {
-      display: flex; align-items: center; gap: 0.5rem;
-      width: 100%; margin-top: 0.6rem; box-sizing: border-box;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 0.5rem 0.7rem;
-      color: var(--text-primary); font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; transition: border-color 0.1s;
-    }
-    .catalog-mode-btn:hover { border-color: rgba(192,120,40,0.5); }
-    .catalog-mode-btn img { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; }
-    .catalog-mode-btn.hidden { display: none; }
+    /* ── Quick access: Recently viewed / Popular collections (shown only
+       when no collection is picked yet — same rows as .col-sug, just not
+       inside the absolute-positioned suggestions dropdown). ── */
+    .quick-group { display: none; margin-top: 0.9rem; }
+    .quick-list { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; }
+    .quick-list .col-sug { padding: 0.5rem 0.7rem; }
+    /* Popular collections can hold more rows than fit — scrolls at ~5 visible,
+       same thin-scrollbar treatment as #colSuggestions. */
+    #popularList { max-height: 245px; overflow-y: auto; overflow-x: hidden; } /* 5 rows @ 49px each */
+    #popularList::-webkit-scrollbar { width: 4px; }
+    #popularList::-webkit-scrollbar-track { background: transparent; }
+    #popularList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
     .ex-sidebar .cb-panel { z-index: 400; }
     .cb-item-tag {
@@ -613,6 +614,28 @@
         <input type="text" id="colSearch" class="search-input" placeholder="Type to search…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
         <div id="colSuggestions"></div>
       </div>
+      <div class="quick-access" id="colQuickAccess">
+        <div class="quick-group" id="recentGroup">
+          <span class="filter-label">Recently viewed</span>
+          <div class="quick-list" id="recentList"></div>
+        </div>
+        <div class="quick-group" id="popularGroup">
+          <span class="filter-label">Popular collections</span>
+          <div class="quick-list" id="popularList"></div>
+        </div>
+        <div class="quick-group" id="supportedGroup">
+          <span class="filter-label">Supported Projects</span>
+          <div class="quick-list">
+            <div class="col-sug" id="funkoCatalogBtn">
+              <img src="images/funko-icon.png" alt="" />
+              <div class="col-sug-info">
+                <span class="col-sug-name">Full Funko catalog</span>
+                <span class="col-sug-slug">All Funko drops &amp; collections</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="col-chip" id="colChip">
         <img id="colChipImg" src="" alt="" />
         <span class="col-chip-name" id="colChipName"></span>
@@ -622,10 +645,6 @@
         <span class="col-chip-name" id="tplChipName"></span>
         <button class="col-chip-clear" id="tplChipClear" title="Clear template filter">✕</button>
       </div>
-      <button type="button" class="catalog-mode-btn" id="funkoCatalogBtn">
-        <img src="images/funko-icon.png" alt="" />
-        <span>Browse the Funko catalog</span>
-      </button>
     </div>
 
     <!-- Drop (Funko catalog mode only) -->
@@ -1187,12 +1206,109 @@ function renderSugs() {
     </div>`;
   }).join('');
   $colSugs.style.display = 'block';
+  syncQuickAccessVisibility();
 }
 $colSugs.addEventListener('mousedown', e => {
   const el = e.target.closest('.col-sug');
   if (el) selectCollection(_suggestions[+el.dataset.i]);
 });
-function hideSugs() { $colSugs.style.display = 'none'; }
+function hideSugs() { $colSugs.style.display = 'none'; syncQuickAccessVisibility(); }
+
+// Quick access (Recently viewed / Popular) only makes sense with no collection
+// picked and no active suggestions dropdown covering it — collection pick/clear
+// is handled by showFilters()/hideFilters(), this covers the typeahead itself.
+function syncQuickAccessVisibility() {
+  document.getElementById('colQuickAccess').style.display = (!_col && $colSugs.style.display !== 'block') ? 'block' : 'none';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Quick access: Recently viewed + Popular collections                        */
+/* Shown in place of the typeahead results until a collection is picked.      */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const RECENTS_KEY        = 'explore_recent_collections';
+const RECENTS_MAX        = 8;  // kept in storage
+const RECENTS_SHOW       = 5;  // shown in the sidebar
+const POPULAR_SHOW       = 25; // fetched+rendered; #popularList scrolls at ~5 visible (see CSS)
+// "Popular" = highest WAX trading volume over the trailing 7 days (via
+// atomicmarket's stats/collections?after=, the same volume source the
+// collection page's stat cards use) — closest available proxy to AtomicHub's
+// own trending list, whose exact ranking formula isn't public.
+const POPULAR_WINDOW_MS  = 7 * 24 * 60 * 60 * 1000;
+const POPULAR_CACHE_KEY  = 'explore_popular_collections_cache';
+const POPULAR_CACHE_TTL  = 30 * 60 * 1000; // refetch at most every 30 min
+
+function loadRecents() {
+  try { return JSON.parse(localStorage.getItem(RECENTS_KEY)) || []; } catch { return []; }
+}
+function addRecentCollection(c) {
+  if (!c || c.isCatalog) return; // the Funko catalog is a joined collection list, not a real recent
+  const list = loadRecents().filter(r => r.collection_name !== c.collection_name);
+  list.unshift({ collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' });
+  try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list.slice(0, RECENTS_MAX))); } catch {}
+}
+
+let _recentSugs  = [];
+let _popularSugs = [];
+
+function quickRowHtml(c) {
+  const img = c.img ? `<img src="${IPFS_GW}${escHtml(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'col-sug-ph'}))">` : '<div class="col-sug-ph"></div>';
+  return `${img}
+    <div class="col-sug-info">
+      <span class="col-sug-name">${escHtml(c.name || c.collection_name)}</span>
+      <span class="col-sug-slug">${escHtml(c.collection_name)}</span>
+    </div>`;
+}
+
+function renderRecents() {
+  _recentSugs = loadRecents().slice(0, RECENTS_SHOW);
+  const $group = document.getElementById('recentGroup');
+  if (!_recentSugs.length) { $group.style.display = 'none'; return; }
+  document.getElementById('recentList').innerHTML = _recentSugs
+    .map((c, i) => `<div class="col-sug" data-src="recent" data-i="${i}">${quickRowHtml(c)}</div>`).join('');
+  $group.style.display = 'block';
+}
+
+async function fetchPopularCollections() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(POPULAR_CACHE_KEY) || 'null');
+    // limit/windowMs guard so a code change (e.g. bumping POPULAR_SHOW) can't
+    // get shadowed by a still-fresh cache from the old fetch shape.
+    if (cached && cached.limit === POPULAR_SHOW && cached.windowMs === POPULAR_WINDOW_MS && Date.now() - cached.ts < POPULAR_CACHE_TTL) {
+      return cached.data;
+    }
+  } catch {}
+  const after = Date.now() - POPULAR_WINDOW_MS;
+  const data = await WaxApi.apiFetch(`${WaxApi.marketBase()}/stats/collections?symbol=WAX&sort=volume&order=desc&limit=${POPULAR_SHOW}&after=${after}`);
+  const results = (data?.results || []).map(r => ({ collection_name: r.collection_name, name: r.name || r.collection_name, img: r.img || '' }));
+  try { sessionStorage.setItem(POPULAR_CACHE_KEY, JSON.stringify({ ts: Date.now(), limit: POPULAR_SHOW, windowMs: POPULAR_WINDOW_MS, data: results })); } catch {}
+  return results;
+}
+
+async function renderPopular() {
+  const $group = document.getElementById('popularGroup');
+  try {
+    _popularSugs = await fetchPopularCollections();
+    if (!_popularSugs.length) { $group.style.display = 'none'; return; }
+    document.getElementById('popularList').innerHTML = _popularSugs
+      .map((c, i) => `<div class="col-sug" data-src="popular" data-i="${i}">${quickRowHtml(c)}</div>`).join('');
+    $group.style.display = 'block';
+  } catch { $group.style.display = 'none'; } // API hiccup — quietly stay hidden rather than show a broken block
+}
+
+function renderQuickAccess() {
+  renderRecents();
+  renderPopular();
+  document.getElementById('supportedGroup').style.display = 'block'; // static — no data fetch, always shown
+}
+
+document.getElementById('colQuickAccess').addEventListener('mousedown', e => {
+  const el = e.target.closest('.col-sug');
+  if (!el || !el.dataset.src) return; // e.g. funkoCatalogBtn, which has its own click handler
+  const list = el.dataset.src === 'recent' ? _recentSugs : _popularSugs;
+  const c = list[+el.dataset.i];
+  if (c) selectCollection(c);
+});
 
 function cacheCollectionName(c) {
   fetch(`${SUPABASE_URL}/rest/v1/collection_search_index`, {
@@ -1212,6 +1328,7 @@ async function selectCollection(c) {
   $colSearch.value = '';
   _col = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
   cacheCollectionName(_col);
+  addRecentCollection(_col);
 
   const $img  = document.getElementById('colChipImg');
   const $name = document.getElementById('colChipName');
@@ -1269,7 +1386,7 @@ function showFilters() {
   document.getElementById('exploreToolbar').classList.add('visible');
   document.getElementById('secDrop').classList.toggle('hidden', !_col?.isCatalog);
   document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
-  document.getElementById('funkoCatalogBtn').classList.toggle('hidden', !!_col?.isCatalog);
+  document.getElementById('colQuickAccess').style.display = 'none'; // covers funkoCatalogBtn too — it now lives inside it
   updateHideOwnedAvailability();
   applyModeVisibility();
 }
@@ -1280,7 +1397,8 @@ function hideFilters() {
   document.getElementById('secDynMsg').classList.add('hidden');
   document.getElementById('secDynAttrs').classList.add('hidden');
   document.getElementById('schemaTrigger').disabled = false;
-  document.getElementById('funkoCatalogBtn').classList.remove('hidden');
+  document.getElementById('colQuickAccess').style.display = '';
+  renderQuickAccess();
   applyModeVisibility();
 }
 
@@ -3625,6 +3743,7 @@ async function restoreFromUrl() {
     const c = await WaxApi.apiFetch(`${WaxApi.aaBase()}/collections/${encodeURIComponent(colName)}`);
     if (!c) return;
     _col = { collection_name: c.collection_name, name: c.name || c.collection_name, img: c.img || '' };
+    addRecentCollection(_col);
 
     const $img  = document.getElementById('colChipImg');
     const $name = document.getElementById('colChipName');
@@ -3697,6 +3816,7 @@ initInfiniteScroll();
 loadCartFromStorage();
 renderTray();
 updateSelCount();
+renderQuickAccess();
 restoreFromUrl();
 </script>
 </body>
