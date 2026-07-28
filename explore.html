@@ -263,10 +263,10 @@
     .bl-card-listed-note { font-size: 0.74rem; font-weight: 700; color: var(--accent-light); margin-top: 0.25rem; }
     .ex-card--bought { opacity: 0.55; pointer-events: none; }
 
-    /* ── Card actions: Buy / Cart / View ── */
+    /* ── Card actions: Buy / Cart ── */
     .ex-card-actions { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
     .ex-card-actions > * { flex: 1 1 0; min-width: 0; }
-    .ex-buy-btn, .cart-btn, .ex-view-btn {
+    .ex-buy-btn, .cart-btn {
       display: flex; align-items: center; justify-content: center;
       padding: 0.34rem 0.2rem; border-radius: 5px;
       font-size: 0.66rem; font-weight: 700; text-align: center;
@@ -292,11 +292,139 @@
       color: #e74c3c;
     }
     .cart-btn--active:hover { background: rgba(231,76,60,0.24); }
-    .ex-view-btn {
-      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-      color: var(--text-secondary);
+    /* Your own listing — Buy/Cart don't apply (the chain itself already
+       rejects buying your own sale), so this is the only action on the
+       card: Edit price or Cancel, right from Explore. */
+    .ex-edit-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 0.34rem 0.2rem; border-radius: 5px;
+      font-size: 0.66rem; font-weight: 700; text-align: center;
+      cursor: pointer; font-family: inherit; box-sizing: border-box;
+      background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.32);
+      color: #e74c3c; transition: background 0.15s, border-color 0.15s;
     }
-    .ex-view-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); color: var(--text-primary); }
+    .ex-edit-btn:hover:not(:disabled) { background: rgba(231,76,60,0.22); border-color: rgba(231,76,60,0.55); }
+    .ex-edit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Edit-listing modal — visual language matches inventory.html's own
+       listing modal (.panel-overlay/.listing-modal/.modal-*), but this is a
+       separate, Explore-only implementation, not a shared component: it
+       only ever edits/cancels a listing already known from a rendered
+       sale — no floor-price-driven "List for sale" flow like inventory's
+       version needs. ── */
+    .panel-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 200; backdrop-filter: blur(2px);
+    }
+    .listing-modal {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 201; width: 420px; max-width: calc(100vw - 2rem);
+      max-height: 90vh; overflow-y: auto;
+      background: var(--bg-card); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 1.5rem 0;
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+    .modal-close {
+      background: none; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 1.1rem; padding: 0.25rem; line-height: 1;
+      border-radius: 4px; transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+    .modal-body { padding: 1.25rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .modal-asset-img {
+      width: 180px; height: 180px; margin: 0 auto;
+      border-radius: 12px; background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border); overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-asset-img img, .modal-asset-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .panel-img-placeholder { color: var(--text-secondary); font-size: 2rem; opacity: 0.3; }
+    .modal-asset-info { text-align: center; }
+    .modal-asset-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem; }
+    .modal-asset-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
+    .modal-asset-mint { font-size: 0.8rem; color: var(--accent-light); font-weight: 600; }
+    .modal-info-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,255,255,0.04); border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+    }
+    .modal-info-label { font-size: 0.78rem; color: var(--text-secondary); }
+    .modal-info-val { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+    .modal-info-val.loading { color: var(--text-secondary); font-style: italic; font-weight: 400; }
+    .modal-info-val.current-price { color: var(--accent-light); }
+    .modal-info-row--price { padding: 0.35rem 0.35rem 0.35rem 0.9rem; }
+    .modal-info-row--price .modal-price-row { width: 200px; flex-shrink: 0; }
+    .modal-price-row {
+      display: flex; align-items: center;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .modal-price-row:focus-within { border-color: rgba(240,168,64,0.5); }
+    .modal-price-input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text-primary); font-size: 1rem; font-weight: 600;
+      padding: 0.65rem 0.9rem; font-variant-numeric: tabular-nums;
+    }
+    .modal-price-input::-webkit-outer-spin-button,
+    .modal-price-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .modal-price-input[type=number] { -moz-appearance: textfield; }
+    .modal-price-display {
+      flex: 1; color: #22c55e; font-size: 1rem; font-weight: 600;
+      padding: 0.65rem 0.9rem; font-variant-numeric: tabular-nums;
+      display: flex; align-items: center;
+    }
+    .modal-price-unit {
+      padding: 0.65rem 0.9rem 0.65rem 0;
+      color: var(--text-secondary); font-size: 0.82rem; font-weight: 600;
+    }
+    /* ── Fee breakdown — same collapsible pattern as inventory.html's listing modal ── */
+    .fee-details {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+    }
+    .fee-details summary {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 0.85rem; cursor: pointer; list-style: none;
+      font-size: 0.84rem; font-weight: 600; color: var(--text-secondary);
+      user-select: none;
+    }
+    .fee-details summary::-webkit-details-marker { display: none; }
+    .fee-details summary:hover { color: var(--text-primary); }
+    .fee-arrow { font-size: 1rem; transition: transform 0.2s; opacity: 0.6; }
+    .fee-details[open] .fee-arrow { transform: rotate(180deg); }
+    .fee-items { padding: 0 0.85rem 0.65rem; display: flex; flex-direction: column; gap: 0.6rem; border-top: 1px solid var(--border); padding-top: 0.6rem; }
+    .fee-item { display: flex; gap: 0.65rem; align-items: flex-start; }
+    .fee-item-pct { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); min-width: 3.5rem; flex-shrink: 0; }
+    .fee-item-info { display: flex; flex-direction: column; gap: 0.15rem; }
+    .fee-item-name { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+    .fee-item-desc { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
+    .modal-msg {
+      font-size: 0.82rem; border-radius: 6px; padding: 0.55rem 0.8rem; text-align: center;
+    }
+    .modal-msg--error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+    .modal-msg--success { background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .modal-actions { display: flex; gap: 0.65rem; margin-top: 0.5rem; }
+    .modal-btn {
+      flex: 1; font-size: 0.88rem; font-weight: 700; padding: 0.65rem 1rem;
+      border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .modal-btn--danger {
+      background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.35);
+      color: #e05252;
+    }
+    .modal-btn--danger:not(:disabled):hover { background: rgba(224,82,82,0.2); border-color: rgba(224,82,82,0.55); }
+    .modal-btn--list {
+      background: rgba(240,168,64,0.12); border-color: rgba(240,168,64,0.4);
+      color: var(--accent-light);
+    }
+    .modal-btn--list:not(:disabled):hover { background: rgba(240,168,64,0.22); border-color: rgba(240,168,64,0.65); }
+    .modal-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; margin: 0; }
 
     .bl-loadmore-wrap { text-align: center; padding: 1.5rem 0 0.5rem; }
     .load-more-hint {
@@ -375,6 +503,9 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .bl-tray-mint { font-size: 0.74rem; color: var(--text-secondary); }
+    /* The chain rejects self-purchase on its own — this is purely a visual
+       aid so an own listing added to the cart is easy to spot and remove. */
+    .bl-tray-item--own { border-color: rgba(231,76,60,0.5); background: rgba(231,76,60,0.08); }
     .bl-tray-remove {
       position: absolute; top: 4px; right: 4px;
       width: 22px; height: 22px; border-radius: 50%;
@@ -675,6 +806,9 @@
 </div><!-- .content -->
 </div><!-- .page -->
 
+<div id="editListingOverlay" class="panel-overlay" style="display:none"></div>
+<div id="editListingModal" class="listing-modal" style="display:none" role="dialog" aria-modal="true"></div>
+
 <footer>
   &copy; 2026 Hoardio &mdash; All rights reserved.
   <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
@@ -689,6 +823,9 @@
 
 const PAGE_SIZE         = 20;   // no longer forced to a 3-column-friendly number — removing the right-hand tray column lets the grid reflow to more columns on its own (same auto-fill CSS as before)
 const TAKER_MARKETPLACE = 'popinstockgo'; // same account as marketplace.html — 1% commission on purchases made through the site
+const MAKER             = 'popinstockgo'; // maker_marketplace on listings created/edited from here — same account, mirrors inventory.html
+const MARKET_FEE        = 0.02; // AtomicMarket's cut — same constants as inventory.html's listing modal
+const ECOSYSTEM_FEE     = 0.01;
 const BATCH_SIZE_BUY    = 25;   // up to 25 individual (assertsale, transfer, purchasesale) triplets per tx — a stale listing fails the whole chunk, so raise further only after this size is confirmed to clear on-chain
 const MAX_SELECTED      = 350;  // tray-render-perf cap, unrelated to batch size
 const IPFS_GW           = 'https://ipfs.io/ipfs/';
@@ -783,6 +920,39 @@ function fmtWax(n) {
 function usdTag(wax) {
   if (!_waxUsd || wax == null) return '';
   return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsd).toFixed(2)}</span>`;
+}
+// A sale's listing_symbol is usually 'WAX', but a seller can price a listing
+// in a pegged currency instead (USD is the only one seen in practice on WAX
+// AtomicMarket) — settlement is always WAX either way (see assertSaleAction),
+// only the *displayed* price and the *amount of WAX owed* differ.
+function isNonWaxListing(sale) {
+  return !!(sale.listing_symbol && sale.listing_symbol !== 'WAX');
+}
+// The chain itself already rejects buying your own sale (assertsale fails
+// with "You can't purchase your own sale") — no need to block it client-side
+// too. This is just so an accidentally-added own listing is easy to spot and
+// remove from the cart before hitting that wallet-prompt dead end.
+function isOwnListing(sale) {
+  const acc = window.getWaxAccount?.();
+  return !!(acc && sale.seller === acc);
+}
+// listing_price for a non-WAX listing is always cents (confirmed against a
+// live $10.00 USD listing: listing_price 1000 -> 1000/100 = 10.00).
+function listingFiatAmount(sale) {
+  return Number(sale.listing_price || 0) / 100;
+}
+// sale.price is the API's own live-computed WAX-equivalent (via its delphi
+// oracle read at fetch time) regardless of listing currency — accurate
+// enough to display, but buy-time actions re-fetch a fresh rate rather than
+// trust this snapshot (see buyListing/bulkBuy) since it can go stale between
+// page load and the moment the buyer actually clicks Buy.
+function listingPriceHtml(sale) {
+  const precision = sale.price?.token_precision ?? 8;
+  const priceWax  = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+  if (isNonWaxListing(sale)) {
+    return `$${listingFiatAmount(sale).toFixed(2)}<span style="color:var(--text-secondary);font-weight:400"> ≈ ${fmtWax(priceWax)}</span>`;
+  }
+  return `${fmtWax(priceWax)}${usdTag(priceWax)}`;
 }
 function rcls(r) { return RARITY_CSS[(r || '').toLowerCase()] || ''; }
 function fmtDateTime(ms) {
@@ -2077,7 +2247,7 @@ function fetchSalesQueryPage(page, state) {
   const { col, schema } = effectiveScope();
   const base = WaxApi.marketBase().replace('/v1', '/v2');
   const sortField = (state === 3 && _sortBy === 'created') ? 'updated' : _sortBy;
-  let url = `${base}/sales?state=${state}&symbol=WAX`;
+  let url = `${base}/sales?state=${state}`;
   url += `&collection_name=${encodeURIComponent(col)}`;
   url += `&sort=${sortField}&order=${_sortOrd}&limit=100&page=${page}`;
   if (schema)      url += `&schema_name=${encodeURIComponent(schema)}`;
@@ -2183,6 +2353,8 @@ async function loadMore() {
         _saleAmountById.set(String(sale.sale_id), {
           amount: String(sale.price?.amount || '0'),
           assetIds: (sale.assets || []).map(a => String(a.asset_id)),
+          listingSymbol: sale.listing_symbol || 'WAX',
+          listingPrice: String(sale.listing_price || '0'),
         });
         wrap.innerHTML = cardHtml(sale).trim();
         const card = wrap.firstElementChild;
@@ -2249,15 +2421,12 @@ function cardHtml(sale) {
   const mint      = asset.template_mint ? `#${asset.template_mint}` : '';
   const id        = String(sale.sale_id);
   const isSel     = _selected.has(id);
-  const precision = sale.price?.token_precision ?? 8;
-  const priceWax  = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
 
   const tid        = asset.template?.template_id;
   const col        = asset.collection?.collection_name || _col?.collection_name || '';
   const colDisplay = asset.collection?.name || col;
   const schemaName = asset.schema?.schema_name || '';
   const cardid     = data.cardid || asset.template?.immutable_data?.cardid || '';
-  const href       = `explore?template_id=${encodeURIComponent(tid)}`;
 
   // Hover-tooltip/click-popup data, read back off the card element by
   // cardDataFromEl() rather than kept in a parallel JS array.
@@ -2285,30 +2454,39 @@ function cardHtml(sale) {
     mediaHtml = '<div class="bl-card-img-ph">?</div>';
   }
 
-  const amount     = String(sale.price?.amount || '0');
-  const assetIdsJs = (sale.assets || []).map(a => `'${a.asset_id}'`).join(',');
-  const buyBtn = window.getWaxAccount()
-    ? `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="buyListing(this,'${id}','${amount}',[${assetIdsJs}])">Buy</button>`
-    : `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="connectWallet()">Connect</button>`;
-  const cartBtn = `<button type="button" class="cart-btn${isSel ? ' cart-btn--active' : ''}">${isSel ? '✕ Cart' : '🛒 Cart'}</button>`;
-  const viewBtn = `<a class="ex-view-btn" href="${href}" target="_blank" rel="noopener noreferrer" title="View all listings of this card">View</a>`;
+  // Your own listing: Buy/Cart don't apply (see isOwnListing) — a single
+  // Edit-listing button replaces both, and there's nothing to select into
+  // the cart, so the checkbox is dropped too.
+  const own = isOwnListing(sale);
+  let actionsHtml, checkHtml;
+  if (own) {
+    actionsHtml = `<button type="button" class="ex-edit-btn" data-sale-id="${id}">Edit listing</button>`;
+    checkHtml   = '';
+  } else {
+    const buyBtn = window.getWaxAccount()
+      ? `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="buyListing(this,'${id}')">Buy</button>`
+      : `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="connectWallet()">Connect</button>`;
+    const cartBtn = `<button type="button" class="cart-btn${isSel ? ' cart-btn--active' : ''}">${isSel ? '✕ Cart' : '🛒 Cart'}</button>`;
+    actionsHtml = `${buyBtn}${cartBtn}`;
+    checkHtml   = `<button type="button" class="bl-card-check" title="Select">${isSel ? '✓' : ''}</button>`;
+  }
 
   return `<div class="bl-card${isSel ? ' selected' : ''}" data-id="${id}" ${ttAttrs}>
     <div class="bl-card-img">
       ${mediaHtml}
       ${mint ? `<span class="bl-card-mint">${mint}</span>` : ''}
-      <button type="button" class="bl-card-check" title="Select">${isSel ? '✓' : ''}</button>
+      ${checkHtml}
     </div>
     <div class="bl-card-body">
       <div class="bl-card-name" title="${name}">${name}</div>
-      <div class="bl-card-listed-note">${fmtWax(priceWax)}${usdTag(priceWax)}</div>
-      <div class="ex-card-actions">${buyBtn}${cartBtn}${viewBtn}</div>
+      <div class="bl-card-listed-note">${listingPriceHtml(sale)}</div>
+      <div class="ex-card-actions">${actionsHtml}</div>
     </div>
   </div>`;
 }
 
 // Card body click opens the persistent info popup — ignored when the click
-// landed on Buy/Cart/View, so those keep working normally (handled generi-
+// landed on Buy/Cart, so those keep working normally (handled generi-
 // cally by AssetPopup.wire()). Cart button gets its own listener here (not
 // inline onclick) since attachCardEvents already closes over the real
 // `sale` object at render time — no need for a separate sale_id -> sale
@@ -2325,6 +2503,9 @@ function attachCardEvents(card, sale) {
   // reachable without scrolling to the card's footer) — same toggle, same
   // handler.
   if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(sale, card); });
+
+  const editBtn = card.querySelector('.ex-edit-btn');
+  if (editBtn) editBtn.addEventListener('click', () => openEditModal(sale));
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -2343,8 +2524,6 @@ function historyCardHtml(sale) {
   const tid   = asset.template?.template_id;
   const col   = asset.collection?.collection_name || _col?.collection_name || '';
   const colDisplay  = asset.collection?.name || col;
-  const precision   = sale.price?.token_precision ?? 8;
-  const wax = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
 
   let mediaHtml;
   if (media?.kind === 'video') {
@@ -2372,7 +2551,7 @@ function historyCardHtml(sale) {
         <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
         <span class="sc-label">NFT</span><span class="sc-value sc-name">${nameHtml}</span>
         <span class="sc-label">Collection</span><span class="sc-value">${escHtml(colDisplay)}</span>
-        <span class="sc-label">Price</span><span class="sc-value sc-price">${fmtWax(wax)}${usdTag(wax)}</span>
+        <span class="sc-label">Price</span><span class="sc-value sc-price">${listingPriceHtml(sale)}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Listing ID</span><span class="sc-value">#${sale.sale_id}</span>
@@ -2461,8 +2640,9 @@ function toggleSelect(sale, cardEl) {
 
 // AtomicHub-style "Select first N". Deterministic like a fresh selection
 // (not additive with whatever was selected before), so typing a new number
-// and clicking again always lands on exactly that many items. Every
-// rendered card here is buyable, so the eligible set is just every .bl-card.
+// and clicking again always lands on exactly that many items. Own listings
+// (see isOwnListing) render as .bl-card too but aren't selectable — excluded
+// from the eligible set below, same as they're excluded from toggleSelect.
 // type="number" doesn't honor maxlength, so without this a pasted/typed
 // value like 888888 sails straight into selectFirstN()'s loadMore() loop
 // below and hammers the API/DOM with hundreds of thousands of cards until
@@ -2491,7 +2671,8 @@ async function selectFirstN() {
   if (_busy) return;
 
   const btn = document.getElementById('selectFirstBtn');
-  while (document.querySelectorAll('.bl-card').length < n && (!_apiDone || _queue.length > 0)) {
+  const eligibleCount = () => _sales.filter(s => !isOwnListing(s)).length;
+  while (eligibleCount() < n && (!_apiDone || _queue.length > 0)) {
     if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
     await loadMore();
   }
@@ -2506,7 +2687,7 @@ async function selectFirstN() {
     if (_selected.size >= MAX_SELECTED) { capped = true; return; }
     const id = card.dataset.id;
     const sale = salesById.get(id);
-    if (!sale) return;
+    if (!sale || isOwnListing(sale)) return;
     _selected.set(id, sale);
     setCardSelectedVisual(card, true);
     count++;
@@ -2605,13 +2786,15 @@ function trayItemHtml(id, sale) {
   const mint      = asset.template_mint ? `#${asset.template_mint}` : '';
   const precision = sale.price?.token_precision ?? 8;
   const priceWax  = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+  const priceLine = isNonWaxListing(sale) ? `$${listingFiatAmount(sale).toFixed(2)}` : `${priceWax.toFixed(2)} WAX`;
+  const own       = isOwnListing(sale);
   return `
-      <div class="bl-tray-item" data-id="${id}">
+      <div class="bl-tray-item${own ? ' bl-tray-item--own' : ''}" data-id="${id}">
         <div class="bl-tray-thumb">${trayThumbHtml(asset)}</div>
         <div class="bl-tray-info">
           <div class="bl-tray-name" title="${name}">${name}</div>
           ${mint ? `<div class="bl-tray-mint">${mint}</div>` : ''}
-          <div class="bl-tray-mint">${priceWax.toFixed(2)} WAX</div>
+          <div class="bl-tray-mint">${priceLine}</div>
         </div>
         <button class="bl-tray-remove" onclick="removeFromSelection('${id}')" title="Remove">✕</button>
       </div>`;
@@ -2621,15 +2804,21 @@ function updateTrayTotal() {
   const totalEl = document.getElementById('trayTotal');
   if (!totalEl) return;
   let total = 0;
+  let hasNonWax = false;
   for (const sale of _selected.values()) {
+    if (isNonWaxListing(sale)) hasNonWax = true;
     const precision = sale.price?.token_precision ?? 8;
     total += Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
   }
   const usd = _waxUsd && total > 0 ? ` ≈ $${(total * _waxUsd).toFixed(2)}` : '';
+  // A USD-listed item's WAX cost isn't fixed — it moves with the exchange
+  // rate until the moment of purchase (see bulkBuy) — so the total is
+  // explicitly marked approximate whenever the cart holds one.
+  const approx = hasNonWax ? '≈ ' : '';
   // Leading space mirrors trayCount's own text (" 0") — combined with
   // .bl-tray-total-val's margin-left, this matches the "Items in cart X"
   // spacing exactly rather than just visually approximating it.
-  totalEl.textContent = ` ${total.toFixed(2)} WAX${usd}`;
+  totalEl.textContent = ` ${approx}${total.toFixed(2)} WAX${usd}`;
 }
 
 // Full rebuild — only for genuine bulk changes (Select first N / Clear
@@ -2798,6 +2987,18 @@ async function bulkBuy() {
   const items = [..._selected.keys()]; // sale_ids
   if (!items.length) return;
 
+  // Non-WAX (USD) items need a live exchange rate to know how much WAX they
+  // actually cost. Fetched ONCE for the whole checkout (not per item, not
+  // per chunk/wallet-signature) — same snapshot reused everywhere below via
+  // computePayment(..., { refresh: false }), matching how a single quote
+  // covers a whole cart the way marketplace.html's per-item flow fetched one
+  // quote per purchase.
+  const hasNonWax = [..._selected.values()].some(isNonWaxListing);
+  if (hasNonWax) {
+    await fetchWaxUsd();
+    if (!_waxUsd) { setProgress('WAX price unavailable right now — try again in a moment.', 'error'); return; }
+  }
+
   const bought = await runBulkAction(items, BATCH_SIZE_BUY, async (chunk, wallet) => {
     let activeIds = new Set(chunk); // optimistic default if the check itself fails — on-chain revert is the fallback safety net
     try {
@@ -2815,16 +3016,20 @@ async function bulkBuy() {
     for (const id of includedIds) {
       const sale = _selected.get(id);
       if (!sale) continue;
-      const precision   = sale.price?.token_precision ?? 8;
-      const quantity    = (Number(sale.price?.amount ?? 0) / Math.pow(10, precision)).toFixed(precision) + ' WAX';
-      const assetIds    = (sale.assets || []).map(a => String(a.asset_id));
+      const entry = {
+        amount:        String(sale.price?.amount || '0'),
+        listingSymbol: sale.listing_symbol || 'WAX',
+        listingPrice:  String(sale.listing_price || '0'),
+      };
+      const { quantity, delphiMedian, listingPriceAsset } = await computePayment(entry, { refresh: false });
+      const assetIds = (sale.assets || []).map(a => String(a.asset_id));
       actions.push(
         { account: 'atomicmarket', name: 'assertsale', authorization: [{ actor: wallet, permission: 'active' }],
-          data: { sale_id: id, asset_ids_to_assert: assetIds, listing_price_to_assert: quantity, settlement_symbol_to_assert: '8,WAX' } },
+          data: { sale_id: id, asset_ids_to_assert: assetIds, listing_price_to_assert: listingPriceAsset, settlement_symbol_to_assert: '8,WAX' } },
         { account: 'eosio.token', name: 'transfer', authorization: [{ actor: wallet, permission: 'active' }],
           data: { from: wallet, to: 'atomicmarket', quantity, memo: 'deposit' } },
         { account: 'atomicmarket', name: 'purchasesale', authorization: [{ actor: wallet, permission: 'active' }],
-          data: { buyer: wallet, sale_id: id, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE } },
+          data: { buyer: wallet, sale_id: id, intended_delphi_median: delphiMedian, taker_marketplace: TAKER_MARKETPLACE } },
       );
     }
     return { actions, includedIds, skippedIds };
@@ -2872,28 +3077,55 @@ function assertSaleAction(buyer, saleId, assetIds, listingPriceAsset) {
   };
 }
 
-async function buyListing(btn, saleId, amount, assetIds = []) {
+// Computes what to actually pay/assert for one listing. WAX-listed sales pay
+// exactly the listed amount (no oracle involved, median 0). Non-WAX (USD)
+// listings owe a live-computed WAX amount instead — deliberately re-fetches
+// the WAX/USD rate right here rather than trusting sale.price (which can be
+// stale by the time the buyer clicks Buy) and pads it 0.5% so a small rate
+// move between quote and on-chain execution doesn't leave the deposit short
+// and the purchase failing — same approach marketplace.html used.
+async function computePayment(entry, { refresh = true } = {}) {
+  const { amount, listingSymbol, listingPrice } = entry;
+  if (listingSymbol && listingSymbol !== 'WAX') {
+    if (refresh) await fetchWaxUsd();
+    if (!_waxUsd) throw new Error('WAX price unavailable — try again');
+    const fiat   = Number(listingPrice) / 100;
+    const waxAmt = (fiat / _waxUsd) * 1.005;
+    if (!isFinite(waxAmt) || waxAmt <= 0) throw new Error('Invalid price calculation');
+    return {
+      quantity:          waxAmt.toFixed(8) + ' WAX',
+      delphiMedian:      Math.round(_waxUsd * 10000),
+      listingPriceAsset: fiat.toFixed(2) + ' ' + listingSymbol,
+    };
+  }
+  return { quantity: toWaxQty(amount), delphiMedian: 0, listingPriceAsset: toWaxQty(amount) };
+}
+
+async function buyListing(btn, saleId) {
   const buyer = window.getWaxAccount();
   if (!buyer) { connectWallet(); return; }
+  const entry = _saleAmountById.get(saleId);
+  if (!entry) return;
 
   btn.disabled = true;
   btn.textContent = 'Buying…';
   btn.className = 'ex-buy-btn';
 
   try {
+    const { quantity, delphiMedian, listingPriceAsset } = await computePayment(entry);
     await WaxAuth.transact([
-      assertSaleAction(buyer, saleId, assetIds, toWaxQty(amount)),
+      assertSaleAction(buyer, saleId, entry.assetIds, listingPriceAsset),
       {
         account: 'eosio.token',
         name: 'transfer',
         authorization: [{ actor: buyer, permission: 'active' }],
-        data: { from: buyer, to: 'atomicmarket', quantity: toWaxQty(amount), memo: 'deposit' },
+        data: { from: buyer, to: 'atomicmarket', quantity, memo: 'deposit' },
       },
       {
         account: 'atomicmarket',
         name: 'purchasesale',
         authorization: [{ actor: buyer, permission: 'active' }],
-        data: { buyer, sale_id: saleId, intended_delphi_median: 0, taker_marketplace: TAKER_MARKETPLACE },
+        data: { buyer, sale_id: saleId, intended_delphi_median: delphiMedian, taker_marketplace: TAKER_MARKETPLACE },
       },
     ]);
 
@@ -2933,12 +3165,330 @@ function refreshBuyButtons() {
     if (entry == null) return;
     if (window.getWaxAccount()) {
       btn.textContent = 'Buy';
-      btn.onclick     = () => buyListing(btn, saleId, entry.amount, entry.assetIds);
+      btn.onclick     = () => buyListing(btn, saleId);
     } else {
       btn.textContent = 'Connect';
       btn.onclick     = () => connectWallet();
     }
   });
+}
+
+// wax-auth-change can flip which cards are "yours" (Buy/Cart <-> Edit
+// listing) — a full markup swap, not just a label change like
+// refreshBuyButtons handles for ordinary Buy/Connect toggling. Skips cards
+// already in a terminal state (bought/cancelled/updated), same as
+// refreshBuyButtons does for its own bought check.
+function refreshOwnListingCards() {
+  document.querySelectorAll('#cardsGrid .bl-card[data-id]').forEach(card => {
+    if (card.classList.contains('ex-card--bought')) return;
+    const id   = card.dataset.id;
+    const sale = _sales.find(s => String(s.sale_id) === id);
+    if (!sale) return;
+    const currentlyOwn = !!card.querySelector('.ex-edit-btn');
+    if (currentlyOwn === isOwnListing(sale)) return; // no change needed
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml(sale).trim();
+    const newCard = wrap.firstElementChild;
+    card.replaceWith(newCard);
+    attachCardEvents(newCard, sale);
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Edit / cancel your own listing — directly from Explore, no page nav. The    */
+/* chain already rejects buying your own sale, so this exists for the actual  */
+/* real case: you spot your listing getting undercut while browsing and want  */
+/* to reprice or pull it without losing your current filters/scroll position. */
+/* A separate, lighter implementation from inventory.html's own listing modal */
+/* (same visual language, not a shared component) — see CSS comment above.    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+let _editSale = null;
+let _editBusy = false;
+
+async function fetchListingFloorPrice(templateId, collection) {
+  try {
+    const url  = `${WaxApi.marketBase()}/sales?state=1&template_id=${encodeURIComponent(templateId)}&collection_name=${encodeURIComponent(collection)}&sort=price&order=asc&limit=1`;
+    const rows = await WaxApi.apiFetch(url);
+    if (!rows?.length) return null;
+    const precision = rows[0].price?.token_precision ?? 8;
+    return Number(rows[0].price?.amount ?? 0) / Math.pow(10, precision);
+  } catch { return null; }
+}
+
+function openEditModal(sale) {
+  _editSale = sale;
+  _editBusy = false;
+  renderEditModal(sale, null, true);
+  document.getElementById('editListingModal').style.display   = '';
+  document.getElementById('editListingOverlay').style.display = '';
+  document.body.style.overflow = 'hidden';
+
+  const asset = sale.assets?.[0] || {};
+  const tid   = asset.template?.template_id;
+  const col   = asset.collection?.collection_name || '';
+  if (tid) {
+    fetchListingFloorPrice(tid, col).then(price => {
+      if (_editSale?.sale_id === sale.sale_id) updateEditModalFloor(price);
+    });
+  }
+}
+
+function closeEditModal() {
+  _editSale = null;
+  document.getElementById('editListingModal').style.display   = 'none';
+  document.getElementById('editListingOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderEditModal(sale, floor, loadingFloor) {
+  const asset      = sale.assets?.[0] || {};
+  const data       = asset.data || asset.template?.immutable_data || {};
+  const name       = escHtml(asset.name || data.name || 'Unknown');
+  const media      = resolveMedia(asset);
+  const mint       = asset.template_mint;
+  const maxSupply  = asset.template?.max_supply;
+  const col        = asset.collection?.collection_name || '';
+  const schema     = asset.schema?.schema_name || '';
+  const tid        = asset.template?.template_id;
+  const precision  = sale.price?.token_precision ?? 8;
+  const currentWax = Number(sale.price?.amount ?? 0) / Math.pow(10, precision);
+  // The collection's royalty % rides along on every sale row already (no
+  // extra fetch needed, unlike inventory.html's separate fetchCollectionFee).
+  const royaltyPct  = Number(asset.collection?.market_fee ?? 0);
+  const totalFeePct = MARKET_FEE + ECOSYSTEM_FEE + royaltyPct;
+
+  const floorText  = loadingFloor ? 'Loading…' : (floor != null ? `${floor.toFixed(2)} WAX${usdTag(floor)}` : 'No listings');
+  const floorClass = loadingFloor ? 'modal-info-val loading' : 'modal-info-val';
+
+  let mediaHtml;
+  if (media?.kind === 'video') {
+    mediaHtml = `<video src="${escHtml(media.url)}" muted loop playsinline autoplay></video>`;
+  } else if (media?.kind === 'img') {
+    mediaHtml = `<img src="${escHtml(media.url)}" alt="${name}">`;
+  } else {
+    mediaHtml = `<div class="panel-img-placeholder">?</div>`;
+  }
+
+  document.getElementById('editListingModal').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">Edit Listing</span>
+      <button class="modal-close" id="editModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-asset-img">${mediaHtml}</div>
+      <div class="modal-asset-info">
+        <div class="modal-asset-name">${name}</div>
+        <div class="modal-asset-meta">${escHtml(col)}${schema ? ' · ' + escHtml(schema) : ''}${tid ? ' · #' + tid : ''}</div>
+        ${mint ? `<div class="modal-asset-mint">Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}</div>` : ''}
+      </div>
+
+      <div class="modal-info-row">
+        <span class="modal-info-label">Current listing price</span>
+        <span class="modal-info-val current-price">${fmtWax(currentWax)}${usdTag(currentWax)}</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">Market floor price</span>
+        <span class="${floorClass}" id="editModalFloor">${floorText}</span>
+      </div>
+
+      <div class="modal-info-row modal-info-row--price">
+        <span class="modal-info-label">New listing price</span>
+        <div class="modal-price-row">
+          <input id="editPriceInput" type="number" class="modal-price-input"
+            placeholder="0.00" min="0.01" max="10000000" step="0.01" autocomplete="off"
+            oninput="onEditPriceInput(this)" value="${currentWax}" />
+          <span class="modal-price-unit">WAX</span>
+        </div>
+      </div>
+
+      <div class="modal-info-row modal-info-row--price">
+        <div class="modal-info-label">You receive<div id="editModalReceiveUsd" style="font-size:0.75rem;color:#4ade80;font-weight:500;margin-top:2px"></div></div>
+        <div class="modal-price-row">
+          <span id="editModalReceive" class="modal-price-display">—</span>
+          <span class="modal-price-unit">WAX</span>
+        </div>
+      </div>
+
+      <details class="fee-details" id="editModalFeeDetails">
+        <summary>
+          <span>Total Fees: ${(totalFeePct * 100).toFixed(2)}%</span>
+          <span class="fee-arrow">▾</span>
+        </summary>
+        <div class="fee-items">
+          <div class="fee-item">
+            <span class="fee-item-pct">1.00%</span>
+            <div class="fee-item-info">
+              <span class="fee-item-name">Ecosystem Fee</span>
+              <span class="fee-item-desc">A blockchain-specific fee for processing the transaction.</span>
+            </div>
+          </div>
+          <div class="fee-item">
+            <span class="fee-item-pct">2.00%</span>
+            <div class="fee-item-info">
+              <span class="fee-item-name">Market Fee</span>
+              <span class="fee-item-desc">A flat fee to maintain &amp; improve marketplaces.</span>
+            </div>
+          </div>
+          ${royaltyPct > 0 ? `<div class="fee-item">
+            <span class="fee-item-pct">${(royaltyPct * 100).toFixed(2)}%</span>
+            <div class="fee-item-info">
+              <span class="fee-item-name">Collection Fee</span>
+              <span class="fee-item-desc">A % set by the collection creator, received on every secondary market transaction.</span>
+            </div>
+          </div>` : ''}
+        </div>
+      </details>
+
+      <div id="editModalMsg" class="modal-msg" style="display:none;"></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn--danger" id="editModalCancel">Cancel listing</button>
+        <button class="modal-btn modal-btn--list" id="editModalUpdate">Update listing</button>
+      </div>
+      <p class="modal-note">Thank you for supporting Hoardio.</p>
+    </div>
+  `;
+
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('editListingOverlay').addEventListener('click', closeEditModal, { once: true });
+  document.getElementById('editModalCancel').addEventListener('click', handleCancelListingExplore);
+  document.getElementById('editModalUpdate').addEventListener('click', handleUpdateListingExplore);
+  updateEditReceipt(String(currentWax), totalFeePct);
+  document.getElementById('editPriceInput').focus();
+}
+
+function updateEditModalFloor(price) {
+  const el = document.getElementById('editModalFloor');
+  if (!el) return;
+  el.className = 'modal-info-val';
+  el.innerHTML = price != null ? `${price.toFixed(2)} WAX${usdTag(price)}` : 'No listings';
+}
+
+function onEditPriceInput(el) {
+  const d = el.value.indexOf('.');
+  if (d !== -1 && el.value.length - d > 3) el.value = el.value.slice(0, d + 3);
+  const asset      = _editSale?.assets?.[0] || {};
+  const royaltyPct = Number(asset.collection?.market_fee ?? 0);
+  updateEditReceipt(el.value, MARKET_FEE + ECOSYSTEM_FEE + royaltyPct);
+}
+
+function updateEditReceipt(priceStr, totalFeePct) {
+  const receiveEl = document.getElementById('editModalReceive');
+  const usdEl     = document.getElementById('editModalReceiveUsd');
+  if (!receiveEl) return;
+  const price = parseFloat(priceStr);
+  if (!isFinite(price) || price <= 0) {
+    receiveEl.textContent = '—';
+    if (usdEl) usdEl.textContent = '';
+    return;
+  }
+  const net = price * (1 - (totalFeePct ?? (MARKET_FEE + ECOSYSTEM_FEE)));
+  receiveEl.textContent = net.toFixed(8).replace(/(\.\d{2}.*[1-9])0+$/, '$1').replace(/(\.\d{2})0+$/, '$1');
+  if (usdEl) usdEl.textContent = _waxUsd ? `≈ $${(net * _waxUsd).toFixed(2)}` : '';
+}
+
+function showEditModalMsg(text, type) {
+  const el = document.getElementById('editModalMsg');
+  if (!el) return;
+  el.className = `modal-msg modal-msg--${type}`;
+  el.textContent = text;
+  el.style.display = '';
+}
+
+// Matches buyListing's own precedent: leave the card in the grid, marked
+// as no longer actionable, rather than surgically re-deriving whether it
+// should now disappear/reappear/resort — same reasoning as
+// .ex-card--bought (a fresh sale_id from an update won't be known until the
+// indexer catches up, same ~30s gap inventory.html's own modal accepts).
+function markCardEdited(saleId, label) {
+  const card = document.querySelector(`.bl-card[data-id="${saleId}"]`);
+  if (!card) return;
+  card.classList.add('ex-card--bought');
+  const btn = card.querySelector('.ex-edit-btn');
+  if (btn) { btn.textContent = label; btn.disabled = true; }
+}
+
+async function handleCancelListingExplore() {
+  if (_editBusy || !_editSale) return;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showEditModalMsg('No wallet connected.', 'error'); return; }
+
+  _editBusy = true;
+  const cancelBtn = document.getElementById('editModalCancel');
+  const updateBtn = document.getElementById('editModalUpdate');
+  if (cancelBtn) { cancelBtn.disabled = true; cancelBtn.textContent = 'Cancelling…'; }
+  if (updateBtn) updateBtn.disabled = true;
+
+  const sale = _editSale;
+  try {
+    await WaxAuth.transact([{
+      account: 'atomicmarket', name: 'cancelsale',
+      authorization: [{ actor: wallet, permission: 'active' }],
+      data: { sale_id: sale.sale_id },
+    }]);
+    closeEditModal();
+    markCardEdited(sale.sale_id, '✓ Cancelled');
+  } catch (err) {
+    const msg  = (err?.message || '').toLowerCase();
+    const text = msg.includes('no sale with this sale_id')
+      ? 'This listing is already cancelled or sold.'
+      : msg.includes('cancel') || msg.includes('user') || msg.includes('abort')
+        ? 'Transaction cancelled.'
+        : err.message || 'Transaction failed.';
+    showEditModalMsg(text, 'error');
+    _editBusy = false;
+    if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel listing'; }
+    if (updateBtn) updateBtn.disabled = false;
+  }
+}
+
+async function handleUpdateListingExplore() {
+  if (_editBusy || !_editSale) return;
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showEditModalMsg('No wallet connected.', 'error'); return; }
+
+  const input    = document.getElementById('editPriceInput');
+  const rawPrice = parseFloat(input?.value);
+  if (!isFinite(rawPrice) || rawPrice <= 0) { showEditModalMsg('Enter a valid price greater than 0.', 'error'); return; }
+  if (rawPrice > 10_000_000) { showEditModalMsg('Price cannot exceed 10,000,000 WAX.', 'error'); return; }
+  const priceWax = Math.round(rawPrice * 100) / 100;
+  if (priceWax < 0.01) { showEditModalMsg('Price is too small — minimum is 0.01 WAX.', 'error'); return; }
+
+  _editBusy = true;
+  const cancelBtn = document.getElementById('editModalCancel');
+  const updateBtn = document.getElementById('editModalUpdate');
+  if (cancelBtn) cancelBtn.disabled = true;
+  if (updateBtn) { updateBtn.disabled = true; updateBtn.textContent = 'Updating…'; }
+
+  const sale         = _editSale;
+  const asset        = sale.assets?.[0] || {};
+  const listingPrice = `${priceWax.toFixed(8)} WAX`;
+
+  // Same cancelsale + announcesale + createoffer combo as inventory.html's
+  // handleList() — AtomicMarket has no in-place "edit price" action, a
+  // reprice is always cancel-and-relist under the hood.
+  try {
+    await WaxAuth.transact([
+      { account: 'atomicmarket', name: 'cancelsale', authorization: [{ actor: wallet, permission: 'active' }],
+        data: { sale_id: sale.sale_id } },
+      { account: 'atomicmarket', name: 'announcesale', authorization: [{ actor: wallet, permission: 'active' }],
+        data: { seller: wallet, asset_ids: [asset.asset_id], listing_price: listingPrice, settlement_symbol: '8,WAX', maker_marketplace: MAKER } },
+      { account: 'atomicassets', name: 'createoffer', authorization: [{ actor: wallet, permission: 'active' }],
+        data: { sender: wallet, recipient: 'atomicmarket', sender_asset_ids: [asset.asset_id], recipient_asset_ids: [], memo: 'sale' } },
+    ]);
+    closeEditModal();
+    markCardEdited(sale.sale_id, '✓ Updated');
+  } catch (err) {
+    const msg  = (err?.message || '').toLowerCase();
+    const text = msg.includes('cancel') || msg.includes('user') || msg.includes('abort')
+      ? 'Transaction cancelled.'
+      : err.message || 'Transaction failed.';
+    showEditModalMsg(text, 'error');
+    _editBusy = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+    if (updateBtn) { updateBtn.disabled = false; updateBtn.textContent = 'Update listing'; }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -3129,7 +3679,13 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   ],
 });
 window.addEventListener('wax-auth-change', () => {
-  updateActionBtn(); refreshBuyButtons();
+  updateActionBtn(); refreshBuyButtons(); refreshOwnListingCards();
+  // A cart built up while disconnected (or under a different wallet) can
+  // hold what's now your own listing — Explore no longer offers a way to
+  // add those going forward (see cardHtml/selectFirstN), but this closes
+  // the gap for anything already sitting in a restored cart.
+  for (const [id, sale] of [..._selected]) if (isOwnListing(sale)) _selected.delete(id);
+  renderTray();
   if (_col) updateHideOwnedAvailability(); // syncs the 👛 fill button's disabled state — never touches the field's value
 });
 
