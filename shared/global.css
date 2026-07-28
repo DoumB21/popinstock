@@ -1082,6 +1082,19 @@ body::before {
 .tt-orange { color: var(--accent-light); }
 
 
+/* ── Ad slot (shared/ad-slot.js) — pages declare an empty <div
+   class="ad-slot"></div> and load the script; it injects the current
+   promo markup at runtime, so swapping in a real partner promo never
+   touches the host page. This is just the placeholder look. ── */
+.ad-slot-card {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; min-height: 320px; box-sizing: border-box;
+  border: 1px solid rgba(96,165,250,0.35); border-radius: 16px; padding: 1.5rem;
+  background: rgba(96,165,250,0.08);
+  text-align: center; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;
+}
+
+
 /* ── Table base ── */
 .table-wrap {
   overflow-x: auto;

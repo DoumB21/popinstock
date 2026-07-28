@@ -129,10 +129,15 @@
     .explore-ctrl-group .cb-dropdown-btn { width: auto; }
     .explore-ctrl-group .cb-panel { min-width: 170px; }
 
-    .empty-state { text-align: center; padding: 5rem 2rem; color: var(--text-secondary); }
+    /* Empty state, with an ad slot centered below it (only shown pre-selection
+       — see shared/ad-slot.js, which injects the actual promo content/styling
+       into .ad-slot so this page never needs to change to swap it out). */
+    .empty-state-row { display: flex; flex-direction: column; align-items: center; }
+    .empty-state { text-align: center; padding: 5rem 2rem 0.5rem; color: var(--text-secondary); }
     .empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
     .empty-state h2 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.4rem; }
     .empty-state p { font-size: 0.88rem; margin: 0; }
+    .ad-slot { width: 520px; max-width: 100%; margin: 2rem 0 5rem; }
     .results-status { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; min-height: 1.2em; }
     .results-error {
       padding: 3rem 1.5rem; text-align: center; color: var(--text-secondary);
@@ -581,6 +586,7 @@
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/asset-popup.js"></script>
+  <script src="shared/ad-slot.js"></script>
 </head>
 <body>
 
@@ -793,10 +799,13 @@
       <button type="button" class="ex-mode-tab" data-mode="history">Sales History</button>
     </div>
 
-    <div id="emptyState" class="empty-state">
-      <div class="empty-state-icon">🔍</div>
-      <h2>Search for a collection</h2>
-      <p>Type a collection name in the sidebar to start browsing listings — buy instantly, or add them to your cart.</p>
+    <div class="empty-state-row" id="emptyStateRow">
+      <div id="emptyState" class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h2>Search for a collection</h2>
+        <p>Type a collection name in the sidebar to start browsing listings — buy instantly, or add them to your cart.</p>
+      </div>
+      <div class="ad-slot"></div>
     </div>
 
     <div class="bl-toolbar" id="blToolbar" style="display:none">
@@ -1377,7 +1386,7 @@ function clearCollection() {
   hideFilters();
   pushUrl();
   resetResults();
-  document.getElementById('emptyState').style.display = '';
+  document.getElementById('emptyStateRow').style.display = '';
 }
 
 const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secHideOwned','secClear'];
@@ -2315,7 +2324,7 @@ function resetResults() {
   document.getElementById('historyList').innerHTML = '';
   document.getElementById('loadMoreWrap').style.display = 'none';
   document.getElementById('resultsStatus').style.display = 'none';
-  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('emptyStateRow').style.display = 'none';
   document.getElementById('exLoadWrap').style.display = 'none';
 }
 
@@ -3704,7 +3713,7 @@ async function restoreFromUrl() {
         <h2>Couldn't load this template</h2>
         <p>The link may be broken, or the WAX API is temporarily unreachable.</p>
         <button type="button" class="retry-btn" id="retryRestoreBtn" style="margin-top:1rem">Try again</button>`;
-      $empty.style.display = '';
+      document.getElementById('emptyStateRow').style.display = '';
       document.getElementById('retryRestoreBtn').addEventListener('click', restoreFromUrl);
       return;
     }
@@ -3733,7 +3742,7 @@ async function restoreFromUrl() {
         <h2>Couldn't load this collection</h2>
         <p>The link may be broken, or the WAX API is temporarily unreachable.</p>
         <button type="button" class="retry-btn" id="retryRestoreBtn" style="margin-top:1rem">Try again</button>`;
-      $empty.style.display = '';
+      document.getElementById('emptyStateRow').style.display = '';
       document.getElementById('retryRestoreBtn').addEventListener('click', restoreFromUrl);
     }
     return;
@@ -3775,7 +3784,7 @@ async function restoreFromUrl() {
       <h2>Couldn't load this collection</h2>
       <p>The link may be broken, or the WAX API is temporarily unreachable.</p>
       <button type="button" class="retry-btn" id="retryRestoreBtn" style="margin-top:1rem">Try again</button>`;
-    $empty.style.display = '';
+    document.getElementById('emptyStateRow').style.display = '';
     document.getElementById('retryRestoreBtn').addEventListener('click', restoreFromUrl);
   }
 }
