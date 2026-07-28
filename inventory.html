@@ -592,6 +592,21 @@
     .bl-progress.is-error   { color: #e05050; font-size: 0.9rem; font-weight: 600; }
     .bl-progress.is-success { color: #50c878; font-size: 0.9rem; font-weight: 600; }
 
+    /* Terminal (success/error) bulk-action outcome — a proper block instead
+       of just colored text, with its own Close button so the result reads
+       as "done" rather than blending into the rest of the modal. */
+    .bl-progress-msg {
+      margin-top: 0.5rem; display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; text-align: left;
+    }
+    .bl-progress-msg-text { flex: 1; }
+    .bl-progress-msg-close {
+      flex-shrink: 0; font-size: 0.78rem; font-weight: 700; padding: 0.35rem 0.9rem;
+      border-radius: 6px; border: 1px solid currentColor; background: transparent;
+      color: inherit; cursor: pointer; transition: background 0.15s;
+    }
+    .bl-progress-msg-close:hover { background: rgba(255,255,255,0.1); }
+
     /* ── Gift link result screen ── */
     .gift-result { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
     /* QR modules render as plain black <rect>s (SVG default fill) — a white
@@ -5023,8 +5038,14 @@ function updateBulkActionBtn() {
 function setBulkProgress(msg, type) {
   const el = document.getElementById('bulkProgress');
   if (!el) return;
-  el.textContent = msg || '';
-  el.className = 'bl-progress' + (type ? ` is-${type}` : '');
+  if (type === 'success' || type === 'error') {
+    el.className = `modal-msg modal-msg--${type} bl-progress-msg`;
+    el.innerHTML = `<span class="bl-progress-msg-text">${escHtml(msg || '')}</span><button type="button" class="bl-progress-msg-close">Close</button>`;
+    el.querySelector('.bl-progress-msg-close').addEventListener('click', closeBulkActionModal);
+  } else {
+    el.textContent = msg || '';
+    el.className = 'bl-progress' + (type ? ` is-${type}` : '');
+  }
 }
 
 function submitBulkAction() {
