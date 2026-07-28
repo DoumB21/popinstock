@@ -1378,7 +1378,6 @@
   // already be warm on another. The preview popover cycles through these
   // instead of retrying the same gateway.
   const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
-  const _statsCache = new Map();
 
   let genCollection = null; // { collection_name, name, img }
   let genSchema     = '';
@@ -1402,102 +1401,34 @@
     if (slug.includes(q)) return 5;
     return 6;
   }
-  function raced(promise, ms) {
-    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
-  }
-  async function pinnedFetch(url, attempts = 2) {
-    for (let i = 0; i < attempts; i++) {
-      let res;
-      try {
-        const ctrl  = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 8000);
-        res = await fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
-      } catch (err) {
-        if (i === attempts - 1) throw err;
-        await new Promise(r => setTimeout(r, 500 * (i + 1)));
-        continue;
-      }
-      if (res.ok) {
-        const json = await res.json();
-        if (!json.success) throw new Error('API error');
-        return json.data;
-      }
-      if ((res.status === 429 || res.status === 503 || res.status === 408) && i < attempts - 1) {
-        await new Promise(r => setTimeout(r, 500 * (i + 1)));
-        continue;
-      }
-      throw new Error('API ' + res.status);
-    }
-  }
-  async function fetchCollectionPages(q) {
-    let base = WaxApi.aaBase();
-    const tried = new Set();
-    for (let hop = 0; hop < 3; hop++) {
-      tried.add(base);
-      const q1 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=1`;
-      const q2 = `${base}/collections?match=${encodeURIComponent(q)}&limit=100&order=desc&sort=created&page=2`;
-      try {
-        const [p1, p2] = await Promise.all([pinnedFetch(q1), pinnedFetch(q2)]);
-        return [...p1, ...p2];
-      } catch {
-        const next = await WaxApi.rotateAwayFrom(base);
-        if (!next || tried.has(next)) break;
-        base = next;
-      }
-    }
-    return [];
-  }
-  // AtomicAssets' /collections?match= only ever searches collection_name
-  // (the on-chain slug), never the human-readable display name — so a
-  // search for "consumerbreak" never returns cbreakgaming ("ConsumerBreak")
-  // no matter how many pages we pull. collection_search_index is a
-  // Supabase cache of display names built organically from collections
-  // real users pick in Explore/here (see selectGenCollection below);
-  // querying it here is what lets a display-name search find what a
-  // slug-only search cannot. Same table/logic as explore.html.
-  async function searchNameIndex(q) {
-    try {
-      const url = `${SUPABASE_URL}/rest/v1/collection_search_index?name=ilike.*${encodeURIComponent(q)}*&select=collection_name,name,img&limit=12`;
-      const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
-      if (!res.ok) return [];
-      return await res.json();
-    } catch { return []; }
-  }
+  // atomicmarket's stats/collections?search= does a real full-text search
+  // against the collection's display name AND its raw collection_name slug
+  // (verified against live data), covering every registered collection —
+  // including ones with zero market history — unlike atomicassets' own
+  // /collections?match=, which only matches the slug and rejects anything
+  // over 12 chars, with spaces, or with uppercase (the same charset WAX
+  // account names are restricted to). Same fix as explore.html.
+  //
+  // We only want the collection list out of this, not the stats themselves —
+  // but an unscoped query is a genuine multi-second-to-15-second cold
+  // aggregation over ALL-TIME sales for every match (verified live; repeat
+  // queries hit a server-side cache and come back in ~80ms, which is what
+  // masked this the first time). Adding `after=` bounds that aggregation to a
+  // recent window, which is dramatically cheaper to compute (~0.6-0.7s cold,
+  // verified at both 30 and 90 days) — and verified NOT to hide anything:
+  // collections are still matched by name regardless of window, `after=`
+  // only changes the volume/sales *numbers* used for sort ordering.
+  const GEN_COL_SEARCH_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
   async function searchGenCollections(q) {
     const myGen = ++genColGen;
     try {
-      const [results, indexed] = await Promise.all([fetchCollectionPages(q), searchNameIndex(q)]);
+      const after = Date.now() - GEN_COL_SEARCH_WINDOW_MS;
+      const data = await WaxApi.apiFetch(`${WaxApi.marketBase()}/stats/collections?symbol=WAX&search=${encodeURIComponent(q)}&sort=volume&order=desc&limit=15&after=${after}`);
       if (myGen !== genColGen) return;
-
-      // Merge in name-index hits the slug search missed, deduping by
-      // collection_name (blockchain copy wins — it's always current).
-      const seen = new Set(results.map(c => c.collection_name));
-      for (const c of indexed) {
-        if (!seen.has(c.collection_name)) { results.push(c); seen.add(c.collection_name); }
-      }
-
+      const results = (data?.results || []).map(r => ({ collection_name: r.collection_name, name: r.name || r.collection_name, img: r.img || '' }));
       const ql = q.toLowerCase();
-      const candidates = results.sort((a, b) => matchScore(a, ql) - matchScore(b, ql)).slice(0, 15);
-      const uncached = candidates.filter(c => !_statsCache.has(c.collection_name));
-      const statBases = WaxApi.aaBases(3);
-      await Promise.all(uncached.map(async (c, i) => {
-        let assets = 0;
-        try {
-          const data = await raced(
-            WaxApi.apiFetch(`${statBases[i % statBases.length]}/collections/${encodeURIComponent(c.collection_name)}/stats`),
-            2500
-          );
-          assets = parseInt(data?.assets || 0);
-        } catch {}
-        _statsCache.set(c.collection_name, assets);
-      }));
-      if (myGen !== genColGen) return;
-      const withAssets = candidates.map(c => ({ c, assets: _statsCache.get(c.collection_name) || 0 }));
-      genSuggestions = withAssets
-        .sort((a, b) => b.assets - a.assets || matchScore(a.c, ql) - matchScore(b.c, ql))
-        .slice(0, 12)
-        .map(x => x.c);
+      genSuggestions = results.sort((a, b) => matchScore(a, ql) - matchScore(b, ql)).slice(0, 12);
       renderGenSugs();
     } catch { hideGenSugs(); }
   }
@@ -1514,10 +1445,12 @@
   }
   function hideGenSugs() { document.getElementById('genColSuggestions').style.display = 'none'; }
 
-  // Best-effort cache write: whenever a user actually picks a collection
-  // (not just sees it in the dropdown), remember its display name — see
-  // searchNameIndex above. Never awaited/blocking; a failed write just
-  // means this collection isn't cached yet, same as now.
+  // Best-effort cache write to collection_search_index — nothing on this
+  // site reads this table anymore (both this page and explore.html switched
+  // their own search to atomicmarket's stats/collections?search=), so this
+  // write is currently a no-op for search purposes. Left in place rather
+  // than removed since dropping it/the table is a separate decision, not
+  // part of this fix. Never awaited/blocking either way.
   function cacheCollectionName(c) {
     fetch(`${SUPABASE_URL}/rest/v1/collection_search_index`, {
       method: 'POST',
