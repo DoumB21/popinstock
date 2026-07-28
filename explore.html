@@ -219,9 +219,15 @@
     .sc-wallet { color: var(--accent-light); }
 
     @media (max-width: 700px) {
-      .act-card { padding: 0.9rem; gap: 0.85rem; }
-      .act-card-cols { gap: 1.25rem; }
+      /* Image + "View transaction" centered on top, everything else stacked
+         left-aligned underneath — instead of the desktop image-left/info-right row. */
+      .act-card { padding: 0.9rem; gap: 0.85rem; flex-direction: column; align-items: center; }
+      .act-card-thumb { width: 110px; height: 110px; }
+      .act-card-cols { flex: none; width: 100%; flex-direction: column; align-items: flex-start; gap: 1.25rem; }
       .sc-fields--meta { margin-left: 0; }
+      /* Fixed label column (wide enough for "Collection", the longest) so the
+         two stacked field blocks share the same width and their values line up. */
+      .sc-fields { grid-template-columns: 4.5rem max-content; }
       .sc-value { max-width: 11rem; }
     }
 
@@ -574,8 +580,11 @@
          explicit width + overflow-x:hidden forces real containment. */
       .explore-main { width: 100%; min-width: 0; overflow-x: hidden; }
     }
-    @media (max-width: 480px) {
-      .bl-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+    /* Locked to exactly 2 (not auto-fill) — unlike inventory.html's simpler
+       single-purpose tiles, these cards carry a 2-button Buy/Cart row that
+       gets unreadable at 3-across on a phone. */
+    @media (max-width: 600px) {
+      .bl-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -2676,7 +2685,7 @@ function historyCardHtml(sale) {
     <div class="act-card-cols">
       <div class="sc-fields">
         <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
-        <span class="sc-label">NFT</span><span class="sc-value sc-name">${nameHtml}</span>
+        <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
         <span class="sc-label">Collection</span><span class="sc-value">${escHtml(colDisplay)}</span>
         <span class="sc-label">Price</span><span class="sc-value sc-price">${listingPriceHtml(sale)}</span>
       </div>
