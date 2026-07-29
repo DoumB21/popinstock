@@ -9,6 +9,8 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@vercel/functions": "^1",
+    "@vercel/og": "^0.6.3",
     "@wharfkit/antelope": "^1.2.0",
     "@wharfkit/session": "^1",
     "@wharfkit/wallet-plugin-anchor": "^1",

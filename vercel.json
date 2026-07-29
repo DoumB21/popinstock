@@ -18,5 +18,10 @@
   "rewrites": [
     { "source": "/collection/:name", "destination": "/collection?collection_name=:name" },
     { "source": "/template/:id", "destination": "/template?template_id=:id" }
-  ]
+  ],
+  "functions": {
+    "api/og-page/collection.js": { "includeFiles": "collection.html" },
+    "api/og-page/template.js": { "includeFiles": "template.html" },
+    "api/og-page/inventory.js": { "includeFiles": "inventory.html" }
+  }
 }
