@@ -318,7 +318,7 @@ function escHtml(s) {
 }
 function walletLinkHtml(account) {
   if (!account) return '';
-  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+  return `<a href="${_p}inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
 
