@@ -1,19 +1,9 @@
 import { ImageResponse } from '@vercel/og';
-import { fetchAA, fetchGoogleFontTtf, truncate, plainTextFromDescription, h, COLORS } from '../_lib/og-shared.js';
-import { fetchImageDataUriConverting as fetchImageDataUri } from '../_lib/og-image-node.js';
+import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, truncate, plainTextFromDescription, h, COLORS } from '../_lib/og-shared.js';
+
+export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
-  try {
-    return await render(req);
-  } catch (err) {
-    // TEMPORARY diagnostic — surface the real error instead of a bare 500 so the
-    // actual crash cause is visible without Vercel dashboard log access. Remove once
-    // the Node.js-runtime crash investigated in this session is understood.
-    return new Response(String(err?.stack || err), { status: 200, headers: { 'content-type': 'text/plain' } });
-  }
-}
-
-async function render(req) {
   const { searchParams } = new URL(req.url);
   const name = searchParams.get('name') || '';
 

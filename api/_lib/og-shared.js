@@ -1,7 +1,6 @@
 // Shared helpers for the bot-only dynamic OG functions (api/og-page/*, api/og-image/*)
-// and middleware.js (Edge runtime — this file must stay dependency-free, no `sharp` or
-// other native/Node-only imports here; see api/_lib/og-image-node.js for the Node-only
-// image-fetching helper the og-image/* functions use).
+// and middleware.js. Kept dependency-free and framework-agnostic so it works in both
+// the Node.js runtime (og-page/*) and the Edge runtime (og-image/*).
 
 export const SITE_ORIGIN = 'https://www.hoardio.com';
 
@@ -34,15 +33,24 @@ const AA_BASES = [
   'https://atomic.wax.detroitledger.tech/atomicassets/v1',
 ];
 
-// Same 3-gateway list used client-side (collection.html / template.html / inventory.html),
-// and reused by og-image-node.js's image fetcher.
-export const IPFS_GATEWAYS = [
+// Same 3-gateway list used client-side (collection.html / template.html / inventory.html).
+const IPFS_GATEWAYS = [
   'https://ipfs.io/ipfs/',
   'https://cloudflare-ipfs.com/ipfs/',
   'https://dweb.link/ipfs/',
 ];
 
-export async function fetchWithTimeout(url, timeoutMs) {
+// Edge runtime has no Node `Buffer` global, so base64-encode via the Web-standard
+// btoa() instead (available in both the Edge runtime and modern Node) — keeps this
+// module safe to import from middleware.js (Edge) as well as the Node og-page/* functions.
+function arrayBufferToBase64(buf) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+async function fetchWithTimeout(url, timeoutMs) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -70,6 +78,64 @@ export async function fetchAA(path, timeoutMs = 4000) {
     }
   }
   throw lastErr;
+}
+
+// Satori (the engine behind @vercel/og's ImageResponse) only decodes these raster formats
+// when rasterizing an embedded <img>. Anything else (webp, avif, svg, ...) renders as a
+// silent blank/broken image instead of throwing — worse than just omitting it, since a
+// bad embed can blank out the whole card, not just that one element.
+const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
+
+// Cheap existence/format check (headers only, body discarded) — used by og-page/template.js
+// to decide *which* og:image URL to advertise before ever generating a card. Most Funko
+// templates have no static `img` at all (animated-only, .mp4 `video` field instead, which
+// can't be rasterized without a much heavier video-frame-extraction pipeline) — for those,
+// and for the rarer unsupported-format case, the generic site banner is used instead of a
+// custom card with a visible gap where the art should be.
+export async function isRenderableImage(hashOrUrl, timeoutMs = 3000) {
+  if (!hashOrUrl) return false;
+  const urls = /^https?:\/\//i.test(hashOrUrl)
+    ? [hashOrUrl]
+    : IPFS_GATEWAYS.map(gw => gw + hashOrUrl);
+  for (const url of urls) {
+    try {
+      const res = await fetchWithTimeout(url, timeoutMs);
+      res.body?.cancel?.();
+      if (!res.ok) continue;
+      const contentType = (res.headers.get('content-type') || 'image/png').split(';')[0].trim();
+      return SUPPORTED_IMAGE_TYPES.includes(contentType);
+    } catch {
+      // try next gateway
+    }
+  }
+  return false;
+}
+
+// Resolves an IPFS hash (or a full http(s) URL) to a base64 data URI, trying every
+// gateway in turn. Returns null on total failure, or if the source file is in a format
+// Satori can't embed — the image is always optional in the rendered card, never a reason
+// to fail the whole response.
+export async function fetchImageDataUri(hashOrUrl, timeoutMs = 3000) {
+  if (!hashOrUrl) return null;
+  const urls = /^https?:\/\//i.test(hashOrUrl)
+    ? [hashOrUrl]
+    : IPFS_GATEWAYS.map(gw => gw + hashOrUrl);
+  for (const url of urls) {
+    try {
+      const res = await fetchWithTimeout(url, timeoutMs);
+      if (!res.ok) continue;
+      const contentType = res.headers.get('content-type') || 'image/png';
+      if (!SUPPORTED_IMAGE_TYPES.includes(contentType.split(';')[0].trim())) {
+        // Same file, same format, at every gateway — no point trying the others.
+        return null;
+      }
+      const buf = await res.arrayBuffer();
+      return `data:${contentType};base64,${arrayBufferToBase64(buf)}`;
+    } catch {
+      // try next gateway
+    }
+  }
+  return null;
 }
 
 export function escapeHtml(s) {
