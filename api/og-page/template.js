@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { fetchAA, patchHeadMeta, truncate, SITE_ORIGIN } from '../_lib/og-shared.js';
+import { fetchAA, isRenderableImage, patchHeadMeta, truncate, SITE_ORIGIN } from '../_lib/og-shared.js';
 
 const STATIC_PATH = path.join(process.cwd(), 'template.html');
+const DEFAULT_IMAGE = `${SITE_ORIGIN}/images/og-banner.png`;
 
 export default async function handler(req, res) {
   const id = String(req.query.id || '');
@@ -22,11 +23,19 @@ export default async function handler(req, res) {
       200
     );
 
+    // Most Funko templates are animated-only (.mp4 `video`, no static `img`) — no still
+    // frame exists anywhere to show, so those (and the rarer unsupported-image-format
+    // case) get the generic site banner instead of a custom card with a visible gap.
+    const hasArt = await isRenderableImage(tpl.immutable_data?.img);
+    const image = hasArt
+      ? `${SITE_ORIGIN}/api/og-image/template?id=${encodeURIComponent(id)}`
+      : DEFAULT_IMAGE;
+
     const html = patchHeadMeta(staticHtml, {
       title: `${name} — Hoardio`,
       description,
       url: `${SITE_ORIGIN}/template/${encodeURIComponent(id)}`,
-      image: `${SITE_ORIGIN}/api/og-image/template?id=${encodeURIComponent(id)}`,
+      image,
     });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

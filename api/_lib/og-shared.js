@@ -86,6 +86,31 @@ export async function fetchAA(path, timeoutMs = 4000) {
 // bad embed can blank out the whole card, not just that one element.
 const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
 
+// Cheap existence/format check (headers only, body discarded) — used by og-page/template.js
+// to decide *which* og:image URL to advertise before ever generating a card. Most Funko
+// templates have no static `img` at all (animated-only, .mp4 `video` field instead, which
+// can't be rasterized without a much heavier video-frame-extraction pipeline) — for those,
+// and for the rarer unsupported-format case, the generic site banner is used instead of a
+// custom card with a visible gap where the art should be.
+export async function isRenderableImage(hashOrUrl, timeoutMs = 3000) {
+  if (!hashOrUrl) return false;
+  const urls = /^https?:\/\//i.test(hashOrUrl)
+    ? [hashOrUrl]
+    : IPFS_GATEWAYS.map(gw => gw + hashOrUrl);
+  for (const url of urls) {
+    try {
+      const res = await fetchWithTimeout(url, timeoutMs);
+      res.body?.cancel?.();
+      if (!res.ok) continue;
+      const contentType = (res.headers.get('content-type') || 'image/png').split(';')[0].trim();
+      return SUPPORTED_IMAGE_TYPES.includes(contentType);
+    } catch {
+      // try next gateway
+    }
+  }
+  return false;
+}
+
 // Resolves an IPFS hash (or a full http(s) URL) to a base64 data URI, trying every
 // gateway in turn. Returns null on total failure, or if the source file is in a format
 // Satori can't embed — the image is always optional in the rendered card, never a reason
