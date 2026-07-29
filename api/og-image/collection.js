@@ -1,5 +1,5 @@
 import { ImageResponse } from '@vercel/og';
-import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, truncate, plainTextFromDescription, h, COLORS } from '../_lib/og-shared.js';
+import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, bufferImageResponse, truncate, plainTextFromDescription, h, COLORS } from '../_lib/og-shared.js';
 
 export const config = { runtime: 'edge' };
 
@@ -7,20 +7,29 @@ export default async function handler(req) {
   const { searchParams } = new URL(req.url);
   const name = searchParams.get('name') || '';
 
-  let displayName = name || 'Collection';
-  let description = 'WAX Blockchain Collection';
-  let logoDataUri = null;
+  // The AtomicAssets+logo lookup and the font fetch are independent — run them
+  // concurrently instead of one after another to keep worst-case latency down for
+  // crawlers with tight timeouts (see bufferImageResponse's comment for the other half
+  // of this fix).
+  const dataPromise = (async () => {
+    let displayName = name || 'Collection';
+    let description = 'WAX Blockchain Collection';
+    let logoDataUri = null;
+    try {
+      const info = await fetchAA(`/collections/${encodeURIComponent(name)}`);
+      displayName = info.data?.name || info.collection_name || name;
+      description = truncate(plainTextFromDescription(info.data?.description), 140) || 'WAX Blockchain Collection';
+      if (info.img) logoDataUri = await fetchImageDataUri(info.img);
+    } catch {
+      // API down / not found — render the generic branded placeholder below.
+    }
+    return { displayName, description, logoDataUri };
+  })();
 
-  try {
-    const info = await fetchAA(`/collections/${encodeURIComponent(name)}`);
-    displayName = info.data?.name || info.collection_name || name;
-    description = truncate(plainTextFromDescription(info.data?.description), 140) || 'WAX Blockchain Collection';
-    if (info.img) logoDataUri = await fetchImageDataUri(info.img);
-  } catch {
-    // API down / not found — render the generic branded placeholder below.
-  }
-
-  const fontData = await fetchGoogleFontTtf('Inter', 700);
+  const [{ displayName, description, logoDataUri }, fontData] = await Promise.all([
+    dataPromise,
+    fetchGoogleFontTtf('Inter', 700),
+  ]);
 
   const children = [
     h('div', { style: { display: 'flex', color: COLORS.accentLight, fontSize: 22, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 28 } }, 'Hoardio'),
@@ -38,7 +47,7 @@ export default async function handler(req) {
     }, 'WAX Blockchain Collection'),
   ].filter(Boolean);
 
-  return new ImageResponse(
+  return bufferImageResponse(new ImageResponse(
     h('div', {
       style: {
         width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
@@ -48,5 +57,5 @@ export default async function handler(req) {
       },
     }, h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 90px', textAlign: 'center' } }, children)),
     { width: 1200, height: 630, fonts: fontData ? [{ name: 'Inter', data: fontData, weight: 700, style: 'normal' }] : undefined }
-  );
+  ));
 }

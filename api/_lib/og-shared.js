@@ -60,24 +60,25 @@ async function fetchWithTimeout(url, timeoutMs) {
   }
 }
 
-// Fetches an AtomicAssets API path (e.g. "/collections/foo") from the primary node,
-// falling back to the secondary on any error/timeout. Returns the parsed `.data` field,
-// or throws if both endpoints fail — callers should catch this and fall back to serving
-// the plain static file untouched.
+// Fetches an AtomicAssets API path (e.g. "/collections/foo") from both nodes at once,
+// taking whichever responds successfully first — racing instead of trying sequentially
+// keeps worst-case latency bounded by one timeout instead of the sum of both, which
+// matters because some social-media crawlers (Discord in particular) time out their
+// link-preview fetch much faster than others (Facebook/Twitter tolerate several seconds).
+// Throws only if both endpoints fail — callers should catch this and fall back to
+// serving the plain static file untouched.
 export async function fetchAA(path, timeoutMs = 4000) {
-  let lastErr;
-  for (const base of AA_BASES) {
-    try {
+  try {
+    return await Promise.any(AA_BASES.map(async base => {
       const res = await fetchWithTimeout(base + path, timeoutMs);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.success) throw new Error('API returned success:false');
       return json.data;
-    } catch (err) {
-      lastErr = err;
-    }
+    }));
+  } catch (err) {
+    throw err.errors?.[0] || err;
   }
-  throw lastErr;
 }
 
 // Satori (the engine behind @vercel/og's ImageResponse) only decodes these raster formats
@@ -111,31 +112,28 @@ export async function isRenderableImage(hashOrUrl, timeoutMs = 3000) {
   return false;
 }
 
-// Resolves an IPFS hash (or a full http(s) URL) to a base64 data URI, trying every
-// gateway in turn. Returns null on total failure, or if the source file is in a format
-// Satori can't embed — the image is always optional in the rendered card, never a reason
-// to fail the whole response.
+// Resolves an IPFS hash (or a full http(s) URL) to a base64 data URI, racing every
+// gateway at once and taking whichever succeeds first (same rationale as fetchAA above —
+// bounds worst-case latency by one timeout instead of up to 3x). Returns null on total
+// failure, or if the source file is in a format Satori can't embed — the image is always
+// optional in the rendered card, never a reason to fail the whole response.
 export async function fetchImageDataUri(hashOrUrl, timeoutMs = 3000) {
   if (!hashOrUrl) return null;
   const urls = /^https?:\/\//i.test(hashOrUrl)
     ? [hashOrUrl]
     : IPFS_GATEWAYS.map(gw => gw + hashOrUrl);
-  for (const url of urls) {
-    try {
+  try {
+    return await Promise.any(urls.map(async url => {
       const res = await fetchWithTimeout(url, timeoutMs);
-      if (!res.ok) continue;
-      const contentType = res.headers.get('content-type') || 'image/png';
-      if (!SUPPORTED_IMAGE_TYPES.includes(contentType.split(';')[0].trim())) {
-        // Same file, same format, at every gateway — no point trying the others.
-        return null;
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const contentType = (res.headers.get('content-type') || 'image/png').split(';')[0].trim();
+      if (!SUPPORTED_IMAGE_TYPES.includes(contentType)) throw new Error('unsupported format');
       const buf = await res.arrayBuffer();
       return `data:${contentType};base64,${arrayBufferToBase64(buf)}`;
-    } catch {
-      // try next gateway
-    }
+    }));
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export function escapeHtml(s) {
@@ -163,11 +161,20 @@ export function truncate(text, maxLen) {
   return t.length > maxLen ? t.slice(0, maxLen - 1).trimEnd() + '…' : t;
 }
 
+// Successful font fetches are cached at module scope, keyed by "family:weight" — an Edge
+// function instance is reused ("warm") across multiple invocations, and social crawlers
+// routinely re-fetch the same URL several times in quick succession, so a warm request
+// skips the 2 sequential Google Fonts round-trips entirely. Only successes are cached;
+// a transient failure isn't remembered, so the next request gets to retry.
+const _fontCache = new Map();
+
 // Fetches a Google Font as a .ttf ArrayBuffer for use with @vercel/og's ImageResponse
 // (Satori only supports .ttf/.otf/.woff, not .woff2 — Google's CSS2 API only serves
 // .woff2 to modern browser UAs, so requesting with an old UA string is the standard
 // trick to get a .ttf `src` back instead).
 export async function fetchGoogleFontTtf(family, weight, timeoutMs = 3000) {
+  const key = `${family}:${weight}`;
+  if (_fontCache.has(key)) return _fontCache.get(key);
   try {
     const cssRes = await fetchWithTimeout(
       `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weight}`,
@@ -181,10 +188,31 @@ export async function fetchGoogleFontTtf(family, weight, timeoutMs = 3000) {
     if (!match) return null;
     const fontRes = await fetchWithTimeout(match[1], timeoutMs);
     if (!fontRes.ok) return null;
-    return await fontRes.arrayBuffer();
+    const buf = await fontRes.arrayBuffer();
+    _fontCache.set(key, buf);
+    return buf;
   } catch {
     return null;
   }
+}
+
+// @vercel/og's ImageResponse streams its body (it doesn't know the final PNG size until
+// rendering completes), so it ships with no Content-Length header — chunked transfer
+// encoding instead. Facebook/Twitter's scrapers don't seem to mind, but this is a
+// documented rough edge for Discord's embed fetcher specifically, which wants a known
+// Content-Length before it'll embed an image. Buffering the body ourselves and building
+// a plain Response with an explicit length fixes that without changing anything visible
+// to callers that already tolerated the streamed version.
+export async function bufferImageResponse(imageResponse) {
+  const buf = await imageResponse.arrayBuffer();
+  return new Response(buf, {
+    status: 200,
+    headers: {
+      'content-type': 'image/png',
+      'content-length': String(buf.byteLength),
+      'cache-control': imageResponse.headers.get('cache-control') || 'public, immutable, no-transform, max-age=31536000',
+    },
+  });
 }
 
 // Patches the <title>/<meta description>/og:*/twitter:*/canonical block of a static

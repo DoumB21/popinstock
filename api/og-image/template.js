@@ -1,5 +1,5 @@
 import { ImageResponse } from '@vercel/og';
-import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, h, COLORS } from '../_lib/og-shared.js';
+import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, bufferImageResponse, h, COLORS } from '../_lib/og-shared.js';
 
 export const config = { runtime: 'edge' };
 
@@ -7,25 +7,34 @@ export default async function handler(req) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id') || '';
 
-  let name = id ? `Template #${id}` : 'Template';
-  let collectionName = '';
-  let rarity = null;
-  let cardImg = null;
-
-  try {
-    const rows = await fetchAA(`/templates?template_id=${encodeURIComponent(id)}&limit=1`);
-    const tpl = rows?.[0];
-    if (tpl) {
-      name = tpl.immutable_data?.name || name;
-      collectionName = tpl.collection?.name || tpl.collection?.collection_name || '';
-      rarity = tpl.immutable_data?.rarity || null;
-      if (tpl.immutable_data?.img) cardImg = await fetchImageDataUri(tpl.immutable_data.img);
+  // The AtomicAssets+art lookup and the font fetch are independent — run them
+  // concurrently instead of one after another to keep worst-case latency down for
+  // crawlers with tight timeouts (see bufferImageResponse's comment for the other half
+  // of this fix).
+  const dataPromise = (async () => {
+    let name = id ? `Template #${id}` : 'Template';
+    let collectionName = '';
+    let rarity = null;
+    let cardImg = null;
+    try {
+      const rows = await fetchAA(`/templates?template_id=${encodeURIComponent(id)}&limit=1`);
+      const tpl = rows?.[0];
+      if (tpl) {
+        name = tpl.immutable_data?.name || name;
+        collectionName = tpl.collection?.name || tpl.collection?.collection_name || '';
+        rarity = tpl.immutable_data?.rarity || null;
+        if (tpl.immutable_data?.img) cardImg = await fetchImageDataUri(tpl.immutable_data.img);
+      }
+    } catch {
+      // API down / not found — render the generic branded placeholder below.
     }
-  } catch {
-    // API down / not found — render the generic branded placeholder below.
-  }
+    return { name, collectionName, rarity, cardImg };
+  })();
 
-  const fontData = await fetchGoogleFontTtf('Inter', 700);
+  const [{ name, collectionName, rarity, cardImg }, fontData] = await Promise.all([
+    dataPromise,
+    fetchGoogleFontTtf('Inter', 700),
+  ]);
 
   const artNode = cardImg
     ? h('img', { src: cardImg, width: 340, height: 340, style: { width: 340, height: 340, objectFit: 'contain', borderRadius: 20, marginRight: 64, backgroundColor: COLORS.card, border: `1px solid ${COLORS.border}` } })
@@ -49,7 +58,7 @@ export default async function handler(req) {
       : null,
   ].filter(Boolean);
 
-  return new ImageResponse(
+  return bufferImageResponse(new ImageResponse(
     h('div', {
       style: {
         width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -62,5 +71,5 @@ export default async function handler(req) {
       h('div', { style: { display: 'flex', flexDirection: 'column', maxWidth: 620 } }, infoChildren),
     ]),
     { width: 1200, height: 630, fonts: fontData ? [{ name: 'Inter', data: fontData, weight: 700, style: 'normal' }] : undefined }
-  );
+  ));
 }
