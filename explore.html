@@ -965,7 +965,7 @@ function walletLinkHtml(account) {
 }
 function collectionLinkHtml(collectionName, displayName) {
   if (!collectionName) return '';
-  return `<a href="collection?collection_name=${encodeURIComponent(collectionName)}" class="sc-name-link">${escHtml(displayName || collectionName)}</a>`;
+  return `<a href="collection/${encodeURIComponent(collectionName)}" class="sc-name-link">${escHtml(displayName || collectionName)}</a>`;
 }
 function fmtWax(n) {
   if (!isFinite(n) || n <= 0) return '—';
@@ -2645,7 +2645,7 @@ function historyCardHtml(sale) {
   // Same-tab internal link, no arrow — matches the site-wide convention for
   // in-app nav links (Collection/Template links elsewhere on this page).
   const nameHtml = tid
-    ? `<a href="template?template_id=${encodeURIComponent(tid)}" class="sc-name-link">${name}</a>`
+    ? `<a href="template/${encodeURIComponent(tid)}" class="sc-name-link">${name}</a>`
     : name;
 
   return `<div class="act-card">

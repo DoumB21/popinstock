@@ -879,10 +879,10 @@ function assetFields(asset) {
   // Same-tab internal link, no arrow — matches the site-wide convention for
   // in-app nav links (see explore.html's Sales History cards).
   const nameHtml = templateId
-    ? `<a href="template?template_id=${encodeURIComponent(templateId)}" class="sc-name-link">${escHtml(name)}</a>`
+    ? `<a href="template/${encodeURIComponent(templateId)}" class="sc-name-link">${escHtml(name)}</a>`
     : escHtml(name);
   const collHtml = col
-    ? `<a href="collection?collection_name=${encodeURIComponent(col)}" class="sc-name-link">${escHtml(collName)}</a>`
+    ? `<a href="collection/${encodeURIComponent(col)}" class="sc-name-link">${escHtml(collName)}</a>`
     : escHtml(collName);
   return { name, collName, mint, nameHtml, collHtml };
 }

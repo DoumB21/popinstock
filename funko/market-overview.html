@@ -618,7 +618,7 @@ function buildCardTable(rows, append) {
         <div class="cell-card-name">${row.cardid != null ? row.cardid + ' — ' : ''}${row.name||'—'}</div>
         <div style="margin-top:3px;display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
           <span class="rarity-pill ${RARITY_CLASS[row.rarity]||''}">${row.rarity||'—'}</span>
-          <a class="template-link" href="../template?template_id=${enc(row.template_id)}">View template #${row.template_id}</a>
+          <a class="template-link" href="../template/${enc(row.template_id)}">View template #${row.template_id}</a>
         </div>
       </td>
       <td>
