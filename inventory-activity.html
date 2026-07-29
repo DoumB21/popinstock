@@ -485,7 +485,7 @@ function escHtml(s) {
 }
 function walletLinkHtml(account) {
   if (!account) return '';
-  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+  return `<a href="inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 
 function fmtDate(ms) {
@@ -1373,7 +1373,7 @@ function updatePageHeading() {
   const titleEl = document.getElementById('pageTitle');
   const descEl  = document.getElementById('pageDesc');
   const invLink = document.getElementById('actInventoryLink');
-  if (invLink) invLink.href = _urlWallet ? `inventory?wallet=${encodeURIComponent(_urlWallet)}` : 'inventory';
+  if (invLink) invLink.href = _urlWallet ? `inventory/${encodeURIComponent(_urlWallet)}` : 'inventory';
   if (_readOnly) {
     titleEl.innerHTML  = `<span class="accent">${escHtml(_activeWallet)}</span>'s Activity`;
     descEl.textContent = `Browsing ${_activeWallet}'s purchases, sales, and transfers (read-only).`;

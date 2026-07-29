@@ -961,7 +961,7 @@ function escHtml(s) {
 // as the Name/Collection links elsewhere on this page.
 function walletLinkHtml(account) {
   if (!account) return '';
-  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="sc-name-link">${escHtml(account)}</a>`;
+  return `<a href="inventory/${encodeURIComponent(account)}" class="sc-name-link">${escHtml(account)}</a>`;
 }
 function collectionLinkHtml(collectionName, displayName) {
   if (!collectionName) return '';

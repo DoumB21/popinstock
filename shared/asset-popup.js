@@ -13,7 +13,7 @@
      apiFetch: url => fetchWithRetry(url).then(r=>r.json()) | WaxApi.apiFetch(url), // required — returns parsed JSON
      collectionHref: name => `collection/${name}` | `../collection/${name}`,        // optional, defaults shown
      templateHref:   id   => `template/${id}`     | `../template/${id}`,            // optional, defaults shown
-     walletHref:     acc  => `inventory?wallet=${acc}` | `../inventory?wallet=${acc}`, // optional, defaults shown
+     walletHref:     acc  => `inventory/${acc}`   | `../inventory/${acc}`,      // optional, defaults shown
    });
 
    Per card: popup.wire(cardEl, data, { hoverEl, shouldSuppressHover });
@@ -109,7 +109,7 @@ window.AssetPopup = (function () {
     const apiFetch = opts.apiFetch;
     const collectionHref = opts.collectionHref || (name => `collection/${encodeURIComponent(name)}`);
     const templateHref   = opts.templateHref   || (id   => `template/${encodeURIComponent(id)}`);
-    const walletHref     = opts.walletHref     || (acc  => `inventory?wallet=${encodeURIComponent(acc)}`);
+    const walletHref     = opts.walletHref     || (acc  => `inventory/${encodeURIComponent(acc)}`);
 
     let hover = document.getElementById('assetPopupHover');
     if (!hover) {

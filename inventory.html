@@ -3,6 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- The /inventory/:wallet rewrite makes the browser treat this page as one
+       directory level deeper than every other root-level page here, so every
+       relative asset path below needs a "../" prefix in that case — see the
+       identical, more detailed comment in collection.html for the full
+       rationale (in short: document.write bakes the prefix into these tags
+       before Chrome's speculative preload scanner can request them wrong). -->
+  <script>
+    var _p = /\/inventory\/[^/]+\/?$/.test(location.pathname) ? '../' : '';
+    document.write(
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.ico" sizes="any" />' +
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.png" type="image/png" />' +
+      '<link rel="stylesheet" href="' + _p + 'shared/global.css" />' +
+      '<script src="' + _p + 'shared/supabase-config.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/gift-crypto.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/qrcode.js">\x3c/script>'
+    );
+  </script>
   <title>Inventory — Hoardio</title>
   <meta name="description" content="Browse any WAX wallet's NFT inventory — filters, mint rankings, and collection breakdowns." />
   <link rel="canonical" href="https://www.hoardio.com/inventory" />
@@ -17,9 +37,6 @@
   <meta name="twitter:title" content="Inventory — Hoardio" />
   <meta name="twitter:description" content="Browse any WAX wallet's NFT inventory — filters, mint rankings, and collection breakdowns." />
   <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
-  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
-  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
-  <link rel="stylesheet" href="shared/global.css" />
   <style>
     /* ── Auth gate ── */
     .auth-gate {
@@ -646,25 +663,33 @@
     .gift-link-row .control-input { flex: 1; min-width: 0; font-size: 0.8rem; }
     .gift-links-page-link { font-size: 0.82rem; text-align: center; color: var(--accent-light); }
   </style>
-  <script src="shared/supabase-config.js"></script>
-  <script src="shared/settings.js"></script>
-  <script src="shared/wallet-widget.js"></script>
-  <script src="shared/asset-popup.js"></script>
-  <script src="shared/gift-crypto.js"></script>
-  <script src="shared/qrcode.js"></script>
 </head>
 <body>
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index" class="nav-home" title="Back to homepage">
-      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    <a href="#" class="nav-home" id="navHomeLink" title="Back to homepage">
+      <img src="" alt="Hoardio" id="navHomeImg" />
     </a>
     <span class="nav-divider"></span>
     <div class="nav-links"></div>
   </div>
 </nav>
-<script src="shared/generic-nav.js"></script>
+<script>
+  document.getElementById('navHomeLink').href = _p + 'index';
+  document.getElementById('navHomeImg').src = _p + 'images/Hoardio_fav.png';
+  document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
+</script>
+<script>
+  // See the identical comment in collection.html — generic-nav.js builds
+  // its own links with plain relative hrefs, unaware of the extra path
+  // depth, so they need the same fixup here once it's finished building them.
+  if (_p) {
+    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
+      a.setAttribute('href', _p + a.getAttribute('href'));
+    });
+  }
+</script>
 
 <main class="page-main">
   <div class="page-header">
@@ -848,10 +873,10 @@
   </div>
 
   <div id="activityTabs" class="activity-tabs" style="display:none;">
-    <a class="activity-tab-btn activity-tab-btn--current" href="inventory" id="actTabInventory">Inventory</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=purchases" id="actTabPurchases">Purchases</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=sales" id="actTabSales">Sales</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=transfers" id="actTabTransfers">Transfers</a>
+    <a class="activity-tab-btn activity-tab-btn--current" href="#" id="actTabInventory">Inventory</a>
+    <a class="activity-tab-btn" href="#" id="actTabPurchases">Purchases</a>
+    <a class="activity-tab-btn" href="#" id="actTabSales">Sales</a>
+    <a class="activity-tab-btn" href="#" id="actTabTransfers">Transfers</a>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
@@ -1392,6 +1417,11 @@ function attachCardEvents(card, asset) {
 const _assetPopup = AssetPopup.mount({
   aaBase: () => atomicApi() + '/atomicassets/v1',
   apiFetch: url => fetchWithRetry(url).then(r => r.json()).then(j => j.data),
+  // Defaults are root-relative — need the _p prefix here since this page
+  // itself can be loaded one level deep via /inventory/:wallet.
+  collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
+  templateHref:   id   => `${_p}template/${encodeURIComponent(id)}`,
+  walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
 });
 function closeInfoPopup() { _assetPopup.close(); }
 function copyVal(btn, text) { AssetPopup.copyVal(btn, text); }
@@ -1600,7 +1630,7 @@ function escHtml(s) {
 }
 function walletLinkHtml(account) {
   if (!account) return '';
-  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+  return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 
 function refreshCbLabel(container, selectedSet, allLabel) {
@@ -4829,7 +4859,7 @@ function renderBulkActionModal() {
         <input class="control-input" id="giftLinkInput" type="text" readonly value="${escHtml(_giftResult.url)}" onclick="this.select()" style="width:100%; box-sizing:border-box; margin-bottom:0.65rem;" />
         <button class="modal-btn modal-btn--list" type="button" style="width:100%;" onclick="copyVal(this,'${escHtml(_giftResult.url)}')">Copy Link</button>
         <div class="bl-transfer-warning">Share this link with the recipient — anyone who has it can claim these NFTs. You can cancel or regenerate it later from Gift Links.</div>
-        <a class="gift-links-page-link" href="gift-links">View all Gift Links →</a>
+        <a class="gift-links-page-link" href="${_p}gift-links">View all Gift Links →</a>
       </div>`;
   } else if (_bulkAction === 'gift') {
     bodyHtml = `
@@ -5414,7 +5444,10 @@ async function bulkGift() {
     return;
   }
 
-  const url = `${location.origin}${location.pathname.replace(/inventory$/, '')}gift-claim?id=${linkId}#${privateKey}`;
+  // Builds off _p (not location.pathname surgery) so this still resolves
+  // correctly when this page itself was loaded via the /inventory/:wallet
+  // clean-path form, where the pathname no longer ends in "inventory".
+  const url = new URL(`${_p}gift-claim?id=${linkId}`, location.href).href + `#${privateKey}`;
   _giftResult = { linkId, url, privateKey };
   _giftStep = 'result';
   renderBulkActionModal();
@@ -5431,10 +5464,10 @@ function updatePageHeading() {
   // viewed — without this, Purchases/Sales/Transfers would silently fall
   // back to the connected wallet's own activity while browsing someone else's.
   const walletQS = _activeWallet ? `&wallet=${encodeURIComponent(_activeWallet)}` : '';
-  document.getElementById('actTabInventory').href = _activeWallet ? `inventory?wallet=${encodeURIComponent(_activeWallet)}` : 'inventory';
-  document.getElementById('actTabPurchases').href = `inventory-activity?tab=purchases${walletQS}`;
-  document.getElementById('actTabSales').href     = `inventory-activity?tab=sales${walletQS}`;
-  document.getElementById('actTabTransfers').href = `inventory-activity?tab=transfers${walletQS}`;
+  document.getElementById('actTabInventory').href = _activeWallet ? `${_p}inventory/${encodeURIComponent(_activeWallet)}` : `${_p}inventory`;
+  document.getElementById('actTabPurchases').href = `${_p}inventory-activity?tab=purchases${walletQS}`;
+  document.getElementById('actTabSales').href     = `${_p}inventory-activity?tab=sales${walletQS}`;
+  document.getElementById('actTabTransfers').href = `${_p}inventory-activity?tab=transfers${walletQS}`;
   if (_readOnly) {
     titleEl.innerHTML  = `<span class="accent">${escHtml(_activeWallet)}</span>'s Inventory`;
     descEl.textContent = `Browsing ${_activeWallet}'s NFTs (read-only). Connect that wallet to list, transfer, or manage these items.`;
@@ -5717,12 +5750,16 @@ fetchWaxPrice();
 window.addEventListener('wax-auth-change', onWalletChange);
 document.addEventListener('DOMContentLoaded', () => {
   WalletWidget.mount(document.querySelector('.nav-inner'), {
-    authScript: 'shared/wax-auth.js',
+    authScript: _p + 'shared/wax-auth.js',
+    apiScript: _p + 'shared/wax-api.js',
+    exploreHref: _p + 'explore',
+    offersHref: _p + 'trade-offers',
+    profileHref: _p + 'profile',
     menuItems: [
-      { href: 'inventory', label: 'Inventory', icon: '📦' },
-      { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
-      { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
-      { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
+      { href: _p + 'inventory', label: 'Inventory', icon: '📦' },
+      { href: _p + 'inventory-activity', label: 'Activity', icon: '🕒' },
+      { href: _p + 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: _p + 'gift-links', label: 'Gift Links', icon: '🎁' },
     ],
   });
   onWalletChange();

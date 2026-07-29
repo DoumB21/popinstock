@@ -177,6 +177,17 @@
     .wallet-cell { font-size: 0.92rem; color: var(--accent-light) !important; } /* !important: outguns global.css's .table-wrap table tbody td, which otherwise wins on specificity and silently forces this back to plain text color */
     .wallet-link { color: inherit; text-decoration: none; }
     .wallet-link:hover { text-decoration: underline; }
+    /* Highlights the connected wallet's own row in Holders/Top Sellers/Top
+       Buyers — same green "you" treatment as trade-analyzer.html's traders
+       list, kept distinct from the orange rank/wallet accent already used
+       throughout these tables. */
+    tr.wallet-row-you { background: rgba(74,222,128,0.06); }
+    .you-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: #4ade80; border: 1px solid rgba(74,222,128,0.3);
+      background: rgba(74,222,128,0.08); border-radius: 4px; padding: 1px 4px;
+      margin-left: 5px; vertical-align: middle;
+    }
 
     /* ── Template hover tooltip: now uses the canonical .hover-tooltip/
        .tt-* classes in shared/global.css (same box this page pioneered the
@@ -344,7 +355,15 @@ function escHtml(s) {
 }
 function walletLinkHtml(account) {
   if (!account) return '';
-  return `<a href="${_p}inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+  return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+}
+// Only for standalone wallet-table rows (Holders/Top Sellers/Top Buyers) —
+// deliberately not baked into walletLinkHtml itself, since that's also used
+// for the collection's "by <author>" credit line where a badge would look
+// out of place.
+function isYouWallet(account) {
+  const me = window.getWaxAccount ? window.getWaxAccount() : null;
+  return !!me && !!account && me.toLowerCase() === String(account).toLowerCase();
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
 
@@ -577,6 +596,26 @@ async function loadHeader() {
 }
 
 /* ── Overview tab ── */
+// Cached separately from the fetch so wax-auth-change can re-render (to
+// toggle the you-highlight) without re-fetching.
+const _leaderboardRows = {};
+function renderLeaderboardTable(wrapId, sortField) {
+  const wrap = document.getElementById(wrapId);
+  const rows = _leaderboardRows[wrapId];
+  if (!wrap || !rows) return;
+  if (!rows.length) { wrap.innerHTML = `<div class="collection-placeholder">No data yet.</div>`; return; }
+  wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Volume</th></tr></thead><tbody>
+    ${rows.map((r, i) => {
+      const you = isYouWallet(r.account);
+      return `<tr class="${you ? 'wallet-row-you' : ''}">
+      <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
+      <td class="wallet-cell">${walletLinkHtml(r.account)}${you ? '<span class="you-badge">You</span>' : ''}</td>
+      <td class="col-r">${fmtWax(sortField === 'sell_volume' ? r.sell_volume : r.buy_volume)}</td>
+    </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+
 async function loadOverview() {
   const mkt = WaxApi.marketBase();
 
@@ -631,15 +670,8 @@ async function loadOverview() {
     const wrap = document.getElementById(wrapId);
     try {
       const res = await WaxApi.apiFetch(`${mkt}/stats/accounts?symbol=WAX&collection_name=${encodeURIComponent(collectionName)}&sort=${sortField}&limit=10`);
-      const rows = res?.results || [];
-      if (!rows.length) { wrap.innerHTML = `<div class="collection-placeholder">No data yet.</div>`; return; }
-      wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Volume</th></tr></thead><tbody>
-        ${rows.map((r, i) => `<tr>
-          <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
-          <td class="wallet-cell">${walletLinkHtml(r.account)}</td>
-          <td class="col-r">${fmtWax(sortField === 'sell_volume' ? r.sell_volume : r.buy_volume)}</td>
-        </tr>`).join('')}
-      </tbody></table>`;
+      _leaderboardRows[wrapId] = res?.results || [];
+      renderLeaderboardTable(wrapId, sortField);
     } catch { wrap.innerHTML = `<div class="collection-placeholder">Could not load.</div>`; }
   }
   loadLeaderboard('sell_volume', 'topSellersWrap');
@@ -864,16 +896,28 @@ function renderHoldersTable() {
   const wrap = document.getElementById('holdersWrap');
   if (!items.length) { wrap.innerHTML = `<div class="collection-placeholder">No holders found.</div>`; return; }
   wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead><tbody>
-    ${items.map((h, i) => `<tr>
+    ${items.map((h, i) => {
+      const you = isYouWallet(h.account);
+      return `<tr class="${you ? 'wallet-row-you' : ''}">
       <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
-      <td class="wallet-cell">${walletLinkHtml(h.account)}</td>
+      <td class="wallet-cell">${walletLinkHtml(h.account)}${you ? '<span class="you-badge">You</span>' : ''}</td>
       <td class="col-r">${Number(h.assets).toLocaleString()}</td>
-    </tr>`).join('')}
+    </tr>`;
+    }).join('')}
   </tbody></table>`;
 }
 
 document.getElementById('holdersLoadMoreBtn').addEventListener('click', () => loadHolders(false));
 document.getElementById('holdersSearch').addEventListener('input', renderHoldersTable);
+
+// Keeps the you-highlight in sync when the wallet connects/disconnects/
+// switches after these tables already rendered — re-renders from cached
+// data, no re-fetch needed.
+window.addEventListener('wax-auth-change', () => {
+  if (_holdersAll.length) renderHoldersTable();
+  renderLeaderboardTable('topSellersWrap', 'sell_volume');
+  renderLeaderboardTable('topBuyersWrap', 'buy_volume');
+});
 
 /* ── Init ── */
 if (!collectionName) {

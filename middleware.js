@@ -1,14 +1,16 @@
 // Bot-only interception for social-preview crawlers. Real visitors are completely
 // unaffected — this only ever rewrites requests whose User-Agent matches a known
 // crawler (see BOT_UA_RE), and only for the three routes that can be shared as a
-// specific item: /collection/:name, /template/:id, /inventory?wallet=X. Every other
-// request (including non-bot hits on these same paths) falls through via next() to
+// specific item: /collection/:name, /template/:id, /inventory/:wallet (the
+// older /inventory?wallet=X query-string form still works too, for any
+// bookmarks or links already out in the wild). Every other request
+// (including non-bot hits on these same paths) falls through via next() to
 // the existing vercel.json rewrites/static files, unchanged.
 import { rewrite, next } from '@vercel/functions';
 import { BOT_UA_RE } from './api/_lib/og-shared.js';
 
 export const config = {
-  matcher: ['/collection/:name', '/template/:id', '/inventory'],
+  matcher: ['/collection/:name', '/template/:id', '/inventory/:wallet', '/inventory'],
 };
 
 export default function middleware(request) {
@@ -31,7 +33,7 @@ export default function middleware(request) {
   }
 
   if (segments[0] === 'inventory') {
-    const wallet = url.searchParams.get('wallet');
+    const wallet = segments[1] || url.searchParams.get('wallet');
     if (wallet) {
       const target = new URL('/api/og-page/inventory', url);
       target.searchParams.set('wallet', wallet);

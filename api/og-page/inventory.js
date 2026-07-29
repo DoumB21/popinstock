@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     const html = patchHeadMeta(staticHtml, {
       title: `${wallet}'s Inventory — Hoardio`,
       description,
-      url: `${SITE_ORIGIN}/inventory?wallet=${encodeURIComponent(wallet)}`,
+      url: `${SITE_ORIGIN}/inventory/${encodeURIComponent(wallet)}`,
       image: `${SITE_ORIGIN}/api/og-image/inventory?wallet=${encodeURIComponent(wallet)}`,
     });
 

@@ -112,6 +112,16 @@
     .wallet-cell { font-size: 0.92rem; color: var(--accent-light) !important; } /* !important: outguns global.css's .table-wrap table tbody td, which otherwise wins on specificity and silently forces this back to plain text color */
     .wallet-link { color: inherit; text-decoration: none; }
     .wallet-link:hover { text-decoration: underline; }
+    /* Highlights the connected wallet's own row in "Accounts Holding This
+       Template" — same green "you" treatment as trade-analyzer.html's
+       traders list and collection.html's Holders/Top Sellers/Buyers tables. */
+    tr.wallet-row-you { background: rgba(74,222,128,0.06); }
+    .you-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: #4ade80; border: 1px solid rgba(74,222,128,0.3);
+      background: rgba(74,222,128,0.08); border-radius: 4px; padding: 1px 4px;
+      margin-left: 5px; vertical-align: middle;
+    }
 
     /* ── Chart — Chart.js, same visual language (tick color/size, grid,
        tooltip styling) as funko/sales-history.html's chart for site-wide
@@ -321,7 +331,15 @@ function escHtml(s) {
 }
 function walletLinkHtml(account) {
   if (!account) return '';
-  return `<a href="${_p}inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+  return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+}
+// Only for the "Accounts Holding This Template" table — deliberately not
+// baked into walletLinkHtml itself, since that's also used for the Top
+// Offers buyer column and the per-asset owner/burned-by tags, where a badge
+// would look out of place / wasn't asked for.
+function isYouWallet(account) {
+  const me = window.getWaxAccount ? window.getWaxAccount() : null;
+  return !!me && !!account && me.toLowerCase() === String(account).toLowerCase();
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
 
@@ -1109,16 +1127,26 @@ function renderHoldersTable() {
   const wrap = document.getElementById('tplHoldersWrap');
   if (!items.length) { wrap.innerHTML = `<div class="collection-placeholder">No holders found.</div>`; return; }
   wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead><tbody>
-    ${items.map((h, i) => `<tr>
+    ${items.map((h, i) => {
+      const you = isYouWallet(h.account);
+      return `<tr class="${you ? 'wallet-row-you' : ''}">
       <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
-      <td class="wallet-cell">${walletLinkHtml(h.account)}</td>
+      <td class="wallet-cell">${walletLinkHtml(h.account)}${you ? '<span class="you-badge">You</span>' : ''}</td>
       <td class="col-r">${Number(h.assets).toLocaleString()}</td>
-    </tr>`).join('')}
+    </tr>`;
+    }).join('')}
   </tbody></table>`;
 }
 
 document.getElementById('tplHoldersLoadMoreBtn').addEventListener('click', () => loadHolders(false));
 document.getElementById('tplHoldersSearch').addEventListener('input', renderHoldersTable);
+
+// Keeps the you-highlight in sync when the wallet connects/disconnects/
+// switches after this table already rendered — re-renders from cached data,
+// no re-fetch needed.
+window.addEventListener('wax-auth-change', () => {
+  if (_holdersAll.length) renderHoldersTable();
+});
 
 /* ── Init ── */
 if (!templateId) {

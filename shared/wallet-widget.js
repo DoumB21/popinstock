@@ -202,11 +202,11 @@
     const onUpdate      = opts.onUpdate || (() => {});
 
     // The Inventory link (site-wide, always the exact path segment
-    // "inventory") gets the connected account appended as ?wallet= so
-    // inventory.html can default to "my own inventory" without the page
-    // itself needing to know or care where the click came from. Detected by
-    // href shape rather than a per-caller flag so every existing/future
-    // page's menuItems config picks this up automatically.
+    // "inventory") gets the connected account appended as a clean /wallet
+    // path segment so inventory.html can default to "my own inventory"
+    // without the page itself needing to know or care where the click came
+    // from. Detected by href shape rather than a per-caller flag so every
+    // existing/future page's menuItems config picks this up automatically.
     const menuHtml = menuItems.map(m => {
       const isInventoryLink = /(^|\/)inventory$/.test(m.href);
       const attrs = isInventoryLink ? ` data-wallet-link data-base-href="${m.href}"` : '';
@@ -352,7 +352,7 @@
       const acc = window.getWaxAccount();
       walletLinkEls.forEach(a => {
         const base = a.getAttribute('data-base-href');
-        a.href = acc ? `${base}?wallet=${encodeURIComponent(acc)}` : base;
+        a.href = acc ? `${base}/${encodeURIComponent(acc)}` : base;
       });
       if (acc) {
         connectBtn.style.display = 'none';
