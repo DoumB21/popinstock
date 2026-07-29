@@ -1,5 +1,5 @@
 import { ImageResponse } from '@vercel/og';
-import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, bufferImageResponse, h, COLORS } from '../_lib/og-shared.js';
+import { fetchAA, fetchGoogleFontTtf, bufferImageResponse, h, COLORS } from '../_lib/og-shared.js';
 
 export const config = { runtime: 'edge' };
 
@@ -7,28 +7,26 @@ export default async function handler(req) {
   const { searchParams } = new URL(req.url);
   const wallet = (searchParams.get('wallet') || '').toLowerCase();
 
-  // The AtomicAssets+logos lookup and the font fetch are independent — run them
-  // concurrently instead of one after another to keep worst-case latency down for
-  // crawlers with tight timeouts (see bufferImageResponse's comment for the other half
-  // of this fix).
+  // The wallet lookup and the font fetch are independent — run them concurrently
+  // instead of one after another to keep worst-case latency down for crawlers with
+  // tight timeouts (see bufferImageResponse's comment for the other half of this fix).
+  // Deliberately just a total count, not a collection breakdown: /accounts/:wallet
+  // embeds full metadata for every distinct collection a wallet holds, which for a
+  // wallet spread across hundreds of collections runs into the tens of megabytes and
+  // 8+ seconds (confirmed live: a 714-collection wallet returned 16MB in 8.7s) — no
+  // per-wallet collection count/logos are worth showing at that cost, so this card is
+  // stats-only.
   const dataPromise = (async () => {
     let total = 0;
-    let collectionCount = 0;
-    let topLogos = [];
     try {
-      const data = await fetchAA(`/accounts/${encodeURIComponent(wallet)}`);
-      total = Number(data?.assets || 0);
-      const collections = data.collections || [];
-      collectionCount = collections.length;
-      const top = [...collections].sort((a, b) => Number(b.assets || 0) - Number(a.assets || 0)).slice(0, 4);
-      topLogos = (await Promise.all(top.map(entry => entry.collection?.img ? fetchImageDataUri(entry.collection.img) : null))).filter(Boolean);
+      total = Number(await fetchAA(`/assets/_count?owner=${encodeURIComponent(wallet)}`));
     } catch {
       // API down / unknown wallet — render the generic branded placeholder below.
     }
-    return { total, collectionCount, topLogos };
+    return { total };
   })();
 
-  const [{ total, collectionCount, topLogos }, fontData] = await Promise.all([
+  const [{ total }, fontData] = await Promise.all([
     dataPromise,
     fetchGoogleFontTtf('Inter', 700),
   ]);
@@ -36,14 +34,8 @@ export default async function handler(req) {
   const children = [
     h('div', { style: { display: 'flex', color: COLORS.accentLight, fontSize: 22, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 24 } }, 'Hoardio Wallet Inventory'),
     h('div', { style: { display: 'flex', color: COLORS.textPrimary, fontSize: 58, fontWeight: 700, marginBottom: 20 } }, wallet || 'Wallet'),
-    h('div', { style: { display: 'flex', color: COLORS.textSecondary, fontSize: 28, marginBottom: 40 } },
-      `${total.toLocaleString()} NFT${total === 1 ? '' : 's'}${collectionCount ? ` across ${collectionCount} collection${collectionCount === 1 ? '' : 's'}` : ''}`),
-    topLogos.length
-      ? h('div', { style: { display: 'flex', gap: 20 } }, topLogos.map(src =>
-          h('img', { src, width: 100, height: 100, style: { width: 100, height: 100, borderRadius: 16, objectFit: 'cover', border: `2px solid ${COLORS.border}` } })
-        ))
-      : null,
-  ].filter(Boolean);
+    h('div', { style: { display: 'flex', color: COLORS.textSecondary, fontSize: 28 } }, `${total.toLocaleString()} NFT${total === 1 ? '' : 's'} on WAX`),
+  ];
 
   return bufferImageResponse(new ImageResponse(
     h('div', {

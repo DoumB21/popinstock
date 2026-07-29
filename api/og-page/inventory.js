@@ -10,12 +10,16 @@ export default async function handler(req, res) {
 
   try {
     if (!wallet) throw new Error('missing wallet');
-    const data = await fetchAA(`/accounts/${encodeURIComponent(wallet)}`);
-    const total = Number(data?.assets || 0);
+    // /accounts/:wallet embeds full metadata (description, socials, images, ...) for
+    // every distinct collection the wallet holds — for a wallet spread across hundreds
+    // of collections that response can run into the tens of megabytes and take 8+
+    // seconds, blowing well past a crawler's timeout budget (confirmed live: a 714-
+    // collection wallet returned a 16MB payload in 8.7s). /assets/_count needs none of
+    // that — just the number itself.
+    const total = Number(await fetchAA(`/assets/_count?owner=${encodeURIComponent(wallet)}`));
     if (!total) throw new Error('empty or unknown wallet');
-    const collections = data.collections || [];
     const description = truncate(
-      `${total.toLocaleString()} NFT${total === 1 ? '' : 's'} across ${collections.length} collection${collections.length === 1 ? '' : 's'} on WAX — browse the full inventory.`,
+      `${total.toLocaleString()} NFT${total === 1 ? '' : 's'} on WAX — browse the full inventory.`,
       200
     );
 
