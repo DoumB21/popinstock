@@ -132,6 +132,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/supabase-config.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/gift-crypto.js"></script>
@@ -287,7 +288,7 @@ function initLazyVideos() {
       const video = entry.target;
       if (entry.isIntersecting) {
         if (video.dataset.src && !video.src) { video.src = video.dataset.src; video.load(); }
-        video.play().catch(() => {});
+        if (!window.getReduceMotion?.()) video.play().catch(() => {});
       } else {
         video.pause();
         if (video.src) { video.removeAttribute('src'); video.load(); }

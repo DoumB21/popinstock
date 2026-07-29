@@ -3370,7 +3370,8 @@ function renderEditModal(sale, floor, loadingFloor) {
 
   let mediaHtml;
   if (media?.kind === 'video') {
-    mediaHtml = `<video src="${escHtml(media.url)}" muted loop playsinline autoplay></video>`;
+    const autoplayAttr = window.getReduceMotion?.() ? '' : 'autoplay';
+    mediaHtml = `<video src="${escHtml(media.url)}" muted loop playsinline ${autoplayAttr}></video>`;
   } else if (media?.kind === 'img') {
     mediaHtml = `<img src="${escHtml(media.url)}" alt="${name}">`;
   } else {

@@ -200,7 +200,7 @@
     .coll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
     .coll-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
     .coll-card-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
-    .coll-card-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .coll-card-img-wrap img, .coll-card-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .coll-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
     .coll-card-body { padding: 0.65rem 0.75rem; }
     .coll-card-name { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -646,9 +646,17 @@ async function loadOverview() {
 
       row.innerHTML = top.map(sale => {
         const tmpl = sale.assets[0].template;
-        const name = tmpl?.immutable_data?.name || sale.assets[0].name || 'Unnamed';
-        const img  = tmpl?.immutable_data?.img;
-        const media = img
+        const name  = tmpl?.immutable_data?.name || sale.assets[0].name || 'Unnamed';
+        const img   = tmpl?.immutable_data?.img;
+        const video = tmpl?.immutable_data?.video;
+        // Video-first, same reasoning as templateMediaHtml() below — only
+        // ever 5 of these on screen at once, so no lazy-loading needed.
+        // autoplay still has to respect the reduce-motion setting though,
+        // same as template.html's own hero video.
+        const autoplayAttr = window.getReduceMotion?.() ? '' : 'autoplay';
+        const media = video
+          ? `<video class="top-sale-img" src="${escHtml(toMediaUrl(video))}" muted playsinline loop ${autoplayAttr}></video>`
+          : img
           ? `<img class="top-sale-img" src="${escHtml(toMediaUrl(img))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(img)}" data-gw-idx="0" onerror="onImgError(this)">`
           : `<div class="top-sale-img coll-card-img-ph" style="display:flex;align-items:center;justify-content:center;">?</div>`;
         const dateStr = new Date(Number(sale.updated_at_time)).toISOString().slice(0, 10);
@@ -759,10 +767,7 @@ function renderTemplatesGrid() {
     (visible.length < items.length || !_templatesDone) ? '' : 'none';
   grid.innerHTML = visible.map(t => {
     const name = t.immutable_data?.name || t.name || `#${t.template_id}`;
-    const img  = t.immutable_data?.img;
-    const media = img
-      ? `<img src="${escHtml(toMediaUrl(img))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(img)}" data-gw-idx="0" onerror="onImgError(this)">`
-      : `<div class="coll-card-img-ph">?</div>`;
+    const media = templateMediaHtml(t);
     const supply = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} / ${t.max_supply}` : `${t.issued_supply} minted`;
     return `<a class="coll-card-link" href="${_p}template/${t.template_id}">
       <div class="coll-card">
@@ -785,6 +790,47 @@ function renderTemplatesGrid() {
     el.addEventListener('mouseenter', () => scheduleTemplateTooltip(el, t));
     el.addEventListener('mouseleave', cancelTemplateTooltip);
   });
+  initTemplatesLazyVideos();
+}
+
+// Video-first, same field-priority as template.html's own hero (img-only
+// left every video-only template — e.g. cbreakgaming, which ships no `img`
+// key at all on any template — showing a blank "?" here despite the
+// Template page itself rendering fine).
+function templateMediaHtml(t) {
+  const img     = t.immutable_data?.img;
+  const video   = t.immutable_data?.video;
+  const backimg = t.immutable_data?.backimg;
+  if (video) {
+    return `<video data-src="${escHtml(toMediaUrl(video))}" muted playsinline loop preload="none"></video>`;
+  }
+  const pick = img || backimg;
+  if (pick) return `<img src="${escHtml(toMediaUrl(pick))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(pick)}" data-gw-idx="0" onerror="onImgError(this)">`;
+  return `<div class="coll-card-img-ph">?</div>`;
+}
+
+// Lazily loads/plays grid videos only while scrolled into view — up to
+// TEMPLATES_PAGE_SIZE (70) of these can be on screen at once, so eagerly
+// loading/autoplaying all of them would be heavy. Re-run after every
+// full-grid re-render (search/sort/load-more all replace grid.innerHTML
+// wholesale), same disconnect-and-rebuild pattern as inventory.html's
+// initLazyVideos().
+let _templatesVideoObserver = null;
+function initTemplatesLazyVideos() {
+  if (_templatesVideoObserver) _templatesVideoObserver.disconnect();
+  _templatesVideoObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        if (video.dataset.src && !video.src) { video.src = video.dataset.src; video.load(); }
+        if (!window.getReduceMotion?.()) video.play().catch(() => {});
+      } else {
+        video.pause();
+        if (video.src) { video.removeAttribute('src'); video.load(); }
+      }
+    }
+  }, { rootMargin: '300px' });
+  document.querySelectorAll('#templatesGrid video[data-src]').forEach(v => _templatesVideoObserver.observe(v));
 }
 
 /* ── Template hover tooltip ── */
@@ -821,6 +867,7 @@ function showTemplateTooltip(el, t) {
 function renderTemplateTooltip(t) {
   const supply  = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} (Max: ${t.max_supply})` : `${t.issued_supply} minted`;
   const img     = t.immutable_data?.img;
+  const video   = t.immutable_data?.video;
   const created = t.created_at_time ? new Date(Number(t.created_at_time)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
   // Every custom field the template defines, same "show it all" idea as
   // AtomicHub's own hover popup — img/name are already shown above, so
@@ -833,9 +880,12 @@ function renderTemplateTooltip(t) {
   const mediaFields = new Set((t.schema?.format || []).filter(f => f.type === 'image' || f.type === 'ipfs').map(f => f.name));
   const fields = Object.entries(t.immutable_data || {}).filter(([k]) => k !== 'name' && !mediaFields.has(k));
 
+  const autoplayAttr = window.getReduceMotion?.() ? '' : 'autoplay';
   return `
     <div style="display:flex; gap:0.7rem; margin-bottom:0.65rem;">
-      ${img
+      ${video
+        ? `<video src="${escHtml(toMediaUrl(video))}" muted playsinline loop ${autoplayAttr} style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--bg);flex-shrink:0;"></video>`
+        : img
         ? `<img src="${escHtml(toMediaUrl(img))}" alt="" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--bg);flex-shrink:0;">`
         : ''}
       <div style="min-width:0;">

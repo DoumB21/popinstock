@@ -177,6 +177,10 @@ function initLazyVideos() {
       const video = entry.target;
       if (entry.isIntersecting) {
         if (video.dataset.src && !video.src) { video.src = video.dataset.src; video.load(); }
+        // Deliberately ignores the reduce-motion setting — unlike every
+        // other browsing/grid page, this is a one-time "here's what you're
+        // about to claim" moment for a specific handful of items, not a
+        // scroll-heavy list where autoplay is a performance concern.
         video.play().catch(() => {});
       } else {
         video.pause();
