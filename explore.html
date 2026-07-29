@@ -2354,7 +2354,11 @@ function fetchSalesQueryPage(page, state) {
   url += `&collection_name=${encodeURIComponent(col)}`;
   url += `&sort=${sortField}&order=${_sortOrd}&limit=100&page=${page}`;
   if (schema)      url += `&schema_name=${encodeURIComponent(schema)}`;
-  if (_nameFilter) url += `&name=${encodeURIComponent(_nameFilter)}`;
+  // AtomicMarket's /sales endpoint has no "name" filter — it silently
+  // ignores unrecognized params, so this always returned the same
+  // unfiltered results no matter what was typed. "match" is the real
+  // substring-search param (confirmed live against alien.worlds' sales).
+  if (_nameFilter) url += `&match=${encodeURIComponent(_nameFilter)}`;
   if (_templateId) url += `&template_id=${encodeURIComponent(_templateId)}`;
   if (_minP)       url += `&min_price=${parseFloat(_minP)}`;
   if (_maxP)       url += `&max_price=${parseFloat(_maxP)}`;
