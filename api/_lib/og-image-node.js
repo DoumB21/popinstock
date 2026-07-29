@@ -1,8 +1,22 @@
 // Node-only counterpart to fetching card art / logos for the OG image cards. Split out
-// from og-shared.js because this imports `sharp` (a native binary) — that must never end
-// up in middleware.js's Edge bundle, so keep this file imported only from api/og-image/*.
-import sharp from 'sharp';
+// from og-shared.js because this uses `sharp` (a native binary) — that must never end up
+// in middleware.js's Edge bundle, so keep this file imported only from api/og-image/*.
 import { IPFS_GATEWAYS, fetchWithTimeout } from './og-shared.js';
+
+// Loaded lazily (not a static top-level import) and only on the code path that actually
+// needs to convert a format Satori can't embed directly — a native binary failing to load
+// in some Vercel Node.js function environments must never crash the whole invocation
+// (a static `import sharp from 'sharp'` at module-evaluation time did exactly that: every
+// og-image/*.js function 500'd immediately on cold start, even collection/inventory
+// requests whose art was already a plain JPEG that never touches sharp at all).
+let sharpPromise;
+function loadSharp() {
+  if (!sharpPromise) sharpPromise = import('sharp').then(m => m.default).catch(err => {
+    console.error('sharp failed to load:', err);
+    return null;
+  });
+  return sharpPromise;
+}
 
 // Satori (the engine behind @vercel/og's ImageResponse) only decodes these raster formats
 // natively when rasterizing an embedded <img>. Everything else (webp, avif, ...) — which
@@ -30,9 +44,13 @@ export async function fetchImageDataUriConverting(hashOrUrl, timeoutMs = 5000) {
       if (NATIVELY_SUPPORTED.includes(contentType)) {
         return `data:${contentType};base64,${buf.toString('base64')}`;
       }
+      const sharp = await loadSharp();
+      if (!sharp) continue; // sharp unavailable — same file/format at every gateway, but
+                             // move on rather than throw; caller treats null as "no image"
       const png = await sharp(buf).png().toBuffer();
       return `data:image/png;base64,${png.toString('base64')}`;
-    } catch {
+    } catch (err) {
+      console.error('fetchImageDataUriConverting failed for', url, err);
       // try next gateway
     }
   }
