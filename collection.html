@@ -694,18 +694,30 @@ let _templatePage = 1;
 let _templatesAll = [];
 let _templatesDone = false;
 let _templatesBusy = false;
+// .coll-grid's minmax(160px,1fr) cards fit exactly 7 across at .page-main's
+// capped 1280px width (1280 - 2*24px padding = 1232px usable; 7*160+6*16=
+// 1216 <=1232, 8 would need 1280+112=1392 — too wide), so 70 = 10 full rows
+// with no partial trailing row at that width — same reasoning as
+// inventory.html's PAGE_SIZE/card-size pairing, just without needing to
+// resize the cards since here the reveal count is ours to choose.
+const TEMPLATES_PAGE_SIZE = 70;
+let _templatesDisplayCount = TEMPLATES_PAGE_SIZE;
 
 function onTemplateSortChange(val) {
   _templateSort = val;
   buildSingleCbDropdown('templateSortDropdown', TEMPLATE_SORTS, _templateSort, onTemplateSortChange);
+  _templatesDisplayCount = TEMPLATES_PAGE_SIZE;
   if (val === 'issued_supply') renderTemplatesGrid();
   else loadTemplates(true);
 }
-function onTemplateSearchInput() { renderTemplatesGrid(); }
+function onTemplateSearchInput() {
+  _templatesDisplayCount = TEMPLATES_PAGE_SIZE;
+  renderTemplatesGrid();
+}
 
 async function loadTemplates(reset) {
   if (_templatesBusy) return;
-  if (reset) { _templatePage = 1; _templatesAll = []; _templatesDone = false; }
+  if (reset) { _templatePage = 1; _templatesAll = []; _templatesDone = false; _templatesDisplayCount = TEMPLATES_PAGE_SIZE; }
   if (_templatesDone) return;
   _templatesBusy = true;
 
@@ -726,7 +738,6 @@ async function loadTemplates(reset) {
   }
   _templatesBusy = false;
   renderTemplatesGrid();
-  document.getElementById('templatesLoadMoreWrap').style.display = _templatesDone ? 'none' : '';
 }
 
 function renderTemplatesGrid() {
@@ -734,8 +745,19 @@ function renderTemplatesGrid() {
   let items = q ? _templatesAll.filter(t => (t.immutable_data?.name || t.name || '').toLowerCase().includes(q)) : _templatesAll;
   if (_templateSort === 'issued_supply') items = [...items].sort((a, b) => Number(b.issued_supply) - Number(a.issued_supply));
   const grid = document.getElementById('templatesGrid');
-  if (!items.length) { grid.innerHTML = `<div class="collection-placeholder">No templates found.</div>`; return; }
-  grid.innerHTML = items.map(t => {
+  if (!items.length) {
+    grid.innerHTML = `<div class="collection-placeholder">No templates found.</div>`;
+    document.getElementById('templatesLoadMoreWrap').style.display = 'none';
+    return;
+  }
+  // Reveals TEMPLATES_PAGE_SIZE (10 full rows) at a time instead of dumping
+  // every fetched-so-far template into the grid, so the last visible row is
+  // never a lonely partial one — "Load more" grows this before falling back
+  // to fetching another API page once the local batch runs out.
+  const visible = items.slice(0, _templatesDisplayCount);
+  document.getElementById('templatesLoadMoreWrap').style.display =
+    (visible.length < items.length || !_templatesDone) ? '' : 'none';
+  grid.innerHTML = visible.map(t => {
     const name = t.immutable_data?.name || t.name || `#${t.template_id}`;
     const img  = t.immutable_data?.img;
     const media = img
@@ -758,7 +780,7 @@ function renderTemplatesGrid() {
   // asset-card tooltip: hovering the parts someone's about to click shouldn't
   // pop a tooltip in the way of that click.
   grid.querySelectorAll('.coll-card-img-wrap').forEach(el => {
-    const t = items.find(x => String(x.template_id) === el.dataset.tplId);
+    const t = visible.find(x => String(x.template_id) === el.dataset.tplId);
     if (!t) return;
     el.addEventListener('mouseenter', () => scheduleTemplateTooltip(el, t));
     el.addEventListener('mouseleave', cancelTemplateTooltip);
@@ -835,7 +857,15 @@ function renderTemplateTooltip(t) {
   `;
 }
 
-document.getElementById('templatesLoadMoreBtn').addEventListener('click', () => loadTemplates(false));
+document.getElementById('templatesLoadMoreBtn').addEventListener('click', () => {
+  _templatesDisplayCount += TEMPLATES_PAGE_SIZE;
+  // Only hits the API once the next reveal would run past what's already
+  // been fetched — otherwise just reveals more of the existing batch.
+  const q = document.getElementById('templateSearch').value.trim().toLowerCase();
+  const poolSize = q ? _templatesAll.filter(t => (t.immutable_data?.name || t.name || '').toLowerCase().includes(q)).length : _templatesAll.length;
+  if (_templatesDisplayCount > poolSize && !_templatesDone) loadTemplates(false);
+  else renderTemplatesGrid();
+});
 document.getElementById('templateSearch').addEventListener('input', onTemplateSearchInput);
 
 /* ── Schemas tab ── */
