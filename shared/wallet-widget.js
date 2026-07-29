@@ -201,7 +201,17 @@
     const onLogout     = opts.onLogout || (() => {});
     const onUpdate      = opts.onUpdate || (() => {});
 
-    const menuHtml = menuItems.map(m => `<a href="${m.href}" class="nav-wax-menu-item">${m.icon ? `<span class="nav-wax-menu-icon">${m.icon}</span>` : ''}${m.label}</a>`).join('');
+    // The Inventory link (site-wide, always the exact path segment
+    // "inventory") gets the connected account appended as ?wallet= so
+    // inventory.html can default to "my own inventory" without the page
+    // itself needing to know or care where the click came from. Detected by
+    // href shape rather than a per-caller flag so every existing/future
+    // page's menuItems config picks this up automatically.
+    const menuHtml = menuItems.map(m => {
+      const isInventoryLink = /(^|\/)inventory$/.test(m.href);
+      const attrs = isInventoryLink ? ` data-wallet-link data-base-href="${m.href}"` : '';
+      return `<a href="${m.href}" class="nav-wax-menu-item"${attrs}>${m.icon ? `<span class="nav-wax-menu-icon">${m.icon}</span>` : ''}${m.label}</a>`;
+    }).join('');
 
     const wrap = document.createElement('div');
     wrap.innerHTML = `
@@ -232,6 +242,9 @@
     const cartBadge   = wrap.querySelector('#navCartBadge');
     const offersBtn   = wrap.querySelector('#navOffersBtn');
     const offersBadge = wrap.querySelector('#navOffersBadge');
+    // Captured now (before the move-into-navInner loop below detaches them
+    // from `wrap`) — the element references stay valid wherever they live.
+    const walletLinkEls = Array.from(wrap.querySelectorAll('[data-wallet-link]'));
 
     // Pill balance is hidden below 480px (no room next to the name) — this
     // mirrors the same HTML into the dropdown menu instead, so it's still
@@ -337,6 +350,10 @@
 
     function render() {
       const acc = window.getWaxAccount();
+      walletLinkEls.forEach(a => {
+        const base = a.getAttribute('data-base-href');
+        a.href = acc ? `${base}?wallet=${encodeURIComponent(acc)}` : base;
+      });
       if (acc) {
         connectBtn.style.display = 'none';
         connectBtn.disabled = false;

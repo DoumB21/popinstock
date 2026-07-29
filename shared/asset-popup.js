@@ -13,6 +13,7 @@
      apiFetch: url => fetchWithRetry(url).then(r=>r.json()) | WaxApi.apiFetch(url), // required — returns parsed JSON
      collectionHref: name => `collection/${name}` | `../collection/${name}`,        // optional, defaults shown
      templateHref:   id   => `template/${id}`     | `../template/${id}`,            // optional, defaults shown
+     walletHref:     acc  => `inventory?wallet=${acc}` | `../inventory?wallet=${acc}`, // optional, defaults shown
    });
 
    Per card: popup.wire(cardEl, data, { hoverEl, shouldSuppressHover });
@@ -108,6 +109,7 @@ window.AssetPopup = (function () {
     const apiFetch = opts.apiFetch;
     const collectionHref = opts.collectionHref || (name => `collection/${encodeURIComponent(name)}`);
     const templateHref   = opts.templateHref   || (id   => `template/${encodeURIComponent(id)}`);
+    const walletHref     = opts.walletHref     || (acc  => `inventory?wallet=${encodeURIComponent(acc)}`);
 
     let hover = document.getElementById('assetPopupHover');
     if (!hover) {
@@ -200,7 +202,7 @@ window.AssetPopup = (function () {
           ${d.cardid ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${esc(d.cardid)}</span></div>` : ''}
           ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${esc(d.assetId)}<button class="copy-btn" onclick="AssetPopup.copyVal(this,'${esc(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
           ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="${esc(templateHref(d.templateId))}" style="color:var(--accent-light);text-decoration:none" title="View template page">#${esc(d.templateId)}</a><button class="copy-btn" onclick="AssetPopup.copyVal(this,'${esc(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
-          ${d.owner ? `<div class="tt-row"><span class="tt-label">Owner</span><span class="tt-val tt-orange">${esc(d.owner)}</span></div>` : ''}
+          ${d.owner ? `<div class="tt-row"><span class="tt-label">Owner</span><span class="tt-val tt-orange"><a href="${esc(walletHref(d.owner))}" style="color:inherit;text-decoration:none" title="View this wallet's inventory">${esc(d.owner)}</a></span></div>` : ''}
           <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${esc(fmtBackedTokens(d.backedTokens))}</span></div>
         </div>
         <div class="tt-divider"></div>

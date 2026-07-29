@@ -107,7 +107,9 @@
     .rank-1 { color: #ffd700; }
     .rank-2 { color: #c0c0c0; }
     .rank-3 { color: #cd7f32; }
-    .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
+    .wallet-cell { font-size: 0.92rem; color: var(--accent-light) !important; } /* !important: outguns global.css's .table-wrap table tbody td, which otherwise wins on specificity and silently forces this back to plain text color */
+    .wallet-link { color: inherit; text-decoration: none; }
+    .wallet-link:hover { text-decoration: underline; }
 
     /* ── Chart — Chart.js, same visual language (tick color/size, grid,
        tooltip styling) as funko/sales-history.html's chart for site-wide
@@ -313,6 +315,10 @@ const DROPPP_ICON_SVG = `<svg class="tpl-droppp-icon" width="20" height="16" vie
 
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
 
@@ -699,7 +705,7 @@ async function loadTemplateBuyOffers() {
     <tbody>${offers.map(o => {
       const usd = window._waxUsdRate ? ` <span class="tpl-listing-usd">≈ $${(Number(o.price.amount) / (10 ** o.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '';
       return `<tr>
-        <td class="wallet-cell">${escHtml(o.buyer)}</td>
+        <td class="wallet-cell">${walletLinkHtml(o.buyer)}</td>
         <td>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</td>
         <td>${fmtDate(o.created_at_time)}</td>
       </tr>`;
@@ -1028,10 +1034,11 @@ function assetCardHtml(a) {
     <div class="tpl-card-body">
       <div class="tpl-card-mint">Mint #${a.template_mint}</div>
       ${a.owner
-        ? `<div class="tpl-card-owner" title="${escHtml(a.owner)}">${escHtml(a.owner)}</div>`
+        ? `<div class="tpl-card-owner" title="${escHtml(a.owner)}">${walletLinkHtml(a.owner)}</div>`
         : (() => {
-            const label = a.burned_by_account ? `Burned by ${a.burned_by_account}` : 'Burned';
-            return `<div class="tpl-card-burned" title="${escHtml(label)}">${escHtml(label)}</div>`;
+            const titleText = a.burned_by_account ? `Burned by ${a.burned_by_account}` : 'Burned';
+            const bodyHtml  = a.burned_by_account ? `Burned by ${walletLinkHtml(a.burned_by_account)}` : 'Burned';
+            return `<div class="tpl-card-burned" title="${escHtml(titleText)}">${bodyHtml}</div>`;
           })()}
     </div>
   </div>`;
@@ -1101,7 +1108,7 @@ function renderHoldersTable() {
   wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead><tbody>
     ${items.map((h, i) => `<tr>
       <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
-      <td class="wallet-cell">${escHtml(h.account)}</td>
+      <td class="wallet-cell">${walletLinkHtml(h.account)}</td>
       <td class="col-r">${Number(h.assets).toLocaleString()}</td>
     </tr>`).join('')}
   </tbody></table>`;

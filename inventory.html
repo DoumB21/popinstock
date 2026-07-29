@@ -195,6 +195,16 @@
       color: var(--text-secondary); opacity: 0.5; cursor: default; pointer-events: none;
     }
 
+    /* ── Read-only view (?wallet= pointing at a wallet other than the
+       connected one, or no wallet connected at all) — every action control
+       is useless here since none of it can act on someone else's assets. */
+    body.inv-readonly #bulkToolbar,
+    body.inv-readonly .inv-card-check,
+    body.inv-readonly .inv-card-foot,
+    body.inv-readonly .bulk-action-chip-wrap {
+      display: none !important;
+    }
+
     /* .load-more-btn's look lives in shared/global.css alongside .bl-loadmore-btn */
 
     /* ── Modal overlay ── */
@@ -356,6 +366,8 @@
     .offer-price { font-size: 0.88rem; font-weight: 700; color: #22c55e; flex-shrink: 0; min-width: 7rem; }
     .offer-info { display: flex; flex-direction: column; flex: 1; overflow: hidden; gap: 0.05rem; }
     .offer-buyer { font-size: 0.88rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wallet-link { color: inherit; text-decoration: none; }
+    .wallet-link:hover { text-decoration: underline; }
     .offer-date  { font-size: 0.8rem; color: var(--text-secondary); opacity: 0.75; white-space: nowrap; }
     .offer-select-btn {
       font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; flex-shrink: 0;
@@ -643,8 +655,8 @@
 
 <main class="page-main">
   <div class="page-header">
-    <h1 class="page-title">My <span class="accent">Inventory</span></h1>
-    <p class="page-desc">List your NFTs for sale through Hoardio and help support the site and its future development.</p>
+    <h1 class="page-title" id="pageTitle">My <span class="accent">Inventory</span></h1>
+    <p class="page-desc" id="pageDesc">List your NFTs for sale through Hoardio and help support the site and its future development.</p>
     <div class="buyoffer-banner is-hidden" id="buyofferBanner">
       <button type="button" class="buyoffer-banner-close" id="buyofferBannerClose" onclick="toggleBuyOfferBanner(false)" title="Hide">✕</button>
       <div class="buyoffer-banner-left">
@@ -823,10 +835,10 @@
   </div>
 
   <div id="activityTabs" class="activity-tabs" style="display:none;">
-    <a class="activity-tab-btn activity-tab-btn--current" href="inventory">Inventory</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=purchases">Purchases</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=sales">Sales</a>
-    <a class="activity-tab-btn" href="inventory-activity?tab=transfers">Transfers</a>
+    <a class="activity-tab-btn activity-tab-btn--current" href="inventory" id="actTabInventory">Inventory</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=purchases" id="actTabPurchases">Purchases</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=sales" id="actTabSales">Sales</a>
+    <a class="activity-tab-btn" href="inventory-activity?tab=transfers" id="actTabTransfers">Transfers</a>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
@@ -973,6 +985,13 @@ const MARKET_FEE    = 0.02;
 const ECOSYSTEM_FEE = 0.01;
 let _acceptBusy      = false;
 let _activeWallet    = null;    // tracks last connected wallet; null = fresh page load
+// ?wallet= lets any page link straight into someone's inventory (nav's own
+// Inventory link does this too, via wallet-widget.js appending the connected
+// account) — read once since this is a static multi-page site, no client
+// routing. Takes priority over the connected wallet whenever present; the
+// page is fully browsable with no wallet connected at all as long as this is set.
+const _urlWallet = (new URLSearchParams(location.search).get('wallet') || '').trim().toLowerCase() || null;
+let _readOnly     = false;      // true once _activeWallet is set but isn't the connected wallet — hides every action control
 let _pendingReload   = false;       // a filter changed while _loading was already true — see finishLoading()
 
 // ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──
@@ -1565,6 +1584,10 @@ function getAvailableValues(collection, schema, field) {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 
 function refreshCbLabel(container, selectedSet, allLabel) {
@@ -2536,6 +2559,7 @@ async function fetchListings(wallet) {
 
 function syncUrl() {
   const p = new URLSearchParams();
+  if (_urlWallet)              p.set('wallet', _urlWallet);
   if (_filterCol    !== 'all') p.set('col',    _filterCol);
   if (_filterSchema !== 'all') p.set('schema', _filterSchema);
   if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
@@ -2613,7 +2637,7 @@ function finishLoading() {
 }
 
 async function loadAssets(reset = false, walletChange = false) {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  const wallet = _activeWallet; // may differ from window.getWaxAccount() in read-only view
   if (!wallet) return;
   if (_loading) { if (reset) _pendingReload = true; return; }
   if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; syncUrl(); }
@@ -3512,7 +3536,7 @@ function _renderOfferPhase1(asset, offers) {
           <span class="offer-rank">${i + 1}</span>
           <span class="offer-price">${o.price.toFixed(4)} WAX${_waxUsdRate ? `<span style="display:block;font-size:0.75rem;font-weight:400;color:var(--text-secondary)">≈ $${(o.price * _waxUsdRate).toFixed(2)}</span>` : ''}</span>
           <span class="offer-info">
-            <span class="offer-buyer">${o.buyer}</span>
+            <span class="offer-buyer">${walletLinkHtml(o.buyer)}</span>
             ${dateStr ? `<span class="offer-date">${dateStr}</span>` : ''}
           </span>
           <button class="offer-select-btn" data-idx="${i}">View</button>
@@ -3599,7 +3623,7 @@ async function _renderOfferPhase2(asset, offer) {
       </div>
       <div class="modal-info-row">
         <span class="modal-info-label">Buyer</span>
-        <span class="modal-info-val" style="font-size:0.8rem;font-weight:500">${offer.buyer}</span>
+        <span class="modal-info-val" style="font-size:0.8rem;font-weight:500">${walletLinkHtml(offer.buyer)}</span>
       </div>
 
       <details class="fee-details">
@@ -4349,7 +4373,7 @@ document.getElementById('onlyBackedFilter').addEventListener('change', function 
 // instead of the template's true lowest. Mint range is applied client-side
 // afterward instead — see filterByMintRange.
 async function fetchAllMatchingAssets(whitelist, onProgress) {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  const wallet = _activeWallet; // may differ from window.getWaxAccount() in read-only view
   if (!wallet) return [];
 
   const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
@@ -5387,11 +5411,39 @@ async function bulkGift() {
 /* Wallet state                                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+function updatePageHeading() {
+  const titleEl = document.getElementById('pageTitle');
+  const descEl  = document.getElementById('pageDesc');
+  // Keeps the activity tab bar pointed at whichever wallet is actually being
+  // viewed — without this, Purchases/Sales/Transfers would silently fall
+  // back to the connected wallet's own activity while browsing someone else's.
+  const walletQS = _activeWallet ? `&wallet=${encodeURIComponent(_activeWallet)}` : '';
+  document.getElementById('actTabInventory').href = _activeWallet ? `inventory?wallet=${encodeURIComponent(_activeWallet)}` : 'inventory';
+  document.getElementById('actTabPurchases').href = `inventory-activity?tab=purchases${walletQS}`;
+  document.getElementById('actTabSales').href     = `inventory-activity?tab=sales${walletQS}`;
+  document.getElementById('actTabTransfers').href = `inventory-activity?tab=transfers${walletQS}`;
+  if (_readOnly) {
+    titleEl.innerHTML  = `<span class="accent">${escHtml(_activeWallet)}</span>'s Inventory`;
+    descEl.textContent = `Browsing ${_activeWallet}'s NFTs (read-only). Connect that wallet to list, transfer, or manage these items.`;
+    document.title     = `${_activeWallet}'s Inventory — Hoardio`;
+  } else {
+    titleEl.innerHTML  = 'My <span class="accent">Inventory</span>';
+    descEl.textContent = 'List your NFTs for sale through Hoardio and help support the site and its future development.';
+    document.title     = 'Inventory — Hoardio';
+  }
+}
+
 async function onWalletChange() {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  const connected = window.getWaxAccount ? window.getWaxAccount() : null;
+  // A URL wallet always wins the inventory shown — it's what makes
+  // ?wallet= links to other collectors work regardless of who (if anyone)
+  // is connected. Only falls back to the connected wallet when there's no
+  // URL wallet at all (a bare /inventory visit, or old links pre-dating this).
+  const target = _urlWallet || connected;
+  _readOnly = !!_urlWallet && (!connected || connected.toLowerCase() !== _urlWallet);
   closeModal();
   closeInfoPopup();
-  if (!wallet) {
+  if (!target) {
     document.getElementById('authGate').style.display      = '';
     document.getElementById('toolbar').style.display       = 'none';
     document.getElementById('bulkToolbar').style.display    = 'none';
@@ -5423,9 +5475,10 @@ async function onWalletChange() {
   }
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('toolbar').style.display  = '';
-  document.getElementById('bulkToolbar').style.display = '';
+  document.getElementById('bulkToolbar').style.display = _readOnly ? 'none' : '';
   document.getElementById('activityTabs').style.display = '';
-  if (_activeWallet !== null && _activeWallet !== wallet) {
+  document.body.classList.toggle('inv-readonly', _readOnly);
+  if (_activeWallet !== null && _activeWallet !== target) {
     // Different wallet connected mid-session — drop URL filters so stale collection doesn't confuse.
     // _listingsFilter especially can't carry over: _listings is about to be
     // rebuilt for the new wallet, so leaving "only"/"hide" active would
@@ -5443,7 +5496,8 @@ async function onWalletChange() {
   } else {
     await readUrlParams();
   }
-  _activeWallet = wallet;
+  _activeWallet = target;
+  updatePageHeading();
   loadAssets(true, true);
 }
 
@@ -5499,8 +5553,7 @@ async function onListingsFilterChange(val) {
     // Listings can go stale between toggles (listed/cancelled from another
     // tab or session) — always refresh when turning "Only"/"Hide" on, not
     // just once per wallet connect.
-    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-    if (wallet) await fetchListings(wallet);
+    if (_activeWallet) await fetchListings(_activeWallet);
   }
   loadAssets(true);
 }

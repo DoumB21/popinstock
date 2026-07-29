@@ -181,7 +181,7 @@
       transition: border-color 0.2s;
     }
     .act-card:hover { border-color: var(--border-hover); }
-    .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+    .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; flex-shrink: 0; }
     .act-card-thumb {
       width: 72px; height: 72px; flex-shrink: 0; border-radius: 10px;
       background: rgba(255,255,255,0.03); overflow: hidden;
@@ -207,8 +207,12 @@
       max-width: 16rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .sc-name { font-weight: 700; }
+    .sc-name-link { color: var(--accent-light); text-decoration: none; }
+    .sc-name-link:hover { text-decoration: underline; }
     .sc-price { color: var(--accent-light); }
     .sc-wallet { color: var(--accent-light); }
+    .wallet-link { color: inherit; text-decoration: none; }
+    .wallet-link:hover { text-decoration: underline; }
     .sc-mint-range { color: #60a5fa; font-weight: 700; }
     .sc-value--wrap { white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
     /* A grid track sized `max-content` uses the unwrapped intrinsic width of
@@ -286,8 +290,8 @@
 
 <main class="page-main">
   <div class="page-header">
-    <h1 class="page-title">My <span class="accent">Activity</span></h1>
-    <p class="page-desc">Review your purchases, sales, and transfers.</p>
+    <h1 class="page-title" id="pageTitle">My <span class="accent">Activity</span></h1>
+    <p class="page-desc" id="pageDesc">Review your purchases, sales, and transfers.</p>
   </div>
 
   <div id="authGate" class="auth-gate" style="display:none;">
@@ -297,7 +301,7 @@
 
   <div id="mainWrap" style="display:none;">
     <div class="act-tabs" id="actTabs">
-      <a class="act-tab-btn" href="inventory">Inventory</a>
+      <a class="act-tab-btn" href="inventory" id="actInventoryLink">Inventory</a>
       <button type="button" class="act-tab-btn" data-tab="purchases">Purchases</button>
       <button type="button" class="act-tab-btn" data-tab="sales">Sales</button>
       <button type="button" class="act-tab-btn" data-tab="transfers">Transfers</button>
@@ -444,6 +448,12 @@ let _hasMore         = false;
 let _loadGen         = 0;
 let _autoLoadArmed   = false;
 let _activeWallet    = null;
+// ?wallet= lets inventory.html's activity-tab bar (and any other page) link
+// straight into someone else's activity — same mechanism and reasoning as
+// inventory.html's own _urlWallet. Read once, takes priority over the
+// connected wallet whenever present.
+const _urlWallet = (new URLSearchParams(location.search).get('wallet') || '').trim().toLowerCase() || null;
+let _readOnly        = false; // true once _activeWallet is set but isn't the connected wallet — this page has no action buttons to hide, only used for the heading/title
 let _waxUsdRate      = null;
 let _debounceTimer   = null;
 const _collections     = new Set();
@@ -472,6 +482,10 @@ function usdTag(wax) {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 
 function fmtDate(ms) {
@@ -857,10 +871,20 @@ function assetThumbHtml(asset) {
 }
 
 function assetFields(asset) {
-  const name     = asset.name || asset.data?.name || (asset.asset_id ? `Asset #${asset.asset_id}` : '—');
-  const collName = asset.collection?.name || asset.collection?.collection_name || '—';
-  const mint     = asset.template_mint ? `#${asset.template_mint}` : '—';
-  return { name, collName, mint };
+  const name       = asset.name || asset.data?.name || (asset.asset_id ? `Asset #${asset.asset_id}` : '—');
+  const col        = asset.collection?.collection_name || '';
+  const collName   = asset.collection?.name || col || '—';
+  const mint       = asset.template_mint ? `#${asset.template_mint}` : '—';
+  const templateId = asset.template?.template_id || '';
+  // Same-tab internal link, no arrow — matches the site-wide convention for
+  // in-app nav links (see explore.html's Sales History cards).
+  const nameHtml = templateId
+    ? `<a href="template?template_id=${encodeURIComponent(templateId)}" class="sc-name-link">${escHtml(name)}</a>`
+    : escHtml(name);
+  const collHtml = col
+    ? `<a href="collection?collection_name=${encodeURIComponent(col)}" class="sc-name-link">${escHtml(collName)}</a>`
+    : escHtml(collName);
+  return { name, collName, mint, nameHtml, collHtml };
 }
 
 /* AtomicHub-style card — one per asset. Record-level fields (listing id,
@@ -870,7 +894,7 @@ function assetFields(asset) {
 function saleCardHtml(item, asset) {
   const precision = item.price?.token_precision ?? 8;
   const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
-  const { name, collName, mint } = assetFields(asset);
+  const { mint, nameHtml, collHtml } = assetFields(asset);
 
   return `<div class="act-card">
     <div class="act-card-thumb-wrap">
@@ -880,22 +904,22 @@ function saleCardHtml(item, asset) {
     <div class="act-card-cols">
       <div class="sc-fields">
         <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
-        <span class="sc-label">Name</span><span class="sc-value sc-name">${escHtml(name)}</span>
-        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(collName)}</span>
+        <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
         <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax)}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Listing ID</span><span class="sc-value">#${item.sale_id}</span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
-        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${escHtml(item.seller)}</span>
-        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${escHtml(item.buyer)}</span>
+        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(item.seller)}</span>
+        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${walletLinkHtml(item.buyer)}</span>
       </div>
     </div>
   </div>`;
 }
 
 function transferCardHtml(item, asset) {
-  const { name, collName, mint } = assetFields(asset);
+  const { mint, nameHtml, collHtml } = assetFields(asset);
   const txlinkHtml = item.txid
     ? `<a class="act-card-txlink" href="https://waxblock.io/transaction/${item.txid}" target="_blank" rel="noopener">View transaction ↗</a>`
     : '';
@@ -909,14 +933,14 @@ function transferCardHtml(item, asset) {
     <div class="act-card-cols">
       <div class="sc-fields">
         <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
-        <span class="sc-label">Name</span><span class="sc-value sc-name">${escHtml(name)}</span>
-        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(collName)}</span>
+        <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
-        <span class="sc-label">From</span><span class="sc-value sc-wallet">${escHtml(item.sender_name)}</span>
-        <span class="sc-label">To</span><span class="sc-value sc-wallet">${escHtml(item.recipient_name)}</span>
+        <span class="sc-label">From</span><span class="sc-value sc-wallet">${walletLinkHtml(item.sender_name)}</span>
+        <span class="sc-label">To</span><span class="sc-value sc-wallet">${walletLinkHtml(item.recipient_name)}</span>
       </div>
     </div>
     ${memoHtml}
@@ -978,29 +1002,28 @@ function transferBundleCardHtml(item, assets) {
     : '';
   const memoHtml = item.memo ? `<div class="act-card-memo">Memo: <span>${escHtml(item.memo)}</span></div>` : '';
   const assetRows = groupAssetsByTemplate(assets).map(group => {
-    const { name, collName } = assetFields(group[0]);
+    const { nameHtml, collHtml } = assetFields(group[0]);
     const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
     return `<div class="act-card-asset">
       <div class="act-card-thumb">${assetThumbHtml(group[0])}</div>
       <div class="sc-fields sc-fields--wrap">
         <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
-        <span class="sc-label">Name</span><span class="sc-value sc-name">${escHtml(name)}</span>
-        <span class="sc-label">Collection</span><span class="sc-value">${escHtml(collName)}</span>
+        <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
+        <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
       </div>
     </div>`;
   }).join('');
 
   return `<div class="act-card act-card--bundle">
-    <div class="act-card-assets">${assetRows}</div>
+    <div class="act-card-assets">${assetRows}${txlinkHtml}</div>
     <div class="act-card-meta">
       <span class="act-card-count">${assets.length} items</span>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
-        <span class="sc-label">From</span><span class="sc-value sc-wallet">${escHtml(item.sender_name)}</span>
-        <span class="sc-label">To</span><span class="sc-value sc-wallet">${escHtml(item.recipient_name)}</span>
+        <span class="sc-label">From</span><span class="sc-value sc-wallet">${walletLinkHtml(item.sender_name)}</span>
+        <span class="sc-label">To</span><span class="sc-value sc-wallet">${walletLinkHtml(item.recipient_name)}</span>
       </div>
-      ${txlinkHtml}
     </div>
     ${memoHtml}
   </div>`;
@@ -1303,6 +1326,7 @@ document.addEventListener('click', e => {
 
 function syncUrl() {
   const p = new URLSearchParams();
+  if (_urlWallet) p.set('wallet', _urlWallet);
   p.set('tab', _tab);
   if (_filterCol    !== 'all') p.set('col', _filterCol);
   if (_filterSchema !== 'all') p.set('schema', _filterSchema);
@@ -1345,9 +1369,31 @@ function readUrlParams() {
 /* Wallet state                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+function updatePageHeading() {
+  const titleEl = document.getElementById('pageTitle');
+  const descEl  = document.getElementById('pageDesc');
+  const invLink = document.getElementById('actInventoryLink');
+  if (invLink) invLink.href = _urlWallet ? `inventory?wallet=${encodeURIComponent(_urlWallet)}` : 'inventory';
+  if (_readOnly) {
+    titleEl.innerHTML  = `<span class="accent">${escHtml(_activeWallet)}</span>'s Activity`;
+    descEl.textContent = `Browsing ${_activeWallet}'s purchases, sales, and transfers (read-only).`;
+    document.title     = `${_activeWallet}'s Activity — Hoardio`;
+  } else {
+    titleEl.innerHTML  = 'My <span class="accent">Activity</span>';
+    descEl.textContent = 'Review your purchases, sales, and transfers.';
+    document.title     = 'Activity — Hoardio';
+  }
+}
+
 async function onWalletChange() {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!wallet) {
+  const connected = window.getWaxAccount ? window.getWaxAccount() : null;
+  // A URL wallet always wins the activity shown — same reasoning as
+  // inventory.html's own _urlWallet: it's what makes ?wallet= links from
+  // inventory.html's activity-tab bar (or anywhere else) work regardless of
+  // who, if anyone, is connected.
+  const target = _urlWallet || connected;
+  _readOnly = !!_urlWallet && (!connected || connected.toLowerCase() !== _urlWallet);
+  if (!target) {
     document.getElementById('authGate').style.display = '';
     document.getElementById('mainWrap').style.display = 'none';
     _activeWallet = null;
@@ -1356,7 +1402,7 @@ async function onWalletChange() {
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('mainWrap').style.display = '';
 
-  if (_activeWallet !== null && _activeWallet !== wallet) {
+  if (_activeWallet !== null && _activeWallet !== target) {
     // Different wallet connected mid-session — drop filters, stale collections don't carry over
     history.replaceState(null, '', location.pathname);
     _filterCol = 'all'; _filterSchema = 'all'; _filterBuyer = '';
@@ -1372,10 +1418,11 @@ async function onWalletChange() {
   } else if (_activeWallet === null) {
     readUrlParams();
   }
-  _activeWallet = wallet;
+  _activeWallet = target;
+  updatePageHeading();
   setActiveTab(_tab, { skipLoad: true });
   updateColFilter();
-  fetchWalletCollections(wallet).then(() => {
+  fetchWalletCollections(target).then(() => {
     if (_filterCol !== 'all') {
       fetchSchemasForCollection(_filterCol).then(schemas => {
         if (schemas.length) updateSchemaFilter(schemas);

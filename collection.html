@@ -172,7 +172,9 @@
     .rank-1 { color: #ffd700; }
     .rank-2 { color: #c0c0c0; }
     .rank-3 { color: #cd7f32; }
-    .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
+    .wallet-cell { font-size: 0.92rem; color: var(--accent-light) !important; } /* !important: outguns global.css's .table-wrap table tbody td, which otherwise wins on specificity and silently forces this back to plain text color */
+    .wallet-link { color: inherit; text-decoration: none; }
+    .wallet-link:hover { text-decoration: underline; }
 
     /* ── Template hover tooltip: now uses the canonical .hover-tooltip/
        .tt-* classes in shared/global.css (same box this page pioneered the
@@ -336,6 +338,10 @@ const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com
 
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="inventory?wallet=${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
 
@@ -536,7 +542,7 @@ async function loadHeader() {
 
   const created = fmtDate(info.created_at_time);
   document.getElementById('collSub').innerHTML =
-    `${escHtml(collectionName)} &middot; by ${escHtml(info.author)}` +
+    `${escHtml(collectionName)} &middot; by ${walletLinkHtml(info.author)}` +
     (created ? ` &middot; created ${created}` : '') +
     ` &middot; ${(info.market_fee * 100).toFixed(2)}% royalty`;
 
@@ -627,7 +633,7 @@ async function loadOverview() {
       wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Volume</th></tr></thead><tbody>
         ${rows.map((r, i) => `<tr>
           <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
-          <td class="wallet-cell">${escHtml(r.account)}</td>
+          <td class="wallet-cell">${walletLinkHtml(r.account)}</td>
           <td class="col-r">${fmtWax(sortField === 'sell_volume' ? r.sell_volume : r.buy_volume)}</td>
         </tr>`).join('')}
       </tbody></table>`;
@@ -857,7 +863,7 @@ function renderHoldersTable() {
   wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead><tbody>
     ${items.map((h, i) => `<tr>
       <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
-      <td class="wallet-cell">${escHtml(h.account)}</td>
+      <td class="wallet-cell">${walletLinkHtml(h.account)}</td>
       <td class="col-r">${Number(h.assets).toLocaleString()}</td>
     </tr>`).join('')}
   </tbody></table>`;
