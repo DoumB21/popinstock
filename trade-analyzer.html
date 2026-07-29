@@ -2404,7 +2404,7 @@
   // rather than all fired in parallel.
   async function fetchTscFloor(templateId, collection) {
     try {
-      const url = `${WaxApi.marketBase()}/sales?state=1&template_id=${encodeURIComponent(templateId)}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&sort=price&order=asc&limit=1`;
+      const url = `${WaxApi.marketBase()}/sales?state=1&template_id=${encodeURIComponent(templateId)}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`;
       const data = await WaxApi.apiFetch(url);
       if (!data || !data.length) return null;
       const sale      = data[0];

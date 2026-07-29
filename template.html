@@ -552,7 +552,7 @@ async function loadHeader() {
     priceStats = res?.[0] || null;
   } catch { priceStats = null; }
   try {
-    const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=1&sort=price&order=asc&limit=1`);
+    const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=1&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`);
     lowestListing = rows?.[0] || null;
   } catch { lowestListing = null; }
   // priceStats.max has no date attached, so its USD tag can't use a

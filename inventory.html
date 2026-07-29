@@ -1028,7 +1028,24 @@ let _activeWallet    = null;    // tracks last connected wallet; null = fresh pa
 // account) — read once since this is a static multi-page site, no client
 // routing. Takes priority over the connected wallet whenever present; the
 // page is fully browsable with no wallet connected at all as long as this is set.
-const _urlWallet = (new URLSearchParams(location.search).get('wallet') || '').trim().toLowerCase() || null;
+// The query param is how production actually gets here (Vercel's /inventory/:wallet
+// rewrite maps to inventory.html?wallet=:wallet, invisibly). The path-segment
+// fallback mirrors collection.html/template.html's getCollectionNameFromUrl —
+// covers a local IIS setup where this project is nested under an extra path
+// segment (http://localhost/PopInStock/inventory/x) that web.config's rewrite
+// wasn't written to account for, without ever needing the query string to show
+// up in the visible URL either way.
+function _getWalletFromUrl() {
+  const qp = new URLSearchParams(location.search).get('wallet');
+  if (qp) return qp;
+  const m = location.pathname.match(/\/inventory\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const _urlWallet = (_getWalletFromUrl() || '').trim().toLowerCase() || null;
+// Whether the wallet is already encoded in the clean path (/inventory/wallet) —
+// syncUrl() must not also add ?wallet= in that case, or replaceState (which is
+// relative to the current pathname) produces /inventory/wallet?wallet=wallet.
+const _walletInPath = /\/inventory\/[^/]+\/?$/.test(location.pathname);
 let _readOnly     = false;      // true once _activeWallet is set but isn't the connected wallet — hides every action control
 let _pendingReload   = false;       // a filter changed while _loading was already true — see finishLoading()
 
@@ -2602,7 +2619,7 @@ async function fetchListings(wallet) {
 
 function syncUrl() {
   const p = new URLSearchParams();
-  if (_urlWallet)              p.set('wallet', _urlWallet);
+  if (_urlWallet && !_walletInPath) p.set('wallet', _urlWallet);
   if (_filterCol    !== 'all') p.set('col',    _filterCol);
   if (_filterSchema !== 'all') p.set('schema', _filterSchema);
   if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
@@ -2843,7 +2860,7 @@ async function fetchFloorPrice(templateId, collection) {
 
   _floorCache[templateId] = { loaded: false, price: null };
   try {
-    const url  = `${MARKET_API}/atomicmarket/v1/sales?state=1&template_id=${templateId}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&sort=price&order=asc&limit=1`;
+    const url  = `${MARKET_API}/atomicmarket/v1/sales?state=1&template_id=${templateId}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`;
     const res  = await fetchWithRetry(url);
     const json = await res.json();
     let price  = null;
@@ -2906,9 +2923,9 @@ function updateFloorPriceBanner() {
   btn.disabled = !_collectionsReady || n === 0;
 }
 
-// Sales come back cheapest-first for the whole collection, so the first time a
-// template_id is seen in that stream is its floor — same trick the buy-offer
-// walk below uses in reverse (desc order, keep first-seen = highest offer).
+// /sales/templates returns one pre-deduped row per template_id (cheapest sale),
+// so this only needs to page through distinct templates, not every raw sale —
+// avoids the deep-OFFSET pagination timeout a full /sales walk risks on large collections.
 async function fetchFloorPriceForCollection(col) {
   const needed = new Set(
     _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
@@ -2918,7 +2935,7 @@ async function fetchFloorPriceForCollection(col) {
   while (true) {
     let json;
     try {
-      const res = await fetch(`${MARKET_API}/atomicmarket/v1/sales?state=1&collection_whitelist=${encodeURIComponent(col)}&sort=price&order=asc&limit=100&page=${page}&symbol=WAX`);
+      const res = await fetch(`${MARKET_API}/atomicmarket/v1/sales/templates?state=1&collection_whitelist=${encodeURIComponent(col)}&min_assets=1&max_assets=1&sort=price&order=asc&limit=100&page=${page}&symbol=WAX`);
       json = await res.json();
     } catch { break; }
     if (!json.success || !json.data.length) break;

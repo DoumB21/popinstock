@@ -3319,7 +3319,7 @@ let _editBusy = false;
 
 async function fetchListingFloorPrice(templateId, collection) {
   try {
-    const url  = `${WaxApi.marketBase()}/sales?state=1&template_id=${encodeURIComponent(templateId)}&collection_name=${encodeURIComponent(collection)}&sort=price&order=asc&limit=1`;
+    const url  = `${WaxApi.marketBase()}/sales?state=1&template_id=${encodeURIComponent(templateId)}&collection_name=${encodeURIComponent(collection)}&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`;
     const rows = await WaxApi.apiFetch(url);
     if (!rows?.length) return null;
     const precision = rows[0].price?.token_precision ?? 8;
