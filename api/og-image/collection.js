@@ -1,7 +1,6 @@
 import { ImageResponse } from '@vercel/og';
-import { fetchAA, fetchImageDataUri, fetchGoogleFontTtf, truncate, plainTextFromDescription, h, COLORS } from '../_lib/og-shared.js';
-
-export const config = { runtime: 'edge' };
+import { fetchAA, fetchGoogleFontTtf, truncate, plainTextFromDescription, h, COLORS } from '../_lib/og-shared.js';
+import { fetchImageDataUriConverting as fetchImageDataUri } from '../_lib/og-image-node.js';
 
 export default async function handler(req) {
   const { searchParams } = new URL(req.url);

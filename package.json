@@ -11,6 +11,7 @@
   "dependencies": {
     "@vercel/functions": "^1",
     "@vercel/og": "^0.6.3",
+    "sharp": "^0.33",
     "@wharfkit/antelope": "^1.2.0",
     "@wharfkit/session": "^1",
     "@wharfkit/wallet-plugin-anchor": "^1",
