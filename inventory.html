@@ -973,6 +973,7 @@ let _debounceTimer       = null;
 const _schemaCache       = {};  // collection_name → [schema_name, ...]
 const _schemaFormatCache = {};  // collection_name → { schema_name → [{name, type}, ...] } — from the same /schemas call, free
 const _schemaAssetCountCache = {}; // collection_name → { schema_name → assets count } — also free from the /schemas call
+const _walletSchemaCountCache = {}; // "wallet|collection_name" → { schema_name → wallet-owned count }, from accounts/{wallet}/{collection}
 const _templateCache     = {};  // collection_name → [{template_id, schema_name, data: {immutable_data fields}}]
 // PFP-style schemas (see isAssetLevelAttrSchema) keep template immutable_data
 // empty and put real trait data on each individual asset instead — confirmed
@@ -1496,6 +1497,25 @@ async function fetchSchemasForCollection(collection) {
   }
 }
 
+// Wallet-owned per-schema counts, mirroring how updateColFilter() gets its
+// "(count)" labels from /accounts/{wallet} — same endpoint one level deeper,
+// /accounts/{wallet}/{collection}, returns only schemas that wallet holds.
+async function fetchWalletSchemaCounts(wallet, collection) {
+  const key = `${wallet}|${collection}`;
+  if (_walletSchemaCountCache[key]) return _walletSchemaCountCache[key];
+  try {
+    const url  = `${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(collection)}`;
+    const res  = await fetchWithRetry(url);
+    const json = await res.json();
+    const counts = {};
+    for (const s of (json.data?.schemas || [])) counts[s.schema_name] = Number(s.assets) || 0;
+    _walletSchemaCountCache[key] = counts;
+    return counts;
+  } catch {
+    return {};
+  }
+}
+
 let _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
 
 // Schema (unlike Card ID) is a core protocol field every asset has,
@@ -1512,8 +1532,17 @@ function setSchemaFilterAvailability(enabled) {
   }
 }
 
-function updateSchemaFilter(schemas) {
-  _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...schemas.map(s => ({ value: s, label: s }))];
+function updateSchemaFilter(schemas, counts) {
+  // A wallet that owns anything in this collection owns at least one schema
+  // in it, so all-zero counts means the wallet-count fetch failed rather
+  // than "really owns nothing" — fall back to the unfiltered, uncounted
+  // list in that case instead of showing an empty dropdown.
+  const hasCounts = counts && Object.values(counts).some(c => c > 0);
+  const list = hasCounts ? schemas.filter(s => (counts[s] || 0) > 0) : schemas;
+  _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...list.map(s => {
+    const label = hasCounts ? `${s} (${Number(counts[s] || 0).toLocaleString()})` : s;
+    return { value: s, label };
+  })];
   buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
   const btn = document.querySelector('#schemaDropdown .cb-dropdown-btn');
   if (btn) btn.disabled = false;
@@ -2520,6 +2549,9 @@ function updateColFilter() {
   const totalLabel = _totalAssets != null ? Number(_totalAssets).toLocaleString() : _collections.size;
   _colItemsCache = [{ value: 'all', label: `All collections (${totalLabel})` },
     ...[..._collections].sort((a, b) => {
+      const ca = _collectionCounts.get(a) ?? -1;
+      const cb = _collectionCounts.get(b) ?? -1;
+      if (cb !== ca) return cb - ca;
       const na = (_collectionNames.get(a) || a).toLowerCase();
       const nb = (_collectionNames.get(b) || b).toLowerCase();
       return na < nb ? -1 : na > nb ? 1 : 0;
@@ -2548,9 +2580,12 @@ function onColFilterChange(val) {
 
   const col = _filterCol;
   if (col !== 'all') {
-    fetchSchemasForCollection(col).then(schemas => {
+    Promise.all([
+      fetchSchemasForCollection(col),
+      fetchWalletSchemaCounts(_activeWallet, col),
+    ]).then(([schemas, counts]) => {
       if (_filterCol !== col) return;
-      if (schemas.length >= 1) updateSchemaFilter(schemas);
+      if (schemas.length >= 1) updateSchemaFilter(schemas, counts);
       refreshDynamicAttributeFilters(); // re-run now that field types (image/ipfs exclusion) are available
     });
     fetchTemplatesForCollection(col).then(() => {
@@ -2635,7 +2670,7 @@ function syncUrl() {
   history.replaceState(null, '', qs ? '?' + qs : location.pathname);
 }
 
-async function readUrlParams() {
+async function readUrlParams(wallet) {
   const p = new URLSearchParams(location.search);
   if (!p.toString()) return;
   _filterCol    = p.get('col')    || 'all';
@@ -2662,9 +2697,12 @@ async function readUrlParams() {
   if (_filterCol !== 'all') {
     const col = _filterCol;
     // Schema fetch — fire and forget, not needed before loadAssets
-    fetchSchemasForCollection(col).then(schemas => {
+    Promise.all([
+      fetchSchemasForCollection(col),
+      fetchWalletSchemaCounts(wallet, col),
+    ]).then(([schemas, counts]) => {
       if (_filterCol !== col) return;
-      if (schemas.length >= 1) updateSchemaFilter(schemas);
+      if (schemas.length >= 1) updateSchemaFilter(schemas, counts);
       refreshDynamicAttributeFilters();
     });
     // Template cache MUST be ready before loadAssets if cardid/dynamic (incl. rarity) filters are active
@@ -5557,7 +5595,7 @@ async function onWalletChange() {
     _selected.clear(); updateBulkChip();
     closeBulkActionModal();
   } else {
-    await readUrlParams();
+    await readUrlParams(target);
   }
   _activeWallet = target;
   updatePageHeading();
