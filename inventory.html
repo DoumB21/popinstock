@@ -160,6 +160,11 @@
     }
     .inv-card-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .inv-img-placeholder { color: var(--text-secondary); font-size: 1.5rem; opacity: 0.3; }
+    .inv-img-placeholder--error {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; opacity: 0.45; text-align: center; padding: 0 12px;
+    }
+    .inv-img-placeholder--error .ph-text { font-size: 0.62rem; line-height: 1.25; font-weight: 500; }
     .inv-card-mint {
       position: absolute; top: 6px; right: 6px;
       background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
@@ -1312,7 +1317,10 @@ function onAssetImgError(el) {
     setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
     return;
   }
-  el.style.display = 'none';
+  const ph = document.createElement('div');
+  ph.className = 'inv-img-placeholder inv-img-placeholder--error';
+  ph.innerHTML = '<span class="ph-icon">?</span><span class="ph-text">Unable to load media</span>';
+  el.replaceWith(ph);
 }
 
 function assetMediaHtml(a, extraAttr = '', eager = false) {

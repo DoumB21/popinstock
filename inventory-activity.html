@@ -222,6 +222,17 @@
        to min-width:auto, which resists shrinking below content size), lets
        it actually wrap within the available width instead. */
     .sc-fields--wrap { grid-template-columns: max-content minmax(0, 1fr); min-width: 0; }
+    /* Transfer direction pill — sits as its own full-width row at the top of
+       whichever field group it's placed in (grid-column spans both label/value
+       columns in .sc-fields; harmless no-op in .act-card-meta's flex column). */
+    .dir-pill {
+      grid-column: 1 / -1; justify-self: start; align-self: flex-start;
+      display: inline-flex; align-items: center; gap: 0.3rem; width: max-content;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em;
+      padding: 0.15rem 0.55rem; border-radius: 999px;
+    }
+    .dir-pill--in  { color: #4ade80; background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.3); }
+    .dir-pill--out { color: #f87171; background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.3); }
     .act-card-memo {
       flex-basis: 100%; margin-top: 0.25rem; padding-top: 0.6rem;
       border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-secondary);
@@ -918,6 +929,16 @@ function saleCardHtml(item, asset) {
   </div>`;
 }
 
+// account= on /transfers matches sender OR recipient, so every transfer in
+// this page's data has the active wallet on exactly one side of it.
+function transferDirectionHtml(item) {
+  const me = (_activeWallet || '').toLowerCase();
+  if (!me) return '';
+  if ((item.recipient_name || '').toLowerCase() === me) return '<span class="dir-pill dir-pill--in">↓ Received</span>';
+  if ((item.sender_name || '').toLowerCase() === me)    return '<span class="dir-pill dir-pill--out">↑ Sent</span>';
+  return '';
+}
+
 function transferCardHtml(item, asset) {
   const { mint, nameHtml, collHtml } = assetFields(asset);
   const txlinkHtml = item.txid
@@ -932,6 +953,7 @@ function transferCardHtml(item, asset) {
     </div>
     <div class="act-card-cols">
       <div class="sc-fields">
+        ${transferDirectionHtml(item)}
         <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
         <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
         <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
@@ -1015,7 +1037,7 @@ function transferBundleCardHtml(item, assets) {
   }).join('');
 
   return `<div class="act-card act-card--bundle">
-    <div class="act-card-assets">${assetRows}${txlinkHtml}</div>
+    <div class="act-card-assets">${transferDirectionHtml(item)}${assetRows}${txlinkHtml}</div>
     <div class="act-card-meta">
       <span class="act-card-count">${assets.length} items</span>
       <div class="sc-fields sc-fields--meta">
@@ -1441,6 +1463,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { href: 'inventory', label: 'Inventory', icon: '📦' },
       { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
       { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
+      { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
     ],
   });
   initInfiniteScroll();
