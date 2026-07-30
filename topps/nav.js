@@ -115,14 +115,20 @@ function buildFooter() {
 // shared/wallet-widget.js redefines this identically once it loads, harmless.
 window.getWaxAccount = () => window.WaxAuth ? WaxAuth.getAccount() : (localStorage.getItem('wax_account') || null);
 
-function _loadWalletWidget() {
-  if (window.WalletWidget) return Promise.resolve();
+function _loadScriptOnce(src) {
   return new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '../shared/wallet-widget.js';
+    s.src = src;
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
+}
+
+function _loadWalletWidget() {
+  const need = [];
+  if (!window.WalletWidget) need.push(_loadScriptOnce('../shared/wallet-widget.js'));
+  if (!window.walletMenuItems) need.push(_loadScriptOnce('../shared/wallet-menu.js'));
+  return Promise.all(need);
 }
 
 async function _initWallet() {
@@ -133,12 +139,7 @@ async function _initWallet() {
     exploreHref: '../explore',
     offersHref: '../trade-offers',
     profileHref: '../profile',
-    menuItems: [
-      { href: '../inventory', label: 'Inventory', icon: '📦' },
-      { href: '../inventory-activity', label: 'Activity', icon: '🕒' },
-      { href: '../trade-offers', label: 'Trade Offers', icon: '🔄' },
-      { href: '../gift-links', label: 'Gift Links', icon: '🎁' },
-    ],
+    menuItems: walletMenuItems('../'),
   });
 }
 

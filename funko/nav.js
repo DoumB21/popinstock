@@ -151,14 +151,20 @@ async function _fetchAndCacheTier(account) {
 
 const _NAV_TIER_ICONS = { 1: '🌱', 2: '📚', 3: '🏛️', 4: '👑' };
 
-function _loadWalletWidget() {
-  if (window.WalletWidget) return Promise.resolve();
+function _loadScriptOnce(src) {
   return new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '../shared/wallet-widget.js';
+    s.src = src;
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
+}
+
+function _loadWalletWidget() {
+  const need = [];
+  if (!window.WalletWidget) need.push(_loadScriptOnce('../shared/wallet-widget.js'));
+  if (!window.walletMenuItems) need.push(_loadScriptOnce('../shared/wallet-menu.js'));
+  return Promise.all(need);
 }
 
 async function _initWallet() {
@@ -172,13 +178,9 @@ async function _initWallet() {
     exploreHref: '../explore',
     offersHref: '../trade-offers',
     profileHref: '../profile',
-    menuItems: [
+    menuItems: walletMenuItems('../', [
       { href: 'profile', label: 'Collector Profile', icon: '👤' },
-      { href: '../inventory', label: 'Inventory', icon: '📦' },
-      { href: '../inventory-activity', label: 'Activity', icon: '🕒' },
-      { href: '../trade-offers', label: 'Trade Offers', icon: '🔄' },
-      { href: '../gift-links', label: 'Gift Links', icon: '🎁' },
-    ],
+    ]),
     // Reads the cached tier synchronously so the icon appears instantly —
     // onAccount below refreshes it in the background, never blocking paint.
     decorateName: () => {

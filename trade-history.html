@@ -176,6 +176,7 @@
   <script src="shared/supabase-config.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
+  <script src="shared/wallet-menu.js"></script>
 </head>
 <body>
 
@@ -231,12 +232,7 @@
 /* ── Nav auth ──────────────────────────────────────────────────────────────── */
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
-  menuItems: [
-    { href: 'inventory', label: 'Inventory', icon: '📦' },
-    { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
-    { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
-    { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
-  ],
+  menuItems: walletMenuItems(),
 });
 window.addEventListener('wax-auth-change', onWalletChange);
 

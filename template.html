@@ -19,6 +19,7 @@
       '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>'
     );
   </script>
@@ -192,12 +193,7 @@
     exploreHref: _p + 'explore',
     offersHref: _p + 'trade-offers',
     profileHref: _p + 'profile',
-    menuItems: [
-      { href: _p + 'inventory', label: 'Inventory', icon: '📦' },
-      { href: _p + 'inventory-activity', label: 'Activity', icon: '🕒' },
-      { href: _p + 'trade-offers', label: 'Trade Offers', icon: '🔄' },
-      { href: _p + 'gift-links', label: 'Gift Links', icon: '🎁' },
-    ],
+    menuItems: walletMenuItems(_p),
   });
 </script>
 
