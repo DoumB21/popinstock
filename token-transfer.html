@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Token Transfer — Hoardio</title>
+  <meta name="description" content="Send WAX or any token you hold to another WAX wallet, directly from your connected wallet." />
+  <link rel="canonical" href="https://www.hoardio.com/token-transfer" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/token-transfer" />
+  <meta property="og:title" content="Token Transfer — Hoardio" />
+  <meta property="og:description" content="Send WAX or any token you hold to another WAX wallet." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Token Transfer — Hoardio" />
+  <meta name="twitter:description" content="Send WAX or any token you hold to another WAX wallet." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    .page-main { max-width: 560px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem; text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; }
+
+    .xfer-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .xfer-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .xfer-group + .xfer-group { margin-top: 1.15rem; }
+    .xfer-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .xfer-optional { text-transform: none; letter-spacing: normal; font-weight: 400; opacity: 0.7; }
+
+    .xfer-amount-row { display: flex; gap: 0.6rem; }
+    .xfer-amount-row .control-input { flex: 1; min-width: 0; }
+    .xfer-max-btn {
+      flex-shrink: 0; font-size: 0.78rem; font-weight: 700; padding: 0 0.9rem;
+      border-radius: 8px; border: 1px solid rgba(240,168,64,0.35);
+      background: rgba(240,168,64,0.1); color: var(--accent-light); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .xfer-max-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.6); }
+    .xfer-max-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .xfer-hint { font-size: 0.78rem; color: var(--text-secondary); min-height: 1.1em; }
+    .xfer-hint--error   { color: #e05252; }
+    .xfer-hint--warn    { color: #e0a828; }
+    .xfer-hint--ok      { color: #4ade80; }
+    .xfer-balance-hint  { font-size: 0.92rem; font-weight: 600; color: var(--accent-light); }
+
+    .token-item-sub { margin-left: auto; color: var(--text-secondary); font-size: 0.74rem; flex-shrink: 0; }
+
+    .xfer-send-btn {
+      width: 100%; margin-top: 1.4rem; padding: 0.9rem 1.5rem;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border: none; border-radius: 10px; color: #fff;
+      font-size: 1rem; font-weight: 700; font-family: inherit; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .xfer-send-btn:hover:not(:disabled) { opacity: 0.9; }
+    .xfer-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Same block treatment as inventory.html's bulk-action modal message
+       (.modal-msg / .modal-msg--success / .modal-msg--error) — kept as its
+       own copy rather than shared since it's page-local CSS there too. */
+    .xfer-status {
+      font-size: 0.82rem; border-radius: 6px; padding: 0.55rem 0.8rem;
+      text-align: center; margin-top: 1rem;
+    }
+    .xfer-status.is-error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+    .xfer-status.is-success { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+  <script src="shared/wallet-menu.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title">Token <span class="accent">Transfer</span></h1>
+    <p class="page-desc">Send WAX or any token you hold to another WAX wallet.</p>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to send tokens.</p>
+  </div>
+
+  <div id="xferContent" class="xfer-card" style="display:none;">
+    <div class="xfer-group">
+      <label class="xfer-label" for="xferRecipient">Recipient wallet</label>
+      <input class="control-input" id="xferRecipient" type="text" placeholder="e.g. player1.wam" autocomplete="off" spellcheck="false" oninput="onRecipientInput()" onblur="checkRecipientNow()" />
+      <div class="xfer-hint" id="recipientHint"></div>
+    </div>
+
+    <div class="xfer-group">
+      <label class="xfer-label">Token</label>
+      <div class="cb-dropdown" id="tokenDropdown">
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label"></span><span class="cb-arrow">▾</span></button>
+        <div class="cb-panel"></div>
+      </div>
+      <div class="xfer-hint xfer-balance-hint" id="tokenBalanceHint">Loading your token balances…</div>
+    </div>
+
+    <div class="xfer-group">
+      <label class="xfer-label" for="xferAmount">Amount</label>
+      <div class="xfer-amount-row">
+        <input class="control-input" id="xferAmount" type="number" min="0" step="any" placeholder="0.00000000" oninput="onAmountInput()" />
+        <button type="button" class="xfer-max-btn" id="xferMaxBtn" disabled>Max</button>
+      </div>
+      <div class="xfer-hint xfer-hint--error" id="amountHint"></div>
+    </div>
+
+    <div class="xfer-group">
+      <label class="xfer-label" for="xferMemo">Memo <span class="xfer-optional">(optional)</span></label>
+      <input class="control-input" id="xferMemo" type="text" placeholder="Note for the recipient" maxlength="256" autocomplete="off" oninput="onMemoInput()" />
+    </div>
+
+    <button type="button" class="xfer-send-btn" id="xferSendBtn" disabled>Send</button>
+    <div class="xfer-status" id="xferStatus" style="display:none;"></div>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: walletMenuItems(),
+});
+window.addEventListener('wax-auth-change', onWalletChange);
+
+// Same convention as balances.html/gift-claim.html/inventory.html — respects
+// the wallet RPC endpoint set on profile.html, falling back to Greymass.
+const CHAIN_RPC = localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com';
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Wallet's held tokens (which tokens to offer) ──
+   Same approach as inventory.html's "Back with tokens" dropdown: plain chain
+   RPC can only answer "what's the balance of THIS contract/symbol", not
+   "list everything this account holds" — that requires a Hyperion history
+   node. Queried in parallel and merged (not first-response-wins) since
+   public operators vary a lot in indexing completeness. */
+const WALLET_TOKEN_ENDPOINTS = [
+  'https://api.waxsweden.org',
+  'https://wax.eosphere.io',
+  'https://wax.eosdac.io',
+];
+const WALLET_TOKEN_TIMEOUT = 8000;
+
+const WAX_TOKEN = { symbol: 'WAX', contract: 'eosio.token', precision: 8 };
+
+async function _fetchTokensFrom(base, account) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WALLET_TOKEN_TIMEOUT);
+  try {
+    const res = await fetch(`${base}/v2/state/get_tokens?account=${encodeURIComponent(account)}`, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return Array.isArray(json.tokens) ? json.tokens : null;
+  } catch { return null; }
+  finally { clearTimeout(timer); }
+}
+
+async function fetchWalletTokens(account) {
+  const results = await Promise.allSettled(WALLET_TOKEN_ENDPOINTS.map(base => _fetchTokensFrom(base, account)));
+  const merged = new Map(); // key: "symbol@contract"
+  let anySucceeded = false;
+  for (const r of results) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    anySucceeded = true;
+    for (const t of r.value) {
+      // Skip entries the indexer itself couldn't resolve and zero balances
+      // — nothing to send with those, and Hyperion returns every token an
+      // account has ever touched, not just what it currently holds.
+      if (t.error || !(t.amount > 0) || !Number.isInteger(t.precision)) continue;
+      const key = `${t.symbol}@${t.contract}`;
+      if (!merged.has(key)) merged.set(key, { symbol: t.symbol, contract: t.contract, precision: t.precision });
+    }
+  }
+  if (!anySucceeded) return null;
+  return [...merged.values()].sort((a, b) => a.symbol === 'WAX' ? -1 : b.symbol === 'WAX' ? 1 : a.symbol.localeCompare(b.symbol));
+}
+
+/* ── Live balance for the currently-selected token ──
+   Hyperion's holdings list can lag; the actual send should validate against
+   a real-time chain read. get_currency_balance answers that directly once
+   the contract is known (from the list above). */
+async function fetchLiveBalance(token) {
+  try {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_currency_balance`, {
+      method: 'POST',
+      body: JSON.stringify({ code: token.contract, account: _account, symbol: token.symbol }),
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const row = Array.isArray(rows) ? rows.find(q => q.endsWith(' ' + token.symbol)) : null;
+    if (!row) return 0; // valid zero balance
+    return Math.round(parseFloat(row) * (10 ** token.precision));
+  } catch { return null; } // unreachable — caller treats as unknown, doesn't block on it
+}
+
+function fmtQty(intAmount, token) {
+  return (intAmount / (10 ** token.precision)).toFixed(token.precision) + ' ' + token.symbol;
+}
+
+function transferAction(contract, from, to, quantity, memo) {
+  return {
+    account: contract, name: 'transfer',
+    authorization: [{ actor: from, permission: 'active' }],
+    data: { from, to, quantity, memo },
+  };
+}
+
+/* ── State ── */
+let _account           = null;
+let _tokens            = [WAX_TOKEN];
+let _tokensWallet      = null;
+let _selectedToken     = WAX_TOKEN;
+let _liveBalanceInt    = null;   // smallest-unit integer for _selectedToken, or null until known
+let _liveBalanceWallet = null;
+let _recipientTimer    = null;
+let _recipientBlocked  = false;  // true only once get_account has come back with a definite "no such account"
+let _recipientFormatOk = false;
+
+/* ── Token dropdown (single-select variant — same cb-dropdown pattern
+   copied on collection.html/inventory.html/inventory-activity.html/
+   profile.html rather than shared, matching how those pages already do
+   it) ── */
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+document.addEventListener('click', closeAllCbDropdowns);
+
+function tokenKey(t) { return `${t.symbol}@${t.contract}`; }
+
+function renderTokenDropdown() {
+  const container = document.getElementById('tokenDropdown');
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  labelEl.textContent = _selectedToken.symbol;
+  panel.innerHTML = _tokens.map(t => `
+    <div class="cb-item${t === _selectedToken ? ' active' : ''}" data-val="${escHtml(tokenKey(t))}">
+      <span>${escHtml(t.symbol)}</span>
+      <span class="token-item-sub">${escHtml(t.contract)}</span>
+    </div>`).join('');
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => { closeAllCbDropdowns(); onTokenSelect(item.dataset.val); });
+  });
+  const btn = container.querySelector('.cb-dropdown-btn');
+  if (!btn._wired) {
+    btn._wired = true;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = panel.classList.contains('open');
+      closeAllCbDropdowns();
+      if (!isOpen) { panel.classList.add('open'); btn.classList.add('open'); }
+    });
+  }
+}
+
+function onTokenSelect(key) {
+  const t = _tokens.find(t => tokenKey(t) === key);
+  if (!t) return;
+  _selectedToken = t;
+  const amountEl = document.getElementById('xferAmount');
+  amountEl.value = '';
+  amountEl.placeholder = (0).toFixed(t.precision);
+  renderTokenDropdown();
+  refreshLiveBalance();
+  updateAmountHint();
+  updateSendBtn();
+}
+
+async function loadTokensIfNeeded(wallet) {
+  if (_tokensWallet === wallet) return;
+  _tokensWallet = wallet;
+  // Reset to the WAX-only default immediately (not the previous wallet's
+  // list) and render right away — Hyperion can take up to 8s to answer, and
+  // the dropdown should never sit empty while that's in flight.
+  _tokens = [WAX_TOKEN];
+  _selectedToken = WAX_TOKEN;
+  renderTokenDropdown();
+  refreshLiveBalance();
+  const held = await fetchWalletTokens(wallet);
+  if (_tokensWallet !== wallet) return; // wallet switched again while this was in flight
+  _tokens = (held && held.length) ? held : [WAX_TOKEN];
+  if (!_tokens.some(t => tokenKey(t) === tokenKey(_selectedToken))) _selectedToken = _tokens[0];
+  renderTokenDropdown();
+  refreshLiveBalance();
+}
+
+async function refreshLiveBalance() {
+  const wallet = _account;
+  const token  = _selectedToken;
+  document.getElementById('xferMaxBtn').disabled = true;
+  document.getElementById('tokenBalanceHint').textContent = 'Checking your balance…';
+  const bal = await fetchLiveBalance(token);
+  if (_account !== wallet || _selectedToken !== token) return; // stale — wallet or token changed mid-flight
+  _liveBalanceInt = bal;
+  _liveBalanceWallet = wallet;
+  const hint = document.getElementById('tokenBalanceHint');
+  if (bal === null) {
+    hint.textContent = "Couldn't check your balance — you can still try sending.";
+  } else {
+    hint.textContent = `Available: ${fmtQty(bal, token)}`;
+    document.getElementById('xferMaxBtn').disabled = bal <= 0;
+  }
+  updateAmountHint();
+  updateSendBtn();
+}
+
+document.getElementById('xferMaxBtn').addEventListener('click', () => {
+  if (_liveBalanceInt == null || _liveBalanceInt <= 0) return;
+  document.getElementById('xferAmount').value = (_liveBalanceInt / (10 ** _selectedToken.precision)).toFixed(_selectedToken.precision);
+  onAmountInput();
+});
+
+/* ── Recipient ── */
+// WAX/EOSIO account names: lowercase a-z, 1-5, '.', max 12 chars. A quick
+// client-side sanity check before spending a network round trip on obvious junk.
+const NAME_RE = /^[a-z1-5.]{1,12}$/;
+
+function onRecipientInput() {
+  const el = document.getElementById('xferRecipient');
+  const { selectionStart, selectionEnd } = el;
+  el.value = el.value.toLowerCase();
+  el.setSelectionRange(selectionStart, selectionEnd);
+  _recipientBlocked = false;
+  const hint = document.getElementById('recipientHint');
+  hint.className = 'xfer-hint';
+  const val = el.value.trim();
+  _recipientFormatOk = NAME_RE.test(val);
+  if (!val) { hint.textContent = ''; }
+  else if (!_recipientFormatOk) { hint.textContent = ''; }
+  else if (_account && val === _account) { hint.textContent = "That's your own wallet."; hint.className = 'xfer-hint xfer-hint--error'; }
+  else { hint.textContent = ''; }
+  updateSendBtn();
+  clearTimeout(_recipientTimer);
+  if (_recipientFormatOk && val !== _account) _recipientTimer = setTimeout(checkRecipientNow, 500);
+}
+
+async function checkRecipientNow() {
+  clearTimeout(_recipientTimer);
+  const val = document.getElementById('xferRecipient').value.trim();
+  if (!_recipientFormatOk || !val || val === _account) return;
+  const hint = document.getElementById('recipientHint');
+  try {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_account`, {
+      method: 'POST',
+      body: JSON.stringify({ account_name: val }),
+    });
+    if (document.getElementById('xferRecipient').value.trim() !== val) return; // stale — user kept typing
+    if (res.ok) {
+      _recipientBlocked = false;
+      hint.textContent = '';
+      hint.className = 'xfer-hint';
+    } else {
+      _recipientBlocked = true;
+      hint.textContent = "This account doesn't exist on the WAX chain.";
+      hint.className = 'xfer-hint xfer-hint--error';
+    }
+  } catch {
+    // unreachable — leave unblocked, real send will fail on-chain if it's genuinely bad
+  }
+  updateSendBtn();
+}
+
+/* ── Amount ── */
+function currentAmountInt() {
+  const raw = parseFloat(document.getElementById('xferAmount').value);
+  if (!isFinite(raw) || raw <= 0) return null;
+  return Math.round(raw * (10 ** _selectedToken.precision));
+}
+
+function updateAmountHint() {
+  const hint = document.getElementById('amountHint');
+  const amt = currentAmountInt();
+  const raw = document.getElementById('xferAmount').value.trim();
+  if (!raw) { hint.textContent = ''; return; }
+  if (amt === null) { hint.textContent = 'Enter an amount greater than 0.'; return; }
+  if (_liveBalanceInt != null && _liveBalanceWallet === _account && amt > _liveBalanceInt) {
+    hint.textContent = `Exceeds your available balance of ${fmtQty(_liveBalanceInt, _selectedToken)}.`;
+    return;
+  }
+  hint.textContent = '';
+}
+
+function onAmountInput() { updateAmountHint(); updateSendBtn(); }
+function onMemoInput() { /* read directly from the field on send — nothing to track */ }
+
+/* ── Send ── */
+function updateSendBtn() {
+  const btn = document.getElementById('xferSendBtn');
+  const recipient = document.getElementById('xferRecipient').value.trim();
+  const amt = currentAmountInt();
+  const overBalance = _liveBalanceInt != null && _liveBalanceWallet === _account && amt != null && amt > _liveBalanceInt;
+  btn.disabled = !(
+    _account && recipient && recipient !== _account &&
+    _recipientFormatOk && !_recipientBlocked &&
+    amt != null && !overBalance
+  );
+}
+
+async function sendTransfer() {
+  const wallet = _account;
+  if (!wallet) return;
+  const recipient = document.getElementById('xferRecipient').value.trim();
+  const amt = currentAmountInt();
+  if (!recipient || amt == null) return;
+  const memo = document.getElementById('xferMemo').value.trim();
+  const token = _selectedToken;
+  const quantity = fmtQty(amt, token);
+
+  const btn = document.getElementById('xferSendBtn');
+  const status = document.getElementById('xferStatus');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  status.style.display = 'none';
+
+  try {
+    await WaxAuth.transact([transferAction(token.contract, wallet, recipient, quantity, memo)]);
+    status.textContent = `Sent ${quantity} to ${recipient}.`;
+    status.className = 'xfer-status is-success';
+    status.style.display = 'block';
+    document.getElementById('xferAmount').value = '';
+    document.getElementById('xferMemo').value = '';
+    if (token.contract === 'eosio.token' && token.symbol === 'WAX') _wallet.refreshBalance();
+    refreshLiveBalance();
+  } catch (err) {
+    const msg = String(err?.message || err).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    if (!cancelled) {
+      status.textContent = 'Transfer failed — please try again.';
+      status.className = 'xfer-status is-error';
+      status.style.display = 'block';
+    }
+  } finally {
+    btn.textContent = 'Send';
+    updateSendBtn();
+  }
+}
+document.getElementById('xferSendBtn').addEventListener('click', sendTransfer);
+
+function onWalletChange() {
+  _account = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!_account) {
+    document.getElementById('authGate').style.display = '';
+    document.getElementById('xferContent').style.display = 'none';
+    return;
+  }
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('xferContent').style.display = '';
+  document.getElementById('xferRecipient').value = '';
+  document.getElementById('recipientHint').textContent = '';
+  _recipientBlocked = false;
+  _recipientFormatOk = false;
+  updateSendBtn();
+  loadTokensIfNeeded(_account);
+}
+onWalletChange();
+</script>
+<script src="shared/moved.js"></script>
+</body>
+</html>

@@ -20,6 +20,7 @@
     { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
     { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
     { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
+    { href: 'token-transfer', label: 'Token Transfer', icon: '💸' },
     { href: 'balances', label: 'Contract Balances', icon: '💰' },
   ];
 
