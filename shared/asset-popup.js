@@ -224,11 +224,19 @@ window.AssetPopup = (function () {
     function renderHover(d, supply, owned) {
       return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${esc(d.name || 'Unknown')}</div>${renderBody(d, supply, owned)}`;
     }
+    // Header (name + close button) is rendered once and kept stable across
+    // the loading->loaded transition — see open()'s use of #assetPopupInfoBody.
+    // A mobile WebKit quirk drops the 'click' event entirely if its target
+    // element is removed from the DOM between touchstart and dispatch; a full
+    // innerHTML replace on every re-render (as this used to do) recreates the
+    // close button as a new node, so a tap landing mid-fetch could highlight
+    // the button (touchstart) but never actually close the popup (click never
+    // fires because the original node is already gone).
     function renderInfo(d, supply, owned) {
       return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
         <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${esc(d.name || 'Unknown')}</div>
-        <button class="info-popup-close" onclick="AssetPopup.close()">✕</button>
-      </div>${renderBody(d, supply, owned)}`;
+        <button class="info-popup-close" onclick="AssetPopup.close()" aria-label="Close">✕</button>
+      </div><div id="assetPopupInfoBody">${renderBody(d, supply, owned)}</div>`;
     }
 
     // Dynamic, not hardcoded — the popup's real rendered size varies with
@@ -300,7 +308,8 @@ window.AssetPopup = (function () {
         d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
       ]);
       if (_infoAssetId !== d.assetId) return;
-      info.innerHTML = renderInfo(d, supply, owned);
+      const bodyEl = info.querySelector('#assetPopupInfoBody');
+      if (bodyEl) bodyEl.innerHTML = renderBody(d, supply, owned);
       positionNear(cardEl, info);
     }
 
@@ -362,6 +371,17 @@ window.AssetPopup = (function () {
       if (e.target.closest('[data-asset-popup-card]')) return;
       close();
     });
+
+    // The rendered popup's close button can only call back through a global
+    // (inline onclick="AssetPopup.close()" — no way to reach mount()'s local
+    // closure from an HTML string), but the outer module object returned
+    // below only ever exposed {mount, copyVal, fmtBackedTokens,
+    // fetchDropppLocked} — so AssetPopup.close() was calling a function that
+    // never existed on every page, on every platform (silently throwing,
+    // swallowed by the inline handler). Each page mounts this module exactly
+    // once, so attaching this instance's close() onto the module singleton
+    // here is safe, and matches how copyVal already works the same way.
+    AssetPopup.close = close;
 
     return { wire, schedule, cancel, open, close, isOpenFor, clearOwnedCache, copyVal };
   }

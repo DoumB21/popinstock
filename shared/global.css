@@ -1052,8 +1052,13 @@ body::before {
 }
 .info-popup-close {
   background: none; border: none; color: var(--text-secondary);
-  cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
+  cursor: pointer; font-size: 1rem; line-height: 1;
+  /* Visual glyph stays small, but the tap target is bumped to ~44px (Apple/
+     Google's minimum touch-target size) via padding + a matching negative
+     margin so the header layout doesn't visibly shift. */
+  padding: 14px; margin: -14px -14px -14px 0;
   flex-shrink: 0; transition: color 0.15s;
+  display: flex; align-items: center; justify-content: center;
 }
 .info-popup-close:hover { color: var(--text-primary); }
 .tt-section { display: flex; flex-direction: column; gap: 0.18rem; }
