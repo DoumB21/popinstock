@@ -18,9 +18,28 @@
     .ex-sidebar {
       width: 260px; flex-shrink: 0;
       position: sticky; top: calc(64px + 2.5rem);
+      /* Independent scroll: a collection with many smart-generated attribute
+         filters can make this column taller than the viewport. max-height is
+         set (and kept live) by JS — see updateSidebarMaxHeight() — rather
+         than a fixed formula, because a formula based on the sticky offset
+         alone only fits once the box has already settled into its stuck
+         position; before that (e.g. page freshly loaded, not yet scrolled
+         past the header) the box's static-flow top sits lower on screen, so
+         a fixed max-height can still run off the bottom of the viewport.
+         Recomputing from the box's real getBoundingClientRect().top on every
+         scroll keeps its bottom edge on-screen at all times, so overflow
+         content (like the "Clear filters" button) is always reachable by
+         scrolling the sidebar alone — no fallback chaining to the page
+         needed, so overscroll-behavior: contain (below) can fully isolate
+         filter scrolling from the results column. */
+      overflow-y: auto; overflow-x: hidden;
+      overscroll-behavior: contain;
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 16px; padding: 1.25rem;
     }
+    .ex-sidebar::-webkit-scrollbar { width: 4px; }
+    .ex-sidebar::-webkit-scrollbar-track { background: transparent; }
+    .ex-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
     .filter-section { margin-bottom: 1.25rem; }
     .filter-label {
       display: block; margin-bottom: 0.45rem;
@@ -577,7 +596,7 @@
        normal block in .explore-main's document flow on every viewport. ── */
     @media (max-width: 1000px) {
       .explore-layout { flex-direction: column; gap: 1rem; }
-      .ex-sidebar { width: 100%; position: static; }
+      .ex-sidebar { width: 100%; position: static; max-height: none; overflow-y: visible; }
       /* .explore-main is a flex item of .explore-layout, which switches to
          flex-direction:column here — cross-axis (width) stretch alone isn't
          enough to contain it: the horizontally-scrolling cart row nested
@@ -1078,16 +1097,65 @@ function toggleDd(id) {
   const trigger = wrap.querySelector('.cb-dropdown-btn');
   const isOpen = panel.classList.contains('open');
   closeAllDd();
-  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); }
+  if (!isOpen) { panel.classList.add('open'); trigger.classList.add('open'); positionDdPanel(wrap, panel); }
+}
+// .ex-sidebar now scrolls independently (see its CSS comment), so a filter
+// dropdown opened near the bottom of that box would otherwise get its
+// options list clipped by the sidebar's own overflow instead of floating
+// over the page like it used to. Pinning the open panel to the viewport
+// (fixed, positioned from the trigger's live rect) escapes that clipping;
+// clamping max-height to the actual room left on screen keeps it from
+// running off the bottom of the window instead.
+function positionDdPanel(wrap, panel) {
+  const rect = wrap.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  panel.style.position = 'fixed';
+  panel.style.left = rect.left + 'px';
+  panel.style.width = rect.width + 'px';
+  panel.style.right = 'auto';
+  panel.style.top = (rect.bottom + 4) + 'px';
+  panel.style.maxHeight = Math.max(120, Math.min(280, spaceBelow)) + 'px';
 }
 function closeAllDd() {
-  document.querySelectorAll('.cb-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.cb-panel.open').forEach(p => {
+    p.classList.remove('open');
+    p.style.position = ''; p.style.left = ''; p.style.width = ''; p.style.right = ''; p.style.top = ''; p.style.maxHeight = '';
+  });
   document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
 }
 document.addEventListener('mousedown', e => {
   if (!e.target.closest('.typeahead-wrap')) hideSugs();
   if (!e.target.closest('.cb-dropdown')) closeAllDd();
 });
+// A fixed-position open panel doesn't track its trigger while the sidebar
+// (or the page) scrolls, so close it rather than let it drift away.
+document.querySelector('.ex-sidebar').addEventListener('scroll', closeAllDd);
+window.addEventListener('scroll', closeAllDd, { passive: true });
+
+// Keep .ex-sidebar's max-height matched to whatever room is actually left
+// below it on screen right now (see its CSS comment for why a fixed formula
+// isn't enough) — recomputed from its live rect on every scroll/resize so
+// the box's bottom (and anything scrolled to the end of its filter list) is
+// always on-screen, with overscroll-behavior: contain fully isolating
+// filter-list scrolling from the results column (no chaining fallback
+// needed, since the box never needs to be taller than what's visible).
+const $exSidebarMq = window.matchMedia('(max-width: 1000px)');
+let _sbMhRaf = false;
+function updateSidebarMaxHeight() {
+  const sb = document.querySelector('.ex-sidebar');
+  if (!sb) return;
+  if ($exSidebarMq.matches) { sb.style.maxHeight = ''; return; }
+  const top = Math.max(sb.getBoundingClientRect().top, 0);
+  sb.style.maxHeight = Math.max(200, window.innerHeight - top - 24) + 'px';
+}
+function scheduleSidebarMaxHeightUpdate() {
+  if (_sbMhRaf) return;
+  _sbMhRaf = true;
+  requestAnimationFrame(() => { _sbMhRaf = false; updateSidebarMaxHeight(); });
+}
+window.addEventListener('scroll', scheduleSidebarMaxHeightUpdate, { passive: true });
+window.addEventListener('resize', scheduleSidebarMaxHeightUpdate);
+updateSidebarMaxHeight();
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Collection typeahead                                                       */
