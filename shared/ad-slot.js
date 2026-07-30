@@ -20,7 +20,7 @@
 
   function html() {
     if (!PROMO) {
-      return `<div class="ad-slot-card">Contact me to promote your project here.</div>`;
+      return `<div class="ad-slot-card"><div>Promote your WAX project here <b>for free</b>.<br>Also featured on my <b><a href="/twitch/twitch">Twitch game stream</a></b>.<br><br>Contact me on <a href="https://x.com/HoardioHQ" target="_blank" rel="noopener">X</a> or <a href="https://discord.gg/vzw45F5wnN" target="_blank" rel="noopener">Discord</a>.</div></div>`;
     }
     return `<a class="ad-slot-card" href="${esc(PROMO.href)}" target="_blank" rel="noopener">
       ${PROMO.img ? `<img src="${esc(PROMO.img)}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : ''}
