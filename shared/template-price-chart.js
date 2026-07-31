@@ -137,13 +137,24 @@
       }));
 
       // Sales in the last rolling 24h — count=true asks the API for just
-      // the total instead of paging through matching rows ourselves. Counts
-      // bundle sales too (unlike Highest/Lowest Sale) since this is an
-      // activity/velocity number, not a per-item price.
+      // the total instead of paging through matching rows ourselves — EXCEPT
+      // after= filters by a sale's created_at_time (when it was first
+      // listed), not when it actually completed, so a template whose
+      // inventory was listed long ago but sold today (the common case) was
+      // undercounting real 24h activity down to 0 (confirmed live against
+      // a template with 4 real sales in the last 24h, all listed back in
+      // 2021 — AtomicHub's own count agreed with the 4, count=true+after=
+      // agreed with 0). Fetches by updated=desc instead and counts
+      // client-side against updated_at_time — bounded to the most recent
+      // 100 sales, which only undercounts on a template selling more than
+      // that in a single day. Counts bundle sales too (unlike Highest/
+      // Lowest Sale) since this is an activity/velocity number, not a
+      // per-item price.
       let sales24h = null;
       try {
-        const res = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=3&after=${Date.now() - 86400000}&count=true`);
-        sales24h = Number(res);
+        const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=3&sort=updated&order=desc&limit=100`);
+        const cutoff = Date.now() - 86400000;
+        sales24h = (rows || []).filter(s => Number(s.updated_at_time) >= cutoff).length;
       } catch { sales24h = null; }
 
       const highestWax = highestSale ? fmtWax(highestSale.price.amount, highestSale.price.token_precision)
@@ -220,6 +231,10 @@
 
       const spanDays = (points[points.length - 1].time - points[0].time) / 86400000;
       const unit = spanDays <= 45 ? 'day' : spanDays <= 200 ? 'week' : 'month';
+      // Surfaced on the tooltip's title line — the x-axis is cramped for
+      // space, so "Jul 26" alone doesn't say whether that's one day, the
+      // Monday of one week, or a whole month; the hover popup can say it plainly.
+      const unitLabel = unit === 'day' ? 'Day' : unit === 'week' ? 'Week' : 'Month';
 
       // WAX->USD uses that day's own historical rate — days with no rate yet
       // (very recent, not backfilled) are dropped from the USD view rather
@@ -248,6 +263,7 @@
       const labels = keys.map(k => bucketLabel(k, unit));
       const priceData = keys.map(k => { const b = buckets.get(k); return b.sales ? b.volume / b.sales : 0; });
       const volumeData = keys.map(k => buckets.get(k).volume);
+      const salesData = keys.map(k => buckets.get(k).sales);
 
       const fmtAmount = v => state.currency === 'USD' ? '$' + fmtChartPrice(v) : fmtChartPrice(v) + ' WAX';
 
@@ -259,7 +275,7 @@
           labels,
           datasets: [
             {
-              type: 'bar', label: 'Volume', data: volumeData,
+              type: 'bar', label: 'Sales', data: salesData,
               backgroundColor: 'rgba(59,130,246,0.35)', borderRadius: 3,
               yAxisID: 'y1', order: 2,
             },
@@ -282,7 +298,18 @@
               backgroundColor: '#1a1a2a', borderColor: 'rgba(255,255,255,0.1)',
               borderWidth: 1, titleColor: '#fff', padding: 10,
               callbacks: {
-                label: ctx => (ctx.dataset.label === 'Price' ? 'Avg price: ' : 'Volume: ') + fmtAmount(ctx.parsed.y),
+                title: items => `${unitLabel}: ${items[0]?.label ?? ''}`,
+                label: ctx => ctx.dataset.label === 'Price'
+                  ? 'Avg price: ' + fmtAmount(ctx.parsed.y)
+                  : 'Sales: ' + ctx.parsed.y.toLocaleString(),
+                // Volume moved off the bar's own axis (that's sales count
+                // now) but is still worth surfacing per the user's ask — one
+                // extra tooltip line, looked up by the shared bucket index
+                // rather than tied to either dataset directly.
+                afterBody: items => {
+                  const idx = items[0]?.dataIndex;
+                  return idx == null ? [] : ['Volume: ' + fmtAmount(volumeData[idx])];
+                },
               },
             },
           },
@@ -299,7 +326,11 @@
             y1: {
               position: 'right',
               grid: { drawOnChartArea: false },
-              ticks: { color: '#3b82f6', font: { size: 11 }, callback: fmtAmount },
+              // Chart.js auto-picks a step (often 0.5) to land on a round
+              // number of ticks — fine for the gridlines themselves, but a
+              // sales count can't be fractional, so only whole-number ticks
+              // get a label; the .5 gridlines still draw, just unlabeled.
+              ticks: { color: '#3b82f6', font: { size: 11 }, callback: v => Number.isInteger(v) ? fmtCompactInt(v) : '' },
               beginAtZero: true,
             },
           },

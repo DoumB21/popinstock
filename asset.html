@@ -122,8 +122,10 @@
     .ast-hist-type--update   { background: rgba(168,85,247,0.15); color: #c084fc; }
     .ast-hist-detail { font-size: 0.88rem; }
     .ast-hist-memo { color: var(--text-secondary); font-size: 0.78rem; margin-top: 0.15rem; }
-    .ast-hist-tx { color: var(--text-secondary); font-size: 0.78rem; }
-    .ast-hist-tx a { color: inherit; text-decoration: none; }
+    .ast-hist-tx a {
+      font-size: 0.78rem; font-weight: 600; color: var(--accent-light);
+      text-decoration: none; white-space: nowrap;
+    }
     .ast-hist-tx a:hover { text-decoration: underline; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -182,7 +184,7 @@
         <div class="tpl-name" id="astName">Asset</div>
         <div class="tpl-info-grid">
           <div>
-            <div class="tpl-info-label">NFT ID</div>
+            <div class="tpl-info-label">Asset ID</div>
             <div class="tpl-info-val" id="astId"></div>
           </div>
           <div>
@@ -224,7 +226,7 @@
       </div>
     </div>
 
-    <div class="tpl-section-title">NFT Attributes</div>
+    <div class="tpl-section-title">Asset Attributes</div>
     <div class="table-wrap"><table><tbody id="astAttrsBody"></tbody></table></div>
 
     <div class="tpl-offers-panel">
@@ -237,8 +239,7 @@
 
     <div class="tpl-section-title">History</div>
     <div class="ast-tabs" id="astHistTabs">
-      <button type="button" class="ast-tab-btn active" data-tab="all">History</button>
-      <button type="button" class="ast-tab-btn" data-tab="transfer">Transfers</button>
+      <button type="button" class="ast-tab-btn active" data-tab="transfer">Transfers</button>
       <button type="button" class="ast-tab-btn" data-tab="sale">Sales</button>
       <button type="button" class="ast-tab-btn" data-tab="update">Updates</button>
       <button type="button" class="ast-tab-btn" data-tab="log">Logs</button>
@@ -423,8 +424,8 @@ async function loadHeader() {
     : walletLinkHtml(asset.owner);
   const issuedSupply = asset.template ? Number(asset.template.issued_supply) : null;
   const burnedCount  = templateStats ? Number(templateStats.burned) : 0;
-  document.getElementById('astMint').textContent = issuedSupply != null
-    ? `${asset.template_mint} of ${issuedSupply.toLocaleString()}${burnedCount > 0 ? ` (${burnedCount.toLocaleString()} burned)` : ''}`
+  document.getElementById('astMint').innerHTML = issuedSupply != null
+    ? `${asset.template_mint} of ${issuedSupply.toLocaleString()}${burnedCount > 0 ? ` (<span class="tpl-supply-tag" title="Burned assets">${burnedCount.toLocaleString()}🔥</span>)` : ''}`
     : `#${asset.template_mint}`;
   document.getElementById('astFlags').innerHTML =
     `<span class="tpl-badge ${asset.is_burnable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_burnable ? 'Burnable' : 'Not burnable'}</span> ` +
@@ -462,15 +463,16 @@ async function loadHeader() {
   loadHistory();
 }
 
-/* ── Top Active Offers — asset-scoped buyoffers (distinct from
-   template.html's pooled /template_buyoffers — confirmed live that
-   /buyoffers?asset_id= genuinely filters to just this one NFT). ── */
+/* ── Top Active Offers — template-pooled (any matching copy, not just this
+   exact asset_id) — same /template_buyoffers endpoint and rendering as
+   template.html's own "Top Active Offers", so the two pages agree. ── */
 async function loadOffers() {
   const wrap = document.getElementById('astOffersWrap');
   const mkt  = WaxApi.marketBase();
+  if (!_templateId) { wrap.innerHTML = '<div class="ast-placeholder">No template associated with this asset.</div>'; return; }
   let offers;
   try {
-    offers = await WaxApi.apiFetch(`${mkt}/buyoffers?asset_id=${encodeURIComponent(assetId)}&state=0&sort=price&order=desc&limit=20`);
+    offers = await WaxApi.apiFetch(`${mkt}/template_buyoffers?template_id=${_templateId}&state=0&symbol=WAX&sort=price&order=desc&limit=10`);
   } catch { offers = null; }
   if (!offers || !offers.length) {
     wrap.innerHTML = '<div class="ast-placeholder">No active offers.</div>';
@@ -510,8 +512,11 @@ function logTypeLabel(name) {
   return LOG_TYPE_LABEL[name] || name.replace(/^log/, '').replace(/([A-Z])/g, ' $1').trim().replace(/^./, c => c.toUpperCase());
 }
 function logDetailHtml(entry) {
-  const parts = Object.entries(entry.data || {}).map(([k, v]) => `${escHtml(k)}: ${escHtml(typeof v === 'object' ? JSON.stringify(v) : v)}`);
-  return parts.join(', ') || '—';
+  // Each key in entry.data is a genuinely separate field (confirmed live —
+  // e.g. logmint's new_asset_owner and authorized_minter), so one <div> per
+  // field reads as a real list rather than a single run-on line.
+  const parts = Object.entries(entry.data || {}).map(([k, v]) => `<div>${escHtml(k)}: ${escHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</div>`);
+  return parts.join('') || '—';
 }
 
 async function loadHistory() {
@@ -556,21 +561,20 @@ async function loadHistory() {
   events.sort((a, b) => b.time - a.time);
   _histAll = events;
   _histLoaded = true;
-  renderHistory('all');
+  renderHistory('transfer');
 }
 
 function renderHistory(tab) {
   const wrap = document.getElementById('astHistWrap');
   if (!_histLoaded) { wrap.innerHTML = '<div class="ast-placeholder">Loading…</div>'; return; }
-  const items = tab === 'all' ? _histAll
-    : tab === 'update' ? _histAll.filter(e => e.type === 'log' && e.logKind === 'update')
+  const items = tab === 'update' ? _histAll.filter(e => e.type === 'log' && e.logKind === 'update')
     : _histAll.filter(e => e.type === tab);
   if (!items.length) { wrap.innerHTML = '<div class="ast-placeholder">No events found.</div>'; return; }
   wrap.innerHTML = `<table><thead><tr><th>Event</th><th>Date</th><th></th></tr></thead><tbody>
     ${items.map(e => `<tr>
       <td class="ast-hist-detail">${e.html}${e.memo ? `<div class="ast-hist-memo">${escHtml(e.memo)}</div>` : ''}</td>
       <td>${fmtDateTime(e.time)}</td>
-      <td class="ast-hist-tx">${e.txid ? `<a href="https://wax.bloks.io/transaction/${escHtml(e.txid)}" target="_blank" rel="noopener">View tx ↗</a>` : ''}</td>
+      <td class="ast-hist-tx">${e.txid ? `<a href="https://waxblock.io/transaction/${escHtml(e.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
     </tr>`).join('')}
   </tbody></table>`;
 }
