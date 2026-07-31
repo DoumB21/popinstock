@@ -14,6 +14,8 @@
      collectionHref: name => `collection/${name}` | `../collection/${name}`,        // optional, defaults shown
      templateHref:   id   => `template/${id}`     | `../template/${id}`,            // optional, defaults shown
      walletHref:     acc  => `inventory/${acc}`   | `../inventory/${acc}`,      // optional, defaults shown
+     schemaHref:     (collection, schema) => `schema/${collection}/${schema}` | `../schema/${collection}/${schema}`, // optional, defaults shown
+     assetHref:      id   => `asset/${id}`        | `../asset/${id}`,               // optional, defaults shown
    });
 
    Per card: popup.wire(cardEl, data, { hoverEl, shouldSuppressHover });
@@ -110,6 +112,8 @@ window.AssetPopup = (function () {
     const collectionHref = opts.collectionHref || (name => `collection/${encodeURIComponent(name)}`);
     const templateHref   = opts.templateHref   || (id   => `template/${encodeURIComponent(id)}`);
     const walletHref     = opts.walletHref     || (acc  => `inventory/${encodeURIComponent(acc)}`);
+    const schemaHref     = opts.schemaHref     || ((collection, schema) => `schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`);
+    const assetHref      = opts.assetHref      || (id   => `asset/${encodeURIComponent(id)}`);
 
     let hover = document.getElementById('assetPopupHover');
     if (!hover) {
@@ -197,10 +201,10 @@ window.AssetPopup = (function () {
         <div class="tt-heading">Attributes</div>
         <div class="tt-section" style="margin-bottom:0.5rem">
           ${d.collectionName ? `<div class="tt-row"><span class="tt-label">Collection</span><span class="tt-val">${d.collection ? `<a href="${esc(collectionHref(d.collection))}" style="color:var(--accent-light);text-decoration:none" title="View collection page">${esc(d.collectionName)}</a>` : esc(d.collectionName)}</span></div>` : ''}
-          ${d.schema ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${esc(d.schema)}</span></div>` : ''}
+          ${d.schema ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${d.collection ? `<a href="${esc(schemaHref(d.collection, d.schema))}" style="color:var(--accent-light);text-decoration:none" title="View schema page">${esc(d.schema)}</a>` : esc(d.schema)}</span></div>` : ''}
           ${d.rarity ? `<div class="tt-row"><span class="tt-label">Rarity</span><span><span class="rarity-pill ${d.rarityClass || ''}" style="font-size:0.62rem;padding:1px 7px">${esc(d.rarity)}</span></span></div>` : ''}
           ${d.cardid ? `<div class="tt-row"><span class="tt-label">Card ID</span><span class="tt-val">${esc(d.cardid)}</span></div>` : ''}
-          ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable">#${esc(d.assetId)}<button class="copy-btn" onclick="AssetPopup.copyVal(this,'${esc(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
+          ${d.assetId ? `<div class="tt-row"><span class="tt-label">Asset</span><span class="tt-val tt-val-copiable"><a href="${esc(assetHref(d.assetId))}" style="color:var(--accent-light);text-decoration:none" title="View asset page">#${esc(d.assetId)}</a><button class="copy-btn" onclick="AssetPopup.copyVal(this,'${esc(d.assetId)}')" title="Copy asset ID">${_copyIconSvg}</button></span></div>` : ''}
           ${d.templateId ? `<div class="tt-row"><span class="tt-label">Template</span><span class="tt-val tt-val-copiable"><a href="${esc(templateHref(d.templateId))}" style="color:var(--accent-light);text-decoration:none" title="View template page">#${esc(d.templateId)}</a><button class="copy-btn" onclick="AssetPopup.copyVal(this,'${esc(d.templateId)}')" title="Copy template ID">${_copyIconSvg}</button></span></div>` : ''}
           ${d.owner ? `<div class="tt-row"><span class="tt-label">Owner</span><span class="tt-val tt-orange"><a href="${esc(walletHref(d.owner))}" style="color:inherit;text-decoration:none" title="View this wallet's inventory">${esc(d.owner)}</a></span></div>` : ''}
           <div class="tt-row"><span class="tt-label">Backed tokens</span><span class="tt-val">${esc(fmtBackedTokens(d.backedTokens))}</span></div>

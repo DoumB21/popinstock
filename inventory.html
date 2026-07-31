@@ -1511,6 +1511,8 @@ const _assetPopup = AssetPopup.mount({
   collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
   templateHref:   id   => `${_p}template/${encodeURIComponent(id)}`,
   walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
+  schemaHref:     (collection, schema) => `${_p}schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
+  assetHref:      id   => `${_p}asset/${encodeURIComponent(id)}`,
 });
 function closeInfoPopup() { _assetPopup.close(); }
 function copyVal(btn, text) { AssetPopup.copyVal(btn, text); }
