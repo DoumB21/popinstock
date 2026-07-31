@@ -785,12 +785,16 @@
     </div>
     <div class="controls-row filter-row">
       <div class="control-group" id="schemaGroup">
-        <div class="cb-dropdown" id="schemaDropdown">
-          <button class="cb-dropdown-btn" type="button" disabled title="Select a collection to enable this filter">
-            <span class="cb-label">All schemas</span>
-            <span class="cb-arrow">▾</span>
-          </button>
-          <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-combo" id="schemaCombo">
+          <input type="text" class="cb-combo-input" id="schemaComboInput" autocomplete="off" spellcheck="false" placeholder="All schemas" disabled title="Select a collection to enable this filter">
+          <button type="button" class="cb-combo-clear" id="schemaComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+      <div class="control-group control-group--wide" id="templateGroup">
+        <div class="cb-combo" id="templateCombo">
+          <input type="text" class="cb-combo-input" id="templateComboInput" autocomplete="off" spellcheck="false" placeholder="All templates" disabled title="Select a collection to enable this filter">
+          <button type="button" class="cb-combo-clear" id="templateComboClear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel"></div>
         </div>
       </div>
@@ -804,7 +808,7 @@
       <div class="control-group control-group--narrow">
         <div class="cb-dropdown" id="listingsFilterDropdown">
           <button class="cb-dropdown-btn" type="button">
-            <span class="cb-label">Show all</span>
+            <span class="cb-label">Show all assets</span>
             <span class="cb-arrow">▾</span>
           </button>
           <div class="cb-panel"></div>
@@ -955,7 +959,7 @@ const SORT_OPTIONS = [
 ];
 
 const LISTINGS_FILTER_OPTIONS = [
-  { value: 'all',  label: 'Show all' },
+  { value: 'all',  label: 'Show all assets' },
   { value: 'only', label: 'Only listings' },
   { value: 'hide', label: 'Hide listings' },
 ];
@@ -969,6 +973,8 @@ let _autoLoadArmed   = false; // true once the user has manually clicked "Load m
 let _filterText          = '';
 let _filterCol           = 'all';
 let _filterSchema        = 'all';
+let _filterTemplate      = 'all';
+let _templateItemsCache  = [{ value: 'all', label: 'All templates' }];
 const _selectedCardIds   = new Set();
 const _selectedDynamicFilters = {};  // attribute field name → Set of selected values (smart-generated filters)
 let _dynamicFieldGroups  = [];       // field names currently rendered as extra dropdowns in #dynamicFilterRow
@@ -980,7 +986,7 @@ const _schemaCache       = {};  // collection_name → [schema_name, ...]
 const _schemaFormatCache = {};  // collection_name → { schema_name → [{name, type}, ...] } — from the same /schemas call, free
 const _schemaAssetCountCache = {}; // collection_name → { schema_name → assets count } — also free from the /schemas call
 const _walletSchemaCountCache = {}; // "wallet|collection_name" → { schema_name → wallet-owned count }, from accounts/{wallet}/{collection}
-const _templateCache     = {};  // collection_name → [{template_id, schema_name, data: {immutable_data fields}}]
+const _templateCache     = {};  // collection_name → [{template_id, schema_name, name, data: {immutable_data fields}}]
 // PFP-style schemas (see isAssetLevelAttrSchema) keep template immutable_data
 // empty and put real trait data on each individual asset instead — confirmed
 // live against a real project (warcxbananas/astralape). Cached per
@@ -1531,13 +1537,13 @@ let _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
 // so its slot in the filter row is permanent — never hidden, just disabled
 // until a collection is selected and its schema list has loaded.
 function setSchemaFilterAvailability(enabled) {
-  const btn = document.querySelector('#schemaDropdown .cb-dropdown-btn');
-  if (!btn) return;
-  btn.disabled = !enabled;
+  const input = document.getElementById('schemaComboInput');
+  if (!input) return;
+  input.disabled = !enabled;
   if (!enabled) {
     _filterSchema = 'all';
     _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
-    buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
+    buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
   }
 }
 
@@ -1552,20 +1558,68 @@ function updateSchemaFilter(schemas, counts) {
     const label = hasCounts ? `${s} (${Number(counts[s] || 0).toLocaleString()})` : s;
     return { value: s, label };
   })];
-  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
-  const btn = document.querySelector('#schemaDropdown .cb-dropdown-btn');
-  if (btn) btn.disabled = false;
+  buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  const input = document.getElementById('schemaComboInput');
+  if (input) input.disabled = false;
 }
 
 function onSchemaFilterChange(val) {
   _filterSchema = val;
-  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, _filterSchema, onSchemaFilterChange, 'all');
+  buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
   const schema = _filterSchema !== 'all' ? _filterSchema : null;
   const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
   for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
   for (const field of Object.keys(_selectedDynamicFilters)) {
     const avail = new Set(getAvailableValues(_filterCol, schema, field));
     for (const v of [..._selectedDynamicFilters[field]]) if (!avail.has(v)) _selectedDynamicFilters[field].delete(v);
+  }
+  updateTemplateFilter(_templateCache[_filterCol] || []); // re-scope to the new schema, dropping a now-mismatched selection
+  refreshFilterDropdowns();
+  loadAssets(true);
+}
+
+// Template (like Schema) is a core protocol field, so its slot stays put —
+// only disabled, never hidden — until a collection's template catalog has
+// loaded. Populated from the same collection-wide catalog fetchTemplatesForCollection()
+// already loads for Card ID/attribute filters, so picking a template costs
+// no extra API call; narrowed to the current schema when one is selected.
+function setTemplateFilterAvailability(enabled) {
+  const input = document.getElementById('templateComboInput');
+  if (!input) return;
+  input.disabled = !enabled;
+  if (!enabled) {
+    _filterTemplate = 'all';
+    _templateItemsCache = [{ value: 'all', label: 'All templates' }];
+    buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
+  }
+}
+
+function updateTemplateFilter(templates) {
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const list = schema ? templates.filter(t => t.schema_name === schema) : templates;
+  if (_filterTemplate !== 'all' && !list.some(t => t.template_id === _filterTemplate)) _filterTemplate = 'all';
+  _templateItemsCache = [{ value: 'all', label: 'All templates' }, ...list.map(t => ({
+    value: t.template_id,
+    label: t.name ? `${t.name} (#${t.template_id})` : `Template #${t.template_id}`,
+  })).sort((a, b) => a.label.localeCompare(b.label))];
+  buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
+  const input = document.getElementById('templateComboInput');
+  if (input) input.disabled = false;
+}
+
+function onTemplateFilterChange(val) {
+  _filterTemplate = val;
+  buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
+  // Picking a template pins its own schema too, so the two filters can never
+  // disagree — matters most for a col+template deep link with no schema in
+  // the URL at all.
+  if (val !== 'all') {
+    const t = (_templateCache[_filterCol] || []).find(tpl => tpl.template_id === val);
+    if (t && t.schema_name && _filterSchema !== t.schema_name) {
+      _filterSchema = t.schema_name;
+      buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+      refreshDynamicAttributeFilters();
+    }
   }
   refreshFilterDropdowns();
   loadAssets(true);
@@ -1609,6 +1663,7 @@ async function fetchTemplatesForCollection(collection) {
         all.push({
           template_id: t.template_id,
           schema_name: t.schema?.schema_name || '',
+          name:        t.name || t.immutable_data?.name || '',
           data:        normalizeFieldData(t.immutable_data),
         });
       }
@@ -2396,12 +2451,14 @@ function computeTemplateWhitelist() {
   const isAssetLevel = schema && isAssetLevelAttrSchema(_filterCol, schema);
   const hasCardId = _selectedCardIds.size > 0;
   const cardIdLower = hasCardId ? lowerSet(_selectedCardIds) : null;
+  const hasTemplate = _filterTemplate !== 'all';
   const activeDynFields = (isAssetLevel ? [] : Object.entries(_selectedDynamicFilters).filter(([, set]) => set.size > 0))
     .map(([field, set]) => [field, lowerSet(set)]);
-  if (!hasCardId && activeDynFields.length === 0) return null;
+  if (!hasCardId && !hasTemplate && activeDynFields.length === 0) return null;
   const ids = templates
     .filter(t => !schema || t.schema_name === schema)
     .filter(t => !hasCardId || cardIdLower.has(String(t.data?.cardid ?? '').toLowerCase()))
+    .filter(t => !hasTemplate || t.template_id === _filterTemplate)
     .filter(t => activeDynFields.every(([field, set]) => set.has(String(t.data?.[field] ?? '').toLowerCase())))
     .map(t => t.template_id);
   return ids.length > 0 ? ids.join(',') : 'EMPTY';
@@ -2577,9 +2634,11 @@ function updateColFilter() {
 function onColFilterChange(val) {
   _filterCol = val;
   _filterSchema = 'all';
+  _filterTemplate = 'all';
   _selectedCardIds.clear();
   clearDynamicFieldGroups();
   setSchemaFilterAvailability(false);
+  setTemplateFilterAvailability(false);
   document.getElementById('cardIdGroup').style.display = 'none';
   refreshDynamicFilterRowVisibility();
   buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
@@ -2597,8 +2656,9 @@ function onColFilterChange(val) {
       if (schemas.length >= 1) updateSchemaFilter(schemas, counts);
       refreshDynamicAttributeFilters(); // re-run now that field types (image/ipfs exclusion) are available
     });
-    fetchTemplatesForCollection(col).then(() => {
+    fetchTemplatesForCollection(col).then(templates => {
       if (_filterCol !== col) return;
+      updateTemplateFilter(templates);
       refreshFilterDropdowns();
     });
   }
@@ -2666,6 +2726,7 @@ function syncUrl() {
   if (_urlWallet && !_walletInPath) p.set('wallet', _urlWallet);
   if (_filterCol    !== 'all') p.set('col',    _filterCol);
   if (_filterSchema !== 'all') p.set('schema', _filterSchema);
+  if (_filterTemplate !== 'all') p.set('template', _filterTemplate);
   if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
   for (const [field, set] of Object.entries(_selectedDynamicFilters)) {
     if (set.size) p.set('dyn_' + field, [...set].join(','));
@@ -2684,6 +2745,7 @@ async function readUrlParams(wallet) {
   if (!p.toString()) return;
   _filterCol    = p.get('col')    || 'all';
   _filterSchema = p.get('schema') || 'all';
+  _filterTemplate = p.get('template') || 'all';
   _selectedCardIds.clear();
   (p.get('cardid') || '').split(',').filter(Boolean).forEach(c => _selectedCardIds.add(c));
   clearDynamicFieldGroups();
@@ -2714,13 +2776,28 @@ async function readUrlParams(wallet) {
       if (schemas.length >= 1) updateSchemaFilter(schemas, counts);
       refreshDynamicAttributeFilters();
     });
-    // Template cache MUST be ready before loadAssets if cardid/dynamic (incl. rarity) filters are active
+    // A template deep link with no schema in the URL pins its own schema, so
+    // the two filters can't disagree — mirrors onTemplateFilterChange.
+    const applyTemplates = templates => {
+      if (_filterCol !== col) return;
+      if (_filterTemplate !== 'all' && _filterSchema === 'all') {
+        const t = templates.find(tpl => tpl.template_id === _filterTemplate);
+        if (t && t.schema_name) {
+          _filterSchema = t.schema_name;
+          buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+        }
+      }
+      updateTemplateFilter(templates);
+    };
+    // Template cache MUST be ready before loadAssets if cardid/template/dynamic (incl. rarity) filters are active
     const hasDynFromUrl = Object.values(_selectedDynamicFilters).some(s => s.size > 0);
-    if (_selectedCardIds.size > 0 || hasDynFromUrl) {
-      await fetchTemplatesForCollection(col);
+    if (_selectedCardIds.size > 0 || hasDynFromUrl || _filterTemplate !== 'all') {
+      const templates = await fetchTemplatesForCollection(col);
+      applyTemplates(templates);
       if (_filterCol === col) refreshFilterDropdowns();
     } else {
-      fetchTemplatesForCollection(col).then(() => {
+      fetchTemplatesForCollection(col).then(templates => {
+        applyTemplates(templates);
         if (_filterCol !== col) return;
         refreshFilterDropdowns();
       });
@@ -5622,6 +5699,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
 
 function clearFilters() {
   _filterSchema = 'all';
+  _filterTemplate = 'all';
   _selectedCardIds.clear();
   for (const set of Object.values(_selectedDynamicFilters)) set.clear();
   _filterMintMin = '';
@@ -5630,7 +5708,8 @@ function clearFilters() {
   _excludeLowestMint = false;
   _onlyHighestMint   = false;
   _onlyBacked        = false;
-  buildSingleCbDropdown('schemaDropdown', _schemaItemsCache, 'all', onSchemaFilterChange, 'all');
+  buildCbCombo('schemaCombo', _schemaItemsCache, 'all', onSchemaFilterChange);
+  updateTemplateFilter(_templateCache[_filterCol] || []);
   document.getElementById('mintMin').value = '';
   document.getElementById('mintMax').value = '';
   document.getElementById('excludeLowestMint').checked = false;
