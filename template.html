@@ -21,6 +21,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>'
     );
   </script>
@@ -515,6 +516,7 @@ async function loadHeader() {
   const video   = tpl.immutable_data?.video;
   const backimg = tpl.immutable_data?.backimg;
   const mainWrap = document.getElementById('tplMainImgWrap');
+  ImageLightbox.wire(mainWrap);
   const setMainMedia = (hash, kind) => {
     if (kind === 'video') {
       const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
