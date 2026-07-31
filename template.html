@@ -20,7 +20,8 @@
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
-      '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>'
+      '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>'
     );
   </script>
   <title>Template — Hoardio</title>
@@ -84,12 +85,6 @@
     .tpl-market-link { color: var(--accent-light); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
     .tpl-market-link:hover { text-decoration: underline; }
 
-    /* global.css's .stat-value (1.4rem) wraps a "59.99 WAX"-style value onto
-       a second line inside a ~140px .stat-card column — same fix
-       collection.html applies to its own #statsGrid. */
-    #tplStatsGrid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
-    #tplStatsGrid .stat-value { font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
     /* ── Section titles / tables (same convention as collection.html) ── */
     .tpl-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
 
@@ -124,30 +119,13 @@
       margin-left: 5px; vertical-align: middle;
     }
 
-    /* ── Chart — Chart.js, same visual language (tick color/size, grid,
-       tooltip styling) as funko/sales-history.html's chart for site-wide
-       consistency, extended with range/currency toggles and a second
-       (volume) axis the way AtomicHub's own per-template chart does it. ── */
-    .tpl-chart-wrap { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.5rem; }
-    .tpl-chart-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.1rem; }
-    .tpl-toggle-group { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-    .tpl-toggle-btn {
-      padding: 0.4rem 0.85rem; border: none; background: none;
-      color: var(--text-secondary); font-size: 0.8rem; font-weight: 600;
-      font-family: inherit; cursor: pointer;
-      transition: background 0.15s, color 0.15s; white-space: nowrap;
-    }
-    .tpl-toggle-btn + .tpl-toggle-btn { border-left: 1px solid var(--border); }
-    .tpl-toggle-btn:hover { color: var(--text-primary); }
-    .tpl-toggle-btn.active { background: rgba(240,168,64,0.14); color: var(--accent-light); }
-    .tpl-chart-canvas-wrap { position: relative; height: 320px; }
-
     /* ── NFTs / Holders grid+search+load-more (same as collection.html) ── */
     .tpl-toolbar { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
     .tpl-toolbar .search-input { flex: 1; min-width: 200px; }
     .tpl-burned-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; }
     .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
     .tpl-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .tpl-card > a { display: block; text-decoration: none; color: inherit; }
     .tpl-card-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
     .tpl-card-img-wrap img, .tpl-card-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .tpl-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
@@ -262,25 +240,7 @@
     </div>
 
     <div class="tpl-section-title">Price History</div>
-    <div class="stats-grid" id="tplStatsGrid"></div>
-    <div class="tpl-chart-wrap" style="margin-top:1rem;">
-      <div class="tpl-chart-controls">
-        <div class="tpl-toggle-group" id="tplRangeToggle">
-          <button class="tpl-toggle-btn" data-range="1M">1M</button>
-          <button class="tpl-toggle-btn" data-range="3M">3M</button>
-          <button class="tpl-toggle-btn" data-range="6M">6M</button>
-          <button class="tpl-toggle-btn" data-range="1Y">1Y</button>
-          <button class="tpl-toggle-btn active" data-range="ALL">ALL</button>
-        </div>
-        <div class="tpl-toggle-group" id="tplCurrencyToggle">
-          <button class="tpl-toggle-btn active" data-currency="WAX">WAX</button>
-          <button class="tpl-toggle-btn" data-currency="USD">USD</button>
-        </div>
-      </div>
-      <div class="tpl-chart-canvas-wrap" id="tplChartCanvasWrap">
-        <canvas id="tplChartCanvas"></canvas>
-      </div>
-    </div>
+    <div id="tplPriceHistory"></div>
 
     <div class="tpl-section-title">NFTs Using This Template <span id="tplAssetsCount"></span></div>
     <div class="tpl-toolbar">
@@ -447,15 +407,6 @@ function fmtDate(msStr) {
   return new Date(n).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 function rankClass(rank) { return rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : ''; }
-// Chart y-axis tick label — a fixed "2 decimals" rule (fine for 3+ figure
-// WAX prices) collapsed every tick to "0.01" for a cheap template whose
-// whole price range sits under 1 WAX (confirmed live). Scales precision to
-// the value's own magnitude instead, trimming trailing zeros.
-function fmtChartPrice(v) {
-  if (v >= 10) return Math.round(v).toLocaleString();
-  if (v >= 1) return v.toFixed(2);
-  return parseFloat(v.toFixed(4)).toString();
-}
 
 /* ── Minimal single-select cb-dropdown plumbing — copied from collection.html,
    not shared, matching how that page (and inventory.html before it) already
@@ -536,7 +487,7 @@ async function loadHeader() {
   }
   _collectionName = tpl.collection.collection_name;
 
-  let stats, priceStats, lowestListing;
+  let stats, lowestListing;
   try { stats = await WaxApi.apiFetch(`${aa}/templates/${encodeURIComponent(_collectionName)}/${templateId}/stats`); } catch { stats = null; }
   // Funko-only — resolves null for any other collection. Same
   // funko_market_prices/funko.templates dp_locked_count precedence as
@@ -544,48 +495,9 @@ async function loadHeader() {
   // in exactly one place.
   const funkoSupply = await AssetPopup.fetchDropppLocked(templateId);
   try {
-    const res = await WaxApi.apiFetch(`${mkt}/prices/templates?collection_name=${encodeURIComponent(_collectionName)}&template_id=${templateId}&symbol=WAX`);
-    priceStats = res?.[0] || null;
-  } catch { priceStats = null; }
-  try {
     const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=1&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`);
     lowestListing = rows?.[0] || null;
   } catch { lowestListing = null; }
-  // priceStats.max has no date attached, so its USD tag can't use a
-  // historical rate from that — a separate lookup of the actual highest-
-  // priced completed sale gives us the date the max sale happened on, which
-  // the wax_usd_rates rate lookup below then keys off instead of today's
-  // live rate. Fetches more than 1 and filters to single-asset sales
-  // client-side (same convention as the chart's own sales fetch) — the
-  // top price-sorted result is very often a bundle sale (multiple NFTs sold
-  // together for one combined price), which would wildly overstate this
-  // template's own highest sale (confirmed live: a 7/8-asset bundle showing
-  // 9,999 WAX vs. the true single-item high of 4,600 WAX for template
-  // 298612 — AtomicHub's own page agrees with the single-item figure).
-  let highestSale, lowestSale;
-  try {
-    const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=3&sort=price&order=desc&limit=20`);
-    highestSale = (rows || []).find(s => s.assets?.length === 1) || null;
-  } catch { highestSale = null; }
-  try {
-    const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=3&sort=price&order=asc&limit=20`);
-    lowestSale = (rows || []).find(s => s.assets?.length === 1) || null;
-  } catch { lowestSale = null; }
-  const [highestSaleRate, lowestSaleRate] = await Promise.all([highestSale, lowestSale].map(async sale => {
-    if (!sale) return null;
-    const dateKey = new Date(Number(sale.updated_at_time)).toISOString().slice(0, 10);
-    const rates = await fetchHistoricalWaxUsdRates([dateKey]);
-    return rates[dateKey] ?? null;
-  }));
-  // Sales in the last rolling 24h — count=true asks the API for just the
-  // total instead of paging through matching rows ourselves. Counts bundle
-  // sales too (unlike Highest/Lowest Sale, which filter them out) since
-  // this is meant as an activity/velocity number, not a per-item price.
-  let sales24h = null;
-  try {
-    const res = await WaxApi.apiFetch(`${mkt}/sales?template_id=${templateId}&symbol=WAX&state=3&after=${Date.now() - 86400000}&count=true`);
-    sales24h = Number(res);
-  } catch { sales24h = null; }
   await fetchWaxPrice();
 
   document.title = `${tpl.name || 'Template #' + templateId} — Hoardio`;
@@ -637,7 +549,8 @@ async function loadHeader() {
   document.getElementById('tplName').textContent = tpl.name || `Template #${templateId}`;
   document.getElementById('tplId').textContent = `#${templateId}`;
   document.getElementById('tplCollection').innerHTML = `<a href="${_p}collection/${encodeURIComponent(_collectionName)}">${escHtml(tpl.collection.name || _collectionName)}</a>`;
-  document.getElementById('tplSchema').textContent = tpl.schema?.schema_name || '';
+  document.getElementById('tplSchema').innerHTML = tpl.schema?.schema_name
+    ? `<a href="${_p}schema/${encodeURIComponent(_collectionName)}/${encodeURIComponent(tpl.schema.schema_name)}">${escHtml(tpl.schema.schema_name)}</a>` : '';
   const burned = stats ? Number(stats.burned) : 0;
   tplIssuedSupply = Number(tpl.issued_supply);
   const dpLocked = funkoSupply?.dpLocked ?? 0;
@@ -671,30 +584,10 @@ async function loadHeader() {
     `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
   ).join('') || '<tr><td>No attributes</td></tr>';
 
-  // Prefer the actual highest-priced sale record over priceStats.max for
-  // both the WAX figure and its USD tag, so they're guaranteed to agree
-  // with each other and with the historical rate looked up for that sale's
-  // own date — falls back to priceStats.max (no USD tag, no date to key a
-  // historical rate off) only if that direct lookup failed.
-  const highestWax = highestSale ? fmtWax(highestSale.price.amount, highestSale.price.token_precision)
-    : (priceStats ? fmtWax(priceStats.max) : '—');
-  const highestUsd = highestSale && highestSaleRate
-    ? `<div class="tpl-listing-usd">≈ $${(Number(highestSale.price.amount) / (10 ** highestSale.price.token_precision) * highestSaleRate).toFixed(2)}</div>` : '';
-  const lowestWax = lowestSale ? fmtWax(lowestSale.price.amount, lowestSale.price.token_precision)
-    : (priceStats ? fmtWax(priceStats.min) : '—');
-  const lowestUsd = lowestSale && lowestSaleRate
-    ? `<div class="tpl-listing-usd">≈ $${(Number(lowestSale.price.amount) / (10 ** lowestSale.price.token_precision) * lowestSaleRate).toFixed(2)}</div>` : '';
-  document.getElementById('tplStatsGrid').innerHTML = `
-    <div class="stat-card"><div class="stat-value">${highestWax}</div>${highestUsd}<div class="stat-label">Highest Sale</div></div>
-    <div class="stat-card"><div class="stat-value">${lowestWax}</div>${lowestUsd}<div class="stat-label">Lowest Sale</div></div>
-    <div class="stat-card"><div class="stat-value">${priceStats ? fmtCompactInt(priceStats.sales) : '0'}</div><div class="stat-label">Total Sales</div></div>
-    <div class="stat-card"><div class="stat-value">${sales24h != null ? fmtCompactInt(sales24h) : '—'}</div><div class="stat-label">24h Sales</div></div>
-  `;
-
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('tplWrap').style.display = '';
 
-  loadChart();
+  TemplatePriceChart.mount({ containerId: 'tplPriceHistory', templateId, collectionName: _collectionName });
   loadAssets(true);
   loadHolders(true);
   loadTemplateBuyOffers();
@@ -728,208 +621,6 @@ async function loadTemplateBuyOffers() {
       </tr>`;
     }).join('')}</tbody>
   </table>`;
-}
-
-// Same table + Accept-Profile:funko header pattern as collection.html's own
-// copy of this helper — the funko-schema table itself holds a generic daily
-// WAX/USD rate, not Funko-specific data, so it's fine to read from any page.
-async function fetchHistoricalWaxUsdRates(dates) {
-  const unique = [...new Set(dates)].filter(Boolean);
-  if (!unique.length) return {};
-  try {
-    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Accept-Profile': 'funko' };
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/wax_usd_rates?rate_date=in.(${unique.join(',')})&select=rate_date,usd_per_wax`, { headers });
-    const rows = await r.json();
-    return Object.fromEntries((rows || []).map(row => [row.rate_date, row.usd_per_wax]));
-  } catch { return {}; }
-}
-
-/* ── Price History chart — Chart.js, dual-axis (price line + volume bars)
-   with range and WAX/USD toggles. Visual language (tick color/size, grid,
-   tooltip styling) matches funko/sales-history.html's chart; the range
-   buttons / currency toggle / second axis follow AtomicHub's own
-   per-template price chart. Data comes from AtomicMarket's own
-   /prices/sales/days endpoint — pre-aggregated one row per active trading
-   day, already summed/averaged server-side — rather than paginating
-   through raw /sales rows ourselves. Confirmed live against a
-   4,011,766-sale template (farmersworld #260676) that it returns the
-   complete history (daily sale counts summed exactly matched the reported
-   all-time total) back to 2021 in a single request, so there's no
-   pagination cap or "load more" step needed here at all. ── */
-const TPL_RANGE_DAYS = { '1M': 30, '3M': 90, '6M': 182, '1Y': 365, 'ALL': Infinity };
-let tplChart      = null;
-let tplDailyData  = [];   // { time: ms, volumeWax, sales }, chronological, one row per active trading day
-let tplRateByDate = {};   // 'YYYY-MM-DD' -> usd_per_wax
-let tplRange      = 'ALL';
-let tplCurrency   = 'WAX';
-
-async function loadChart() {
-  const wrap = document.getElementById('tplChartCanvasWrap');
-  const mkt  = WaxApi.marketBase();
-
-  let rows;
-  try {
-    rows = await WaxApi.apiFetch(`${mkt}/prices/sales/days?template_id=${templateId}&collection_name=${encodeURIComponent(_collectionName)}&symbol=WAX`);
-  } catch { rows = null; }
-
-  tplDailyData = (rows || [])
-    .map(r => ({ time: Number(r.time), volumeWax: Number(r.volume) / 1e8, sales: Number(r.sales) }))
-    .filter(d => isFinite(d.time) && isFinite(d.volumeWax) && d.sales > 0)
-    .sort((a, b) => a.time - b.time);
-
-  if (!tplDailyData.length) {
-    document.querySelector('.tpl-chart-controls').style.display = 'none';
-    wrap.innerHTML = '<div class="collection-placeholder">No sales yet.</div>';
-    return;
-  }
-
-  const dateKeys = tplDailyData.map(d => new Date(d.time).toISOString().slice(0, 10));
-  tplRateByDate = await fetchHistoricalWaxUsdRates(dateKeys);
-
-  document.querySelectorAll('#tplRangeToggle .tpl-toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      tplRange = btn.dataset.range;
-      document.querySelectorAll('#tplRangeToggle .tpl-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderChart();
-    });
-  });
-  document.querySelectorAll('#tplCurrencyToggle .tpl-toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      tplCurrency = btn.dataset.currency;
-      document.querySelectorAll('#tplCurrencyToggle .tpl-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderChart();
-    });
-  });
-
-  renderChart();
-}
-
-// Groups a timestamp into its day/week(Monday)/month bucket key — the
-// granularity itself is picked in renderChart() from the selected range's
-// actual data span, same adaptive idea as funko/sales-history.html's
-// day/week/month granularity toggle, just driven automatically here instead
-// of by a manual control.
-function tplBucketKey(ms, unit) {
-  const d = new Date(ms);
-  if (unit === 'day') return d.toISOString().slice(0, 10);
-  if (unit === 'week') {
-    const dow = (d.getUTCDay() + 6) % 7; // Monday = 0
-    const monday = new Date(d);
-    monday.setUTCDate(d.getUTCDate() - dow);
-    return monday.toISOString().slice(0, 10);
-  }
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-function tplBucketLabel(key, unit) {
-  if (unit === 'month') {
-    const [y, m] = key.split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-  }
-  return new Date(key + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function renderChart() {
-  const wrap = document.getElementById('tplChartCanvasWrap');
-  const days = TPL_RANGE_DAYS[tplRange];
-  const cutoff = isFinite(days) ? Date.now() - days * 86400000 : 0;
-  const points = tplDailyData.filter(d => d.time >= cutoff);
-
-  if (!points.length) {
-    wrap.innerHTML = '<div class="collection-placeholder">No sales in this range.</div>';
-    return;
-  }
-  if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="tplChartCanvas"></canvas>';
-
-  const spanDays = (points[points.length - 1].time - points[0].time) / 86400000;
-  const unit = spanDays <= 45 ? 'day' : spanDays <= 200 ? 'week' : 'month';
-
-  // WAX->USD uses that day's own historical rate — days with no rate yet
-  // (very recent, not backfilled) are dropped from the USD view rather than
-  // shown with a wrong/zero value.
-  const toVolumeDisplay = d => {
-    if (tplCurrency !== 'USD') return d.volumeWax;
-    const rate = tplRateByDate[new Date(d.time).toISOString().slice(0, 10)];
-    return rate ? d.volumeWax * rate : null;
-  };
-
-  // Bucket price = bucket volume / bucket sale count — exact (not
-  // approximate) since "volume" is already the true sum of that day's sale
-  // prices, so this is precisely what averaging every individual sale in
-  // the bucket would give, without needing the individual sales at all.
-  const buckets = new Map(); // key -> { volume, sales }
-  points.forEach(d => {
-    const volume = toVolumeDisplay(d);
-    if (volume == null) return;
-    const key = tplBucketKey(d.time, unit);
-    let b = buckets.get(key);
-    if (!b) { b = { volume: 0, sales: 0 }; buckets.set(key, b); }
-    b.volume += volume;
-    b.sales  += d.sales;
-  });
-
-  const keys       = [...buckets.keys()].sort();
-  const labels     = keys.map(k => tplBucketLabel(k, unit));
-  const priceData  = keys.map(k => { const b = buckets.get(k); return b.sales ? b.volume / b.sales : 0; });
-  const volumeData = keys.map(k => buckets.get(k).volume);
-
-  const fmtAmount = v => tplCurrency === 'USD' ? '$' + fmtChartPrice(v) : fmtChartPrice(v) + ' WAX';
-
-  if (tplChart) { tplChart.destroy(); tplChart = null; }
-  const ctx = document.getElementById('tplChartCanvas').getContext('2d');
-  tplChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          type: 'bar', label: 'Volume', data: volumeData,
-          backgroundColor: 'rgba(59,130,246,0.35)', borderRadius: 3,
-          yAxisID: 'y1', order: 2,
-        },
-        {
-          type: 'line', label: 'Price', data: priceData,
-          borderColor: '#f0a840', backgroundColor: 'rgba(240,168,64,0.12)',
-          borderWidth: 2, fill: true, tension: 0.3,
-          pointRadius: keys.length > 40 ? 0 : 3, pointHoverRadius: 6,
-          pointBackgroundColor: '#f0a840',
-          yAxisID: 'y', order: 1,
-        },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a1a2a', borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1, titleColor: '#fff', padding: 10,
-          callbacks: {
-            label: ctx => (ctx.dataset.label === 'Price' ? 'Avg price: ' : 'Volume: ') + fmtAmount(ctx.parsed.y),
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid:  { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 }, maxTicksLimit: 12 },
-        },
-        y: {
-          position: 'left',
-          grid:  { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#f0a840', font: { size: 11 }, callback: fmtAmount },
-        },
-        y1: {
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          ticks: { color: '#3b82f6', font: { size: 11 }, callback: fmtAmount },
-          beginAtZero: true,
-        },
-      },
-    },
-  });
 }
 
 /* ── NFTs using this Template ── */
@@ -1046,10 +737,18 @@ function assetCardHtml(a) {
   } else {
     mediaHtml = `<div class="tpl-card-img-ph">?</div>`;
   }
+  // Only the image + mint number link to the asset page (not the whole
+  // card) — the owner name has its own separate link to that wallet's
+  // inventory, and nesting an <a> inside another <a> is invalid HTML /
+  // breaks clicking either one reliably. Same scoping idea as the
+  // hover-tooltip elsewhere: the parts someone's about to click for one
+  // purpose shouldn't also be the target for a different click.
   return `<div class="tpl-card">
-    <div class="tpl-card-img-wrap">${mediaHtml}</div>
-    <div class="tpl-card-body">
-      <div class="tpl-card-mint">Mint #${a.template_mint}</div>
+    <a href="${_p}asset/${a.asset_id}">
+      <div class="tpl-card-img-wrap">${mediaHtml}</div>
+      <div class="tpl-card-mint" style="padding:0.3rem 0.7rem 0;">Mint #${a.template_mint}</div>
+    </a>
+    <div class="tpl-card-body" style="padding-top:0.1rem;">
       ${a.owner
         ? `<div class="tpl-card-owner" title="${escHtml(a.owner)}">${walletLinkHtml(a.owner)}</div>`
         : (() => {

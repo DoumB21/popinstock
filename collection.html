@@ -927,13 +927,13 @@ async function loadSchemas() {
     if (!rows.length) { grid.innerHTML = `<div class="collection-placeholder">No schemas found.</div>`; return; }
     grid.innerHTML = rows.map(s => {
       const burned = burnedBySchema.get(s.schema_name) || 0;
-      return `<div class="coll-card">
+      return `<a class="coll-card-link" href="${_p}schema/${encodeURIComponent(collectionName)}/${encodeURIComponent(s.schema_name)}"><div class="coll-card">
           <div class="coll-card-body">
             <div class="coll-card-name">${escHtml(s.schema_name)}</div>
             <div class="coll-card-sub">${Number(s.assets || 0).toLocaleString()} assets</div>
             <div class="coll-card-sub coll-card-sub--burned">${burned ? burned.toLocaleString() + ' burned' : ''}</div>
           </div>
-        </div>`;
+        </div></a>`;
     }).join('');
   } catch { grid.innerHTML = `<div class="collection-placeholder">Could not load schemas.</div>`; }
 }

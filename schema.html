@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- See the identical, more detailed comment in collection.html. This page
+       sits TWO directory levels deep when reached via its clean path
+       (/schema/:collection/:name), unlike collection.html/template.html's one. -->
+  <script>
+    var _p = /\/schema\/[^/]+\/[^/]+\/?$/.test(location.pathname) ? '../' : '';
+    document.write(
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.ico" sizes="any" />' +
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.png" type="image/png" />' +
+      '<link rel="stylesheet" href="' + _p + 'shared/global.css" />' +
+      '<script src="' + _p + 'shared/supabase-config.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-auth.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>'
+    );
+  </script>
+  <title>Schema — Hoardio</title>
+  <meta name="description" content="General information for any WAX NFT schema — attributes, templates, NFTs, and holders." />
+  <link rel="canonical" href="https://www.hoardio.com/schema" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/schema" />
+  <meta property="og:title" content="Schema — Hoardio" />
+  <meta property="og:description" content="General information for any WAX NFT schema — attributes, templates, NFTs, and holders." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Schema — Hoardio" />
+  <meta name="twitter:description" content="General information for any WAX NFT schema — attributes, templates, NFTs, and holders." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <style>
+    .sch-placeholder {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem 1.5rem;
+      text-align: center; color: var(--text-secondary);
+    }
+    .sch-placeholder strong { color: var(--text-primary); }
+
+    /* ── Header (same shape as collection.html's, no banner) ── */
+    .sch-header { display: flex; gap: 1.25rem; align-items: flex-start; margin-bottom: 1.25rem; }
+    .sch-logo {
+      width: 64px; height: 64px; border-radius: 12px; object-fit: cover;
+      background: var(--bg-card); border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .sch-header-info { min-width: 0; flex: 1; }
+    .sch-sub { color: var(--text-secondary); font-size: 0.92rem; margin: 0.15rem 0 0.6rem; }
+    .sch-sub a { color: var(--accent-light); text-decoration: none; }
+    .sch-sub a:hover { text-decoration: underline; }
+    .sch-links { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.88rem; }
+    .sch-links a { color: var(--accent-light); text-decoration: none; }
+    .sch-links a:hover { text-decoration: underline; }
+
+    #schStatsGrid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+
+    /* ── Section titles / tabs (same convention as collection.html) ── */
+    .sch-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
+    .sch-section-title:first-child { margin-top: 0; }
+    .sch-tabs { display: flex; gap: 0.5rem; margin: 1.25rem 0; flex-wrap: wrap; }
+    .sch-tab-btn {
+      flex: 1; min-width: 110px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.6rem 0.9rem; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary); font-size: 0.92rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .sch-tab-btn:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .sch-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+    .sch-tab-count { opacity: 0.7; font-weight: 400; }
+
+    /* ── Attributes table ── */
+    .sch-attr-type { color: var(--text-secondary); font-size: 0.85rem; }
+
+    /* ── Leaderboard-style tables (same convention as collection.html) ── */
+    .rank-cell { font-weight: 700; color: var(--text-secondary); font-size: 0.88rem; white-space: nowrap; }
+    .rank-1 { color: #ffd700; } .rank-2 { color: #c0c0c0; } .rank-3 { color: #cd7f32; }
+    .wallet-cell { font-size: 0.92rem; color: var(--accent-light) !important; }
+    .wallet-link { color: inherit; text-decoration: none; }
+    .wallet-link:hover { text-decoration: underline; }
+    tr.wallet-row-you { background: rgba(74,222,128,0.06); }
+    .you-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: #4ade80; border: 1px solid rgba(74,222,128,0.3);
+      background: rgba(74,222,128,0.08); border-radius: 4px; padding: 1px 4px;
+      margin-left: 5px; vertical-align: middle;
+    }
+
+    /* ── Grid (NFTs / Templates) — same convention as collection.html's .coll-grid ── */
+    .sch-toolbar { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+    .sch-toolbar .search-input { flex: 1; min-width: 200px; }
+    .sch-burned-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; }
+    .sch-filter-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .sch-filter-row .cb-dropdown { max-width: 180px; }
+    .sch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+    .sch-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .sch-card-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .sch-card-img-wrap img, .sch-card-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .sch-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
+    .sch-card-body { padding: 0.55rem 0.7rem; }
+    .sch-card-mint { font-size: 0.72rem; color: var(--text-secondary); }
+    .sch-card-owner { font-size: 0.85rem; color: var(--accent-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sch-card-burned { font-size: 0.72rem; color: #f87171; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sch-card-name { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sch-card-sub { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.1rem; }
+    a.sch-card-link { text-decoration: none; color: inherit; display: block; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-home" id="navHomeLink" title="Back to homepage">
+      <img src="" alt="Hoardio" id="navHomeImg" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script>
+  document.getElementById('navHomeLink').href = _p + 'index';
+  document.getElementById('navHomeImg').src = _p + 'images/Hoardio_fav.png';
+  document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
+</script>
+<script>
+  if (_p) {
+    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
+      a.setAttribute('href', _p + a.getAttribute('href'));
+    });
+  }
+</script>
+<script>
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: _p + 'shared/wax-auth.js',
+    apiScript: _p + 'shared/wax-api.js',
+    exploreHref: _p + 'explore',
+    offersHref: _p + 'trade-offers',
+    profileHref: _p + 'profile',
+    menuItems: walletMenuItems(_p),
+  });
+</script>
+
+<main class="page-main">
+
+  <div id="loadingMsg" class="sch-placeholder">Loading…</div>
+  <div id="noParamMsg" class="sch-placeholder" style="display:none;">
+    No schema specified. Add <strong>?collection_name=&lt;name&gt;&amp;schema_name=&lt;name&gt;</strong> to the URL.
+  </div>
+  <div id="notFoundMsg" class="sch-placeholder" style="display:none;"></div>
+
+  <div id="schWrap" style="display:none;">
+    <div class="sch-header">
+      <img id="schLogo" class="sch-logo" alt="" />
+      <div class="sch-header-info">
+        <h1 class="page-title" id="schTitle">Schema</h1>
+        <div class="sch-sub" id="schSub"></div>
+        <div class="sch-links" id="schLinks"></div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="schStatsGrid"></div>
+
+    <div class="sch-section-title">Attributes</div>
+    <div class="table-wrap"><table><thead><tr><th>Attribute</th><th>Type</th></tr></thead><tbody id="schAttrsBody"></tbody></table></div>
+
+    <div class="sch-tabs" id="schTabs">
+      <button type="button" class="sch-tab-btn active" data-tab="nfts">NFTs<span class="sch-tab-count" id="nftsTabCount"></span></button>
+      <button type="button" class="sch-tab-btn" data-tab="templates">Templates<span class="sch-tab-count" id="templatesTabCount"></span></button>
+      <button type="button" class="sch-tab-btn" data-tab="holders">Holders<span class="sch-tab-count" id="holdersTabCount"></span></button>
+    </div>
+
+    <div id="tabNfts" class="sch-tab-panel">
+      <div class="sch-toolbar">
+        <input class="search-input" id="nftSearch" type="text" placeholder="Search by exact wallet name…" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <label class="sch-burned-toggle"><input type="checkbox" id="nftShowBurned" /> Show burned</label>
+      </div>
+      <div class="sch-filter-row" id="nftFilterRow" style="display:none;"></div>
+      <div class="sch-grid" id="nftsGrid"></div>
+      <div id="nftsLoadMoreWrap" style="display:none; text-align:center; padding:1.5rem 0 0.5rem;">
+        <button id="nftsLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
+    </div>
+
+    <div id="tabTemplates" class="sch-tab-panel" style="display:none;">
+      <div class="sch-toolbar">
+        <input class="search-input" id="templateSearch" type="text" placeholder="Search loaded templates…" autocomplete="off" spellcheck="false" />
+        <label class="sch-burned-toggle"><input type="checkbox" id="templateShowEmpty" /> Show templates with no assets</label>
+      </div>
+      <div class="sch-grid" id="templatesGrid"></div>
+      <div id="templatesLoadMoreWrap" style="display:none; text-align:center; padding:1.5rem 0 0.5rem;">
+        <button id="templatesLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
+    </div>
+
+    <div id="tabHolders" class="sch-tab-panel" style="display:none;">
+      <input class="search-input" id="holdersSearch" type="text" placeholder="Search loaded holders…" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box; margin-bottom:1rem;" />
+      <div class="table-wrap" id="holdersWrap"></div>
+      <div id="holdersLoadMoreWrap" style="display:none; text-align:center; padding:1.5rem 0 0.5rem;">
+        <button id="holdersLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+}
+function isYouWallet(account) {
+  const me = window.getWaxAccount ? window.getWaxAccount() : null;
+  return !!me && !!account && me.toLowerCase() === String(account).toLowerCase();
+}
+function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+function onImgError(el) {
+  const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+  const hash = el.dataset.ipfsHash;
+  if (hash && idx < IPFS_GATEWAY_LIST.length) {
+    el.dataset.gwIdx = String(idx);
+    setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1000);
+    return;
+  }
+  el.outerHTML = '<div class="sch-card-img-ph">?</div>';
+}
+function fmtCompactInt(raw) {
+  const n = Number(raw);
+  if (!isFinite(n)) return '—';
+  if (n >= 1e6) return (n / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
+  return n.toLocaleString();
+}
+function rankClass(rank) { return rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : ''; }
+
+// Video-first media resolution — same field-priority as template.html's own
+// hero/asset cards (img-only would leave a video-only template blank).
+function templateMediaHtml(t) {
+  const img     = t.immutable_data?.img;
+  const video   = t.immutable_data?.video;
+  const backimg = t.immutable_data?.backimg;
+  if (video) return `<video data-src="${escHtml(toMediaUrl(video))}" muted playsinline loop preload="none"></video>`;
+  const pick = img || backimg;
+  if (pick) return `<img src="${escHtml(toMediaUrl(pick))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(pick)}" data-gw-idx="0" onerror="onImgError(this)">`;
+  return `<div class="sch-card-img-ph">?</div>`;
+}
+function assetMediaHtml(a) {
+  const data = a.data || a.template?.immutable_data || {};
+  if (data.video) return `<video data-src="${escHtml(toMediaUrl(data.video))}" muted playsinline loop preload="none"></video>`;
+  const pick = data.img || data.backimg;
+  if (pick) return `<img src="${escHtml(toMediaUrl(pick))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(pick)}" data-gw-idx="0" onerror="onImgError(this)">`;
+  return `<div class="sch-card-img-ph">?</div>`;
+}
+
+// Lazily loads/plays grid videos only while scrolled into view — same
+// disconnect-and-rebuild pattern as collection.html/template.html.
+let _videoObserver = null;
+function initLazyVideos(gridId) {
+  if (_videoObserver) _videoObserver.disconnect();
+  _videoObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const v = entry.target;
+      if (entry.isIntersecting) {
+        if (v.dataset.src && !v.src) { v.src = v.dataset.src; v.load(); }
+        if (!window.getReduceMotion?.()) v.play().catch(() => {});
+      } else {
+        v.pause();
+        if (v.src) { v.removeAttribute('src'); v.load(); }
+      }
+    }
+  }, { rootMargin: '300px' });
+  document.querySelectorAll(`#${gridId} video[data-src]`).forEach(v => _videoObserver.observe(v));
+}
+
+/* ── Minimal single-select / multi-select cb-dropdown plumbing — copied
+   from inventory.html/collection.html, not shared, matching how those pages
+   already do this per-page. ── */
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => { closeAllCbDropdowns(); onSelect(item.dataset.val); });
+  });
+  const btn = container.querySelector('.cb-dropdown-btn');
+  if (!btn._wired) {
+    btn._wired = true;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = panel.classList.contains('open');
+      closeAllCbDropdowns();
+      if (!isOpen) { panel.classList.add('open'); btn.classList.add('open'); }
+    });
+  }
+}
+function refreshCbLabel(container, selectedSet, allLabel) {
+  const labelEl = container.querySelector('.cb-label');
+  labelEl.textContent = selectedSet.size === 0 ? allLabel
+    : selectedSet.size === 1 ? [...selectedSet][0]
+    : `${selectedSet.size} selected`;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', selectedSet.size > 0);
+}
+function populateMultiCbDropdown(containerId, items, selectedSet, allLabel, onChange) {
+  const container = document.getElementById(containerId);
+  const panel = container.querySelector('.cb-panel');
+  panel.innerHTML = items.map(v =>
+    `<label class="cb-item"><input type="checkbox" value="${escHtml(v)}"${selectedSet.has(v) ? ' checked' : ''}><span>${escHtml(v)}</span></label>`
+  ).join('');
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedSet.add(cb.value); else selectedSet.delete(cb.value);
+      refreshCbLabel(container, selectedSet, allLabel);
+      onChange();
+    });
+  });
+  refreshCbLabel(container, selectedSet, allLabel);
+  const btn = container.querySelector('.cb-dropdown-btn');
+  if (!btn._wired) {
+    btn._wired = true;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = panel.classList.contains('open');
+      closeAllCbDropdowns();
+      if (!isOpen) { panel.classList.add('open'); btn.classList.add('open'); }
+    });
+  }
+}
+document.addEventListener('click', closeAllCbDropdowns);
+
+/* ── Page state — same param-with-path-fallback pattern as collection.html/
+   template.html, extended to two segments. ── */
+function getCollectionNameFromUrl() {
+  const qp = new URLSearchParams(location.search).get('collection_name');
+  if (qp) return qp;
+  const m = location.pathname.match(/\/schema\/([^/]+)\/[^/]+\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function getSchemaNameFromUrl() {
+  const qp = new URLSearchParams(location.search).get('schema_name');
+  if (qp) return qp;
+  const m = location.pathname.match(/\/schema\/[^/]+\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const collectionName = getCollectionNameFromUrl();
+const schemaName     = getSchemaNameFromUrl();
+
+/* ── Tabs ── */
+const _loadedTabs = { nfts: false, templates: false, holders: false };
+function setActiveTab(tab) {
+  document.querySelectorAll('.sch-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.sch-tab-panel').forEach(p => p.style.display = (p.id === 'tab' + tab[0].toUpperCase() + tab.slice(1)) ? '' : 'none');
+  if (!_loadedTabs[tab]) {
+    _loadedTabs[tab] = true;
+    if (tab === 'nfts') loadNfts(true);
+    if (tab === 'templates') loadTemplates(true);
+    if (tab === 'holders') loadHolders(true);
+  }
+}
+document.querySelectorAll('.sch-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+});
+
+/* ── Header + attributes + stats ── */
+let _schemaFormat = [];
+let _allTemplates = []; // every template in this schema — powers both the Templates tab and the NFTs tab's attribute filters
+async function loadHeader() {
+  const aa = WaxApi.aaBase();
+
+  let info, stats, collInfo;
+  try {
+    [info, stats] = await Promise.all([
+      WaxApi.apiFetch(`${aa}/schemas/${encodeURIComponent(collectionName)}/${encodeURIComponent(schemaName)}`),
+      WaxApi.apiFetch(`${aa}/schemas/${encodeURIComponent(collectionName)}/${encodeURIComponent(schemaName)}/stats`),
+    ]);
+  } catch {
+    document.getElementById('loadingMsg').style.display = 'none';
+    const el = document.getElementById('notFoundMsg');
+    el.style.display = '';
+    el.innerHTML = `Could not find schema <strong>${escHtml(schemaName)}</strong> in collection <strong>${escHtml(collectionName)}</strong>.`;
+    return;
+  }
+  try { collInfo = await WaxApi.apiFetch(`${aa}/collections/${encodeURIComponent(collectionName)}`); } catch { collInfo = null; }
+
+  _schemaFormat = info.format || [];
+
+  document.title = `${schemaName} — ${collInfo?.name || collectionName} — Hoardio`;
+  document.getElementById('schLogo').src = collInfo?.img ? toMediaUrl(collInfo.img) : 'images/Hoardio_fav.png';
+  document.getElementById('schTitle').textContent = schemaName;
+  document.getElementById('schSub').innerHTML =
+    `Category in <a href="${_p}collection/${encodeURIComponent(collectionName)}">${escHtml(collInfo?.name || collectionName)}</a>`;
+  document.getElementById('schLinks').innerHTML =
+    `<a href="${_p}explore?col=${encodeURIComponent(collectionName)}&schema=${encodeURIComponent(schemaName)}">View on Market</a>`;
+
+  document.getElementById('schStatsGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${fmtCompactInt(stats.assets)}</div><div class="stat-label">Assets</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtCompactInt(stats.burned)}</div><div class="stat-label">Burned</div></div>
+    <div class="stat-card"><div class="stat-value">${Number(stats.templates).toLocaleString()}</div><div class="stat-label">Templates</div></div>
+  `;
+  document.getElementById('nftsTabCount').textContent = ` (${fmtCompactInt(stats.assets)})`;
+  document.getElementById('templatesTabCount').textContent = ` (${Number(stats.templates).toLocaleString()})`;
+  WaxApi.apiFetch(`${aa}/accounts?collection_name=${encodeURIComponent(collectionName)}&schema_name=${encodeURIComponent(schemaName)}&count=true`)
+    .then(n => { document.getElementById('holdersTabCount').textContent = ` (${Number(n).toLocaleString()})`; })
+    .catch(() => {});
+
+  document.getElementById('schAttrsBody').innerHTML = _schemaFormat.map(f =>
+    `<tr><td class="wallet-cell">${escHtml(f.name)}</td><td class="sch-attr-type">${escHtml(f.type)}</td></tr>`
+  ).join('') || '<tr><td colspan="2">No attributes declared</td></tr>';
+
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('schWrap').style.display = '';
+  setActiveTab('nfts');
+}
+
+/* ── Shared: fetch every template in this schema once (paginated) — powers
+   the Templates tab AND the NFTs tab's dynamic attribute filters. ── */
+let _templatesFetchPromise = null;
+async function ensureAllTemplates() {
+  if (_templatesFetchPromise) return _templatesFetchPromise;
+  _templatesFetchPromise = (async () => {
+    const aa = WaxApi.aaBase();
+    const all = [];
+    let page = 1;
+    while (true) {
+      let rows;
+      try { rows = await WaxApi.apiFetch(`${aa}/templates?collection_name=${encodeURIComponent(collectionName)}&schema_name=${encodeURIComponent(schemaName)}&limit=1000&page=${page}`); }
+      catch { break; }
+      if (!rows || !rows.length) break;
+      all.push(...rows);
+      if (rows.length < 1000) break;
+      page++;
+    }
+    _allTemplates = all;
+    return all;
+  })();
+  return _templatesFetchPromise;
+}
+
+/* ── NFTs tab ── */
+// Same low-cardinality qualification idea as inventory.html's smart filter
+// generator, scoped to just this one schema's own template pool (no
+// cross-schema pooling needed — this page is already scoped to one).
+const DYN_EXCLUDE_NAMES = new Set(['name']);
+const DYN_EXCLUDE_TYPES = new Set(['image', 'ipfs']);
+const DYN_MAX_DISTINCT  = 40;
+const DYN_MAX_RATIO     = 0.5;
+const DYN_MAX_VALUE_LEN = 50;
+let _dynFields = []; // [{ name, values: [...] }]
+const _selectedDynFilters = {}; // field name -> Set of selected values
+
+function computeDynFields(templates) {
+  const candidates = _schemaFormat.filter(f => !DYN_EXCLUDE_NAMES.has(f.name.toLowerCase()) && !DYN_EXCLUDE_TYPES.has(f.type));
+  const fields = [];
+  for (const f of candidates) {
+    const raw = templates.map(t => t.immutable_data?.[f.name]).filter(v => v !== undefined && v !== null && v !== '').map(String);
+    if (!raw.length) continue;
+    if (raw.some(v => v.length > DYN_MAX_VALUE_LEN || /^https?:\/\//i.test(v))) continue; // junk-shaped — not a real facet
+    const distinct = [...new Set(raw)].sort();
+    if (distinct.length < 2 || distinct.length > DYN_MAX_DISTINCT || distinct.length / templates.length > DYN_MAX_RATIO) continue;
+    fields.push({ name: f.name, values: distinct });
+  }
+  return fields;
+}
+
+function renderDynFilterRow() {
+  const row = document.getElementById('nftFilterRow');
+  if (!_dynFields.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  row.innerHTML = _dynFields.map(f => `
+    <div class="cb-dropdown" id="dyn-${escHtml(f.name)}">
+      <button class="cb-dropdown-btn" type="button"><span class="cb-label">${escHtml(f.name)}</span><span class="cb-arrow">▾</span></button>
+      <div class="cb-panel"></div>
+    </div>
+  `).join('');
+  for (const f of _dynFields) {
+    if (!_selectedDynFilters[f.name]) _selectedDynFilters[f.name] = new Set();
+    populateMultiCbDropdown(`dyn-${f.name}`, f.values, _selectedDynFilters[f.name], f.name, () => loadNfts(true));
+  }
+}
+
+// Selected attribute filters narrow the NFTs query via template_whitelist —
+// same technique inventory.html's computeTemplateWhitelist() already uses.
+function computeTemplateWhitelist() {
+  const active = Object.entries(_selectedDynFilters).filter(([, set]) => set.size > 0);
+  if (!active.length) return null;
+  const ids = _allTemplates
+    .filter(t => active.every(([field, set]) => set.has(String(t.immutable_data?.[field] ?? ''))))
+    .map(t => t.template_id);
+  return ids.length ? ids.join(',') : 'EMPTY';
+}
+
+let _nftsPage = 1, _nftsDone = false, _nftsBusy = false;
+async function loadNfts(reset) {
+  if (_nftsBusy) return;
+  if (reset) { _nftsPage = 1; _nftsDone = false; document.getElementById('nftsGrid').innerHTML = ''; }
+  if (_nftsDone) return;
+  _nftsBusy = true;
+
+  await ensureAllTemplates();
+  if (!_dynFields.length && _allTemplates.length) {
+    _dynFields = computeDynFields(_allTemplates);
+    renderDynFilterRow();
+  }
+
+  const whitelist = computeTemplateWhitelist();
+  if (whitelist === 'EMPTY') {
+    document.getElementById('nftsGrid').innerHTML = '<div class="sch-placeholder">No NFTs match the current filters.</div>';
+    document.getElementById('nftsLoadMoreWrap').style.display = 'none';
+    _nftsBusy = false;
+    return;
+  }
+
+  const aa = WaxApi.aaBase();
+  const q = document.getElementById('nftSearch').value.trim();
+  const showBurned = document.getElementById('nftShowBurned').checked;
+  let url = `${aa}/assets?collection_name=${encodeURIComponent(collectionName)}&schema_name=${encodeURIComponent(schemaName)}&page=${_nftsPage}&limit=60&sort=created&order=desc`;
+  if (whitelist) url += `&template_whitelist=${whitelist}`;
+  if (q) url += `&owner=${encodeURIComponent(q)}`;
+  else if (!showBurned) url += `&burned=false`;
+
+  let rows;
+  try { rows = await WaxApi.apiFetch(url); }
+  catch {
+    _nftsBusy = false;
+    if (reset) document.getElementById('nftsGrid').innerHTML = '<div class="sch-placeholder">Could not load NFTs.</div>';
+    return;
+  }
+  rows = rows || [];
+  if (rows.length < 60) _nftsDone = true;
+  _nftsPage++;
+  _nftsBusy = false;
+
+  const grid = document.getElementById('nftsGrid');
+  if (reset && !rows.length) { grid.innerHTML = '<div class="sch-placeholder">No NFTs found.</div>'; }
+  else grid.insertAdjacentHTML('beforeend', rows.map(nftCardHtml).join(''));
+  document.getElementById('nftsLoadMoreWrap').style.display = _nftsDone ? 'none' : '';
+  initLazyVideos('nftsGrid');
+}
+function nftCardHtml(a) {
+  const media = assetMediaHtml(a);
+  const name = a.data?.name || a.name || `#${a.template_mint}`;
+  return `<a class="sch-card-link" href="${_p}asset/${a.asset_id}"><div class="sch-card">
+    <div class="sch-card-img-wrap">${media}</div>
+    <div class="sch-card-body">
+      <div class="sch-card-mint">Mint #${a.template_mint}</div>
+      ${a.owner
+        ? `<div class="sch-card-owner" title="${escHtml(a.owner)}">${escHtml(a.owner)}</div>`
+        : `<div class="sch-card-burned">Burned${a.burned_by_account ? ' by ' + escHtml(a.burned_by_account) : ''}</div>`}
+    </div>
+  </div></a>`;
+}
+let _nftSearchT = null;
+document.getElementById('nftSearch').addEventListener('input', function () {
+  const { selectionStart, selectionEnd } = this;
+  this.value = this.value.toLowerCase();
+  this.setSelectionRange(selectionStart, selectionEnd);
+  clearTimeout(_nftSearchT);
+  _nftSearchT = setTimeout(() => loadNfts(true), 400);
+});
+document.getElementById('nftShowBurned').addEventListener('change', () => loadNfts(true));
+document.getElementById('nftsLoadMoreBtn').addEventListener('click', () => loadNfts(false));
+
+/* ── Templates tab ── */
+let _templatesDisplayCount = 70;
+function renderTemplatesGrid() {
+  const q = document.getElementById('templateSearch').value.trim().toLowerCase();
+  const showEmpty = document.getElementById('templateShowEmpty').checked;
+  let items = _allTemplates;
+  if (!showEmpty) items = items.filter(t => Number(t.issued_supply) > 0);
+  if (q) items = items.filter(t => (t.immutable_data?.name || t.name || '').toLowerCase().includes(q));
+  const grid = document.getElementById('templatesGrid');
+  if (!items.length) {
+    grid.innerHTML = '<div class="sch-placeholder">No templates found.</div>';
+    document.getElementById('templatesLoadMoreWrap').style.display = 'none';
+    return;
+  }
+  const visible = items.slice(0, _templatesDisplayCount);
+  document.getElementById('templatesLoadMoreWrap').style.display = visible.length < items.length ? '' : 'none';
+  grid.innerHTML = visible.map(t => {
+    const name = t.immutable_data?.name || t.name || `#${t.template_id}`;
+    const supply = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} / ${t.max_supply}` : `${t.issued_supply} minted`;
+    return `<a class="sch-card-link" href="${_p}template/${t.template_id}"><div class="sch-card">
+      <div class="sch-card-img-wrap">${templateMediaHtml(t)}</div>
+      <div class="sch-card-body">
+        <div class="sch-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
+        <div class="sch-card-sub">#${t.template_id} &middot; ${escHtml(supply)}</div>
+      </div>
+    </div></a>`;
+  }).join('');
+  initLazyVideos('templatesGrid');
+}
+async function loadTemplates(reset) {
+  if (reset) _templatesDisplayCount = 70;
+  const grid = document.getElementById('templatesGrid');
+  grid.innerHTML = '<div class="sch-placeholder">Loading…</div>';
+  await ensureAllTemplates();
+  renderTemplatesGrid();
+}
+document.getElementById('templateSearch').addEventListener('input', () => { _templatesDisplayCount = 70; renderTemplatesGrid(); });
+document.getElementById('templateShowEmpty').addEventListener('change', () => { _templatesDisplayCount = 70; renderTemplatesGrid(); });
+document.getElementById('templatesLoadMoreBtn').addEventListener('click', () => { _templatesDisplayCount += 70; renderTemplatesGrid(); });
+
+/* ── Holders tab ── */
+let _holdersPage = 1, _holdersAll = [], _holdersDone = false, _holdersBusy = false;
+async function loadHolders(reset) {
+  if (_holdersBusy) return;
+  if (reset) { _holdersPage = 1; _holdersAll = []; _holdersDone = false; }
+  if (_holdersDone) return;
+  _holdersBusy = true;
+
+  const aa = WaxApi.aaBase();
+  try {
+    const rows = await WaxApi.apiFetch(`${aa}/accounts?collection_name=${encodeURIComponent(collectionName)}&schema_name=${encodeURIComponent(schemaName)}&page=${_holdersPage}&limit=100&sort=assets`);
+    if (!rows.length || rows.length < 100) _holdersDone = true;
+    _holdersAll.push(...rows);
+    _holdersPage++;
+  } catch {
+    document.getElementById('holdersWrap').innerHTML = '<div class="sch-placeholder">Could not load holders.</div>';
+    _holdersBusy = false;
+    return;
+  }
+  _holdersBusy = false;
+  renderHoldersTable();
+  document.getElementById('holdersLoadMoreWrap').style.display = _holdersDone ? 'none' : '';
+}
+function renderHoldersTable() {
+  const q = document.getElementById('holdersSearch').value.trim().toLowerCase();
+  const items = q ? _holdersAll.filter(h => h.account.toLowerCase().includes(q)) : _holdersAll;
+  const wrap = document.getElementById('holdersWrap');
+  if (!items.length) { wrap.innerHTML = '<div class="sch-placeholder">No holders found.</div>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th style="width:52px">Rank</th><th>Wallet</th><th class="col-r">Assets</th></tr></thead><tbody>
+    ${items.map((h, i) => {
+      const you = isYouWallet(h.account);
+      return `<tr class="${you ? 'wallet-row-you' : ''}">
+      <td class="rank-cell ${rankClass(i + 1)}">#${i + 1}</td>
+      <td class="wallet-cell">${walletLinkHtml(h.account)}${you ? '<span class="you-badge">You</span>' : ''}</td>
+      <td class="col-r">${Number(h.assets).toLocaleString()}</td>
+    </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+document.getElementById('holdersLoadMoreBtn').addEventListener('click', () => loadHolders(false));
+document.getElementById('holdersSearch').addEventListener('input', renderHoldersTable);
+
+window.addEventListener('wax-auth-change', () => {
+  if (_holdersAll.length) renderHoldersTable();
+});
+
+/* ── Init ── */
+if (!collectionName || !schemaName) {
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('noParamMsg').style.display = '';
+} else {
+  loadHeader();
+}
+</script>
+
+</body>
+</html>

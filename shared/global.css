@@ -718,6 +718,36 @@ body::before {
 }
 
 
+/* ── Template price chart (shared/template-price-chart.js) — mounted on
+   template.html and asset.html, both scoped to a template's pooled sales
+   history. .tpc- prefix keeps it distinct from either host page's own
+   local classes. ── */
+.tpc-placeholder {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 2.5rem 1.5rem;
+  text-align: center; color: var(--text-secondary);
+}
+.tpc-usd { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
+/* .stat-value's default 1.4rem wraps a "20,804.99 WAX"-style value onto a
+   second line inside a ~140px .stat-card column — same fix collection.html/
+   template.html apply to their own stats grids. */
+.tpc-stats-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+.tpc-stats-grid .stat-value { font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpc-chart-wrap { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.5rem; }
+.tpc-chart-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.1rem; }
+.tpc-toggle-group { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.tpc-toggle-btn {
+  padding: 0.4rem 0.85rem; border: none; background: none;
+  color: var(--text-secondary); font-size: 0.8rem; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+  transition: background 0.15s, color 0.15s; white-space: nowrap;
+}
+.tpc-toggle-btn + .tpc-toggle-btn { border-left: 1px solid var(--border); }
+.tpc-toggle-btn:hover { color: var(--text-primary); }
+.tpc-toggle-btn.active { background: rgba(240,168,64,0.14); color: var(--accent-light); }
+.tpc-chart-canvas-wrap { position: relative; height: 320px; }
+
+
 /* ── Buttons ── */
 
 /* Primary — gold gradient */
