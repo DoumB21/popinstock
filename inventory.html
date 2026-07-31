@@ -1061,6 +1061,29 @@ const _urlWallet = (_getWalletFromUrl() || '').trim().toLowerCase() || null;
 const _walletInPath = /\/inventory\/[^/]+\/?$/.test(location.pathname);
 let _readOnly     = false;      // true once _activeWallet is set but isn't the connected wallet — hides every action control
 let _pendingReload   = false;       // a filter changed while _loading was already true — see finishLoading()
+// A bare /inventory visit (no explicit wallet in the URL at all) gets the
+// connected wallet cosmetically appended as a clean path segment once
+// connected, purely so the address bar is shareable/bookmarkable — mirrors
+// what the nav's own Inventory link already does via wallet-widget.js's
+// data-wallet-link. Deliberately never touches _urlWallet itself (an
+// explicit ?wallet=/path wallet must keep taking priority, per the comment
+// above); this is the mutable counterpart, tracking whichever wallet we've
+// pinned so far so a later disconnect on this same pinned URL still
+// resolves to "read-only view of that wallet" (see onWalletChange) instead
+// of the auth gate, without needing a page refresh.
+let _pinnedWallet = null;
+// Captured once, before any pinning rewrite happens — whenever _urlWallet
+// is falsy (the only time _pinWalletToUrl ever runs), the page's ORIGINAL
+// pathname is guaranteed bare (no wallet segment), so this is a stable base
+// to append to even after a later pin (or a wallet switch) has already
+// rewritten location.pathname to include a previous wallet.
+const _bareInventoryPath = location.pathname.replace(/\/$/, '');
+function _pinWalletToUrl(wallet) {
+  if (_urlWallet || !wallet) return;
+  _pinnedWallet = wallet;
+  const path = `${_bareInventoryPath}/${encodeURIComponent(wallet)}`;
+  if (location.pathname !== path) history.replaceState(null, '', path + location.search);
+}
 
 // ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──
 let _selected = new Map();          // asset_id → price string (Sell) | '' (other actions, unused)
@@ -5624,10 +5647,15 @@ async function onWalletChange() {
   const connected = window.getWaxAccount ? window.getWaxAccount() : null;
   // A URL wallet always wins the inventory shown — it's what makes
   // ?wallet= links to other collectors work regardless of who (if anyone)
-  // is connected. Only falls back to the connected wallet when there's no
-  // URL wallet at all (a bare /inventory visit, or old links pre-dating this).
-  const target = _urlWallet || connected;
-  _readOnly = !!_urlWallet && (!connected || connected.toLowerCase() !== _urlWallet);
+  // is connected. Falls back to the connected wallet when there's no URL
+  // wallet at all (a bare /inventory visit, or old links pre-dating this),
+  // and further to _pinnedWallet — whatever we last cosmetically pinned —
+  // so a disconnect right after connecting on a bare URL still resolves to
+  // a read-only view of that same wallet instead of the auth gate.
+  const target = _urlWallet || connected || _pinnedWallet;
+  _readOnly = _urlWallet
+    ? (!connected || connected.toLowerCase() !== _urlWallet)
+    : (!connected && !!_pinnedWallet);
   closeModal();
   closeInfoPopup();
   if (!target) {
@@ -5672,7 +5700,8 @@ async function onWalletChange() {
     // filter against an empty/stale set until the fetch below resolves.
     // Bulk selection is also wallet-specific — stale asset_ids from the
     // previous wallet must not survive into this one.
-    history.replaceState(null, '', location.pathname);
+    history.replaceState(null, '', _bareInventoryPath);
+    _pinWalletToUrl(target);
     document.getElementById('searchInput').value = '';
     _listingsFilter = 'all';
     buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
@@ -5682,6 +5711,7 @@ async function onWalletChange() {
     closeBulkActionModal();
   } else {
     await readUrlParams(target);
+    if (connected) _pinWalletToUrl(connected);
   }
   _activeWallet = target;
   updatePageHeading();

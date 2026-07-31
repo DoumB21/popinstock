@@ -244,7 +244,11 @@
     const offersBadge = wrap.querySelector('#navOffersBadge');
     // Captured now (before the move-into-navInner loop below detaches them
     // from `wrap`) — the element references stay valid wherever they live.
-    const walletLinkEls = Array.from(wrap.querySelectorAll('[data-wallet-link]'));
+    // Queries the whole document, not just `wrap`, so a page can opt any of
+    // its own static links into this same live-append behavior too (e.g.
+    // index.html's homepage Inventory card) just by adding the same two
+    // data attributes — no wiring beyond that.
+    const walletLinkEls = Array.from(document.querySelectorAll('[data-wallet-link]'));
 
     // Pill balance is hidden below 480px (no room next to the name) — this
     // mirrors the same HTML into the dropdown menu instead, so it's still
