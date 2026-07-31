@@ -215,12 +215,15 @@
     .act-card:hover { border-color: var(--border-hover); }
     .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex-shrink: 0; }
     .act-card-thumb {
-      width: 72px; height: 72px; flex-shrink: 0; border-radius: 10px;
+      width: 120px; height: 120px; flex-shrink: 0; border-radius: 10px;
       background: rgba(255,255,255,0.03); overflow: hidden;
       display: flex; align-items: center; justify-content: center;
+      position: relative;
     }
     .act-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
-    .act-card-thumb-ph { color: var(--text-secondary); font-size: 1.3rem; opacity: 0.3; }
+    .act-card-thumb-ph { color: var(--text-secondary); font-size: 2rem; opacity: 0.3; }
+    /* Burned-asset overlay — see shared/global.css's .burned-thumb, applied
+       to this thumb in historyCardHtml() below. */
     .act-card-txlink {
       font-size: 0.68rem; font-weight: 600; color: var(--accent-light);
       text-decoration: none; white-space: nowrap;
@@ -248,7 +251,7 @@
       /* Image + "View transaction" centered on top, everything else stacked
          left-aligned underneath — instead of the desktop image-left/info-right row. */
       .act-card { padding: 0.9rem; gap: 0.85rem; flex-direction: column; align-items: center; }
-      .act-card-thumb { width: 110px; height: 110px; }
+      .act-card-thumb { width: 150px; height: 150px; }
       .act-card-cols { flex: none; width: 100%; flex-direction: column; align-items: flex-start; gap: 1.25rem; }
       .sc-fields--meta { margin-left: 0; }
       /* Fixed label column (wide enough for "Collection", the longest) so the
@@ -2704,6 +2707,7 @@ function historyCardHtml(sale) {
   const tid   = asset.template?.template_id;
   const col   = asset.collection?.collection_name || _col?.collection_name || '';
   const colDisplay  = asset.collection?.name || col;
+  const isBurned = !!asset.burned_at_time;
 
   let mediaHtml;
   if (media?.kind === 'video') {
@@ -2723,7 +2727,7 @@ function historyCardHtml(sale) {
 
   return `<div class="act-card">
     <div class="act-card-thumb-wrap">
-      <div class="act-card-thumb">${mediaHtml}</div>
+      <div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}" ${isBurned ? `title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}"` : ''}>${mediaHtml}</div>
       <a class="act-card-txlink tx-link" href="#" data-sale-id="${sale.sale_id}" target="_blank" rel="noopener">View transaction ↗</a>
     </div>
     <div class="act-card-cols">

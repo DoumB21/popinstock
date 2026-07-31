@@ -739,6 +739,13 @@ function assetCardHtml(a) {
   } else {
     mediaHtml = `<div class="tpl-card-img-ph">?</div>`;
   }
+  // owner:null is how AtomicAssets marks a burned asset (confirmed live) —
+  // same condition already used below to decide the owner-link vs
+  // "Burned" text, reused here for the shared/global.css burned-thumb
+  // overlay (see explore.html/inventory-activity.html for the same
+  // treatment on their own cards).
+  const isBurned = !a.owner;
+  const burnedTitle = isBurned ? ` title="${escHtml(a.burned_by_account ? 'Burned by ' + a.burned_by_account : 'Burned')}"` : '';
   // Only the image + mint number link to the asset page (not the whole
   // card) — the owner name has its own separate link to that wallet's
   // inventory, and nesting an <a> inside another <a> is invalid HTML /
@@ -747,17 +754,13 @@ function assetCardHtml(a) {
   // purpose shouldn't also be the target for a different click.
   return `<div class="tpl-card">
     <a href="${_p}asset/${a.asset_id}">
-      <div class="tpl-card-img-wrap">${mediaHtml}</div>
+      <div class="tpl-card-img-wrap${isBurned ? ' burned-thumb' : ''}"${burnedTitle}>${mediaHtml}</div>
       <div class="tpl-card-mint" style="padding:0.3rem 0.7rem 0;">Mint #${a.template_mint}</div>
     </a>
     <div class="tpl-card-body" style="padding-top:0.1rem;">
       ${a.owner
         ? `<div class="tpl-card-owner" title="${escHtml(a.owner)}">${walletLinkHtml(a.owner)}</div>`
-        : (() => {
-            const titleText = a.burned_by_account ? `Burned by ${a.burned_by_account}` : 'Burned';
-            const bodyHtml  = a.burned_by_account ? `Burned by ${walletLinkHtml(a.burned_by_account)}` : 'Burned';
-            return `<div class="tpl-card-burned" title="${escHtml(titleText)}">${bodyHtml}</div>`;
-          })()}
+        : `<div class="tpl-card-burned" title="${escHtml(a.burned_by_account ? 'Burned by ' + a.burned_by_account : 'Burned')}">${a.burned_by_account ? 'Burned by ' + walletLinkHtml(a.burned_by_account) : 'Burned'}</div>`}
     </div>
   </div>`;
 }

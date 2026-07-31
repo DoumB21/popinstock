@@ -1156,6 +1156,33 @@ body::before {
 .img-lightbox-close:hover { background: rgba(255,255,255,0.2); }
 
 
+/* ── Burned-asset overlay — instantly recognizable without opening the
+   asset page, same idea as AtomicHub's own treatment but original
+   in-house art (a hand-drawn flame silhouette, tiled along the bottom
+   edge) rather than reusing their asset file. Add the `burned-thumb`
+   class to any thumbnail wrapper that already holds an <img>/<video> —
+   position:relative is set here, no per-page setup needed. Used by
+   explore.html's Sales History, inventory-activity.html's Purchases/
+   Sales/Transfers, and template.html's asset grid — edit once here and
+   every page picks it up. img/video dim via filter (not opacity, which
+   would also fade the gradient/flames layered on top); the flame strip
+   sits in its own ::after so it stays at full brightness/color
+   regardless of the filter. ── */
+.burned-thumb { position: relative; }
+.burned-thumb img, .burned-thumb video { filter: brightness(0.55) saturate(0.7); }
+.burned-thumb::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 45%;
+  background:
+    linear-gradient(to top, rgba(10,4,0,0.7), rgba(10,4,0,0) 100%),
+    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAzMic+PHBhdGggZmlsbD0nI2ZmN2IxYScgZD0nTTEyIDMyYy00LjIgMC03LjYtMy4yLTcuNi03LjQgMC0yLjggMS43LTUgMi45LTYuOC42IDEuOCAyIDIuOSAyIDIuOS0uNy00IC44LTcuNCAzLjktOS42LTEgMyAuMSA1LjEgMS4zIDYuMSAxLjEtMiAzLjEtMy4zIDIuOS02LjQgMy4zIDMuMSA0LjQgNi41IDQuMiAxMC40LS4xIDIuMS0xLjEgNC0yLjMgNSAuNi0yLS4xLTMuNC0xLjItNC4zLjUgMy0uOCA1LjMtMi45IDYuMy43LTEuNi4zLTMuMi0uOC00LjEtLjYgMi4xLTEuOCAzLjYtMy45IDR6Jy8+PC9zdmc+Cg==") repeat-x bottom;
+  background-size: 100% 100%, 26% auto;
+  pointer-events: none;
+}
+/* Smaller thumbnails (e.g. bundle-transfer sub-rows) need a proportionally
+   bigger flame percentage to stay visible at that scale — opt in here. */
+.burned-thumb--compact::after { background-size: 100% 100%, 40% auto; }
+
+
 /* ── Ad slot (shared/ad-slot.js) — pages declare an empty <div
    class="ad-slot"></div> and load the script; it injects the current
    promo markup at runtime, so swapping in a real partner promo never

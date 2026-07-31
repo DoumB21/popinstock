@@ -183,12 +183,18 @@
     .act-card:hover { border-color: var(--border-hover); }
     .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; flex-shrink: 0; }
     .act-card-thumb {
-      width: 72px; height: 72px; flex-shrink: 0; border-radius: 10px;
+      width: 120px; height: 120px; flex-shrink: 0; border-radius: 10px;
       background: rgba(255,255,255,0.03); overflow: hidden;
       display: flex; align-items: center; justify-content: center;
+      position: relative;
     }
+    /* Bundle-transfer sub-rows stay at the old compact size — several can
+       be stacked in one card, unlike the single thumb everywhere else. */
+    .act-card-asset .act-card-thumb { width: 72px; height: 72px; }
     .act-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
-    .act-card-thumb-ph { color: var(--text-secondary); font-size: 1.3rem; opacity: 0.3; }
+    .act-card-thumb-ph { color: var(--text-secondary); font-size: 2rem; opacity: 0.3; }
+    /* Burned-asset overlay — see shared/global.css's .burned-thumb /
+       .burned-thumb--compact, applied via thumbWrapHtml() below. */
     .act-card-txlink {
       font-size: 0.68rem; font-weight: 600; color: var(--accent-light);
       text-decoration: none; white-space: nowrap;
@@ -259,7 +265,7 @@
       /* Image + "View transaction" centered on top, everything else stacked
          left-aligned underneath — instead of the desktop image-left/info-right row. */
       .act-card { padding: 0.9rem; gap: 0.85rem; flex-direction: column; align-items: center; }
-      .act-card-thumb { width: 110px; height: 110px; }
+      .act-card-thumb { width: 150px; height: 150px; }
       .act-card-cols { flex: none; width: 100%; flex-direction: column; align-items: flex-start; gap: 1.25rem; }
       .sc-fields--meta { margin-left: 0; }
       /* Fixed label column (wide enough for "Transfer ID", the longest) so every
@@ -862,6 +868,18 @@ function debounceLoad() {
 /* Rendering                                                                  */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+// Wraps assetThumbHtml() with the burned-asset overlay (dimmed media + a
+// flame-silhouette strip along the bottom, same treatment as explore.html's
+// Sales History cards) whenever the asset's own burned_at_time is set.
+// Every endpoint that nests a full asset object here (sales, transfers)
+// carries this field — confirmed live against real transfer/sale records.
+function thumbWrapHtml(asset, compact) {
+  const isBurned = !!asset.burned_at_time;
+  const burnedClass = isBurned ? ` burned-thumb${compact ? ' burned-thumb--compact' : ''}` : '';
+  const title = isBurned ? ` title="${escHtml(asset.burned_by_account ? 'Burned by ' + asset.burned_by_account : 'Burned')}"` : '';
+  return `<div class="act-card-thumb${burnedClass}"${title}>${assetThumbHtml(asset)}</div>`;
+}
+
 function assetThumbHtml(asset) {
   const d     = asset.data || {};
   const t     = asset.template?.immutable_data || {};
@@ -910,7 +928,7 @@ function saleCardHtml(item, asset) {
 
   return `<div class="act-card">
     <div class="act-card-thumb-wrap">
-      <div class="act-card-thumb">${assetThumbHtml(asset)}</div>
+      ${thumbWrapHtml(asset)}
       <a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a>
     </div>
     <div class="act-card-cols">
@@ -949,7 +967,7 @@ function transferCardHtml(item, asset) {
 
   return `<div class="act-card">
     <div class="act-card-thumb-wrap">
-      <div class="act-card-thumb">${assetThumbHtml(asset)}</div>
+      ${thumbWrapHtml(asset)}
       ${txlinkHtml}
     </div>
     <div class="act-card-cols">
@@ -1028,7 +1046,7 @@ function transferBundleCardHtml(item, assets) {
     const { nameHtml, collHtml } = assetFields(group[0]);
     const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
     return `<div class="act-card-asset">
-      <div class="act-card-thumb">${assetThumbHtml(group[0])}</div>
+      ${thumbWrapHtml(group[0], true)}
       <div class="sc-fields sc-fields--wrap">
         <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
         <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
