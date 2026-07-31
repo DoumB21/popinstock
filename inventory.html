@@ -1078,11 +1078,44 @@ let _pinnedWallet = null;
 // to append to even after a later pin (or a wallet switch) has already
 // rewritten location.pathname to include a previous wallet.
 const _bareInventoryPath = location.pathname.replace(/\/$/, '');
+// history.replaceState only changes what the address bar shows — it does
+// NOT reload the page, so _p (set once at initial parse from the page's
+// ORIGINAL pathname) stays whatever it was. But the browser resolves every
+// *relative* href on the page against the CURRENT address bar path, not the
+// one _p was computed from — so the moment this pin adds a wallet segment,
+// every already-rendered relative link (nav links, the wallet-widget's own
+// Explore/Offers/Profile hrefs) silently starts resolving one level too
+// deep (confirmed live: "Explore" became /inventory/explore instead of
+// /explore). _p itself is a `var`, not `const`, specifically so it can be
+// corrected here — anything that reads it *live* (walletLinkHtml, the
+// AssetPopup collection/template/wallet href callbacks below) self-corrects
+// for free; anything that baked a relative href into the DOM already
+// (nav links, the three wallet-widget icons) needs a one-time reprefix.
+function _reprefixRelativeLinksForPin() {
+  const home = document.getElementById('navHomeLink');
+  if (home) home.href = _p + 'index';
+  const homeImg = document.getElementById('navHomeImg');
+  if (homeImg) homeImg.src = _p + 'images/Hoardio_fav.png';
+  document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
+    a.setAttribute('href', _p + a.getAttribute('href'));
+  });
+  // wallet-widget.js owns the Explore/Offers/Profile icons and the wallet
+  // dropdown's own menu items — same stale-relative-href problem, fixed
+  // inside that module (reprefix() attached onto the module singleton so
+  // this works even though inventory.html never captured mount()'s return
+  // value).
+  WalletWidget.reprefix?.(_p);
+}
 function _pinWalletToUrl(wallet) {
   if (_urlWallet || !wallet) return;
   _pinnedWallet = wallet;
   const path = `${_bareInventoryPath}/${encodeURIComponent(wallet)}`;
+  const wasNested = _p !== '';
   if (location.pathname !== path) history.replaceState(null, '', path + location.search);
+  if (!wasNested) {
+    _p = '../';
+    _reprefixRelativeLinksForPin();
+  }
 }
 
 // ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──

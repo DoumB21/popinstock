@@ -242,13 +242,19 @@
     const cartBadge   = wrap.querySelector('#navCartBadge');
     const offersBtn   = wrap.querySelector('#navOffersBtn');
     const offersBadge = wrap.querySelector('#navOffersBadge');
-    // Captured now (before the move-into-navInner loop below detaches them
-    // from `wrap`) — the element references stay valid wherever they live.
-    // Queries the whole document, not just `wrap`, so a page can opt any of
-    // its own static links into this same live-append behavior too (e.g.
-    // index.html's homepage Inventory card) just by adding the same two
-    // data attributes — no wiring beyond that.
-    const walletLinkEls = Array.from(document.querySelectorAll('[data-wallet-link]'));
+    // Captured now, from two separate scopes — `wrap` is still a detached
+    // node at this point (the move-into-navInner loop below hasn't run
+    // yet), so `document.querySelectorAll` on its own cannot see the
+    // wallet menu's own Inventory item yet even though it's about to be
+    // attached (confirmed live: querying only `document` here silently
+    // stopped that item's href from ever being live-updated, since render()
+    // then never found it again). Concatenating `wrap`'s own matches keeps
+    // that working, while still also picking up a page's own static links
+    // elsewhere in the document (e.g. index.html's homepage Inventory
+    // card) that opt into this same behavior via the same two data
+    // attributes — no wiring beyond that.
+    const walletLinkEls = Array.from(wrap.querySelectorAll('[data-wallet-link]'))
+      .concat(Array.from(document.querySelectorAll('[data-wallet-link]')));
 
     // Pill balance is hidden below 480px (no room next to the name) — this
     // mirrors the same HTML into the dropdown menu instead, so it's still
@@ -351,6 +357,38 @@
       _haveLiveOffersCount = true;
       _writeCachedOffersCount(acc, n);
     }
+
+    // A host page that cosmetically rewrites its own URL to look one
+    // directory level deeper after the fact (history.replaceState, no real
+    // navigation — inventory.html does this once it pins the connected
+    // wallet into the address bar) breaks every *relative* href this widget
+    // already baked into the DOM at mount time, the same way it breaks the
+    // host page's own nav links — the browser resolves them against
+    // whatever the address bar shows NOW, not what it showed at mount time.
+    // Call this once, right after making that change, with the same prefix
+    // ('../') the host page is now using for its own links. Attached onto
+    // the module singleton (mirrors AssetPopup.close's identical trick) so a
+    // page that never captured mount()'s return value can still reach it.
+    function reprefix(prefix) {
+      ['navCartBtn', 'navOffersBtn', 'navProfileBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.getAttribute('href').startsWith(prefix)) el.setAttribute('href', prefix + el.getAttribute('href'));
+      });
+      // Non-wallet-link menu items (Trade Analyzer, Gift Links, etc.) got a
+      // plain relative href baked in at mount time too — data-wallet-link
+      // items instead get fixed via their data-base-href, which render()
+      // (called below) then reapplies to the actual href.
+      document.querySelectorAll('.nav-wax-menu-item[href]').forEach(a => {
+        if (a.hasAttribute('data-base-href')) {
+          const base = a.getAttribute('data-base-href');
+          if (!base.startsWith(prefix)) a.setAttribute('data-base-href', prefix + base);
+        } else if (!a.getAttribute('href').startsWith(prefix)) {
+          a.setAttribute('href', prefix + a.getAttribute('href'));
+        }
+      });
+      render();
+    }
+    WalletWidget.reprefix = reprefix;
 
     function render() {
       const acc = window.getWaxAccount();
@@ -459,7 +497,7 @@
       render();
     })();
 
-    return { render, connect, logout, refreshBalance, refreshOffersCount, setOffersBadge };
+    return { render, connect, logout, refreshBalance, refreshOffersCount, setOffersBadge, reprefix };
   }
 
   window.WalletWidget = { mount };
