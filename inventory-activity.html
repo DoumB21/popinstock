@@ -873,11 +873,10 @@ function debounceLoad() {
 // Sales History cards) whenever the asset's own burned_at_time is set.
 // Every endpoint that nests a full asset object here (sales, transfers)
 // carries this field — confirmed live against real transfer/sale records.
-function thumbWrapHtml(asset, compact) {
+function thumbWrapHtml(asset) {
   const isBurned = !!asset.burned_at_time;
-  const burnedClass = isBurned ? ` burned-thumb${compact ? ' burned-thumb--compact' : ''}` : '';
   const title = isBurned ? ` title="${escHtml(asset.burned_by_account ? 'Burned by ' + asset.burned_by_account : 'Burned')}"` : '';
-  return `<div class="act-card-thumb${burnedClass}"${title}>${assetThumbHtml(asset)}</div>`;
+  return `<div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${title}>${assetThumbHtml(asset)}</div>`;
 }
 
 function assetThumbHtml(asset) {
@@ -1046,7 +1045,7 @@ function transferBundleCardHtml(item, assets) {
     const { nameHtml, collHtml } = assetFields(group[0]);
     const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
     return `<div class="act-card-asset">
-      ${thumbWrapHtml(group[0], true)}
+      ${thumbWrapHtml(group[0])}
       <div class="sc-fields sc-fields--wrap">
         <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
         <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
