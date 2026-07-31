@@ -1157,24 +1157,25 @@ body::before {
 
 
 /* ── Burned-asset overlay — instantly recognizable without opening the
-   asset page, same idea as AtomicHub's own treatment (one big centered
-   flame, roughly half the card's height) but original in-house art — a
-   hand-drawn outline (stroke only, not solid-filled) rather than
-   reusing their asset file. Add the `burned-thumb` class to any
-   thumbnail wrapper that already holds an <img>/<video> —
-   position:relative is set here, no per-page setup needed. Used by
-   explore.html's Sales History, inventory-activity.html's Purchases/
-   Sales/Transfers, and template.html's asset grid — edit once here and
-   every page picks it up. img/video dim via filter (not opacity, which
-   would also fade the flame layered on top); the flame sits in its own
-   ::after so it stays at full brightness/color regardless of the
-   filter. A drop-shadow keeps the outline visible over light/busy art. ── */
+   asset page. Add the `burned-thumb` class to any thumbnail wrapper
+   that already holds an <img>/<video> — position:relative is set here,
+   no per-page setup needed. Used by explore.html's Sales History,
+   inventory-activity.html's Purchases/Sales/Transfers, and
+   template.html's asset grid — edit once here and every page picks it
+   up. img/video dim via filter (not opacity, which would also fade the
+   flame layered on top); the flame sits in its own ::after so it stays
+   at full brightness/color regardless of the filter.
+
+   Flame art: images/burnedasset.png (user-supplied). To try a different
+   image, just overwrite this same file — no code change needed as long
+   as the filename stays burnedasset.png. The earlier hand-drawn SVG
+   outline is preserved at commit c5e5480 if ever needed again. ── */
 .burned-thumb { position: relative; }
 .burned-thumb img, .burned-thumb video { filter: brightness(0.55) saturate(0.75); }
 .burned-thumb::after {
   content: ''; position: absolute; left: 50%; top: 50%;
-  height: 50%; aspect-ratio: 3 / 4; transform: translate(-50%, -50%);
-  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAzMic+PHBhdGggZmlsbD0nbm9uZScgc3Ryb2tlPScjZmY3YjFhJyBzdHJva2Utd2lkdGg9JzEuNCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBkPSdNMTIgMzJjLTQuMiAwLTcuNi0zLjItNy42LTcuNCAwLTIuOCAxLjctNSAyLjktNi44LjYgMS44IDIgMi45IDIgMi45LS43LTQgLjgtNy40IDMuOS05LjYtMSAzIC4xIDUuMSAxLjMgNi4xIDEuMS0yIDMuMS0zLjMgMi45LTYuNCAzLjMgMy4xIDQuNCA2LjUgNC4yIDEwLjQtLjEgMi4xLTEuMSA0LTIuMyA1IC42LTItLjEtMy40LTEuMi00LjMuNSAzLS44IDUuMy0yLjkgNi4zLjctMS42LjMtMy4yLS44LTQuMS0uNiAyLjEtMS44IDMuNi0zLjkgNHonLz48L3N2Zz4K") no-repeat center / contain;
+  height: 50%; aspect-ratio: 1 / 1; transform: translate(-50%, -50%);
+  background: url("../images/burnedasset.png") no-repeat center / contain;
   filter: drop-shadow(0 0 2px rgba(0,0,0,0.85)) drop-shadow(0 0 4px rgba(0,0,0,0.6));
   pointer-events: none;
 }
