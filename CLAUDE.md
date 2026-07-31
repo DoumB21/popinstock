@@ -269,7 +269,7 @@ const SB_HEADERS = {
 
 ## Explore (root explore.html)
 
-Browses live NFT listings across any collection — buy instantly or build a cart to buy several at once. WAX account `popinstockgo` earns 1% commission on purchases. Deep-links via `?template_id=` (used site-wide as the "Buy" link target) resolve the collection automatically and scope listings to that one card; supports `maxMint`, `sort`/`order`, and a Listings/Sales History tab pair. Replaced the old root `marketplace.html`, which was removed once nothing linked to it.
+Browses live NFT listings across any collection — buy instantly or build a cart to buy several at once. WAX account `hoardiostore` earns 1% commission on purchases. Deep-links via `?template_id=` (used site-wide as the "Buy" link target) resolve the collection automatically and scope listings to that one card; supports `maxMint`, `sort`/`order`, and a Listings/Sales History tab pair. Replaced the old root `marketplace.html`, which was removed once nothing linked to it.
 
 ## Trade Offers (root trade-offers.html)
 

@@ -886,8 +886,8 @@
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 const PAGE_SIZE         = 20;   // no longer forced to a 3-column-friendly number — removing the right-hand tray column lets the grid reflow to more columns on its own (same auto-fill CSS as before)
-const TAKER_MARKETPLACE = 'popinstockgo'; // same account as marketplace.html — 1% commission on purchases made through the site
-const MAKER             = 'popinstockgo'; // maker_marketplace on listings created/edited from here — same account, mirrors inventory.html
+const TAKER_MARKETPLACE = 'hoardiostore'; // same account as marketplace.html — 1% commission on purchases made through the site
+const MAKER             = 'hoardiostore'; // maker_marketplace on listings created/edited from here — same account, mirrors inventory.html
 const MARKET_FEE        = 0.02; // AtomicMarket's cut — same constants as inventory.html's listing modal
 const ECOSYSTEM_FEE     = 0.01;
 const BATCH_SIZE_BUY    = 25;   // up to 25 individual (assertsale, transfer, purchasesale) triplets per tx — a stale listing fails the whole chunk, so raise further only after this size is confirmed to clear on-chain

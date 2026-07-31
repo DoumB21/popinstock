@@ -941,7 +941,7 @@ function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.l
 const MARKET_API = 'https://wax.api.atomicassets.io';
 
 const PAGE_SIZE  = 18;
-const MAKER      = 'popinstockgo';
+const MAKER      = 'hoardiostore';
 // Same override key + default src/wax-auth.js reads for the wallet's own RPC —
 // used here only for read-only get_table_rows calls (no signing), to find a
 // just-created gift link's id (see bulkGift()).
@@ -3960,7 +3960,7 @@ async function handleAcceptOffer() {
           buyoffer_id:       offer.buyoffer_id,
           asset_id:          asset.asset_id,
           expected_price:    waxPrice,
-          taker_marketplace: 'popinstockgo',
+          taker_marketplace: 'hoardiostore',
         },
       },
     ]);
