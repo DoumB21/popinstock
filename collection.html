@@ -544,7 +544,7 @@ async function loadHeader() {
   const volumeRow = marketStats?.results?.[0];
 
   document.title = `${info.name || collectionName} — Hoardio`;
-  document.getElementById('collLogo').src = info.img ? toMediaUrl(info.img) : 'images/Hoardio_fav.png';
+  document.getElementById('collLogo').src = info.img ? toMediaUrl(info.img) : _p + 'images/Hoardio_fav.png';
   document.getElementById('collTitle').textContent = info.name || collectionName;
 
   // Optional wide banner — data.images is a JSON string most collections

@@ -7,7 +7,7 @@
        sits TWO directory levels deep when reached via its clean path
        (/schema/:collection/:name), unlike collection.html/template.html's one. -->
   <script>
-    var _p = /\/schema\/[^/]+\/[^/]+\/?$/.test(location.pathname) ? '../' : '';
+    var _p = /\/schema\/[^/]+\/[^/]+\/?$/.test(location.pathname) ? '../../' : '';
     document.write(
       '<link rel="icon" href="' + _p + 'images/Hoardio_fav.ico" sizes="any" />' +
       '<link rel="icon" href="' + _p + 'images/Hoardio_fav.png" type="image/png" />' +
@@ -45,13 +45,18 @@
     /* ── Header (same shape as collection.html's, no banner) ── */
     .sch-header { display: flex; gap: 1.25rem; align-items: flex-start; margin-bottom: 1.25rem; }
     .sch-logo {
-      width: 64px; height: 64px; border-radius: 12px; object-fit: cover;
+      width: 84px; height: 84px; border-radius: 14px; object-fit: cover;
       background: var(--bg-card); border: 1px solid var(--border); flex-shrink: 0;
     }
     .sch-header-info { min-width: 0; flex: 1; }
-    .sch-sub { color: var(--text-secondary); font-size: 0.92rem; margin: 0.15rem 0 0.6rem; }
-    .sch-sub a { color: var(--accent-light); text-decoration: none; }
-    .sch-sub a:hover { text-decoration: underline; }
+    /* Same uppercase-label / bold-value-below shape as asset.html's/
+       template.html's .tpl-info-label/.tpl-info-val (class names kept
+       page-local, matching how those two pages independently duplicate
+       this too, rather than a "Category in X" sentence). */
+    .sch-info-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-top: 0.4rem; }
+    .sch-info-val { font-size: 0.95rem; font-weight: 600; margin: 0.1rem 0 0.6rem; }
+    .sch-info-val a { color: var(--accent-light); text-decoration: none; }
+    .sch-info-val a:hover { text-decoration: underline; }
     .sch-links { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.88rem; }
     .sch-links a { color: var(--accent-light); text-decoration: none; }
     .sch-links a:hover { text-decoration: underline; }
@@ -101,6 +106,7 @@
     .sch-filter-row .cb-dropdown { max-width: 180px; }
     .sch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
     .sch-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .sch-card > a { display: block; text-decoration: none; color: inherit; }
     .sch-card-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
     .sch-card-img-wrap img, .sch-card-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .sch-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
@@ -162,7 +168,8 @@
       <img id="schLogo" class="sch-logo" alt="" />
       <div class="sch-header-info">
         <h1 class="page-title" id="schTitle">Schema</h1>
-        <div class="sch-sub" id="schSub"></div>
+        <div class="sch-info-label">Collection</div>
+        <div class="sch-info-val" id="schSub"></div>
         <div class="sch-links" id="schLinks"></div>
       </div>
     </div>
@@ -211,6 +218,8 @@
   </div>
 
 </main>
+
+<div id="tplTooltip" class="hover-tooltip" style="display:none;"></div>
 
 <footer>
   &copy; 2026 Hoardio &mdash; All rights reserved.
@@ -415,10 +424,10 @@ async function loadHeader() {
   _schemaFormat = info.format || [];
 
   document.title = `${schemaName} — ${collInfo?.name || collectionName} — Hoardio`;
-  document.getElementById('schLogo').src = collInfo?.img ? toMediaUrl(collInfo.img) : 'images/Hoardio_fav.png';
+  document.getElementById('schLogo').src = collInfo?.img ? toMediaUrl(collInfo.img) : _p + 'images/Hoardio_fav.png';
   document.getElementById('schTitle').textContent = schemaName;
   document.getElementById('schSub').innerHTML =
-    `Category in <a href="${_p}collection/${encodeURIComponent(collectionName)}">${escHtml(collInfo?.name || collectionName)}</a>`;
+    `<a href="${_p}collection/${encodeURIComponent(collectionName)}">${escHtml(collInfo?.name || collectionName)}</a>`;
   document.getElementById('schLinks').innerHTML =
     `<a href="${_p}explore?col=${encodeURIComponent(collectionName)}&schema=${encodeURIComponent(schemaName)}">View on Market</a>`;
 
@@ -519,6 +528,17 @@ function computeTemplateWhitelist() {
   return ids.length ? ids.join(',') : 'EMPTY';
 }
 
+// Column count comes from the grid's own resolved auto-fill track list
+// (works even before any cards exist, since it only depends on container
+// width), so a "page" is exactly 5 rows at any viewport width — same
+// pattern as template.html's assetPreviewLimit().
+const NFT_PREVIEW_ROWS = 5;
+function nftPreviewLimit() {
+  const grid = document.getElementById('nftsGrid');
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+  return (cols || 4) * NFT_PREVIEW_ROWS;
+}
+
 let _nftsPage = 1, _nftsDone = false, _nftsBusy = false;
 async function loadNfts(reset) {
   if (_nftsBusy) return;
@@ -543,7 +563,8 @@ async function loadNfts(reset) {
   const aa = WaxApi.aaBase();
   const q = document.getElementById('nftSearch').value.trim();
   const showBurned = document.getElementById('nftShowBurned').checked;
-  let url = `${aa}/assets?collection_name=${encodeURIComponent(collectionName)}&schema_name=${encodeURIComponent(schemaName)}&page=${_nftsPage}&limit=60&sort=created&order=desc`;
+  const limit = nftPreviewLimit();
+  let url = `${aa}/assets?collection_name=${encodeURIComponent(collectionName)}&schema_name=${encodeURIComponent(schemaName)}&page=${_nftsPage}&limit=${limit}&sort=created&order=desc`;
   if (whitelist) url += `&template_whitelist=${whitelist}`;
   if (q) url += `&owner=${encodeURIComponent(q)}`;
   else if (!showBurned) url += `&burned=false`;
@@ -556,7 +577,7 @@ async function loadNfts(reset) {
     return;
   }
   rows = rows || [];
-  if (rows.length < 60) _nftsDone = true;
+  if (rows.length < limit) _nftsDone = true;
   _nftsPage++;
   _nftsBusy = false;
 
@@ -566,18 +587,27 @@ async function loadNfts(reset) {
   document.getElementById('nftsLoadMoreWrap').style.display = _nftsDone ? 'none' : '';
   initLazyVideos('nftsGrid');
 }
+// Only the image/name/mint link to the asset page — the owner has its own
+// separate link to that wallet's inventory, and nesting an <a> inside
+// another <a> is invalid HTML / breaks clicking either reliably (same fix
+// applied to template.html's own asset cards).
 function nftCardHtml(a) {
   const media = assetMediaHtml(a);
   const name = a.data?.name || a.name || `#${a.template_mint}`;
-  return `<a class="sch-card-link" href="${_p}asset/${a.asset_id}"><div class="sch-card">
-    <div class="sch-card-img-wrap">${media}</div>
-    <div class="sch-card-body">
-      <div class="sch-card-mint">Mint #${a.template_mint}</div>
+  return `<div class="sch-card">
+    <a href="${_p}asset/${a.asset_id}">
+      <div class="sch-card-img-wrap">${media}</div>
+      <div class="sch-card-body" style="padding-bottom:0;">
+        <div class="sch-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
+        <div class="sch-card-mint">Mint #${a.template_mint}</div>
+      </div>
+    </a>
+    <div class="sch-card-body" style="padding-top:0.15rem;">
       ${a.owner
-        ? `<div class="sch-card-owner" title="${escHtml(a.owner)}">${escHtml(a.owner)}</div>`
-        : `<div class="sch-card-burned">Burned${a.burned_by_account ? ' by ' + escHtml(a.burned_by_account) : ''}</div>`}
+        ? `<div class="sch-card-owner" title="${escHtml(a.owner)}">${walletLinkHtml(a.owner)}</div>`
+        : `<div class="sch-card-burned">Burned${a.burned_by_account ? ' by ' + walletLinkHtml(a.burned_by_account) : ''}</div>`}
     </div>
-  </div></a>`;
+  </div>`;
 }
 let _nftSearchT = null;
 document.getElementById('nftSearch').addEventListener('input', function () {
@@ -610,15 +640,94 @@ function renderTemplatesGrid() {
     const name = t.immutable_data?.name || t.name || `#${t.template_id}`;
     const supply = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} / ${t.max_supply}` : `${t.issued_supply} minted`;
     return `<a class="sch-card-link" href="${_p}template/${t.template_id}"><div class="sch-card">
-      <div class="sch-card-img-wrap">${templateMediaHtml(t)}</div>
+      <div class="sch-card-img-wrap" data-tpl-id="${t.template_id}">${templateMediaHtml(t)}</div>
       <div class="sch-card-body">
         <div class="sch-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
         <div class="sch-card-sub">#${t.template_id} &middot; ${escHtml(supply)}</div>
       </div>
     </div></a>`;
   }).join('');
+
+  // Hover-only, scoped to the image itself (not the name/mint-count body,
+  // and not the whole card-link) — same scoping reasoning as collection.html's
+  // own Templates tab: hovering the part someone's about to click shouldn't
+  // pop a tooltip in the way of that click.
+  grid.querySelectorAll('.sch-card-img-wrap').forEach(el => {
+    const t = visible.find(x => String(x.template_id) === el.dataset.tplId);
+    if (!t) return;
+    el.addEventListener('mouseenter', () => scheduleTemplateTooltip(el, t));
+    el.addEventListener('mouseleave', cancelTemplateTooltip);
+  });
   initLazyVideos('templatesGrid');
 }
+
+/* ── Template hover tooltip — same implementation as collection.html's own
+   Templates tab, ported verbatim (canonical .hover-tooltip/.tt-* classes
+   live in shared/global.css, already loaded). ── */
+let _tplTooltipTimer = null;
+function scheduleTemplateTooltip(el, t) {
+  cancelTemplateTooltip();
+  _tplTooltipTimer = setTimeout(() => showTemplateTooltip(el, t), 350);
+}
+function cancelTemplateTooltip() {
+  clearTimeout(_tplTooltipTimer);
+  _tplTooltipTimer = null;
+  document.getElementById('tplTooltip').style.display = 'none';
+}
+function positionTemplateTooltip(el) {
+  const tip  = document.getElementById('tplTooltip');
+  const rect = el.getBoundingClientRect();
+  const TW   = 360;
+  const TH   = tip.offsetHeight || 200;
+  let left = rect.right + 10;
+  if (left + TW > window.innerWidth - 8) left = rect.left - TW - 10;
+  if (left < 8) left = 8;
+  let top = rect.top;
+  if (top + TH > window.innerHeight - 8) top = window.innerHeight - TH - 8;
+  if (top < 8) top = 8;
+  tip.style.left = left + 'px';
+  tip.style.top  = top  + 'px';
+}
+function showTemplateTooltip(el, t) {
+  document.getElementById('tplTooltip').innerHTML = renderTemplateTooltip(t);
+  document.getElementById('tplTooltip').style.display = '';
+  positionTemplateTooltip(el);
+}
+function renderTemplateTooltip(t) {
+  const supply  = t.max_supply && t.max_supply !== '0' ? `${t.issued_supply} (Max: ${t.max_supply})` : `${t.issued_supply} minted`;
+  const img     = t.immutable_data?.img;
+  const video   = t.immutable_data?.video;
+  const created = t.created_at_time ? new Date(Number(t.created_at_time)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  const mediaFields = new Set((t.schema?.format || []).filter(f => f.type === 'image' || f.type === 'ipfs').map(f => f.name));
+  const fields = Object.entries(t.immutable_data || {}).filter(([k]) => k !== 'name' && !mediaFields.has(k));
+
+  const autoplayAttr = window.getReduceMotion?.() ? '' : 'autoplay';
+  return `
+    <div style="display:flex; gap:0.7rem; margin-bottom:0.65rem;">
+      ${video
+        ? `<video src="${escHtml(toMediaUrl(video))}" muted playsinline loop ${autoplayAttr} style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--bg);flex-shrink:0;"></video>`
+        : img
+        ? `<img src="${escHtml(toMediaUrl(img))}" alt="" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--bg);flex-shrink:0;">`
+        : ''}
+      <div style="min-width:0;">
+        <div class="tt-heading" style="margin-bottom:0.1rem;">Template ID</div>
+        <div style="font-size:0.95rem;font-weight:700;color:var(--accent-light);">#${t.template_id}</div>
+      </div>
+    </div>
+    <div class="tt-section" style="margin-bottom:0.5rem">
+      ${t.schema?.schema_name ? `<div class="tt-row"><span class="tt-label">Schema</span><span class="tt-val">${escHtml(t.schema.schema_name)}</span></div>` : ''}
+      <div class="tt-row"><span class="tt-label">Issued Supply</span><span class="tt-val">${escHtml(supply)}</span></div>
+    </div>
+    ${fields.length ? `<div class="tt-divider"></div><div class="tt-section">${fields.map(([k, v]) => {
+      const val = String(v);
+      return val.length > 40
+        ? `<div style="margin-bottom:0.3rem;"><div class="tt-label" style="margin-bottom:0.1rem;">${escHtml(k)}</div><div class="tt-val tt-val--wrap">${escHtml(val.slice(0, 200))}${val.length > 200 ? '…' : ''}</div></div>`
+        : `<div class="tt-row"><span class="tt-label">${escHtml(k)}</span><span class="tt-val">${escHtml(val)}</span></div>`;
+    }).join('')}</div>` : ''}
+    ${created ? `<div class="tt-divider"></div><div style="font-size:0.68rem;color:var(--text-secondary);text-align:right;">Created: ${escHtml(created)}</div>` : ''}
+  `;
+}
+
 async function loadTemplates(reset) {
   if (reset) _templatesDisplayCount = 70;
   const grid = document.getElementById('templatesGrid');
