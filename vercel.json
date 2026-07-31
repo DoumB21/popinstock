@@ -20,7 +20,8 @@
     { "source": "/template/:id", "destination": "/template?template_id=:id" },
     { "source": "/inventory/:wallet", "destination": "/inventory?wallet=:wallet" },
     { "source": "/asset/:id", "destination": "/asset?asset_id=:id" },
-    { "source": "/schema/:collection/:name", "destination": "/schema?collection_name=:collection&schema_name=:name" }
+    { "source": "/schema/:collection/:name", "destination": "/schema?collection_name=:collection&schema_name=:name" },
+    { "source": "/sale/:id", "destination": "/sale?sale_id=:id" }
   ],
   "functions": {
     "api/og-page/collection.js": { "includeFiles": "collection.html" },

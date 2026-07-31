@@ -541,7 +541,7 @@ async function loadHistory() {
   for (const s of (sales || [])) {
     const stateLabel = s.state === 3 ? 'Sale' : s.state === 1 ? 'Listed' : s.state === 2 ? 'Cancelled' : 'Offer';
     events.push({
-      type: 'sale', time: Number(s.updated_at_time), txid: null,
+      type: 'sale', time: Number(s.updated_at_time), txid: null, saleId: s.sale_id,
       html: `${stateLabel}: ${walletLinkHtml(s.seller)} → ${walletLinkHtml(s.buyer)} for ${fmtWax(s.price.amount, s.price.token_precision)}`,
       memo: '',
     });
@@ -574,7 +574,7 @@ function renderHistory(tab) {
     ${items.map(e => `<tr>
       <td class="ast-hist-detail">${e.html}${e.memo ? `<div class="ast-hist-memo">${escHtml(e.memo)}</div>` : ''}</td>
       <td>${fmtDateTime(e.time)}</td>
-      <td class="ast-hist-tx">${e.txid ? `<a href="https://waxblock.io/transaction/${escHtml(e.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
+      <td class="ast-hist-tx">${e.saleId ? `<a href="${_p}sale/${escHtml(e.saleId)}">View listing</a>` : e.txid ? `<a href="https://waxblock.io/transaction/${escHtml(e.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
     </tr>`).join('')}
   </tbody></table>`;
 }

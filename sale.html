@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- See the identical, more detailed comment in collection.html. -->
+  <script>
+    var _p = /\/sale\/[^/]+\/?$/.test(location.pathname) ? '../' : '';
+    document.write(
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.ico" sizes="any" />' +
+      '<link rel="icon" href="' + _p + 'images/Hoardio_fav.png" type="image/png" />' +
+      '<link rel="stylesheet" href="' + _p + 'shared/global.css" />' +
+      '<script src="' + _p + 'shared/supabase-config.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-auth.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>'
+    );
+  </script>
+  <title>Sale — Hoardio</title>
+  <meta name="description" content="Full detail for any WAX marketplace listing — price, status, seller/buyer, and the NFT(s) involved." />
+  <link rel="canonical" href="https://www.hoardio.com/sale" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/sale" />
+  <meta property="og:title" content="Sale — Hoardio" />
+  <meta property="og:description" content="Full detail for any WAX marketplace listing — price, status, seller/buyer, and the NFT(s) involved." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Sale — Hoardio" />
+  <meta name="twitter:description" content="Full detail for any WAX marketplace listing — price, status, seller/buyer, and the NFT(s) involved." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <style>
+    .ast-placeholder {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem 1.5rem;
+      text-align: center; color: var(--text-secondary);
+    }
+    .ast-placeholder strong { color: var(--text-primary); }
+
+    /* ── Listing envelope — the sale-specific info that has no equivalent
+       on asset.html (price actually paid/asked, status, seller/buyer,
+       dates, fee, marketplace). Own section, shown first. ── */
+    .sale-header { display: flex; gap: 1.75rem; align-items: flex-start; margin-bottom: 1.75rem; flex-wrap: wrap; }
+    .sale-price-block { flex-shrink: 0; }
+    .sale-price-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+    .sale-price-val { font-size: 2rem; font-weight: 800; color: var(--accent-light); line-height: 1.1; margin-top: 0.2rem; }
+    .sale-price-usd { color: var(--text-secondary); font-size: 1rem; font-weight: 500; }
+    .sale-status { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; margin-top: 0.5rem; }
+    .sale-status--active { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .sale-status--sold   { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .sale-status--cancelled { background: rgba(248,113,113,0.15); color: #f87171; }
+    .sale-info { flex: 1; min-width: 280px; }
+    .sale-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
+    .sale-info-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+    .sale-info-val { font-size: 0.95rem; font-weight: 600; margin-top: 0.1rem; }
+    .sale-info-val a { color: var(--accent-light); text-decoration: none; }
+    .sale-info-val a:hover { text-decoration: underline; }
+    /* ── Floor Price + View on Market — own tinted block, same shape as
+       template.html's/asset.html's .tpl-listing-box (class names reused
+       verbatim rather than renamed). ── */
+    .tpl-listing-box {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.9rem 1.1rem; display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-top: 1rem;
+    }
+    .tpl-listing-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+    .tpl-listing-val { font-size: 1.1rem; font-weight: 700; color: var(--accent-light); }
+    .tpl-market-link { color: var(--accent-light); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+    .tpl-market-link:hover { text-decoration: underline; }
+
+    /* ── Header — same gallery/info-grid shape as asset.html's own (reused
+       verbatim for the single-asset case, class names kept identical
+       rather than renamed — same convention as asset.html reusing
+       template.html's). ── */
+    .tpl-header { display: flex; gap: 1.75rem; align-items: flex-start; margin-bottom: 1.75rem; flex-wrap: wrap; }
+    .tpl-gallery { flex-shrink: 0; width: 220px; }
+    .tpl-main-img-wrap {
+      width: 220px; height: 220px; border-radius: 14px; overflow: hidden;
+      background: var(--bg-card); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .tpl-main-img-wrap img, .tpl-main-img-wrap video { width: 100%; height: 100%; object-fit: contain; }
+    .tpl-thumbs { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .tpl-thumb {
+      width: 48px; height: 48px; border-radius: 8px; overflow: hidden; cursor: pointer;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .tpl-thumb.active { border-color: var(--accent-light); }
+    .tpl-thumb img, .tpl-thumb video { width: 100%; height: 100%; object-fit: contain; }
+    .tpl-info { flex: 1; min-width: 280px; }
+    .tpl-name { font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 800; margin-bottom: 0.4rem; }
+    .tpl-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
+    .tpl-info-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+    .tpl-info-val { font-size: 0.95rem; font-weight: 600; margin-top: 0.1rem; }
+    .tpl-info-val a { color: var(--accent-light); text-decoration: none; }
+    .tpl-info-val a:hover { text-decoration: underline; }
+    .tpl-supply-tag { cursor: default; }
+    .tpl-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+    .tpl-badge--yes { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .tpl-badge--no { background: rgba(248,113,113,0.15); color: #f87171; }
+    .ast-burned-tag { color: #f87171; font-weight: 600; }
+
+    /* ── Section titles / tables / offers panel (same convention as
+       collection.html/template.html/asset.html) ── */
+    .tpl-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
+    .tpl-section-title:first-child { margin-top: 0; }
+    .tpl-offers-panel {
+      background: rgba(240,168,64,0.05); border: 1px solid rgba(240,168,64,0.18);
+      border-radius: 14px; padding: 1.1rem 1.25rem 1.25rem; margin: 1.75rem 0;
+    }
+    .tpl-offers-panel .tpl-section-title { margin: 0 0 0.75rem; }
+    .tpl-offers-panel .table-wrap { background: var(--bg); }
+    .tpl-listing-usd { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
+    .rank-cell { font-weight: 700; color: var(--text-secondary); font-size: 0.88rem; white-space: nowrap; }
+    .wallet-cell { font-size: 0.92rem; color: var(--accent-light) !important; }
+    .wallet-link { color: inherit; text-decoration: none; }
+    .wallet-link:hover { text-decoration: underline; }
+
+    /* ── Bundle grid (more than one asset in this listing) ── */
+    .sale-bundle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+    .sale-bundle-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; display: block; }
+    .sale-bundle-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .sale-bundle-img-wrap img, .sale-bundle-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .sale-bundle-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
+    .sale-bundle-body { padding: 0.55rem 0.7rem; }
+    .sale-bundle-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sale-bundle-mint { font-size: 0.72rem; color: var(--text-secondary); }
+
+    /* ── Blockchain Logs table ── */
+    .sale-log-type {
+      display: inline-block; padding: 2px 8px; border-radius: 6px;
+      font-size: 0.76rem; font-weight: 600; white-space: nowrap;
+      background: rgba(168,85,247,0.15); color: #c084fc;
+    }
+    .sale-log-detail { font-size: 0.88rem; }
+    .sale-log-tx a {
+      font-size: 0.78rem; font-weight: 600; color: var(--accent-light);
+      text-decoration: none; white-space: nowrap;
+    }
+    .sale-log-tx a:hover { text-decoration: underline; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-home" id="navHomeLink" title="Back to homepage">
+      <img src="" alt="Hoardio" id="navHomeImg" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script>
+  document.getElementById('navHomeLink').href = _p + 'index';
+  document.getElementById('navHomeImg').src = _p + 'images/Hoardio_fav.png';
+  document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
+</script>
+<script>
+  if (_p) {
+    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
+      a.setAttribute('href', _p + a.getAttribute('href'));
+    });
+  }
+</script>
+<script>
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: _p + 'shared/wax-auth.js',
+    apiScript: _p + 'shared/wax-api.js',
+    exploreHref: _p + 'explore',
+    offersHref: _p + 'trade-offers',
+    profileHref: _p + 'profile',
+    menuItems: walletMenuItems(_p),
+  });
+</script>
+
+<main class="page-main">
+
+  <div id="loadingMsg" class="ast-placeholder">Loading…</div>
+  <div id="noParamMsg" class="ast-placeholder" style="display:none;">
+    No listing specified. Add <strong>?sale_id=&lt;id&gt;</strong> to the URL.
+  </div>
+  <div id="notFoundMsg" class="ast-placeholder" style="display:none;"></div>
+
+  <div id="saleWrap" style="display:none;">
+    <div class="sale-header">
+      <div class="sale-price-block">
+        <div class="sale-price-label" id="salePriceLabel">Price</div>
+        <div class="sale-price-val" id="salePrice">—</div>
+        <div id="saleStatus"></div>
+      </div>
+      <div class="sale-info">
+        <div class="sale-info-grid">
+          <div style="grid-column: 1 / -1;">
+            <div class="sale-info-label">Listing ID</div>
+            <div class="sale-info-val" id="saleId"></div>
+          </div>
+          <div>
+            <div class="sale-info-label">Seller</div>
+            <div class="sale-info-val" id="saleSeller"></div>
+          </div>
+          <div>
+            <div class="sale-info-label">Buyer</div>
+            <div class="sale-info-val" id="saleBuyer">—</div>
+          </div>
+          <div>
+            <div class="sale-info-label">Listed On</div>
+            <div class="sale-info-val" id="saleListedOn"></div>
+          </div>
+          <div>
+            <div class="sale-info-label">Sold On</div>
+            <div class="sale-info-val" id="saleSoldOn">—</div>
+          </div>
+          <div>
+            <div class="sale-info-label">Listed Via</div>
+            <div class="sale-info-val" id="saleMakerMarketplace"></div>
+          </div>
+          <div>
+            <div class="sale-info-label">Sold Via</div>
+            <div class="sale-info-val" id="saleTakerMarketplace">—</div>
+          </div>
+        </div>
+        <div class="tpl-listing-box">
+          <div>
+            <div class="tpl-listing-label">Floor Price</div>
+            <div class="tpl-listing-val" id="saleFloorPrice">—</div>
+          </div>
+          <a class="tpl-market-link" id="saleMarketLink" href="#">View on Market</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tpl-section-title" id="itemsSectionTitle">Item in this Listing</div>
+
+    <!-- Single-asset case — reused verbatim from asset.html -->
+    <div id="singleAssetWrap" style="display:none;">
+      <div class="tpl-header">
+        <div class="tpl-gallery">
+          <div class="tpl-main-img-wrap" id="astMainImgWrap"></div>
+          <div class="tpl-thumbs" id="astThumbs"></div>
+        </div>
+        <div class="tpl-info">
+          <div class="tpl-name" id="astName">Asset</div>
+          <div class="tpl-info-grid">
+            <div>
+              <div class="tpl-info-label">Asset ID</div>
+              <div class="tpl-info-val" id="astId"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Owner</div>
+              <div class="tpl-info-val" id="astOwner"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Mint Number</div>
+              <div class="tpl-info-val" id="astMint"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Burnable / Transferable</div>
+              <div class="tpl-info-val" id="astFlags"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Collection</div>
+              <div class="tpl-info-val" id="astCollection"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Schema</div>
+              <div class="tpl-info-val" id="astSchema"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Template ID</div>
+              <div class="tpl-info-val" id="astTemplate"></div>
+            </div>
+            <div>
+              <div class="tpl-info-label">Backed Tokens</div>
+              <div class="tpl-info-val" id="astBacked"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tpl-section-title">Asset Attributes</div>
+      <div class="table-wrap"><table><tbody id="astAttrsBody"></tbody></table></div>
+
+      <div class="tpl-offers-panel">
+        <div class="tpl-section-title">Top Active Offers</div>
+        <div class="table-wrap" id="astOffersWrap"></div>
+      </div>
+
+      <div class="tpl-section-title">Price History</div>
+      <div id="astPriceHistory"></div>
+    </div>
+
+    <!-- Bundle case — more than one asset in this listing -->
+    <div id="bundleWrap" class="sale-bundle-grid" style="display:none;"></div>
+
+    <div class="tpl-section-title">Blockchain Logs</div>
+    <div class="table-wrap" id="saleLogsWrap"><div class="ast-placeholder">Loading…</div></div>
+  </div>
+
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+}
+function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+
+// Same markdown-link / bare-URL scan as asset.html's own copy.
+function linkifyValue(raw) {
+  const str = String(raw ?? '');
+  const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g;
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = re.exec(str))) {
+    out += escHtml(str.slice(last, m.index));
+    if (m[1] !== undefined) {
+      out += `<a href="${escHtml(m[2])}" target="_blank" rel="noopener" style="color:var(--accent-light);text-decoration:none">${escHtml(m[1])} ↗</a>`;
+    } else {
+      let url = m[3];
+      let trail = '';
+      const t = url.match(/[.,;:!?]+$/);
+      if (t) { trail = t[0]; url = url.slice(0, -trail.length); }
+      out += `<a href="${escHtml(url)}" target="_blank" rel="noopener" style="color:var(--accent-light);text-decoration:none">${escHtml(url)} ↗</a>${escHtml(trail)}`;
+    }
+    last = re.lastIndex;
+  }
+  out += escHtml(str.slice(last));
+  return out;
+}
+function onImgError(el) {
+  const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+  const hash = el.dataset.ipfsHash;
+  if (hash && idx < IPFS_GATEWAY_LIST.length) {
+    el.dataset.gwIdx = String(idx);
+    setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1000);
+    return;
+  }
+  el.outerHTML = '<div class="sale-bundle-img-ph">?</div>';
+}
+function fmtWax(raw, precision) {
+  const n = Number(raw) / (10 ** (precision ?? 8));
+  if (!isFinite(n)) return '—';
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' WAX';
+}
+function fmtDate(msStr) {
+  const n = Number(msStr);
+  if (!isFinite(n) || !n) return '';
+  return new Date(n).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+function fmtDateTime(msStr) {
+  const n = Number(msStr);
+  if (!isFinite(n) || !n) return '';
+  return new Date(n).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+async function fetchWaxPrice() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    const json = await r.json();
+    window._waxUsdRate = json?.wax?.usd ?? null;
+  } catch { /* leave unset */ }
+}
+
+function getSaleIdFromUrl() {
+  const qp = new URLSearchParams(location.search).get('sale_id');
+  if (qp) return qp;
+  const m = location.pathname.match(/\/sale\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const saleId = getSaleIdFromUrl();
+
+const SALE_STATE = { 1: { label: 'Active', cls: 'active' }, 2: { label: 'Cancelled', cls: 'cancelled' }, 3: { label: 'Sold', cls: 'sold' } };
+
+async function loadSale() {
+  const aa  = WaxApi.aaBase();
+  const mkt = WaxApi.marketBase();
+
+  let sale;
+  try {
+    sale = await WaxApi.apiFetch(`${mkt}/sales/${encodeURIComponent(saleId)}`);
+    if (!sale) throw new Error('not found');
+  } catch {
+    document.getElementById('loadingMsg').style.display = 'none';
+    const el = document.getElementById('notFoundMsg');
+    el.style.display = '';
+    el.innerHTML = `Could not find a listing with ID <strong>${escHtml(saleId)}</strong>.`;
+    return;
+  }
+  await fetchWaxPrice();
+
+  const assets = sale.assets || [];
+  const isBundle = assets.length > 1;
+  const first = assets[0];
+  const singleTemplateId = !isBundle ? first?.template?.template_id : (assets.every(a => a.template?.template_id === assets[0]?.template?.template_id) ? assets[0]?.template?.template_id : null);
+  const singleCollectionName = first?.collection?.collection_name || '';
+
+  document.title = `${isBundle ? `Bundle of ${assets.length}` : (first?.data?.name || first?.name || 'Asset')} — Sale — Hoardio`;
+
+  const state = SALE_STATE[sale.state] || { label: 'Unknown', cls: 'active' };
+  document.getElementById('saleId').textContent = `#${saleId}`;
+  document.getElementById('salePrice').innerHTML = fmtWax(sale.price.amount, sale.price.token_precision) +
+    (window._waxUsdRate ? ` <span class="sale-price-usd">≈ $${(Number(sale.price.amount) / (10 ** sale.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '');
+  document.getElementById('salePriceLabel').textContent = sale.state === 3 ? 'Sold For' : sale.state === 2 ? 'Was Listed For' : 'Price';
+  document.getElementById('saleStatus').innerHTML = `<span class="sale-status sale-status--${state.cls}">${escHtml(state.label)}</span>`;
+  document.getElementById('saleSeller').innerHTML = walletLinkHtml(sale.seller);
+  document.getElementById('saleBuyer').innerHTML = sale.buyer ? walletLinkHtml(sale.buyer) : '—';
+  document.getElementById('saleListedOn').textContent = fmtDateTime(sale.created_at_time);
+  document.getElementById('saleSoldOn').textContent = sale.state === 3 ? fmtDateTime(sale.updated_at_time) : '—';
+  // Independent facts — a listing can be made via one marketplace's UI and
+  // bought via a completely different one (or neither), same reasoning as
+  // Listed On/Sold On being two separate fields rather than one.
+  document.getElementById('saleMakerMarketplace').textContent = sale.maker_marketplace || 'Direct';
+  document.getElementById('saleTakerMarketplace').textContent = sale.state === 3 ? (sale.taker_marketplace || 'Direct') : '—';
+  document.getElementById('saleMarketLink').href = singleTemplateId ? `${_p}explore?template_id=${encodeURIComponent(singleTemplateId)}` : `${_p}explore`;
+
+  // Floor price — template-pooled, same query asset.html/template.html use.
+  // Only shown when every asset in this listing shares one template (a
+  // bundle of different templates has no single floor to compare against).
+  if (singleTemplateId) {
+    try {
+      const rows = await WaxApi.apiFetch(`${mkt}/sales?template_id=${singleTemplateId}&symbol=WAX&state=1&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`);
+      const lowest = rows?.[0];
+      if (lowest) {
+        const usd = window._waxUsdRate ? ` <span class="tpl-listing-usd">≈ $${(Number(lowest.price.amount) / 1e8 * window._waxUsdRate).toFixed(2)}</span>` : '';
+        document.getElementById('saleFloorPrice').innerHTML = fmtWax(lowest.price.amount) + usd;
+      }
+    } catch {}
+  }
+
+  document.getElementById('itemsSectionTitle').textContent = isBundle ? `Items in this Listing (${assets.length})` : 'Item in this Listing';
+
+  if (isBundle) {
+    document.getElementById('bundleWrap').style.display = '';
+    document.getElementById('bundleWrap').innerHTML = assets.map(bundleCardHtml).join('');
+  } else if (first) {
+    document.getElementById('singleAssetWrap').style.display = '';
+    renderSingleAsset(first, singleCollectionName, singleTemplateId);
+  }
+
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('saleWrap').style.display = '';
+
+  loadSaleLogs();
+}
+
+function bundleCardHtml(a) {
+  const data = a.data || {};
+  const name = data.name || a.name || `#${a.template_mint}`;
+  const media = data.video
+    ? `<video muted loop playsinline autoplay><source src="${escHtml(toMediaUrl(data.video))}" type="video/mp4"></video>`
+    : (data.img || data.backimg)
+    ? `<img src="${escHtml(toMediaUrl(data.img || data.backimg))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(data.img || data.backimg)}" data-gw-idx="0" onerror="onImgError(this)">`
+    : `<div class="sale-bundle-img-ph">?</div>`;
+  return `<a class="sale-bundle-card" href="${_p}asset/${a.asset_id}">
+    <div class="sale-bundle-img-wrap">${media}</div>
+    <div class="sale-bundle-body">
+      <div class="sale-bundle-name" title="${escHtml(name)}">${escHtml(name)}</div>
+      <div class="sale-bundle-mint">Mint #${a.template_mint}</div>
+    </div>
+  </a>`;
+}
+
+/* ── Single-asset detail — ported verbatim from asset.html's own
+   loadHeader(), sourced from this sale's already-embedded asset data
+   (sale.assets[0] carries the full nested collection/schema/template/data,
+   same as a standalone /assets/{id} call — confirmed live) instead of a
+   second network round-trip. ── */
+function renderSingleAsset(asset, collectionName, templateId) {
+  const schemaName = asset.schema?.schema_name || '';
+  const isBurned = !!asset.burned_at_time;
+  const data = asset.data || {};
+
+  const img = data.img, video = data.video, backimg = data.backimg;
+  const mainWrap = document.getElementById('astMainImgWrap');
+  const setMainMedia = (hash, kind) => {
+    if (kind === 'video') {
+      const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+      mainWrap.innerHTML = `<video ${autoplay} loop muted playsinline><source src="${escHtml(toMediaUrl(hash))}" type="video/mp4"></video>`;
+    } else {
+      mainWrap.innerHTML = `<img alt="" src="${escHtml(toMediaUrl(hash))}" data-ipfs-hash="${escHtml(hash)}" data-gw-idx="0" onerror="onImgError(this)">`;
+    }
+  };
+  const mediaItems = [
+    video ? { hash: video, kind: 'video' } : null,
+    img ? { hash: img, kind: 'image' } : null,
+    backimg ? { hash: backimg, kind: 'image' } : null,
+  ].filter(Boolean);
+  if (mediaItems.length) setMainMedia(mediaItems[0].hash, mediaItems[0].kind);
+  if (mediaItems.length > 1) {
+    document.getElementById('astThumbs').innerHTML = mediaItems.map((m, i) =>
+      `<div class="tpl-thumb${i === 0 ? ' active' : ''}" data-hash="${escHtml(m.hash)}" data-kind="${m.kind}">${
+        m.kind === 'video'
+          ? `<video muted loop playsinline preload="metadata"><source src="${escHtml(toMediaUrl(m.hash))}" type="video/mp4"></video>`
+          : `<img src="${escHtml(toMediaUrl(m.hash))}" alt="" loading="lazy">`
+      }</div>`
+    ).join('');
+    document.querySelectorAll('.tpl-thumb').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.tpl-thumb').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        setMainMedia(el.dataset.hash, el.dataset.kind);
+      });
+    });
+  }
+
+  document.getElementById('astName').textContent = data.name || asset.name || `Asset #${asset.asset_id}`;
+  document.getElementById('astId').innerHTML = `<a href="${_p}asset/${encodeURIComponent(asset.asset_id)}">#${escHtml(asset.asset_id)}</a>`;
+  document.getElementById('astOwner').innerHTML = isBurned
+    ? `<span class="ast-burned-tag" title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}">🔥 Burned${asset.burned_by_account ? ' by ' + walletLinkHtml(asset.burned_by_account) : ''}</span>`
+    : walletLinkHtml(asset.owner);
+  const issuedSupply = asset.template ? Number(asset.template.issued_supply) : null;
+  document.getElementById('astMint').textContent = issuedSupply != null
+    ? `${asset.template_mint} of ${issuedSupply.toLocaleString()}`
+    : `#${asset.template_mint}`;
+  document.getElementById('astFlags').innerHTML =
+    `<span class="tpl-badge ${asset.is_burnable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_burnable ? 'Burnable' : 'Not burnable'}</span> ` +
+    `<span class="tpl-badge ${asset.is_transferable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_transferable ? 'Transferable' : 'Not transferable'}</span>`;
+  document.getElementById('astCollection').innerHTML = collectionName
+    ? `<a href="${_p}collection/${encodeURIComponent(collectionName)}">${escHtml(asset.collection?.name || collectionName)}</a>` : '—';
+  document.getElementById('astSchema').innerHTML = (collectionName && schemaName)
+    ? `<a href="${_p}schema/${encodeURIComponent(collectionName)}/${encodeURIComponent(schemaName)}">${escHtml(schemaName)}</a>` : '—';
+  document.getElementById('astTemplate').innerHTML = templateId
+    ? `<a href="${_p}template/${encodeURIComponent(templateId)}">#${escHtml(templateId)}</a>` : '—';
+  document.getElementById('astBacked').textContent = AssetPopup.fmtBackedTokens(asset.backed_tokens);
+
+  const attrsBody = document.getElementById('astAttrsBody');
+  attrsBody.innerHTML = Object.entries(data).map(([k, v]) =>
+    `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
+  ).join('') || '<tr><td>No attributes</td></tr>';
+
+  if (templateId) {
+    TemplatePriceChart.mount({ containerId: 'astPriceHistory', templateId, collectionName });
+    loadTemplateOffers(templateId);
+  } else {
+    document.getElementById('astPriceHistory').innerHTML = '<div class="tpc-placeholder">No template associated with this asset.</div>';
+    document.getElementById('astOffersWrap').innerHTML = '<div class="ast-placeholder">No template associated with this asset.</div>';
+  }
+}
+
+// Template-pooled Top Active Offers — same endpoint/rendering as
+// asset.html's own (any matching copy, not just this one listing).
+async function loadTemplateOffers(templateId) {
+  const wrap = document.getElementById('astOffersWrap');
+  const mkt = WaxApi.marketBase();
+  let offers;
+  try {
+    offers = await WaxApi.apiFetch(`${mkt}/template_buyoffers?template_id=${templateId}&state=0&symbol=WAX&sort=price&order=desc&limit=10`);
+  } catch { offers = null; }
+  if (!offers || !offers.length) {
+    wrap.innerHTML = '<div class="ast-placeholder">No active offers.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Buyer</th><th>Price Offered</th><th>Offer Placed On</th></tr></thead>
+    <tbody>${offers.map(o => {
+      const usd = window._waxUsdRate ? ` <span class="tpl-listing-usd">≈ $${(Number(o.price.amount) / (10 ** o.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '';
+      return `<tr>
+        <td class="wallet-cell">${walletLinkHtml(o.buyer)}</td>
+        <td>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</td>
+        <td>${fmtDate(o.created_at_time)}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+// This listing's own on-chain event log — lognewsale/logsalestart on
+// creation, purchasesale on sale, logcanceledsale on cancellation, etc.
+// Confirmed live against a real sold listing that this matches AtomicHub's
+// own "Blockchain Logs" table exactly (same 3 events, same data fields).
+function logDetailHtml(entry) {
+  const parts = Object.entries(entry.data || {}).map(([k, v]) => `<div>${escHtml(k)}: ${escHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</div>`);
+  return parts.join('') || '—';
+}
+function logTypeLabel(name) {
+  return name.replace(/([A-Z])/g, ' $1').trim().replace(/^./, c => c.toUpperCase());
+}
+async function loadSaleLogs() {
+  const wrap = document.getElementById('saleLogsWrap');
+  const mkt = WaxApi.marketBase();
+  let logs;
+  try { logs = await WaxApi.apiFetch(`${mkt}/sales/${encodeURIComponent(saleId)}/logs?limit=100&order=desc`); }
+  catch { logs = null; }
+  if (!logs || !logs.length) { wrap.innerHTML = '<div class="ast-placeholder">No logs found.</div>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th>Event</th><th>Date</th><th></th></tr></thead><tbody>
+    ${logs.map(l => `<tr>
+      <td class="sale-log-detail"><span class="sale-log-type">${escHtml(logTypeLabel(l.name))}</span>${logDetailHtml(l)}</td>
+      <td>${fmtDateTime(l.created_at_time)}</td>
+      <td class="sale-log-tx">${l.txid ? `<a href="https://waxblock.io/transaction/${escHtml(l.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* ── Init ── */
+if (!saleId) {
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('noParamMsg').style.display = '';
+} else {
+  loadSale();
+}
+</script>
+
+</body>
+</html>

@@ -2734,7 +2734,7 @@ function historyCardHtml(sale) {
         <span class="sc-label">Price</span><span class="sc-value sc-price">${listingPriceHtml(sale)}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
-        <span class="sc-label">Listing ID</span><span class="sc-value">#${sale.sale_id}</span>
+        <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${sale.sale_id}" class="sc-name-link">#${sale.sale_id}</a></span>
         <span class="sc-label">Sold</span><span class="sc-value">${fmtDateTime(sale.updated_at_time)}</span>
         <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(sale.seller)}</span>
         <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${walletLinkHtml(sale.buyer)}</span>

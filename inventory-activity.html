@@ -921,7 +921,7 @@ function saleCardHtml(item, asset) {
         <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax)}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
-        <span class="sc-label">Listing ID</span><span class="sc-value">#${item.sale_id}</span>
+        <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
         <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(item.seller)}</span>
         <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${walletLinkHtml(item.buyer)}</span>
