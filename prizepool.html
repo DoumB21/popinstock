@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twitch Stream Prize Pool — Hoardio</title>
+  <meta name="description" content="Browse the NFT prize pool available to give away on stream." />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="canonical" href="https://www.hoardio.com/prizepool" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/prizepool" />
+  <meta property="og:title" content="Twitch Stream Prize Pool — Hoardio" />
+  <meta property="og:description" content="Browse the NFT prize pool available to give away on stream." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Twitch Stream Prize Pool — Hoardio" />
+  <meta name="twitter:description" content="Browse the NFT prize pool available to give away on stream." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <script src="shared/supabase-config.js"></script>
+  <script src="shared/settings.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+  <script src="shared/wallet-menu.js"></script>
+  <script src="shared/asset-popup.js"></script>
+  <style>
+    /* ── Controls card (filter panel) ── */
+    .controls-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.5rem; margin-bottom: 0.5rem;
+    }
+    .controls-row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 140px; }
+    .control-group--wide { flex: 2; min-width: 200px; }
+    .control-group--narrow { flex: 0 0 auto; }
+    .control-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .filter-row { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    /* Override .controls-row's flex-end here specifically — Duplicates has
+       2 checkboxes stacked under its label, taller than the single-row
+       groups next to it (Mint Range/Assets/Backed), so bottom-alignment
+       pushed those others down out of line with everything's actual top. */
+    .controls-row.filter-row { align-items: flex-start; }
+    .mint-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .mint-range-inputs .control-input { flex: 1; min-width: 0; }
+    .range-sep { color: var(--text-secondary); flex-shrink: 0; }
+    #cardIdGroup { max-width: 175px; }
+    /* Subtle accent wash so the whole attribute-filter row (Rarity, Card ID,
+       and every smart-generated attribute) reads as its own group, visually
+       distinct from the core Schema/Mint/Show-all row above it. */
+    #dynamicFilterRow .cb-dropdown-btn { background: rgba(192,120,40,0.07); border-color: rgba(192,120,40,0.18); }
+    .too-many-attrs-msg {
+      flex: 1 1 100%;
+      font-size: 0.85rem; color: var(--text-secondary);
+      background: rgba(192,120,40,0.07); border: 1px solid rgba(192,120,40,0.18);
+      border-radius: 10px; padding: 0.65rem 0.9rem;
+    }
+    /* .clear-filters-btn and the checkbox-dropdown component (.cb-dropdown,
+       .cb-dropdown-btn, .cb-label, .cb-arrow, .cb-panel, .cb-item) live in
+       shared/global.css now — no page-specific overrides needed here. */
+
+    /* ── Spinner ── */
+    .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty ── */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .empty-state strong { display: block; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.4rem; }
+
+    /* ── Inventory grid ──
+       180px keeps this at a clean 6-wide (matching PAGE_SIZE=18 = 3 full
+       rows) at every desktop width >=1280px, since .page-main caps at
+       1280px regardless of screen size. 160px used to yield 7-wide instead,
+       leaving an awkward partial last row (18 doesn't divide evenly by 7). */
+    .inv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+    .inv-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      display: flex; flex-direction: column;
+    }
+    .inv-card:hover {
+      border-color: rgba(240,168,64,0.45);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
+    .inv-card.is-listed { border-color: rgba(240,168,64,0.2); }
+    .inv-card.is-listed:hover { border-color: rgba(240,168,64,0.55); }
+
+    .inv-card-img {
+      width: 100%; aspect-ratio: 1 / 1; background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+      position: relative;
+    }
+    .inv-card-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .inv-img-placeholder { color: var(--text-secondary); font-size: 1.5rem; opacity: 0.3; }
+    .inv-img-placeholder--error {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; opacity: 0.45; text-align: center; padding: 0 12px;
+    }
+    .inv-img-placeholder--error .ph-text { font-size: 0.62rem; line-height: 1.25; font-weight: 500; }
+    .inv-card-mint {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      color: var(--accent-light); font-size: 0.65rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 999px;
+      border: 1px solid rgba(240,168,64,0.3);
+      pointer-events: none;
+    }
+
+    .inv-card-info { padding: 0.55rem 0.7rem 0.4rem; flex: 1; }
+    .inv-card-name {
+      font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 0.15rem;
+    }
+    .inv-card-meta { font-size: 0.68rem; color: #9999bb; }
+
+    @media (max-width: 600px) {
+      .inv-grid { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.6rem; }
+    }
+
+    /* ── Info popup / hover tooltip: canonical .hover-tooltip/.info-popup/
+       .tt-* rules now live in shared/global.css (shared/asset-popup.js
+       owns the DOM + wiring). ── */
+  </style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title" id="pageTitle">Twitch Stream <span class="accent">Prize Pool</span></h1>
+    <p class="page-desc" id="pageDesc">The NFT pool available to give away on stream.</p>
+  </div>
+
+  <div id="toolbar" class="controls-card">
+    <div class="controls-row">
+      <div class="control-group">
+        <input id="searchInput" type="search" class="control-input" placeholder="Search by name…" autocomplete="off" />
+      </div>
+      <div class="control-group control-group--wide">
+        <div class="cb-combo" id="colCombo">
+          <input type="text" class="cb-combo-input" id="colComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="colComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+    </div>
+    <div class="controls-row filter-row">
+      <div class="control-group" id="schemaGroup">
+        <div class="cb-combo" id="schemaCombo">
+          <input type="text" class="cb-combo-input" id="schemaComboInput" autocomplete="off" spellcheck="false" placeholder="All schemas" disabled title="Select a collection to enable this filter">
+          <button type="button" class="cb-combo-clear" id="schemaComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+      <div class="control-group control-group--wide" id="templateGroup">
+        <div class="cb-combo" id="templateCombo">
+          <input type="text" class="cb-combo-input" id="templateComboInput" autocomplete="off" spellcheck="false" placeholder="All templates" disabled title="Select a collection to enable this filter">
+          <button type="button" class="cb-combo-clear" id="templateComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="mint-range-inputs">
+          <input id="mintMin" type="number" class="control-input" placeholder="Min mint" min="1" />
+          <span class="range-sep">—</span>
+          <input id="mintMax" type="number" class="control-input" placeholder="Max mint" min="1" />
+        </div>
+      </div>
+    </div>
+    <!-- Collection/schema-attribute filters (Card ID, Rarity, and every
+         other smart-generated attribute) — deliberately a separate row below
+         the core filters above. Schema/Mint/etc. are fields every asset
+         always has, so their position must never shift; these are
+         attribute-driven, only exist for some collections/schemas, and come
+         and go as the selection changes — this row (not the core one) is
+         where that churn is contained. Hidden entirely via
+         refreshDynamicFilterRowVisibility() when none of its children
+         currently have anything to show. -->
+    <div class="controls-row filter-row" id="dynamicFilterRow" style="display:none;">
+      <div class="control-group" id="cardIdGroup" style="display:none;">
+        <div class="cb-dropdown" id="cardIdDropdown">
+          <button class="cb-dropdown-btn" type="button">
+            <span class="cb-label">Card ID</span>
+            <span class="cb-arrow">▾</span>
+          </button>
+          <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+      <div id="tooManyAttrsMsg" class="too-many-attrs-msg" style="display:none;">This collection has too many attributes. Select a schema to view the relevant filters.</div>
+      <div id="scanningAttrsMsg" class="too-many-attrs-msg" style="display:none;">Scanning this schema's attributes — this collection stores traits per-item rather than per-card, so it takes a moment the first time.</div>
+      <div id="noSchemaAttrsMsg" class="too-many-attrs-msg" style="display:none;">Some schemas in this collection store their traits per-item rather than per-card. Select a schema to view them.</div>
+    </div>
+    <div class="controls-row filter-row" id="bottomActionsRow">
+      <div class="control-group--narrow" style="margin-left:auto; display:flex; align-items:flex-end; align-self:flex-end;">
+        <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadWrap" class="status-wrap" style="display:none;">
+    <div class="spinner"></div>
+    <div>Loading prize pool…</div>
+  </div>
+
+  <div id="emptyWrap" class="empty-state" style="display:none;">
+    <strong>No NFTs found</strong>
+    No items match the current filter.
+  </div>
+
+  <div id="invGrid" class="inv-grid" style="display:none;"></div>
+
+  <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
+    <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+// Always root-level — no clean-path rewrite nests this page, unlike
+// inventory.html's /inventory/:wallet. Kept as a variable (not inlined)
+// purely because AssetPopup's href callbacks and WalletWidget.mount below
+// were copied from a page that needed it live.
+const _p = '';
+
+// Asset inventory queries — official endpoint times out on sort=transferred from JS, use alternates first
+const ATOMIC_ENDPOINTS = [
+  'https://wax.eosusa.io',
+  'https://atomic.wax.detroitledger.tech',
+  'https://atomic.hivebp.io',
+  'https://atomic.sentnl.io',
+  'https://atomic-api.wax.cryptolions.io',
+  'https://wax-atomic.alcor.exchange',
+  'https://atomic.wax.eosrio.io',
+  'https://api.waxsweden.org',
+  'https://wax-aa.eu.eosamsterdam.net',
+  'https://wax.api.atomicassets.io',
+  'https://wax-atomic-api.eosphere.io',
+];
+let _endpointIdx = 0;
+function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.length]; }
+
+// Market/sales queries — official endpoint has the freshest index; no CORS timeout here
+const MARKET_API = 'https://wax.api.atomicassets.io';
+
+const PAGE_SIZE  = 18;
+
+// Hardcoded — this page only ever shows one wallet's inventory, read-only.
+const PRIZE_WALLET = 'toby.gm';
+
+let _assets          = [];
+let _page            = 1;
+let _hasMore         = false;
+let _loading         = false;
+let _autoLoadArmed   = false; // true once the user has manually clicked "Load more" once — see initInfiniteScroll
+let _filterText          = '';
+let _filterCol           = 'all';
+let _filterSchema        = 'all';
+let _filterTemplate      = 'all';
+let _templateItemsCache  = [{ value: 'all', label: 'All templates' }];
+const _selectedCardIds   = new Set();
+const _selectedDynamicFilters = {};  // attribute field name → Set of selected values (smart-generated filters)
+let _dynamicFieldGroups  = [];       // field names currently rendered as extra dropdowns in #dynamicFilterRow
+let _filterMintMin       = '';
+let _filterMintMax       = '';
+let _debounceTimer       = null;
+const _schemaCache       = {};  // collection_name → [schema_name, ...]
+const _schemaFormatCache = {};  // collection_name → { schema_name → [{name, type}, ...] } — from the same /schemas call, free
+const _schemaAssetCountCache = {}; // collection_name → { schema_name → assets count } — also free from the /schemas call
+const _walletSchemaCountCache = {}; // "wallet|collection_name" → { schema_name → wallet-owned count }, from accounts/{wallet}/{collection}
+const _walletTemplateCountCache = {}; // collection_name → { template_id → wallet-owned count } — PRIZE_WALLET is fixed, so no wallet in the key
+const _templateCache     = {};  // collection_name → [{template_id, schema_name, name, data: {immutable_data fields}}]
+// PFP-style schemas (see isAssetLevelAttrSchema) keep template immutable_data
+// empty and put real trait data on each individual asset instead — confirmed
+// live against a real project (warcxbananas/astralape). Cached per
+// `${collection}::${schema}` key once scanned, so it's a one-time cost per
+// session per schema, same lifetime as every other cache here.
+const _assetAttrCache        = {}; // cache key → [merged asset .data, ...]
+const _assetAttrFetchPromises = {}; // cache key → in-flight Promise, so concurrent callers share one fetch
+let _collections      = new Set();
+let _collectionNames  = new Map();  // collection_name → display name
+let _collectionCounts = new Map();  // collection_name → asset count
+let _totalAssets      = null;       // total NFT count across all collections
+let _pendingReload    = false;      // a filter changed while _loading was already true — see finishLoading()
+let _collectionsReady = false;
+
+const RARITY_CLASS = {
+  'Common':'r-common','Uncommon':'r-uncommon','Rare':'r-rare','Epic':'r-epic',
+  'Series':'r-series','Ultra':'r-ultra','Legendary':'r-legendary','Grail':'r-grail',
+  'Mythic':'r-mythic','Royalty':'r-royalty','1 of 1':'r-1of1',
+};
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Helpers                                                                    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchWithRetry(url, retries = 2) {
+  let currentUrl = url;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(currentUrl);
+      if ((res.status !== 408 && res.status !== 429 && res.status !== 503) || attempt === retries) return res;
+    } catch (err) {
+      if (attempt === retries) throw err;
+    }
+    // rotate to next provider and patch the URL
+    const oldBase = ATOMIC_ENDPOINTS.find(ep => currentUrl.startsWith(ep)) || ATOMIC_ENDPOINTS[0];
+    _endpointIdx++;
+    currentUrl = currentUrl.replace(oldBase, atomicApi());
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+function imgUrl(hash) {
+  if (!hash) return '';
+  if (hash.startsWith('http')) return hash;
+  const gw = (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/';
+  return gw + hash;
+}
+
+// Public IPFS gateways don't all have the same peers/cache — a CID that's
+// cold on one (times out fetching it fresh from the P2P network) can
+// already be warm on another. Cycle through a few gateways instead of
+// retrying the same one, before giving up and hiding the image.
+const IPFS_GATEWAY_LIST = [
+  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function onAssetImgError(el) {
+  const hash = el.dataset.ipfsHash;
+  if (hash) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+      return;
+    }
+  } else if (!el.dataset.retried) {
+    // Not a bare CID (already an absolute, non-gateway URL) — nothing to
+    // swap gateways on, so just retry the same URL once.
+    el.dataset.retried = '1';
+    setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
+    return;
+  }
+  const ph = document.createElement('div');
+  ph.className = 'inv-img-placeholder inv-img-placeholder--error';
+  ph.innerHTML = '<span class="ph-icon">?</span><span class="ph-text">Unable to load media</span>';
+  el.replaceWith(ph);
+}
+
+function assetMediaHtml(a, extraAttr = '', eager = false) {
+  const d     = a.data || {};
+  const t     = a.template?.immutable_data || {};
+  const video = d.video || t.video || '';
+  const img   = d.img || d.image || t.img || t.image || '';
+  if (video) {
+    if (eager) {
+      const autoplay = window.getReduceMotion?.() ? '' : 'autoplay';
+      return `<video src="${imgUrl(video)}" muted playsinline loop ${autoplay} style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+    }
+    return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+  }
+  if (img)   return `<img src="${imgUrl(img)}" alt="${a.name || ''}" ${extraAttr} data-ipfs-hash="${img.startsWith('http') ? '' : img}" data-gw-idx="0" onerror="onAssetImgError(this)">`;
+  return '<div class="inv-img-placeholder">?</div>';
+}
+
+function filtered() {
+  return _assets;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Lazy video loader                                                          */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+let _videoObserver = null;
+
+function initLazyVideos() {
+  if (_videoObserver) _videoObserver.disconnect();
+
+  _videoObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        if (video.dataset.src && !video.src) {
+          video.src = video.dataset.src;
+          video.load();
+        }
+        if (!window.getReduceMotion?.()) video.play().catch(() => {});
+      } else {
+        video.pause();
+        // Unload src to free decoder memory; browser cache makes reload instant
+        if (video.src) {
+          video.removeAttribute('src');
+          video.load();
+        }
+      }
+    }
+  }, { rootMargin: '300px' }); // pre-load 300px ahead so videos are ready before they're visible
+
+  document.querySelectorAll('.inv-card-img video[data-src], .bulk-strip-thumb video[data-src]').forEach(v => _videoObserver.observe(v));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Surgical card patch — updates one card without touching the rest of the DOM */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Card events                                                                */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function attachCardEvents(card, asset) {
+  // Hover/click info popup — shared/asset-popup.js. This page is a pure
+  // read-only gallery (no list/transfer/select actions), so the popup is
+  // the only interaction a card has.
+  const imgEl = card.querySelector('.inv-card-img');
+  _assetPopup.wire(card, assetPopupData(asset), { hoverEl: imgEl });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Info popup / hover tooltip — shared/asset-popup.js                        */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const _assetPopup = AssetPopup.mount({
+  aaBase: () => atomicApi() + '/atomicassets/v1',
+  apiFetch: url => fetchWithRetry(url).then(r => r.json()).then(j => j.data),
+  // Defaults are root-relative — need the _p prefix here since this page
+  // itself can be loaded one level deep via /inventory/:wallet.
+  collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
+  templateHref:   id   => `${_p}template/${encodeURIComponent(id)}`,
+  walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
+  schemaHref:     (collection, schema) => `${_p}schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
+  assetHref:      id   => `${_p}asset/${encodeURIComponent(id)}`,
+});
+function closeInfoPopup() { _assetPopup.close(); }
+function copyVal(btn, text) { AssetPopup.copyVal(btn, text); }
+
+// Maps this page's asset representation onto AssetPopup's page-agnostic
+// data contract — kept in one place so the popup content only has to be
+// written once (shared/asset-popup.js) instead of once per render mode.
+function assetPopupData(asset) {
+  const d      = normalizeFieldData(asset.data);
+  const t      = normalizeFieldData(asset.template?.immutable_data);
+  const rarity = d.rarity || t.rarity || '';
+  return {
+    assetId: asset.asset_id,
+    templateId: asset.template?.template_id,
+    collection: asset.collection?.collection_name || '',
+    collectionName: asset.collection?.name || _collectionNames.get(asset.collection?.collection_name) || asset.collection?.collection_name || '',
+    schema: asset.schema?.schema_name || '',
+    rarity,
+    rarityClass: RARITY_CLASS[rarity] || '',
+    cardid: d.cardid || t.cardid || null,
+    name: asset.name || 'Unknown',
+    owner: asset.owner || '',
+    backedTokens: asset.backed_tokens || [],
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Schema filter                                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchSchemasForCollection(collection) {
+  if (_schemaCache[collection]) return _schemaCache[collection];
+  try {
+    const url  = `${atomicApi()}/atomicassets/v1/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
+    const res  = await fetchWithRetry(url);
+    const json = await res.json();
+    const formats = {};
+    const assetCounts = {};
+    for (const s of (json.data || [])) {
+      // Lowercased for the same reason field data is normalized in
+      // fetchTemplatesForCollection — a declared type must be looked up by
+      // the same canonical key candidateNames uses, or a schema declaring
+      // `Rarity` (capital) would silently miss its own type exclusion check.
+      formats[s.schema_name] = (s.format || []).map(f => ({ name: f.name.toLowerCase(), type: f.type }));
+      assetCounts[s.schema_name] = s.assets || 0;
+    }
+    _schemaFormatCache[collection] = formats;
+    _schemaAssetCountCache[collection] = assetCounts;
+    const schemas = (json.data || []).map(s => s.schema_name).sort();
+    _schemaCache[collection] = schemas;
+    return schemas;
+  } catch {
+    _schemaCache[collection] = [];
+    return [];
+  }
+}
+
+// Wallet-owned per-schema counts, mirroring how updateColFilter() gets its
+// "(count)" labels from /accounts/{wallet} — same endpoint one level deeper,
+// /accounts/{wallet}/{collection}, returns only schemas that wallet holds.
+async function fetchWalletSchemaCounts(wallet, collection) {
+  const key = `${wallet}|${collection}`;
+  if (_walletSchemaCountCache[key]) return _walletSchemaCountCache[key];
+  try {
+    const url  = `${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(collection)}`;
+    const res  = await fetchWithRetry(url);
+    const json = await res.json();
+    const counts = {};
+    for (const s of (json.data?.schemas || [])) counts[s.schema_name] = Number(s.assets) || 0;
+    _walletSchemaCountCache[key] = counts;
+    return counts;
+  } catch {
+    return {};
+  }
+}
+
+// Wallet-owned per-template counts — AtomicAssets has no aggregate endpoint
+// for this (unlike the per-schema counts above), so this pages through the
+// wallet's own assets in the collection once and tallies template_id
+// occurrences client-side. Same cost class as the per-collection asset
+// fetch loadAssets already does; cached per collection so re-selecting a
+// schema/clearing filters doesn't refetch.
+async function fetchWalletTemplateCounts(collection) {
+  if (_walletTemplateCountCache[collection]) return _walletTemplateCountCache[collection];
+  const counts = {};
+  try {
+    let page = 1;
+    while (true) {
+      const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(PRIZE_WALLET)}&collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
+      const res  = await fetchWithRetry(url);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      for (const a of json.data) {
+        const tid = a.template?.template_id;
+        if (tid) counts[tid] = (counts[tid] || 0) + 1;
+      }
+      if (json.data.length < 1000) break;
+      page++;
+    }
+  } catch { /* fall through with whatever was collected — updateTemplateFilter's hasCounts check handles an empty result */ }
+  _walletTemplateCountCache[collection] = counts;
+  return counts;
+}
+
+let _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
+
+// Schema (unlike Card ID) is a core protocol field every asset has,
+// so its slot in the filter row is permanent — never hidden, just disabled
+// until a collection is selected and its schema list has loaded.
+function setSchemaFilterAvailability(enabled) {
+  const input = document.getElementById('schemaComboInput');
+  if (!input) return;
+  input.disabled = !enabled;
+  if (!enabled) {
+    _filterSchema = 'all';
+    _schemaItemsCache = [{ value: 'all', label: 'All schemas' }];
+    buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  }
+}
+
+function updateSchemaFilter(schemas, counts) {
+  // A wallet that owns anything in this collection owns at least one schema
+  // in it, so all-zero counts means the wallet-count fetch failed rather
+  // than "really owns nothing" — fall back to the unfiltered, uncounted
+  // list in that case instead of showing an empty dropdown.
+  const hasCounts = counts && Object.values(counts).some(c => c > 0);
+  const list = hasCounts ? schemas.filter(s => (counts[s] || 0) > 0) : schemas;
+  _schemaItemsCache = [{ value: 'all', label: 'All schemas' }, ...list.map(s => {
+    const label = hasCounts ? `${s} (${Number(counts[s] || 0).toLocaleString()})` : s;
+    return { value: s, label };
+  })];
+  buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  const input = document.getElementById('schemaComboInput');
+  if (input) input.disabled = false;
+}
+
+function onSchemaFilterChange(val) {
+  _filterSchema = val;
+  buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  const availCardIds  = new Set(getAvailableValues(_filterCol, schema, 'cardid'));
+  for (const c of [..._selectedCardIds])  if (!availCardIds.has(c))  _selectedCardIds.delete(c);
+  for (const field of Object.keys(_selectedDynamicFilters)) {
+    const avail = new Set(getAvailableValues(_filterCol, schema, field));
+    for (const v of [..._selectedDynamicFilters[field]]) if (!avail.has(v)) _selectedDynamicFilters[field].delete(v);
+  }
+  updateTemplateFilter(_templateCache[_filterCol] || [], _walletTemplateCountCache[_filterCol]); // re-scope to the new schema, dropping a now-mismatched selection
+  refreshFilterDropdowns();
+  loadAssets(true);
+}
+
+// Template (like Schema) is a core protocol field, so its slot stays put —
+// only disabled, never hidden — until a collection's template catalog has
+// loaded. Populated from the same collection-wide catalog fetchTemplatesForCollection()
+// already loads for Card ID/attribute filters, so picking a template costs
+// no extra API call; narrowed to the current schema when one is selected.
+function setTemplateFilterAvailability(enabled) {
+  const input = document.getElementById('templateComboInput');
+  if (!input) return;
+  input.disabled = !enabled;
+  if (!enabled) {
+    _filterTemplate = 'all';
+    _templateItemsCache = [{ value: 'all', label: 'All templates' }];
+    buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
+  }
+}
+
+function updateTemplateFilter(templates, counts) {
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  let list = schema ? templates.filter(t => t.schema_name === schema) : templates;
+  // Same fallback as updateSchemaFilter: an all-zero counts object means the
+  // wallet-count fetch failed (or hasn't resolved yet), not "owns nothing" —
+  // show the unfiltered, uncounted list rather than an empty dropdown.
+  const hasCounts = counts && Object.values(counts).some(c => c > 0);
+  if (hasCounts) list = list.filter(t => (counts[t.template_id] || 0) > 0);
+  if (_filterTemplate !== 'all' && !list.some(t => t.template_id === _filterTemplate)) _filterTemplate = 'all';
+  _templateItemsCache = [{ value: 'all', label: 'All templates' }, ...list.map(t => {
+    const base = t.name ? `${t.name} (#${t.template_id})` : `Template #${t.template_id}`;
+    return { value: t.template_id, label: hasCounts ? `${base} · ${counts[t.template_id]}` : base };
+  }).sort((a, b) => a.label.localeCompare(b.label))];
+  buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
+  const input = document.getElementById('templateComboInput');
+  if (input) input.disabled = false;
+}
+
+function onTemplateFilterChange(val) {
+  _filterTemplate = val;
+  buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
+  // Picking a template pins its own schema too, so the two filters can never
+  // disagree — matters most for a col+template deep link with no schema in
+  // the URL at all.
+  if (val !== 'all') {
+    const t = (_templateCache[_filterCol] || []).find(tpl => tpl.template_id === val);
+    if (t && t.schema_name && _filterSchema !== t.schema_name) {
+      _filterSchema = t.schema_name;
+      buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+      refreshDynamicAttributeFilters();
+    }
+  }
+  refreshFilterDropdowns();
+  loadAssets(true);
+}
+
+// Collections aren't always internally consistent about field-name casing
+// across their own schemas — real example: nerdsuniteus declares `rarity`
+// in about half its schemas and `Rarity` in the other half, including its
+// single biggest schema (nu.real.hoot, 63k assets, `Rarity` only) — nor free
+// of stray whitespace within a value (that same collection has a literal
+// `"\tLegendary"` typo in one template). Left alone, either produces a
+// phantom duplicate: two differently-cased keys read as two unrelated
+// fields (two "Rarity" filters), and a whitespace typo reads as a distinct
+// value from its clean counterpart even though both display identically
+// (two "Legendary" checkboxes, only one of which matches anything anyone
+// owns). Normalizing once, at the point data enters the cache — lowercase
+// every key, trim every string value — means every downstream reader
+// (field-name exclusion, cardinality check, dropdown values, whitelist
+// matching) sees one canonical shape with no per-call-site special-casing.
+function normalizeFieldData(raw) {
+  const out = {};
+  for (const [k, v] of Object.entries(raw || {})) {
+    const key = k.toLowerCase();
+    const val = typeof v === 'string' ? v.trim() : v;
+    if (out[key] === undefined || out[key] === null || out[key] === '') out[key] = val;
+  }
+  return out;
+}
+
+async function fetchTemplatesForCollection(collection) {
+  if (_templateCache[collection]) return _templateCache[collection];
+  const all = [];
+  let page = 1;
+  while (true) {
+    try {
+      const url  = `${atomicApi()}/atomicassets/v1/templates?collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
+      const res  = await fetchWithRetry(url);
+      const json = await res.json();
+      if (!json.success || !json.data.length) break;
+      for (const t of json.data) {
+        all.push({
+          template_id: t.template_id,
+          schema_name: t.schema?.schema_name || '',
+          name:        t.name || t.immutable_data?.name || '',
+          data:        normalizeFieldData(t.immutable_data),
+        });
+      }
+      if (json.data.length < 1000) break;
+      page++;
+    } catch { break; }
+  }
+  _templateCache[collection] = all;
+  return all;
+}
+
+// Two schemas can spell the same value with different casing — a real
+// example: nerdsuniteus has both `"common"` and `"Common"` for the same
+// rarity tier, from different schema authors over the collection's
+// history. Grouped case-insensitively so the dropdown shows one option,
+// not a near-identical-looking duplicate. The group's display string
+// prefers whichever raw variant is already capitalized (preserves genuine
+// multi-word casing like "One of One" exactly as authored, and leaves an
+// already-fine value like "1 of 1" or an all-caps abbreviation untouched
+// since only a lowercase *first character* ever gets forced) — only
+// force-capitalizes the first character of the first-seen variant when
+// every variant in the group starts lowercase. Matching
+// (computeTemplateWhitelist/filterByActiveAttrs) compares case-insensitively
+// against this same canonical form, so a selected "Common" still correctly
+// catches a raw "common" underneath it.
+function isLowerFirst(s) { return /^[a-z]/.test(s); }
+function canonicalizeValueGroup(rawValues) {
+  const byKey = new Map(); // lowercased value → canonical display string
+  for (const raw of rawValues) {
+    const key = raw.toLowerCase();
+    const existing = byKey.get(key);
+    if (!existing || (isLowerFirst(existing) && !isLowerFirst(raw))) byKey.set(key, raw);
+  }
+  for (const [key, val] of byKey) {
+    if (isLowerFirst(val)) byKey.set(key, val.charAt(0).toUpperCase() + val.slice(1));
+  }
+  return byKey;
+}
+
+// Selected filter values are the canonicalized (case-merged) display
+// strings from getAvailableValues, but raw template/asset data can still
+// carry any of the original casings that got merged into that display
+// value. Comparisons must go through this instead of a plain Set — build
+// once per filter-computation pass (not per row) and compare lowercased.
+function lowerSet(set) {
+  return new Set([...set].map(s => s.toLowerCase()));
+}
+
+function getAvailableValues(collection, schema, field) {
+  const pool = attrPoolFor(collection, schema && schema !== 'all' ? schema : null);
+  // Junk-shaped values (URL/CID/free-text-length) are filtered here too, not
+  // just at field-qualification time — a field can qualify via one schema
+  // whose own values are clean, but this pools every schema's values
+  // together, and a *different* schema's junk value for the same field name
+  // would otherwise still show up in the checkbox list.
+  const raw = pool.map(t => t.data?.[field]).filter(v => v !== undefined && v !== null && v !== '').map(String).filter(v => !isJunkFieldValue(v));
+  const vals = new Set(canonicalizeValueGroup(raw).values());
+  if (field === 'rarity') {
+    const ORDER = ['Common','Uncommon','Rare','Epic','Legendary','Mythic','Grail','Ultra','Series','Royalty','1 of 1'];
+    return [...vals].sort((a, b) => {
+      const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      return ai !== -1 ? -1 : bi !== -1 ? 1 : a.localeCompare(b);
+    });
+  }
+  return [...vals].sort((a, b) => {
+    const na = parseInt(a, 10), nb = parseInt(b, 10);
+    return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function walletLinkHtml(account) {
+  if (!account) return '';
+  return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
+}
+
+function refreshCbLabel(container, selectedSet, allLabel) {
+  const labelEl = container.querySelector('.cb-label');
+  if (!labelEl) return;
+  labelEl.textContent = selectedSet.size === 0 ? allLabel
+    : selectedSet.size === 1 ? [...selectedSet][0]
+    : `${selectedSet.size} selected`;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', selectedSet.size > 0);
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (clearBtn) clearBtn.style.display = selectedSet.size > 0 ? '' : 'none';
+}
+
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+  closeAllCbCombos();
+}
+
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}${i.disabled ? ' disabled' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+
+function renderCbItemsInto(listEl, items, currentValue, onSelect) {
+  listEl.innerHTML = items.length
+    ? items.map(i => cbItemHtml(i, currentValue)).join('')
+    : `<div class="cb-empty">No matches</div>`;
+  listEl.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
+}
+
+// clearValue is optional — only dropdowns where one specific value genuinely
+// means "no filter" (Schema's 'all') should get the has-selection accent +
+// clear-X treatment. Omitted by every other caller (listingsFilterDropdown,
+// bulkBackTokenDropdown, sortDropdown) since their values are all equally
+// "real" choices, not an off-state — same distinction already drawn for the
+// multi-select .cb-dropdown-clear convention.
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect, clearValue) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
+  if (clearValue === undefined) return;
+  const hasSelection = currentValue !== clearValue;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', hasSelection);
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (!clearBtn) return;
+  clearBtn.style.display = hasSelection ? '' : 'none';
+  // Wired once — the button itself isn't rebuilt by this function (only
+  // .cb-label/.cb-panel are), so re-wiring on every call would stack
+  // duplicate listeners. Same _wired-flag guard used for the multi-select
+  // clear-X (see populateCbDropdown).
+  if (!clearBtn._wired) {
+    clearBtn._wired = true;
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      closeAllCbDropdowns();
+      onSelect(clearValue);
+    });
+  }
+}
+
+/* ── Combobox — a type-to-search input that doubles as the trigger. `items[0]`
+   is always the "All ..." sentinel: reflected as the input's placeholder /
+   clear-button state, never rendered as a row in the list. */
+function syncCbComboDisplay(combo) {
+  const input   = combo.querySelector('.cb-combo-input');
+  const clear   = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._cbItems[0];
+  const active  = combo._cbItems.find(i => i.value === combo._cbCurrentValue) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function closeAllCbCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    combo.classList.remove('open');
+    if (combo._cbItems) syncCbComboDisplay(combo);
+  });
+}
+
+function buildCbCombo(comboId, items, currentValue, onSelect) {
+  const combo = document.getElementById(comboId);
+  combo._cbItems        = items;
+  combo._cbCurrentValue = currentValue;
+  combo._cbOnSelect     = onSelect;
+  syncCbComboDisplay(combo);
+  if (combo._cbWired) return;
+  combo._cbWired = true;
+
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._cbItems.slice(1); // exclude the "All ..." sentinel — it's the placeholder/clear, not a row
+    const filtered = q
+      ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
+      : options;
+    renderCbItemsInto(panel, filtered, combo._cbCurrentValue, val => {
+      combo._cbCurrentValue = val;
+      closeAllCbDropdowns();
+      combo._cbOnSelect(val);
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCbDropdowns();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllCbDropdowns();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item:not(.disabled)')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    // Delayed so a click on a list item (which blurs the input first) still registers before we close.
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllCbDropdowns(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault()); // don't steal focus away from the input
+  clear.addEventListener('click', () => {
+    combo._cbCurrentValue = combo._cbItems[0].value;
+    syncCbComboDisplay(combo);
+    combo._cbOnSelect(combo._cbCurrentValue);
+    input.blur();
+  });
+}
+
+// The dynamic-attribute row (Card ID, Rarity, and every other smart-generated
+// filter) is only as tall as it needs to be — hidden entirely rather than
+// left as an empty bordered gap when none of its children currently have
+// anything to show for the selected collection/schema.
+function refreshDynamicFilterRowVisibility() {
+  const row = document.getElementById('dynamicFilterRow');
+  if (!row) return;
+  const anyVisible = [...row.children].some(el => el.style.display !== 'none');
+  row.style.display = anyVisible ? '' : 'none';
+}
+
+function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const group = container.closest('.control-group');
+  const panel = container.querySelector('.cb-panel');
+  // A filter with a single possible value can't actually narrow anything —
+  // every asset already matches it, so it's just dead space. Applies to
+  // every dropdown built through here: Card ID (which never goes through
+  // the smart generator's own cardinality check) and every smart-generated
+  // attribute including Rarity (redundant there — fieldQualifies already
+  // excludes distinctCount <= 1 — but a single source of truth is safer than
+  // relying on two separate checks staying in sync).
+  if (items.length <= 1) { if (group) group.style.display = 'none'; refreshDynamicFilterRowVisibility(); return; }
+  if (group) group.style.display = '';
+  refreshDynamicFilterRowVisibility();
+  panel.innerHTML = items.map(v =>
+    `<label class="cb-item"><input type="checkbox" value="${escHtml(v)}"${selectedSet.has(v) ? ' checked' : ''}><span>${escHtml(v)}</span></label>`
+  ).join('');
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedSet.add(cb.value); else selectedSet.delete(cb.value);
+      refreshCbLabel(container, selectedSet, allLabel);
+      onChange();
+    });
+  });
+  // Clear button sits on the closed control itself (mirrors .cb-combo-clear
+  // on the Collection combo) rather than at the bottom of the checkbox
+  // list — a first attempt put it inside the scrolling panel, which meant
+  // opening the dropdown AND scrolling past a long list just to clear it.
+  // A sibling of .cb-dropdown-btn, not a descendant — buttons can't nest —
+  // so it's wired once here rather than rebuilt with the panel every call.
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (clearBtn && !clearBtn._wired) {
+    clearBtn._wired = true;
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const set = clearBtn._selectedSet;
+      if (!set || set.size === 0) return;
+      set.clear();
+      panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = false; });
+      refreshCbLabel(container, set, clearBtn._allLabel);
+      clearBtn._onChange();
+    });
+  }
+  if (clearBtn) { clearBtn._selectedSet = selectedSet; clearBtn._allLabel = allLabel; clearBtn._onChange = onChange; }
+  refreshCbLabel(container, selectedSet, allLabel);
+}
+
+function refreshFilterDropdowns() {
+  const col    = _filterCol;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  populateCbDropdown('cardIdDropdown', getAvailableValues(col, schema, 'cardid'), _selectedCardIds,  'Card ID', () => loadAssets(true));
+  refreshDynamicAttributeFilters();
+}
+
+/* ── Smart attribute filter generator ─────────────────────────────────────
+   Card ID is the one dedicated, hardcoded filter left (every card-based
+   collection tends to have one, and — being near-unique per template — it
+   would almost never pass the cardinality check below on its own). Rarity
+   used to be hardcoded too, but it's really just a low-cardinality
+   attribute like any other, so it now flows through this same generator —
+   it still gets its own display-order sort in getAvailableValues, but
+   qualification/exclusion/dedup all go through the one generic path.
+   Everything else in a schema's immutable_data is collection-specific —
+   there's no hand-maintained list. Instead: a field qualifies as a filter
+   if its values repeat (low cardinality relative to template count) rather
+   than being near-unique per template (names, descriptions, media links).
+   A cheap type-based pass runs first using the `format` array AtomicAssets
+   already returns from /schemas (image/ipfs fields are never useful as a
+   filter regardless of cardinality), then the cardinality check itself. */
+const DYNAMIC_FIELD_EXCLUDE_NAMES = new Set(['cardid']); // already a dedicated filter
+const DYNAMIC_FIELD_EXCLUDE_TYPES = new Set(['image', 'ipfs']);
+const DYNAMIC_FIELD_MAX_DISTINCT  = 40;
+const DYNAMIC_FIELD_MAX_RATIO     = 0.5; // distinct values / template count
+const DYNAMIC_FIELD_MAX_VALUE_LEN = 50;  // longer than this reads as free text (description/bio), not a facet value
+const URL_PATTERN = /^https?:\/\//i;
+// Bare IPFS content hashes, unprefixed by a gateway URL — CIDv0 (`Qm...`,
+// base58, 46 chars) and CIDv1 (`b...`, base32, 59+ chars). A real collection
+// declared its `video` field as type `string` (should've been `ipfs`) in
+// several schemas, and the raw CIDs were short/varied enough to sneak past
+// both the type exclude (wrong declared type) and the length check (46
+// chars, under the 50 cap) — content-sniffing the value shape catches what
+// the declared type lied about.
+const IPFS_CID_PATTERN = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58,})$/;
+
+// Catches fields the type/cardinality checks miss — a schema can declare a
+// URL or long free-text field as plain `string`, and a website/social link
+// repeated verbatim across a handful of templates can still pass the
+// cardinality test. One junk-shaped value in the pool is enough to disregard
+// the whole field, same as a real user request that flagged Description and
+// Website fields showing up as filters.
+function isJunkFieldValue(v) {
+  const s = String(v).trim();
+  return s.length > DYNAMIC_FIELD_MAX_VALUE_LEN || URL_PATTERN.test(s) || IPFS_CID_PATTERN.test(s);
+}
+
+// A date is never a useful filter — every value tends to be distinct (or
+// close to it) per template, and even where cardinality happens to look
+// low, browsing "by date" isn't a facet users want. Detected by name, not
+// value shape, since date values are formatted too inconsistently across
+// collections (`08.12.2025`, `2025-08-16`, `August 16, 2025`, ...) to
+// pattern-match reliably, and name is the reliable signal — real example:
+// nerdsuniteus's `nu.collab` schema declares `date created` (type `string`,
+// values like `08.12.2025`). Tokenizes on camelCase boundaries and any
+// non-alphanumeric separator so `release_date`, `Creation Date`, and
+// `mintDate` are all caught the same way a plain `date` field is.
+const DATE_FIELD_WORDS = new Set(['date', 'dates', 'datetime']);
+function isDateFieldName(name) {
+  const words = String(name)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  return words.some(w => DATE_FIELD_WORDS.has(w));
+}
+
+// Maps field name -> Set of declared types across the relevant schema(s).
+// When pooling multiple schemas (schema === null), the same field name can
+// be declared with different types by different schemas — e.g. one real
+// collection had `backimg` as `image` in 7 schemas but `string` in an 8th.
+// A single name -> type map would let a last-write-wins collision silently
+// defeat the media-type exclude, so every declared type is tracked and the
+// field is excluded if ANY of them is a hard-excluded type.
+//
+// `liveSchemaNames` (schemas actually present in the template pool) — not
+// every schema declared by /schemas — bounds this: a collection can declare
+// a schema (with its own attribute format) that has zero templates behind
+// it, a dead leftover from testing/setup. Its fields can't reach
+// candidateNames either way (that set is built from the pool, not from
+// schema declarations), but letting a dead schema's type quirks still shape
+// the exclusion map for a same-named live field is needless noise, so it's
+// left out entirely.
+function getFieldTypesForCollection(collection, schema, liveSchemaNames) {
+  const map = new Map();
+  const formats = _schemaFormatCache[collection] || {};
+  const schemaNames = schema ? [schema] : liveSchemaNames;
+  for (const sn of schemaNames) for (const f of (formats[sn] || [])) {
+    if (!map.has(f.name)) map.set(f.name, new Set());
+    map.get(f.name).add(f.type);
+  }
+  return map;
+}
+
+function collectCandidateNames(pool) {
+  const names = new Set();
+  for (const t of pool) for (const k of Object.keys(t.data || {})) names.add(k);
+  return names;
+}
+
+/* ── PFP-style (asset-level attribute) schemas ────────────────────────────
+   Most collections bake their attributes into the template — one template
+   per distinct card design, minted N times. Generative PFP collections
+   often do the opposite: one template per schema (sometimes truly empty,
+   sometimes carrying only boilerplate text), with every real trait
+   randomized onto each individual asset's own immutable_data instead.
+   Confirmed live against two independent real projects:
+     - warcxbananas/astralape: its only template's immutable_data is
+       literally `{}`, but each of its 6,697 assets carries its own ~19
+       trait fields (Glow, Bones, Pendant, Eyes Color, ...).
+     - waxapes/waxtribe: its only template is NOT empty — it has 2 fields
+       (`full_ownership`, `tribal_treasury`), but both are >200-character
+       legal/rights boilerplate text, not traits. The 22 real traits (Base,
+       Eyes, Nose, Mouth, Clothes, Fur Color, ...) are on the assets, same
+       as astralape. A "template has zero fields at all" check misses this
+       — it needs to be "zero *real* fields", same junk/type filtering the
+       rest of the generator already does.
+   The whole generator above reads template data, so for this class of
+   schema it sees nothing (or only junk) — this section adds a
+   schema-scoped fallback that reads real asset data instead, but ONLY once
+   a specific schema is selected (never pooled across "All schemas" —
+   scanning a whole collection's assets on every page load would be far too
+   expensive; scanning one schema, once, cached for the session, is cheap). */
+
+function assetAttrCacheKey(collection, schema) { return collection + '::' + schema; }
+
+// Pure/sync — no network. Empty templates (astralape) and junk-only
+// templates (waxtribe) both count as "no real fields" — same junk-value and
+// type exclusion the main generator uses, so a template that legitimately
+// has even one good facet field is never mistaken for asset-level. Gated on
+// assets > 0 so a schema with nothing real AND nothing minted isn't scanned
+// for nothing.
+function isAssetLevelAttrSchema(collection, schema) {
+  if (!schema) return false;
+  const templates = (_templateCache[collection] || []).filter(t => t.schema_name === schema);
+  if (templates.length === 0) return false;
+  const assetCount = (_schemaAssetCountCache[collection] || {})[schema] || 0;
+  if (assetCount === 0) return false;
+  const junkNames  = collectJunkFieldNamesFromPool(templates);
+  const fieldTypes = getFieldTypesForCollection(collection, schema, null);
+  const hasRealField = [...collectCandidateNames(templates)].some(name => {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkNames.has(name)) return false;
+    const types = fieldTypes.get(name);
+    return !(types && [...types].some(t => DYNAMIC_FIELD_EXCLUDE_TYPES.has(t)));
+  });
+  return !hasRealField;
+}
+
+// "All schemas" pooled mode never triggers an asset scan (see
+// isAssetLevelAttrSchema's callers below for why — scanning every schema's
+// assets on every collection selection would be far too expensive), so a
+// collection made up entirely (or mostly) of PFP/asset-level schemas shows
+// zero fields there with no explanation — computeDynamicFields correctly
+// found nothing in template data, but there's real per-item data waiting
+// behind a schema pick. Used by refreshDynamicAttributeFilters to decide
+// whether the silence needs an explanatory message.
+function collectionHasAssetLevelSchema(collection) {
+  const templates = _templateCache[collection] || [];
+  const liveSchemaNames = [...new Set(templates.map(t => t.schema_name))];
+  return liveSchemaNames.some(sn => isAssetLevelAttrSchema(collection, sn));
+}
+
+// Fast, bounded scan of a schema's assets, reading each asset's `.data` —
+// the AtomicAssets API's own pre-merged view (template immutable_data +
+// asset immutable_data + asset mutable_data, asset-level wins), confirmed
+// live to be present on the bulk /assets endpoint, not just single-asset
+// lookups. Pages fetched in parallel batches, each request seeded to a
+// different node from ATOMIC_ENDPOINTS, so a scan is a handful of
+// round-trips instead of dozens of sequential ones. Capped at
+// ASSET_SCAN_MAX_PAGES (20,000 assets) — comfortably above a typical 10k
+// PFP drop; beyond that this is a representative sample, not exhaustive,
+// same tradeoff explore.html's rarity scan already makes. Memoized via a
+// shared in-flight promise so concurrent callers (e.g. re-renders firing
+// while the scan is still running) never trigger a duplicate fetch.
+const ASSET_SCAN_PAGE_LIMIT = 1000;
+const ASSET_SCAN_BATCH_SIZE = 8;
+const ASSET_SCAN_MAX_PAGES  = 20;
+
+function fetchAssetDataForSchema(collection, schema) {
+  const key = assetAttrCacheKey(collection, schema);
+  if (_assetAttrCache[key]) return Promise.resolve(_assetAttrCache[key]);
+  if (_assetAttrFetchPromises[key]) return _assetAttrFetchPromises[key];
+
+  const promise = (async () => {
+    const all = [];
+    let page = 1;
+    let done = false;
+    while (!done && page <= ASSET_SCAN_MAX_PAGES) {
+      const batchPages = [];
+      for (let i = 0; i < ASSET_SCAN_BATCH_SIZE && page + i <= ASSET_SCAN_MAX_PAGES; i++) batchPages.push(page + i);
+      const results = await Promise.all(batchPages.map((p, i) => {
+        const base = ATOMIC_ENDPOINTS[i % ATOMIC_ENDPOINTS.length];
+        const url  = `${base}/atomicassets/v1/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`;
+        return fetchWithRetry(url).then(res => res.json()).catch(() => ({ success: false, data: [] }));
+      }));
+      for (const json of results) {
+        if (!json.success || !json.data || !json.data.length) { done = true; continue; }
+        for (const a of json.data) all.push(a.data || {});
+        if (json.data.length < ASSET_SCAN_PAGE_LIMIT) done = true;
+      }
+      page += ASSET_SCAN_BATCH_SIZE;
+    }
+    _assetAttrCache[key] = all;
+    delete _assetAttrFetchPromises[key];
+    return all;
+  })();
+  _assetAttrFetchPromises[key] = promise;
+  return promise;
+}
+
+// Resolves the {data} pool the generator reads from for a given
+// collection+schema — templates normally, or the cached per-asset scan for
+// a detected PFP-style schema once that scan has completed (empty array
+// before then; the caller is responsible for triggering the fetch and
+// re-rendering when it resolves — see refreshDynamicAttributeFilters).
+function attrPoolFor(collection, schema) {
+  if (isAssetLevelAttrSchema(collection, schema)) {
+    const assetData = _assetAttrCache[assetAttrCacheKey(collection, schema)];
+    return (assetData || []).map(d => ({ data: normalizeFieldData(d) }));
+  }
+  const templates = _templateCache[collection] || [];
+  return schema ? templates.filter(t => t.schema_name === schema) : templates;
+}
+
+// A field with even one junk-shaped value ANYWHERE in the given pool is
+// disregarded entirely as a filter for that pool — not just cleaned up
+// where it's dirty, the whole field goes (a 50+ character value reads as a
+// description, not a facet, and its presence means the field was never
+// meant to be a filter, even where its other values are individually short
+// and clean). Scope is entirely up to the caller via what pool is passed
+// in: a single schema's own templates (isAssetLevelAttrSchema, the
+// single-schema branch of computeDynamicFields) makes this schema-scoped;
+// passing every template in the collection (computeDynamicFields' pooled
+// pass) makes it collection-wide for that pass specifically. Callers that
+// need "good in this schema alone should still count, even if some other
+// schema's data for the same field name is garbage" — computeDynamicFields'
+// per-schema pass — call this once per schema pool rather than once for the
+// whole collection; see the comment there for the real case that motivated it.
+function collectJunkFieldNamesFromPool(pool) {
+  const junk = new Set();
+  for (const t of pool) {
+    for (const [k, v] of Object.entries(t.data || {})) {
+      if (junk.has(k)) continue;
+      if (isDateFieldName(k)) { junk.add(k); continue; }
+      if (v === undefined || v === null || v === '') continue;
+      if (isJunkFieldValue(v)) junk.add(k);
+    }
+  }
+  return junk;
+}
+
+function fieldQualifies(pool, name, fieldTypes) {
+  const types = fieldTypes.get(name);
+  if (types && [...types].some(t => DYNAMIC_FIELD_EXCLUDE_TYPES.has(t))) return false;
+  const values = pool.map(t => t.data?.[name]).filter(v => v !== undefined && v !== null && v !== '');
+  // Case-insensitive, to match how getAvailableValues groups values for
+  // display — otherwise a field could get judged on a distinct count that's
+  // inflated by casing variants of the same value ("common"/"Common"),
+  // either wrongly failing the cap or wrongly passing it.
+  const distinctCount = new Set(values.map(v => String(v).toLowerCase())).size;
+  if (distinctCount <= 1 || distinctCount > DYNAMIC_FIELD_MAX_DISTINCT) return false;
+  // Ratio is against templates that actually carry this field (values.length),
+  // not the whole pool — a field only 5 of a collection's 48 templates even
+  // declare would otherwise look like great cardinality (5/48) purely because
+  // it's rare, when among the templates that do have it, it's fully unique
+  // (5/5) and useless as a filter.
+  if (distinctCount / values.length > DYNAMIC_FIELD_MAX_RATIO) return false;
+  return true;
+}
+
+// A single schema is evaluated directly against its own pool. "All schemas"
+// runs two passes and a field qualifies if EITHER one passes — the two real
+// shapes a field can have across a collection's schemas pull in opposite
+// directions, and neither pass alone catches both:
+//  - Pooled pass: does the field work as a filter over the flattened
+//    cross-schema value set? Catches a field that's constant (or near it)
+//    within any single schema but meaningfully varies *across* schemas — e.g.
+//    `type` declared in 8 schemas where every template in a given schema
+//    shares one value, so no single schema's own cardinality check can pass,
+//    but the union across schemas is a clean ~10-value category list.
+//  - Per-schema pass: does the field work as a filter within any one schema
+//    on its own? Catches the opposite shape — a field with plenty of good
+//    variety inside one schema, but whose combined distinct-value count
+//    balloons past the cap once every other schema's differently-scoped
+//    values get merged in — e.g. `race` meaning a different cast of
+//    characters in each of 3 schemas.
+// Either way, the dropdown's actual values (getAvailableValues, unaffected by
+// this) always pool across every schema, so picking "All schemas" shows the
+// full combined value list and narrowing to one schema shrinks it — only the
+// field-qualifies decision is special-cased here, never the values shown.
+function computeDynamicFields(collection, schema) {
+  // Single schema: pool is templates normally, or a completed asset scan for
+  // a detected PFP-style schema (attrPoolFor) — either way, same logic from
+  // here, junk/type/cardinality checks don't care where the pool came from.
+  if (schema) {
+    const pool = attrPoolFor(collection, schema);
+    if (pool.length === 0) return [];
+    const junkFieldNames = collectJunkFieldNamesFromPool(pool);
+    const fieldTypes = getFieldTypesForCollection(collection, schema, null);
+    const result = [];
+    for (const name of collectCandidateNames(pool)) {
+      if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || junkFieldNames.has(name)) continue;
+      if (fieldQualifies(pool, name, fieldTypes)) result.push(name);
+    }
+    return result.sort((a, b) => a.localeCompare(b));
+  }
+
+  // "All schemas" always reads templates — never triggers an asset scan (see
+  // the PFP section above for why: pooled scanning would mean fetching every
+  // asset of every schema in the collection on every page load).
+  // Runs two passes and a field qualifies if EITHER one passes — the two
+  // real shapes a field can have across a collection's schemas pull in
+  // opposite directions, and neither pass alone catches both:
+  //  - Pooled pass: does the field work as a filter over the flattened
+  //    cross-schema value set? Catches a field that's constant (or near it)
+  //    within any single schema but meaningfully varies *across* schemas —
+  //    e.g. `type` declared in 8 schemas where every template in a given
+  //    schema shares one value, so no single schema's own cardinality check
+  //    can pass, but the union across schemas is a clean ~10-value list.
+  //  - Per-schema pass: does the field work as a filter within any one
+  //    schema on its own? Catches the opposite shape — a field with plenty
+  //    of good variety inside one schema, but whose combined distinct-value
+  //    count balloons past the cap once every other schema's
+  //    differently-scoped values get merged in — e.g. `race` meaning a
+  //    different cast of characters in each of 3 schemas.
+  // Either way, the dropdown's actual values (getAvailableValues, unaffected
+  // by this) always pool across every schema, so picking "All schemas" shows
+  // the full combined value list and narrowing to one schema shrinks it —
+  // only the field-qualifies decision is special-cased, never the values.
+  const templates = _templateCache[collection] || [];
+  if (templates.length === 0) return [];
+
+  const liveSchemaNames = [...new Set(templates.map(t => t.schema_name))];
+  const result = new Set();
+
+  // Pooled pass: junk is checked against the same flattened pool the
+  // cardinality check itself uses — pooling every schema together
+  // legitimately includes a bad value if one exists anywhere, so the
+  // pooled pass seeing it and failing is correct, not collateral damage.
+  const pooledJunkFieldNames = collectJunkFieldNamesFromPool(templates);
+  const pooledFieldTypes = getFieldTypesForCollection(collection, null, liveSchemaNames);
+  for (const name of collectCandidateNames(templates)) {
+    if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || pooledJunkFieldNames.has(name)) continue;
+    if (fieldQualifies(templates, name, pooledFieldTypes)) result.add(name);
+  }
+
+  // Per-schema pass: junk is checked against that ONE schema's own pool,
+  // not the whole collection — a bad value in one schema must only
+  // disqualify that schema's own attempt, not poison the field for every
+  // other schema that declares it cleanly. Real example: nerdsuniteus's
+  // `birds.united` schema has one template where `rarity` literally holds
+  // a giveaway-announcement paragraph instead of a tier name; `nu.real.hoot`
+  // (63k assets, the collection's biggest schema) declares the same field
+  // with clean data and must still qualify regardless.
+  for (const sn of liveSchemaNames) {
+    const schemaPool = templates.filter(t => t.schema_name === sn);
+    const fieldTypes = getFieldTypesForCollection(collection, sn, null);
+    const schemaJunkFieldNames = collectJunkFieldNamesFromPool(schemaPool);
+    for (const name of collectCandidateNames(schemaPool)) {
+      if (DYNAMIC_FIELD_EXCLUDE_NAMES.has(name) || result.has(name) || schemaJunkFieldNames.has(name)) continue;
+      if (fieldQualifies(schemaPool, name, fieldTypes)) result.add(name);
+    }
+  }
+  return [...result].sort((a, b) => a.localeCompare(b));
+}
+
+function fieldLabel(name) {
+  const spaced = name.replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function dynFieldDomId(field) {
+  return 'dynField_' + field.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function ensureDynamicFieldGroup(field) {
+  const groupId = dynFieldDomId(field) + 'Group';
+  let group = document.getElementById(groupId);
+  if (group) return group;
+  group = document.createElement('div');
+  group.className = 'control-group';
+  group.id = groupId;
+  group.style.display = 'none';
+  const label = escHtml(fieldLabel(field));
+  group.innerHTML = `
+    <div class="cb-dropdown" id="${dynFieldDomId(field)}Dropdown">
+      <button class="cb-dropdown-btn" type="button">
+        <span class="cb-label">${label}</span>
+        <span class="cb-arrow">▾</span>
+      </button>
+      <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+      <div class="cb-panel"></div>
+    </div>`;
+  document.getElementById('dynamicFilterRow').appendChild(group);
+  // Injected after the page's one-time `.cb-dropdown` startup wiring already
+  // ran (see the forEach near the bottom of this file), so this group needs
+  // its own open/close click handler.
+  const container = group.querySelector('.cb-dropdown');
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel  = container.querySelector('.cb-panel');
+    const isOpen = panel.classList.contains('open');
+    closeAllCbDropdowns();
+    if (!isOpen) { panel.classList.add('open'); container.querySelector('.cb-dropdown-btn').classList.add('open'); }
+  });
+  return group;
+}
+
+function removeDynamicFieldGroup(field) {
+  document.getElementById(dynFieldDomId(field) + 'Group')?.remove();
+  delete _selectedDynamicFilters[field];
+}
+
+function clearDynamicFieldGroups() {
+  for (const field of _dynamicFieldGroups) removeDynamicFieldGroup(field);
+  _dynamicFieldGroups = [];
+}
+
+// PFP-style collections (every trait baked directly into the schema, no
+// pruning needed) can generate dozens of qualifying attributes at once —
+// more filters than anyone can usefully scan, and expensive-looking clutter
+// for something that's supposed to declutter. Capped only in "All schemas"
+// mode: once a specific schema is picked, every field is known to be
+// relevant to it, so the cap doesn't apply no matter how many there are.
+const DYNAMIC_FIELD_MAX_COUNT_UNSCOPED = 10;
+
+function refreshDynamicAttributeFilters() {
+  const col    = _filterCol;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+
+  // PFP-style schema (see isAssetLevelAttrSchema) and its asset scan hasn't
+  // completed yet — trigger it (memoized, so a scan already in flight is
+  // shared, not duplicated) and re-render once it resolves. computeDynamicFields
+  // already returns [] while the scan is pending (attrPoolFor sees no cached
+  // data yet), so the row just stays empty/hidden until this fires, plus the
+  // scanning message below to explain why.
+  const scanning = col !== 'all' && schema && isAssetLevelAttrSchema(col, schema) && !_assetAttrCache[assetAttrCacheKey(col, schema)];
+  if (scanning) {
+    fetchAssetDataForSchema(col, schema).then(() => {
+      if (_filterCol === col && (_filterSchema !== 'all' ? _filterSchema : null) === schema) refreshDynamicAttributeFilters();
+    });
+  }
+  const scanMsgEl = document.getElementById('scanningAttrsMsg');
+  if (scanMsgEl) scanMsgEl.style.display = scanning ? '' : 'none';
+
+  let fields = col !== 'all' ? computeDynamicFields(col, schema) : [];
+
+  const tooMany = !schema && fields.length > DYNAMIC_FIELD_MAX_COUNT_UNSCOPED;
+  if (tooMany) fields = [];
+  const msgEl = document.getElementById('tooManyAttrsMsg');
+  if (msgEl) msgEl.style.display = tooMany ? '' : 'none';
+
+  // Pooled mode found nothing, but at least one live schema is PFP-style
+  // (traits live on assets, never scanned here) — silence would otherwise
+  // look identical to "this collection genuinely has no filterable
+  // attributes," which isn't true until you've picked a schema.
+  const needsSchemaForAssetLevel = col !== 'all' && !schema && fields.length === 0 && collectionHasAssetLevelSchema(col);
+  const noSchemaMsgEl = document.getElementById('noSchemaAttrsMsg');
+  if (noSchemaMsgEl) noSchemaMsgEl.style.display = needsSchemaForAssetLevel ? '' : 'none';
+
+  for (const prev of _dynamicFieldGroups) if (!fields.includes(prev)) removeDynamicFieldGroup(prev);
+  _dynamicFieldGroups = fields;
+
+  for (const field of fields) {
+    ensureDynamicFieldGroup(field);
+    if (!_selectedDynamicFilters[field]) _selectedDynamicFilters[field] = new Set();
+    populateCbDropdown(
+      dynFieldDomId(field) + 'Dropdown',
+      getAvailableValues(col, schema, field),
+      _selectedDynamicFilters[field],
+      fieldLabel(field),
+      () => loadAssets(true)
+    );
+  }
+  refreshDynamicFilterRowVisibility();
+}
+
+function computeTemplateWhitelist() {
+  if (_filterCol === 'all') return null;
+  const templates = _templateCache[_filterCol];
+  if (!templates) return null;
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  // Asset-level-attribute schemas (see isAssetLevelAttrSchema) share one
+  // template across every asset — narrowing by template_id can't express
+  // "only assets with Glow=Traiton" at all, and would wrongly filter
+  // everything out (every template.data is {} for these). loadAssets()
+  // routes these through loadAssetsAttrFilter (client-side, against each
+  // asset's own data) instead, so the dynamic-field narrowing below is
+  // skipped entirely here — Card ID is template-level and unaffected;
+  // Rarity is a dynamic field like any other now, so it's correctly
+  // skipped here too instead of wrongly filtering by empty template data.
+  const isAssetLevel = schema && isAssetLevelAttrSchema(_filterCol, schema);
+  const hasCardId = _selectedCardIds.size > 0;
+  const cardIdLower = hasCardId ? lowerSet(_selectedCardIds) : null;
+  const hasTemplate = _filterTemplate !== 'all';
+  const activeDynFields = (isAssetLevel ? [] : Object.entries(_selectedDynamicFilters).filter(([, set]) => set.size > 0))
+    .map(([field, set]) => [field, lowerSet(set)]);
+  if (!hasCardId && !hasTemplate && activeDynFields.length === 0) return null;
+  const ids = templates
+    .filter(t => !schema || t.schema_name === schema)
+    .filter(t => !hasCardId || cardIdLower.has(String(t.data?.cardid ?? '').toLowerCase()))
+    .filter(t => !hasTemplate || t.template_id === _filterTemplate)
+    .filter(t => activeDynFields.every(([field, set]) => set.has(String(t.data?.[field] ?? '').toLowerCase())))
+    .map(t => t.template_id);
+  return ids.length > 0 ? ids.join(',') : 'EMPTY';
+}
+
+// A generative collection can have a template per unique design (a real
+// example: 10,001 templates, of which 5,000 alone match one common trait
+// value) — computeTemplateWhitelist's id list can get large enough to blow
+// any reasonable URL length limit long before it blows the id-count cap
+// anyone would guess. Past this, don't build a template_whitelist param at
+// all; fall back to fetching unfiltered and filtering client-side instead
+// (see filterByActiveAttrs / loadAssetsAttrFilter) — same mechanism already
+// built for asset-level-attribute schemas, reused here for a different
+// reason but the same underlying problem: the server-side whitelist
+// approach doesn't scale to every collection shape.
+const TEMPLATE_WHITELIST_MAX_IDS = 300;
+
+function safeWhitelist(whitelist) {
+  if (!whitelist || whitelist === 'EMPTY') return whitelist;
+  return whitelist.split(',').length > TEMPLATE_WHITELIST_MAX_IDS ? null : whitelist;
+}
+
+// Client-side equivalent of computeTemplateWhitelist's own narrowing,
+// applied directly against each fetched asset's merged `.data` — needed
+// whenever a server-side template_whitelist isn't used, whether because the
+// schema is asset-level-attribute (no template_id can express the filter at
+// all) or because the whitelist would be too large for a URL (safeWhitelist
+// above). Safe to apply even when the whitelist WAS used server-side too —
+// every asset already satisfies these conditions in that case, so this is a
+// no-op filter, not a correctness risk.
+function filterByActiveAttrs(assets) {
+  const hasCardId = _selectedCardIds.size > 0;
+  const cardIdLower = hasCardId ? lowerSet(_selectedCardIds) : null;
+  const activeDynFields = Object.entries(_selectedDynamicFilters).filter(([, set]) => set.size > 0)
+    .map(([field, set]) => [field, lowerSet(set)]);
+  if (!hasCardId && activeDynFields.length === 0) return assets;
+  return assets.filter(a => {
+    // Raw asset `.data` from the API, unlike _templateCache, isn't
+    // normalized at ingestion — same casing/whitespace inconsistencies can
+    // show up here, so it's normalized on the fly right before comparing
+    // against the (already case-insensitively compared) selected filter values.
+    const d = normalizeFieldData(a.data);
+    if (hasCardId && !cardIdLower.has(String(d.cardid ?? '').toLowerCase())) return false;
+    return activeDynFields.every(([field, set]) => set.has(String(d[field] ?? '').toLowerCase()));
+  });
+}
+
+async function fetchAllMatchingAssets(whitelist, onProgress) {
+  const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
+  const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${encodeURIComponent(_filterSchema)}`       : '';
+  const matchParam     = _filterText              ? `&match=${encodeURIComponent(_filterText)}`              : '';
+  const whitelistParam = whitelist              ? `&template_whitelist=${whitelist}`                          : '';
+
+  const all = [];
+  let page = 1;
+  while (true) {
+    const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(PRIZE_WALLET)}&limit=1000&page=${page}&sort=transferred&order=desc${colParam}${schemaParam}${matchParam}${whitelistParam}`;
+    const res  = await fetchWithRetry(url);
+    const json = await res.json();
+    if (!json.success) throw new Error('API error');
+    const batch = json.data || [];
+    all.push(...batch);
+    if (onProgress) onProgress(all.length);
+    if (batch.length < 1000) break;
+    page++;
+  }
+  return all;
+}
+
+function filterByMintRange(assets) {
+  const min = _filterMintMin ? Number(_filterMintMin) : null;
+  const max = _filterMintMax ? Number(_filterMintMax) : null;
+  if (min == null && max == null) return assets;
+  return assets.filter(a => {
+    const mint = Number(a.template_mint);
+    if (min != null && (!isFinite(mint) || mint < min)) return false;
+    if (max != null && (!isFinite(mint) || mint > max)) return false;
+    return true;
+  });
+}
+
+// Whenever a server-side template_whitelist either can't express the active
+// filters (asset-level-attribute schemas — see isAssetLevelAttrSchema) or
+// would be too large for a URL (see safeWhitelist/TEMPLATE_WHITELIST_MAX_IDS),
+// loadAssets routes through here instead: fetch every matching asset across
+// pages, then filterByActiveAttrs does the real narrowing client-side.
+async function runDupesScan(whitelist, computeResult) {
+  _loading = true;
+  document.getElementById('loadWrap').style.display     = '';
+  document.getElementById('invGrid').style.display       = 'none';
+  document.getElementById('emptyWrap').style.display     = 'none';
+  document.getElementById('loadMoreWrap').style.display  = 'none';
+  const statusEl = document.querySelector('#loadWrap div:last-child');
+
+  let all = [];
+  try {
+    all = await fetchAllMatchingAssets(whitelist, n => {
+      if (statusEl) statusEl.textContent = `Scanning ${n.toLocaleString()} asset${n !== 1 ? 's' : ''}…`;
+    });
+  } catch (err) {
+    console.error('runDupesScan:', err);
+  }
+
+  const { assets } = computeResult(all);
+  _assets  = assets;
+  _hasMore = false;
+
+  if (finishLoading()) return;
+
+  document.getElementById('loadWrap').style.display = 'none';
+  renderGrid();
+  initLazyVideos();
+}
+
+function needsClientSideAttrFilter(whitelist) {
+  const schema = _filterSchema !== 'all' ? _filterSchema : null;
+  if (schema && isAssetLevelAttrSchema(_filterCol, schema) && Object.values(_selectedDynamicFilters).some(s => s.size > 0)) return true;
+  return !!whitelist && whitelist !== 'EMPTY' && whitelist.split(',').length > TEMPLATE_WHITELIST_MAX_IDS;
+}
+
+async function loadAssetsAttrFilter(whitelist) {
+  await runDupesScan(safeWhitelist(whitelist), all => {
+    const filtered = filterByMintRange(filterByActiveAttrs(all));
+    return { assets: filtered };
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Grid rendering                                                             */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function renderGrid() {
+  const grid  = document.getElementById('invGrid');
+  const empty = document.getElementById('emptyWrap');
+  const list  = filtered();
+
+  if (list.length === 0) {
+    grid.style.display  = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.style.display  = '';
+
+  grid.innerHTML = list.map(cardHtml).join('');
+
+  grid.querySelectorAll('.inv-card').forEach(card => {
+    const asset = list.find(a => a.asset_id === card.dataset.id);
+    if (asset) attachCardEvents(card, asset);
+  });
+}
+
+function cardHtml(a) {
+  const mint = a.template_mint ? `#${a.template_mint}` : '';
+  const col  = a.collection?.collection_name || '';
+  return `
+    <div class="inv-card" data-id="${a.asset_id}">
+      <div class="inv-card-img">
+        ${assetMediaHtml(a, 'loading="lazy"')}
+        ${mint ? `<span class="inv-card-mint">${mint}</span>` : ''}
+      </div>
+      <div class="inv-card-info">
+        <div class="inv-card-name" title="${a.name || ''}">${a.name || 'Unknown'}</div>
+        <div class="inv-card-meta">${col}</div>
+      </div>
+    </div>
+  `;
+}
+
+function appendCards(newAssets) {
+  const grid = document.getElementById('invGrid');
+  grid.style.display = '';
+
+  const frag = document.createDocumentFragment();
+  for (const a of newAssets) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml(a).trim();
+    const card = wrap.firstElementChild;
+    attachCardEvents(card, a);
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+
+  // Observe only the newly added video elements
+  grid.querySelectorAll('.inv-card-img video[data-src]:not([data-obs])').forEach(v => {
+    v.dataset.obs = '1';
+    _videoObserver?.observe(v);
+  });
+}
+
+let _colItemsCache = [{ value: 'all', label: 'All collections' }];
+
+function updateColFilter() {
+  const totalLabel = _totalAssets != null ? Number(_totalAssets).toLocaleString() : _collections.size;
+  _colItemsCache = [{ value: 'all', label: `All collections (${totalLabel})` },
+    ...[..._collections].sort((a, b) => {
+      const ca = _collectionCounts.get(a) ?? -1;
+      const cb = _collectionCounts.get(b) ?? -1;
+      if (cb !== ca) return cb - ca;
+      const na = (_collectionNames.get(a) || a).toLowerCase();
+      const nb = (_collectionNames.get(b) || b).toLowerCase();
+      return na < nb ? -1 : na > nb ? 1 : 0;
+    }).map(c => {
+      const name  = _collectionNames.get(c) || c;
+      const count = _collectionCounts.get(c);
+      const label = count != null ? `${name} (${Number(count).toLocaleString()})` : name;
+      return { value: c, label };
+    })];
+  const cur = _colItemsCache.some(i => i.value === _filterCol) ? _filterCol : 'all';
+  buildCbCombo('colCombo', _colItemsCache, cur, onColFilterChange);
+}
+
+function onColFilterChange(val) {
+  _filterCol = val;
+  _filterSchema = 'all';
+  _filterTemplate = 'all';
+  _selectedCardIds.clear();
+  clearDynamicFieldGroups();
+  setSchemaFilterAvailability(false);
+  setTemplateFilterAvailability(false);
+  document.getElementById('cardIdGroup').style.display = 'none';
+  refreshDynamicFilterRowVisibility();
+  buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
+
+  const col = _filterCol;
+  if (col !== 'all') {
+    Promise.all([
+      fetchSchemasForCollection(col),
+      fetchWalletSchemaCounts(PRIZE_WALLET, col),
+    ]).then(([schemas, counts]) => {
+      if (_filterCol !== col) return;
+      if (schemas.length >= 1) updateSchemaFilter(schemas, counts);
+      refreshDynamicAttributeFilters(); // re-run now that field types (image/ipfs exclusion) are available
+    });
+    Promise.all([
+      fetchTemplatesForCollection(col),
+      fetchWalletTemplateCounts(col),
+    ]).then(([templates, tCounts]) => {
+      if (_filterCol !== col) return;
+      updateTemplateFilter(templates, tCounts);
+      refreshFilterDropdowns();
+    });
+  }
+
+  loadAssets(true);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Data loading                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function fetchAllCollections(wallet) {
+  try {
+    const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}`);
+    const json = await res.json();
+    if (!json.success) return;
+    if (json.data?.assets != null) _totalAssets = json.data.assets;
+    for (const entry of (json.data?.collections || [])) {
+      const col = entry.collection;
+      if (!col?.collection_name) continue;
+      _collections.add(col.collection_name);
+      if (col.name) _collectionNames.set(col.collection_name, col.name);
+      if (entry.assets != null) _collectionCounts.set(col.collection_name, entry.assets);
+    }
+    _collectionsReady = true;
+    updateColFilter();
+  } catch (err) {
+    console.error('Failed to fetch collections:', err);
+  }
+}
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (_filterCol    !== 'all') p.set('col',    _filterCol);
+  if (_filterSchema !== 'all') p.set('schema', _filterSchema);
+  if (_filterTemplate !== 'all') p.set('template', _filterTemplate);
+  if (_selectedCardIds.size)   p.set('cardid', [..._selectedCardIds].join(','));
+  for (const [field, set] of Object.entries(_selectedDynamicFilters)) {
+    if (set.size) p.set('dyn_' + field, [...set].join(','));
+  }
+  if (_filterMintMin)          p.set('mintMin', _filterMintMin);
+  if (_filterMintMax)          p.set('mintMax', _filterMintMax);
+  if (_filterText)             p.set('q',      _filterText);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+}
+
+async function readUrlParams(wallet) {
+  const p = new URLSearchParams(location.search);
+  if (!p.toString()) return;
+  _filterCol    = p.get('col')    || 'all';
+  _filterSchema = p.get('schema') || 'all';
+  _filterTemplate = p.get('template') || 'all';
+  _selectedCardIds.clear();
+  (p.get('cardid') || '').split(',').filter(Boolean).forEach(c => _selectedCardIds.add(c));
+  clearDynamicFieldGroups();
+  for (const [key, val] of p.entries()) {
+    if (!key.startsWith('dyn_')) continue;
+    const field = key.slice(4);
+    _selectedDynamicFilters[field] = new Set(val.split(',').filter(Boolean));
+  }
+  _filterMintMin = p.get('mintMin') || '';
+  _filterMintMax = p.get('mintMax') || '';
+  _filterText    = p.get('q')     || '';
+  document.getElementById('mintMin').value     = _filterMintMin;
+  document.getElementById('mintMax').value     = _filterMintMax;
+  document.getElementById('searchInput').value = _filterText;
+  if (_filterCol !== 'all') {
+    const col = _filterCol;
+    // Schema fetch — fire and forget, not needed before loadAssets
+    Promise.all([
+      fetchSchemasForCollection(col),
+      fetchWalletSchemaCounts(wallet, col),
+    ]).then(([schemas, counts]) => {
+      if (_filterCol !== col) return;
+      if (schemas.length >= 1) updateSchemaFilter(schemas, counts);
+      refreshDynamicAttributeFilters();
+    });
+    // A template deep link with no schema in the URL pins its own schema, so
+    // the two filters can't disagree — mirrors onTemplateFilterChange.
+    const applyTemplates = (templates, tCounts) => {
+      if (_filterCol !== col) return;
+      if (_filterTemplate !== 'all' && _filterSchema === 'all') {
+        const t = templates.find(tpl => tpl.template_id === _filterTemplate);
+        if (t && t.schema_name) {
+          _filterSchema = t.schema_name;
+          buildCbCombo('schemaCombo', _schemaItemsCache, _filterSchema, onSchemaFilterChange);
+        }
+      }
+      updateTemplateFilter(templates, tCounts);
+    };
+    // Template cache MUST be ready before loadAssets if cardid/template/dynamic (incl. rarity) filters are active
+    const hasDynFromUrl = Object.values(_selectedDynamicFilters).some(s => s.size > 0);
+    if (_selectedCardIds.size > 0 || hasDynFromUrl || _filterTemplate !== 'all') {
+      const [templates, tCounts] = await Promise.all([fetchTemplatesForCollection(col), fetchWalletTemplateCounts(col)]);
+      applyTemplates(templates, tCounts);
+      if (_filterCol === col) refreshFilterDropdowns();
+    } else {
+      Promise.all([fetchTemplatesForCollection(col), fetchWalletTemplateCounts(col)]).then(([templates, tCounts]) => {
+        applyTemplates(templates, tCounts);
+        if (_filterCol !== col) return;
+        refreshFilterDropdowns();
+      });
+    }
+  }
+}
+
+// _loading is a simple mutex shared by every async load path (plain
+// pagination here, plus the dupes full-scans below) — only one can run at a
+// time. A reset that arrives while one is already in flight is recorded in
+// _pendingReload and re-run via finishLoading() the moment the in-flight one
+// finishes, instead of leaving the grid showing results for stale filters.
+function finishLoading() {
+  _loading = false;
+  if (_pendingReload) {
+    _pendingReload = false;
+    loadAssets(true, false);
+    return true; // a fresh reload just started — caller should skip further UI reset for this stale call
+  }
+  return false;
+}
+
+async function loadAssets(reset = false) {
+  const wallet = PRIZE_WALLET;
+  if (_loading) { if (reset) _pendingReload = true; return; }
+  if (reset) { _assets = []; _page = 1; _hasMore = false; _autoLoadArmed = false; syncUrl(); }
+
+  const whitelistForDupes = computeTemplateWhitelist();
+  if (whitelistForDupes === 'EMPTY') {
+    document.getElementById('invGrid').style.display      = 'none';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    const ew = document.getElementById('emptyWrap');
+    ew.innerHTML = '<strong>No NFTs found</strong>No items match the current filter.';
+    ew.style.display = '';
+    return;
+  }
+  if (reset && needsClientSideAttrFilter(whitelistForDupes)) return loadAssetsAttrFilter(whitelistForDupes);
+
+  _loading = true;
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading…'; }
+
+  if (reset) {
+    const ew = document.getElementById('emptyWrap');
+    ew.innerHTML = '<strong>No NFTs found</strong>No items match the current filter.';
+    ew.style.display = 'none';
+    document.getElementById('invGrid').style.display      = 'none';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    document.getElementById('loadWrap').style.display     = '';
+  }
+
+  try {
+    const colParam       = _filterCol    !== 'all' ? `&collection_whitelist=${encodeURIComponent(_filterCol)}` : '';
+    const schemaParam    = _filterSchema !== 'all' ? `&schema_name=${encodeURIComponent(_filterSchema)}`       : '';
+    const whitelist      = safeWhitelist(computeTemplateWhitelist()); // 'EMPTY' already handled above; oversized already routed to loadAssetsAttrFilter, this is a defensive backstop
+    const whitelistParam = whitelist ? `&template_whitelist=${whitelist}` : '';
+    const mintMinParam   = _filterMintMin ? `&min_template_mint=${_filterMintMin}` : '';
+    const mintMaxParam   = _filterMintMax ? `&max_template_mint=${_filterMintMax}` : '';
+    const matchParam     = _filterText    ? `&match=${encodeURIComponent(_filterText)}` : '';
+    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=transferred&order=desc${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}`;
+
+    let batch = [];
+
+    if (reset) {
+      const r1 = await fetchWithRetry(`${baseUrl}&page=1`);
+      if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
+      const j1 = await r1.json();
+      if (!j1.success) throw new Error(j1.message || 'API error');
+
+      batch    = j1.data || [];
+      _hasMore = batch.length === PAGE_SIZE;
+      _page    = 2;
+    } else {
+      const res = await fetchWithRetry(`${baseUrl}&page=${_page}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || 'API error');
+      batch    = json.data || [];
+      _hasMore = batch.length === PAGE_SIZE;
+      _page++;
+    }
+
+    batch.forEach(a => {
+      _assets.push(a);
+      if (a.collection?.collection_name) {
+        _collections.add(a.collection.collection_name);
+        if (a.collection.name) _collectionNames.set(a.collection.collection_name, a.collection.name);
+      }
+    });
+
+    if (reset) {
+      renderGrid();
+      initLazyVideos();
+    } else {
+      appendCards(batch);
+    }
+    document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
+  } catch (err) {
+    console.error('Failed to load prize pool:', err);
+    if (reset) {
+      const emptyWrap = document.getElementById('emptyWrap');
+      emptyWrap.innerHTML = `<strong>Failed to load</strong>${err.message || 'Could not reach AtomicAssets API.'}<br><button class="load-more-btn" style="margin-top:1rem" onclick="loadAssets(true)">Try again</button>`;
+      emptyWrap.style.display = '';
+    }
+  } finally {
+    if (finishLoading()) return; // a queued reload already took over — its own render/UI reset will handle the rest
+    if (reset) document.getElementById('loadWrap').style.display = 'none';
+    if (loadMoreBtn) { loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'Load more'; }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Init                                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+async function initPrizePool() {
+  fetchAllCollections(PRIZE_WALLET);
+  await readUrlParams(PRIZE_WALLET);
+  loadAssets(true);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Event wiring                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  _filterText = e.target.value.trim();
+  debounceLoad();
+});
+
+function clearFilters() {
+  _filterSchema = 'all';
+  _filterTemplate = 'all';
+  _selectedCardIds.clear();
+  for (const set of Object.values(_selectedDynamicFilters)) set.clear();
+  _filterMintMin = '';
+  _filterMintMax = '';
+  buildCbCombo('schemaCombo', _schemaItemsCache, 'all', onSchemaFilterChange);
+  updateTemplateFilter(_templateCache[_filterCol] || [], _walletTemplateCountCache[_filterCol]);
+  document.getElementById('mintMin').value = '';
+  document.getElementById('mintMax').value = '';
+  document.querySelectorAll('#cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  refreshCbLabel(document.getElementById('cardIdDropdown'), _selectedCardIds, 'Card ID');
+  refreshDynamicAttributeFilters();
+  loadAssets(true);
+}
+
+function debounceLoad() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => loadAssets(true), 500);
+}
+
+document.getElementById('mintMin').addEventListener('input', e => {
+  _filterMintMin = e.target.value;
+  debounceLoad();
+});
+document.getElementById('mintMax').addEventListener('input', e => {
+  _filterMintMax = e.target.value;
+  debounceLoad();
+});
+
+function loadNextChunk() {
+  loadAssets(false);
+}
+
+/* Clicking "Load more" once arms infinite scroll for the rest of this filter
+   set — after that, reaching the button again auto-loads the next chunk
+   (like AtomicHub), no more clicking required. A fresh filter/search/sort
+   change disarms it again (see the reset branches above), so a first click
+   is always required again on a new result set. */
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadNextChunk();
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+let _loadMoreObs = null;
+function initInfiniteScroll() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn  = document.getElementById('loadMoreBtn');
+  _loadMoreObs = new IntersectionObserver(entries => {
+    if (!_autoLoadArmed || btn.disabled || wrap.style.display === 'none') return;
+    if (entries[0].isIntersecting) loadNextChunk();
+  }, { rootMargin: '600px' });
+  _loadMoreObs.observe(wrap);
+}
+initInfiniteScroll();
+document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+
+// Checkbox / single-select dropdown toggle
+document.querySelectorAll('.cb-dropdown').forEach(container => {
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel  = container.querySelector('.cb-panel');
+    const isOpen = panel.classList.contains('open');
+    closeAllCbDropdowns();
+    if (!isOpen) {
+      panel.classList.add('open');
+      container.querySelector('.cb-dropdown-btn').classList.add('open');
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Nav's own wallet-connect button — unrelated to the (hardcoded) wallet
+  // this page displays, kept purely for site-wide navigation consistency.
+  WalletWidget.mount(document.querySelector('.nav-inner'), {
+    authScript: _p + 'shared/wax-auth.js',
+    apiScript: _p + 'shared/wax-api.js',
+    exploreHref: _p + 'explore',
+    offersHref: _p + 'trade-offers',
+    profileHref: _p + 'profile',
+    menuItems: walletMenuItems(_p),
+  });
+  initPrizePool();
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllCbDropdowns();
+});
+</script>
+</body>
+</html>
