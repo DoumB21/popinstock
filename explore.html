@@ -1132,8 +1132,8 @@ document.addEventListener('mousedown', e => {
 });
 // A fixed-position open panel doesn't track its trigger while the sidebar
 // (or the page) scrolls, so close it rather than let it drift away.
-document.querySelector('.ex-sidebar').addEventListener('scroll', closeAllDd);
-window.addEventListener('scroll', closeAllDd, { passive: true });
+document.querySelector('.ex-sidebar').addEventListener('scroll', () => { closeAllDd(); hideSugs(); });
+window.addEventListener('scroll', () => { closeAllDd(); hideSugs(); }, { passive: true });
 
 // Keep .ex-sidebar's max-height matched to whatever room is actually left
 // below it on screen right now (see its CSS comment for why a fixed formula
@@ -1239,6 +1239,22 @@ async function searchCollections(q) {
   } catch { hideSugs(); }
 }
 
+// .ex-sidebar clips overflow (see its CSS comment), and it shrinks to fit
+// only the visible Collection section while typing (quick-access hides,
+// the rest of the filters stay hidden pre-selection) — so an absolutely
+// positioned dropdown anchored below the input gets clipped to almost
+// nothing. Same fix as positionDdPanel: switch to fixed positioning (from
+// the input's live rect) while open so it escapes the sidebar's box.
+function positionColSugs() {
+  const rect = document.querySelector('.typeahead-wrap').getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  $colSugs.style.position = 'fixed';
+  $colSugs.style.left = rect.left + 'px';
+  $colSugs.style.width = rect.width + 'px';
+  $colSugs.style.right = 'auto';
+  $colSugs.style.top = (rect.bottom + 4) + 'px';
+  $colSugs.style.maxHeight = Math.max(120, Math.min(259, spaceBelow)) + 'px';
+}
 function renderSugs() {
   if (!_suggestions.length) { hideSugs(); return; }
   $colSugs.innerHTML = _suggestions.map((c, i) => {
@@ -1252,13 +1268,19 @@ function renderSugs() {
     </div>`;
   }).join('');
   $colSugs.style.display = 'block';
+  positionColSugs();
   syncQuickAccessVisibility();
 }
 $colSugs.addEventListener('mousedown', e => {
   const el = e.target.closest('.col-sug');
   if (el) selectCollection(_suggestions[+el.dataset.i]);
 });
-function hideSugs() { $colSugs.style.display = 'none'; syncQuickAccessVisibility(); }
+function hideSugs() {
+  $colSugs.style.display = 'none';
+  $colSugs.style.position = ''; $colSugs.style.left = ''; $colSugs.style.width = '';
+  $colSugs.style.right = ''; $colSugs.style.top = ''; $colSugs.style.maxHeight = '';
+  syncQuickAccessVisibility();
+}
 
 // Quick access (Recently viewed / Popular) only makes sense with no collection
 // picked and no active suggestions dropdown covering it — collection pick/clear
