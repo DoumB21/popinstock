@@ -473,6 +473,7 @@ let _activeWallet    = null;
 const _urlWallet = (new URLSearchParams(location.search).get('wallet') || '').trim().toLowerCase() || null;
 let _readOnly        = false; // true once _activeWallet is set but isn't the connected wallet — this page has no action buttons to hide, only used for the heading/title
 let _waxUsdRate      = null;
+const _historicalRates = {}; // rate_date ('YYYY-MM-DD') -> usd_per_wax, filled lazily per rendered page
 let _debounceTimer   = null;
 const _collections     = new Set();
 const _collectionNames = new Map();
@@ -493,9 +494,30 @@ async function fetchWaxPrice() {
   } catch { /* non-fatal */ }
 }
 
-function usdTag(wax) {
-  if (!_waxUsdRate || wax == null) return '';
-  return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>`;
+// Same table + Accept-Profile:funko header pattern as collection.html's
+// fetchHistoricalWaxUsdRates — gives the USD tag on each sale card the rate
+// that was actually in effect on the sale's date, rather than today's rate.
+// Missing dates simply come back absent (no rate recorded yet, or Supabase
+// unreachable) rather than throwing.
+async function fetchHistoricalWaxUsdRates(dates) {
+  const unique = [...new Set(dates)].filter(Boolean);
+  if (!unique.length) return {};
+  try {
+    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Accept-Profile': 'funko' };
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/wax_usd_rates?rate_date=in.(${unique.join(',')})&select=rate_date,usd_per_wax`, { headers });
+    const rows = await r.json();
+    return Object.fromEntries((rows || []).map(row => [row.rate_date, row.usd_per_wax]));
+  } catch { return {}; }
+}
+
+function usdTag(wax, ms) {
+  if (wax == null) return '';
+  const dateKey = ms ? new Date(Number(ms)).toISOString().slice(0, 10) : null;
+  // Historical rate for the sale's own date when we have it; live rate as a
+  // fallback for dates not yet backfilled (e.g. a sale from moments ago).
+  const rate = (dateKey && _historicalRates[dateKey]) || _waxUsdRate;
+  if (!rate) return '';
+  return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * rate).toFixed(2)}</span>`;
 }
 
 function escHtml(s) {
@@ -841,7 +863,7 @@ async function loadActivity(reset) {
     if (reset && items.length === 0) {
       document.getElementById('emptyWrap').style.display = '';
     } else {
-      appendRows(items);
+      await appendRows(items);
     }
     document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
     _page++;
@@ -935,7 +957,7 @@ function saleCardHtml(item, asset) {
         <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
         <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
         <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
-        <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax)}</span>
+        <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax, item.updated_at_time)}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
@@ -1079,11 +1101,20 @@ function renderTransferItem(item) {
   return assets.length > 1 ? transferBundleCardHtml(item, assets) : transferCardHtml(item, assets[0]);
 }
 
-function appendRows(items) {
+async function appendRows(items) {
   // Purchases and Sales are both /sales records (state=3), just filtered by
   // buyer vs. seller — same fields (seller/buyer/price/updated_at_time), so
   // the same AtomicHub-style card works for both. Transfers uses the same
   // visual card with a lighter field set (no price/listing id).
+  if (_tab !== 'transfers') {
+    // One batched query per page of results for whichever sale dates aren't
+    // already cached, so the USD tag can use the rate active on each sale's
+    // own date instead of today's live rate.
+    const needed = items
+      .map(item => item.updated_at_time ? new Date(Number(item.updated_at_time)).toISOString().slice(0, 10) : null)
+      .filter(d => d && !(d in _historicalRates));
+    if (needed.length) Object.assign(_historicalRates, await fetchHistoricalWaxUsdRates(needed));
+  }
   const html = _tab === 'transfers'
     ? items.map(renderTransferItem).join('')
     : items.map(renderSaleItem).join('');

@@ -384,6 +384,18 @@ async function fetchWaxPrice() {
   } catch { /* leave unset */ }
 }
 
+// Same table + Accept-Profile:funko header pattern as collection.html's
+// fetchHistoricalWaxUsdRates — a sold sale's "Sold For" USD figure should
+// reflect the rate active on its own sold date, not today's live rate.
+async function fetchHistoricalWaxUsdRate(dateKey) {
+  try {
+    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Accept-Profile': 'funko' };
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/wax_usd_rates?rate_date=eq.${dateKey}&select=usd_per_wax`, { headers });
+    const rows = await r.json();
+    return rows?.[0]?.usd_per_wax ?? null;
+  } catch { return null; }
+}
+
 function getSaleIdFromUrl() {
   const qp = new URLSearchParams(location.search).get('sale_id');
   if (qp) return qp;
@@ -410,6 +422,15 @@ async function loadSale() {
     return;
   }
   await fetchWaxPrice();
+  // Sold sales get the rate active on their own sold date rather than
+  // today's — only meaningful once actually settled (state 3); active/
+  // cancelled listings have no settlement date, so those keep the live rate.
+  let saleUsdRate = window._waxUsdRate;
+  if (sale.state === 3 && sale.updated_at_time) {
+    const dateKey = new Date(Number(sale.updated_at_time)).toISOString().slice(0, 10);
+    const historicalRate = await fetchHistoricalWaxUsdRate(dateKey);
+    if (historicalRate) saleUsdRate = historicalRate;
+  }
 
   const assets = sale.assets || [];
   const isBundle = assets.length > 1;
@@ -422,7 +443,7 @@ async function loadSale() {
   const state = SALE_STATE[sale.state] || { label: 'Unknown', cls: 'active' };
   document.getElementById('saleId').textContent = `#${saleId}`;
   document.getElementById('salePrice').innerHTML = fmtWax(sale.price.amount, sale.price.token_precision) +
-    (window._waxUsdRate ? ` <span class="sale-price-usd">≈ $${(Number(sale.price.amount) / (10 ** sale.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '');
+    (saleUsdRate ? ` <span class="sale-price-usd">≈ $${(Number(sale.price.amount) / (10 ** sale.price.token_precision) * saleUsdRate).toFixed(2)}</span>` : '');
   document.getElementById('salePriceLabel').textContent = sale.state === 3 ? 'Sold For' : sale.state === 2 ? 'Was Listed For' : 'Price';
   document.getElementById('saleStatus').innerHTML = `<span class="sale-status sale-status--${state.cls}">${escHtml(state.label)}</span>`;
   document.getElementById('saleSeller').innerHTML = walletLinkHtml(sale.seller);
