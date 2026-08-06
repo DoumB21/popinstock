@@ -809,6 +809,11 @@ function scoreCompareRow(label, recVal, recN, recTotal, giveVal, giveN, giveTota
 // with, same reasoning as _sortModeByOffer's wiring.
 const _scoreCollapsedByOffer = new Map();
 
+// Collapsed by default until the user has explicitly toggled a given offer.
+function isScoreCollapsed(offerId) {
+  return _scoreCollapsedByOffer.has(offerId) ? _scoreCollapsedByOffer.get(offerId) : true;
+}
+
 function scoreSummaryHeaderHtml(collapsed) {
   return `<div class="score-summary-header">
     <span class="score-summary-title">Trade Scorecard</span>
@@ -817,7 +822,7 @@ function scoreSummaryHeaderHtml(collapsed) {
 }
 
 function buildScoreSummaryHtml(receiveAssets, giveAssets, tplMap, counterparty, offerId) {
-  const collapsed = !!_scoreCollapsedByOffer.get(offerId);
+  const collapsed = isScoreCollapsed(offerId);
   if (collapsed) {
     return `<div class="score-summary">${scoreSummaryHeaderHtml(true)}</div>`;
   }
@@ -1028,7 +1033,7 @@ function buildOfferItem(offer, tplMap, lowestMints, type, direction) {
 
   item.querySelector('.score-summary-header').addEventListener('click', e => {
     e.stopPropagation(); // don't toggle the accordion open/closed
-    _scoreCollapsedByOffer.set(offerId, !_scoreCollapsedByOffer.get(offerId));
+    _scoreCollapsedByOffer.set(offerId, !isScoreCollapsed(offerId));
     rebuildOfferItem(offerId);
   });
 
