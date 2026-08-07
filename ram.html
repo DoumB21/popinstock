@@ -124,7 +124,7 @@
 <main class="page-main">
   <div class="page-header">
     <h1 class="page-title">Manage <span class="accent">RAM</span></h1>
-    <p class="page-desc">Buy or sell WAX RAM for your own wallet — every WAX account needs RAM to hold NFTs, tokens, and other on-chain data.</p>
+    <p class="page-desc">Buy or sell WAX RAM — every WAX account needs RAM to hold NFTs, tokens, and other on-chain data. Buying can send the RAM to another wallet; selling always sells your own.</p>
   </div>
 
   <div id="authGate" class="auth-gate" style="display:none;">
@@ -160,6 +160,11 @@
 
     <div class="ram-card">
       <div class="ram-card-title">Buy RAM</div>
+      <div class="ram-group">
+        <label class="ram-label" for="buyReceiver">Receiver of RAM</label>
+        <input class="control-input" id="buyReceiver" type="text" placeholder="e.g. player1.wam" autocomplete="off" spellcheck="false" oninput="onReceiverInput()" onblur="checkReceiverNow()" />
+        <div class="ram-hint" id="receiverHint"></div>
+      </div>
       <div class="ram-group">
         <label class="ram-label" for="buyAmount">WAX to spend</label>
         <div class="ram-amount-row">
@@ -216,6 +221,13 @@ let _ramUsage   = null;  // bytes
 let _liquidWax  = null;  // float WAX
 let _ramReserve = null;  // float bytes in the rammarket pool
 let _waxReserve = null;  // float WAX in the rammarket pool
+
+// WAX/EOSIO account names: lowercase a-z, 1-5, '.', max 12 chars. Same
+// convention as token-transfer.html's recipient field.
+const NAME_RE = /^[a-z1-5.]{1,12}$/;
+let _receiverTimer     = null;
+let _receiverFormatOk  = false;
+let _receiverBlocked   = false; // true only once get_account has come back with a definite "no such account"
 
 function fmtBytes(n) {
   if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + ' MB';
@@ -318,6 +330,55 @@ function renderMarketPrice() {
 }
 
 /* ── Buy form ── */
+
+/* Receiver of RAM — defaults to the connected wallet, but buyram lets the
+   payer fund RAM for any other account (same use case as waxblock.io's RAM
+   page). Validation mirrors token-transfer.html's recipient field. */
+function onReceiverInput() {
+  const el = document.getElementById('buyReceiver');
+  const { selectionStart, selectionEnd } = el;
+  el.value = el.value.toLowerCase();
+  el.setSelectionRange(selectionStart, selectionEnd);
+  _receiverBlocked = false;
+  const hint = document.getElementById('receiverHint');
+  hint.className = 'ram-hint';
+  const val = el.value.trim();
+  _receiverFormatOk = NAME_RE.test(val);
+  if (!val || !_receiverFormatOk) { hint.textContent = ''; }
+  else { hint.textContent = val === _account ? '' : 'Buying for another wallet — they receive the RAM, you pay the WAX.'; }
+  updateBuyHint();
+  updateBuyBtn();
+  clearTimeout(_receiverTimer);
+  if (_receiverFormatOk) _receiverTimer = setTimeout(checkReceiverNow, 500);
+}
+
+async function checkReceiverNow() {
+  clearTimeout(_receiverTimer);
+  const val = document.getElementById('buyReceiver').value.trim();
+  if (!_receiverFormatOk || !val) return;
+  const hint = document.getElementById('receiverHint');
+  if (val === _account) { hint.textContent = ''; hint.className = 'ram-hint'; return; }
+  try {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_account`, {
+      method: 'POST',
+      body: JSON.stringify({ account_name: val }),
+    });
+    if (document.getElementById('buyReceiver').value.trim() !== val) return; // stale — user kept typing
+    if (res.ok) {
+      _receiverBlocked = false;
+      hint.textContent = 'Buying for another wallet — they receive the RAM, you pay the WAX.';
+      hint.className = 'ram-hint';
+    } else {
+      _receiverBlocked = true;
+      hint.textContent = "This account doesn't exist on the WAX chain.";
+      hint.className = 'ram-hint ram-hint--error';
+    }
+  } catch {
+    // unreachable — leave unblocked, the real buy will fail on-chain if it's genuinely bad
+  }
+  updateBuyBtn();
+}
+
 function onBuyInput() { updateBuyHint(); updateBuyBtn(); }
 
 function updateBuyHint() {
@@ -344,7 +405,11 @@ function updateBuyHint() {
 function updateBuyBtn() {
   const btn = document.getElementById('buySubmitBtn');
   const amt = parseFloat(document.getElementById('buyAmount').value);
-  btn.disabled = !(_account && isFinite(amt) && amt > 0 && (_liquidWax == null || amt <= _liquidWax));
+  const receiver = document.getElementById('buyReceiver').value.trim();
+  btn.disabled = !(
+    _account && receiver && _receiverFormatOk && !_receiverBlocked &&
+    isFinite(amt) && amt > 0 && (_liquidWax == null || amt <= _liquidWax)
+  );
 }
 
 document.getElementById('buyMaxBtn').addEventListener('click', () => {
@@ -358,6 +423,8 @@ async function buyRam() {
   if (!wallet) return;
   const amt = parseFloat(document.getElementById('buyAmount').value);
   if (!isFinite(amt) || amt <= 0) return;
+  const receiver = document.getElementById('buyReceiver').value.trim();
+  if (!receiver || !_receiverFormatOk || _receiverBlocked) return;
   const quant = fmtWax(amt);
 
   const btn = document.getElementById('buySubmitBtn');
@@ -367,8 +434,10 @@ async function buyRam() {
   status.style.display = 'none';
 
   try {
-    await WaxAuth.transact([buyRamAction(wallet, wallet, quant)]);
-    status.textContent = `Bought RAM for ${quant}.`;
+    await WaxAuth.transact([buyRamAction(wallet, receiver, quant)]);
+    status.textContent = receiver === wallet
+      ? `Bought RAM for ${quant}.`
+      : `Bought RAM for ${quant}, sent to ${receiver}.`;
     status.className = 'ram-status is-success';
     status.style.display = 'block';
     document.getElementById('buyAmount').value = '';
@@ -514,6 +583,10 @@ function onWalletChange() {
   }
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('ramContent').style.display = '';
+  document.getElementById('buyReceiver').value = _account;
+  document.getElementById('receiverHint').textContent = '';
+  _receiverFormatOk = true;
+  _receiverBlocked = false;
   document.getElementById('buyAmount').value = '';
   document.getElementById('sellAmount').value = '';
   document.getElementById('buyHint').textContent = '';
