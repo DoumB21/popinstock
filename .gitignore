@@ -12,3 +12,6 @@ WombatDB/
 # Node / Vite
 node_modules/
 .vite/
+
+.vercel
+.env*
