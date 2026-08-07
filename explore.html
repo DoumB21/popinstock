@@ -210,7 +210,7 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 14px; padding: 1rem 1.25rem;
       display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s; cursor: pointer;
     }
     .act-card:hover { border-color: var(--border-hover); }
     .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex-shrink: 0; }
@@ -279,12 +279,12 @@
     .bl-card-img img, .bl-card-img video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .bl-card-img-ph { color: var(--text-secondary); font-size: 1.8rem; opacity: 0.2; }
     .bl-card-check {
-      position: absolute; top: 6px; left: 6px;
-      width: 26px; height: 26px; border-radius: 50%;
+      position: absolute; top: 8px; left: 8px;
+      width: 34px; height: 34px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,0.3);
       background: rgba(0,0,0,0.45); padding: 0; line-height: 1;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; color: transparent; cursor: pointer;
+      font-size: 0.95rem; color: transparent; cursor: pointer;
       transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
     .bl-card.selected .bl-card-check { background: var(--accent-light); border-color: var(--accent-light); color: #fff; }
@@ -296,11 +296,28 @@
       border: 1px solid rgba(240,168,64,0.3);
       pointer-events: none;
     }
+    .bl-card-mint:empty { display: none; }
     .bl-card-body { padding: 0.7rem; }
     .bl-card-name {
       font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    /* ── Bundle browse nav: takes the name row's place in the card body for
+       a bundle listing (see cardHtml) instead of overlaying the image —
+       a bundle's "name" would just be whichever asset happens to be first,
+       not meaningful for the listing as a whole. ── */
+    .bl-card-bundle-nav { display: flex; align-items: center; gap: 0.3rem; }
+    .bl-card-bundle-count {
+      flex: 1; text-align: center; font-size: 0.74rem; font-weight: 700;
+      color: var(--accent-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bl-card-bundle-arrow {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-primary); cursor: pointer; border-radius: 5px;
+      font-family: inherit; font-size: 0.8rem; font-weight: 900; line-height: 1;
+      padding: 2px 7px; flex-shrink: 0; transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .bl-card-bundle-arrow:hover { background: rgba(192,120,40,0.18); border-color: rgba(192,120,40,0.4); color: var(--accent-light); }
     .bl-card-listed-note { font-size: 0.74rem; font-weight: 700; color: var(--accent-light); margin-top: 0.25rem; }
     .ex-card--bought { opacity: 0.55; pointer-events: none; }
 
@@ -780,14 +797,13 @@
       </div>
     </div>
 
-    <!-- Listing type — locked to "Single cards only" until bundle display
-         + buy flow exist; kept visible-but-disabled so the feature reads as
-         "coming soon" rather than missing. -->
+    <!-- Listing type — Single/Bundle/All. Applies to both the Listings and
+         Sales History tabs (see fetchSalesQueryPage). -->
     <div class="filter-section hidden" id="secBundle">
       <span class="filter-label">Listing type</span>
       <div class="cb-dropdown" id="bundleDd">
         <button class="cb-dropdown-btn" id="bundleTrigger" type="button">
-          <span class="cb-label">Single cards only</span>
+          <span class="cb-label">All listings</span>
           <span class="cb-arrow">▼</span>
         </button>
         <div class="cb-panel" id="bundlePanel"></div>
@@ -932,7 +948,7 @@ let _rarity     = '';     // single value — the sales API only matches data:te
 let _dynFilters = {};
 let _dynGen     = 0; // bumped on every schema change to stale-guard the async field-generation fetch
 let _minP = '', _maxP = '', _minMint = '', _maxMint = '';
-let _bundle  = 'single'; // 'all'/'bundle' disabled in the UI until bundle display + buy flow exist
+let _bundle  = 'all'; // 'single' | 'bundle' | 'all' — see the Listing Type dropdown / fetchSalesQueryPage
 let _sortBy  = 'price';
 let _sortOrd = 'asc';
 let _nameFilter = '';
@@ -2472,17 +2488,14 @@ function initStaticDropdown(ddId, options, getValue, onSelect) {
   return render;
 }
 
-// Bundle listings aren't visually distinguishable from single cards yet and
-// the buy flow (single or cart) assumes one template_id per listing, which a
-// bundle doesn't have. Kept visible-but-inert so it reads as "coming soon"
-// rather than missing. "Single cards only" is the sole selectable option and
-// fetchSalesPage's &max_assets=1 is hardcoded independent of this dropdown's
-// state (see the comment there) — a hand-edited _bundle can't change the
-// actual request.
+// Bundle listings render with a prev/next browser + "Bundle (x of N)" banner
+// on the card image (see cardHtml/wireBundleNav) and buy/cart normally —
+// a bundle is still just one sale_id, purchased/added as a whole. See
+// fetchSalesQueryPage for how each option maps to min_assets/max_assets.
 const renderBundleDd = initStaticDropdown('bundleDd', [
-  { value: 'all',    label: 'All listings',      disabled: true },
+  { value: 'all',    label: 'All listings' },
   { value: 'single', label: 'Single cards only' },
-  { value: 'bundle', label: 'Bundles only',       disabled: true },
+  { value: 'bundle', label: 'Bundles only' },
 ], () => _bundle, v => { _bundle = v; pushUrl(); resetResults(); loadMore(); });
 
 // Single combined Field+Direction dropdown, matching the "Price (Highest)"/
@@ -2525,7 +2538,7 @@ function clearFilters() {
   _schema = ''; _rarity = ''; _dynFilters = {};
   _templateId = ''; $tplChip.style.display = 'none';
   _minP = ''; _maxP = ''; _minMint = ''; _maxMint = '';
-  _bundle = 'single';
+  _bundle = 'all';
   _sortBy = 'price'; _sortOrd = 'asc';
   _nameFilter = '';
   _hideOwnedWallet = '';
@@ -2706,10 +2719,13 @@ function fetchSalesQueryPage(page, state) {
   if (_maxP)       url += `&max_price=${parseFloat(_maxP)}`;
   if (_minMint)    url += `&min_template_mint=${parseInt(_minMint, 10)}`;
   if (_maxMint)    url += `&max_template_mint=${parseInt(_maxMint, 10)}`;
-  // Excludes bundle listings entirely — every sale_id this page ever
-  // handles maps to exactly one asset. Hardcoded, not gated on _bundle —
-  // see the Listing Type dropdown comment above.
-  url += '&max_assets=1';
+  // Listing Type filter — applies to both tabs, same as every other filter
+  // here. Sales History's read-only card (historyCardHtml) has its own
+  // bundle browser (wireHistoryBundleNav), matching the Listings tab's
+  // cardHtml/wireBundleNav.
+  if (_bundle === 'single') url += '&max_assets=1';
+  else if (_bundle === 'bundle') url += '&min_assets=2';
+  // 'all' — no asset-count constraint at all.
   if (_rarity) url += `&data:text.rarity=${encodeURIComponent(_rarity)}`;
   // Smart-generated attribute filters — same exact-match constraint as
   // Rarity above. The FIELD NAME is also case-sensitive server-side
@@ -2804,7 +2820,9 @@ async function loadMore() {
       const wrap = document.createElement('div');
       if (isHist) {
         wrap.innerHTML = historyCardHtml(sale).trim();
-        frag.appendChild(wrap.firstElementChild);
+        const histCard = wrap.firstElementChild;
+        attachHistoryCardEvents(histCard, sale);
+        frag.appendChild(histCard);
       } else {
         _saleAmountById.set(String(sale.sale_id), {
           amount: String(sale.price?.amount || '0'),
@@ -2874,7 +2892,9 @@ function initInfiniteScroll() {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function cardHtml(sale) {
-  const asset     = sale.assets?.[0] || {};
+  const assets    = sale.assets || [];
+  const isBundle  = assets.length > 1;
+  const asset     = assets[0] || {};
   const data      = asset.data || asset.template?.immutable_data || {};
   const name      = escHtml(asset.name || data.name || 'Unknown');
   const media     = resolveMedia(asset);
@@ -2931,30 +2951,51 @@ function cardHtml(sale) {
     checkHtml   = `<button type="button" class="bl-card-check" title="Select">${isSel ? '✓' : ''}</button>`;
   }
 
+  // Bundle listings — the name row is replaced with prev/next arrows + a
+  // "Bundle (x of N)" counter instead, wired up in attachCardEvents/
+  // wireBundleNav (needs the full `sale` object, not available here). A
+  // bundle's "name" would just be whichever asset happens to be first —
+  // not meaningful for the listing as a whole — so it's dropped rather than
+  // shown alongside the counter. The mint badge on the image is rendered
+  // even when empty for a bundle so wireBundleNav can fill it in as the
+  // browsed asset changes (see .bl-card-mint:empty in CSS).
+  const nameOrBundleNavHtml = isBundle ? `<div class="bl-card-bundle-nav">
+      <button type="button" class="bl-card-bundle-arrow bl-card-bundle-prev" title="Previous item" aria-label="Previous item">‹</button>
+      <span class="bl-card-bundle-count">Bundle (1 of ${assets.length})</span>
+      <button type="button" class="bl-card-bundle-arrow bl-card-bundle-next" title="Next item" aria-label="Next item">›</button>
+    </div>` : `<div class="bl-card-name" title="${name}">${name}</div>`;
+
   return `<div class="bl-card${isSel ? ' selected' : ''}" data-id="${id}" ${ttAttrs}>
     <div class="bl-card-img">
       ${mediaHtml}
-      ${mint ? `<span class="bl-card-mint">${mint}</span>` : ''}
+      ${mint || isBundle ? `<span class="bl-card-mint">${mint}</span>` : ''}
       ${checkHtml}
     </div>
     <div class="bl-card-body">
-      <div class="bl-card-name" title="${name}">${name}</div>
+      ${nameOrBundleNavHtml}
       <div class="bl-card-listed-note">${listingPriceHtml(sale)}</div>
       <div class="ex-card-actions">${actionsHtml}</div>
     </div>
   </div>`;
 }
 
-// Card body click opens the persistent info popup — ignored when the click
-// landed on Buy/Cart, so those keep working normally (handled generi-
-// cally by AssetPopup.wire()). Cart button gets its own listener here (not
-// inline onclick) since attachCardEvents already closes over the real
-// `sale` object at render time — no need for a separate sale_id -> sale
-// lookup map just for this.
+// Card body click navigates to the sale page — ignored when the click landed
+// on Buy/Cart/bundle-arrows, so those keep working normally (handled generi-
+// cally by AssetPopup.wire()'s own `a, button` exclusion). The persistent
+// click-to-open info popup is gone from Explore; the hover tooltip (still
+// wired below) covers the same info without leaving the grid. Cart button
+// gets its own listener here (not inline onclick) since attachCardEvents
+// already closes over the real `sale` object at render time — no need for a
+// separate sale_id -> sale lookup map just for this.
 function attachCardEvents(card, sale) {
   const imgEl = card.querySelector('.bl-card-img');
   const chk   = card.querySelector('.bl-card-check');
-  _assetPopup.wire(card, cardDataFromEl(card), { hoverEl: imgEl, pauseElements: chk ? [chk] : [] });
+  const popupData = cardDataFromEl(card);
+  _assetPopup.wire(card, popupData, {
+    hoverEl: imgEl,
+    pauseElements: chk ? [chk] : [],
+    onCardClick: () => { location.href = `sale/${encodeURIComponent(card.dataset.id)}`; },
+  });
 
   const cartBtn = card.querySelector('.cart-btn');
   if (cartBtn) cartBtn.addEventListener('click', () => toggleSelect(sale, card));
@@ -2966,17 +3007,100 @@ function attachCardEvents(card, sale) {
 
   const editBtn = card.querySelector('.ex-edit-btn');
   if (editBtn) editBtn.addEventListener('click', () => openEditModal(sale));
+
+  wireBundleNav(card, sale, popupData);
+}
+
+// Same shape as cardDataFromEl()'s return value, computed straight from an
+// asset object instead of parsing data-* attributes back off the DOM — used
+// by wireBundleNav to refresh the hover tooltip's data in place as the
+// visitor browses through a bundle's items.
+function assetPopupData(asset) {
+  const data = asset.data || asset.template?.immutable_data || {};
+  const col  = asset.collection?.collection_name || _col?.collection_name || '';
+  return {
+    assetId:        asset.asset_id || '',
+    templateId:     asset.template?.template_id || '',
+    collection:     col,
+    collectionName: asset.collection?.name || col,
+    schema:         asset.schema?.schema_name || '',
+    rarity:         data.rarity || '',
+    rarityClass:    rcls(data.rarity || ''),
+    cardid:         data.cardid || asset.template?.immutable_data?.cardid || '',
+    name:           asset.name || data.name || '',
+    owner:          asset.owner || '',
+    backedTokens:   asset.backed_tokens || [],
+  };
+}
+
+// Prev/Next arrows on a bundle card's image cycle through every asset in the
+// listing (same one sale_id, same total price — this is purely a preview,
+// the Buy/Cart actions below still apply to the whole bundle). `idx` lives in
+// this closure rather than a data-* attribute since attachCardEvents already
+// runs once per card element. `popupData` is the same object instance handed
+// to AssetPopup.wire() — mutating its fields in place (not reassigning) means
+// the next hover reads the currently-browsed asset, since AssetPopup reads
+// object properties at hover time, not at wire time.
+function wireBundleNav(card, sale, popupData) {
+  const assets = sale.assets || [];
+  if (assets.length < 2) return;
+
+  const prevBtn = card.querySelector('.bl-card-bundle-prev');
+  const nextBtn = card.querySelector('.bl-card-bundle-next');
+  const countEl = card.querySelector('.bl-card-bundle-count');
+  const mintEl  = card.querySelector('.bl-card-mint');
+  const imgWrap = card.querySelector('.bl-card-img');
+  let idx = 0;
+
+  function render() {
+    const asset = assets[idx] || {};
+    const media = resolveMedia(asset);
+    let mediaHtml;
+    if (media?.kind === 'video') {
+      mediaHtml = `<video data-src="${escHtml(media.url)}" muted loop playsinline preload="none"></video>`;
+    } else if (media?.kind === 'img') {
+      const ipfsHash = media.url.startsWith(IPFS_GW) ? media.url.slice(IPFS_GW.length) : '';
+      mediaHtml = `<img src="${escHtml(media.url)}" alt="" loading="lazy" data-ipfs-hash="${escHtml(ipfsHash)}" data-gw-idx="0" onerror="onCardImgError(this)">`;
+    } else {
+      mediaHtml = '<div class="bl-card-img-ph">?</div>';
+    }
+    const oldMediaEl = imgWrap.querySelector('img, video, .bl-card-img-ph');
+    if (oldMediaEl) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = mediaHtml;
+      const newMediaEl = tmp.firstElementChild;
+      oldMediaEl.replaceWith(newMediaEl);
+      if (newMediaEl.tagName === 'VIDEO') observeNewVideos(imgWrap);
+    }
+    if (mintEl) mintEl.textContent = asset.template_mint ? `#${asset.template_mint}` : '';
+    if (countEl) countEl.textContent = `Bundle (${idx + 1} of ${assets.length})`;
+    Object.assign(popupData, assetPopupData(asset));
+  }
+
+  prevBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    idx = (idx - 1 + assets.length) % assets.length;
+    render();
+  });
+  nextBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    idx = (idx + 1) % assets.length;
+    render();
+  });
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Sales History — read-only AtomicHub-style list card, ported from           */
 /* inventory-activity.html's Sales tab. No Buy/Cart here (these are already   */
-/* sold), no hover/click info popup (every field it would show is already on */
-/* the card) — just a thumbnail + the sale's own record fields.               */
+/* sold) — just a thumbnail + the sale's own record fields, plus the same     */
+/* hover popup / click-to-sale-page behavior as the Listings tab (wired in    */
+/* the loadMore() batch-render loop via attachHistoryCardEvents below).       */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function historyCardHtml(sale) {
-  const asset = sale.assets?.[0] || {};
+  const assets   = sale.assets || [];
+  const isBundle = assets.length > 1;
+  const asset = assets[0] || {};
   const data  = asset.data || asset.template?.immutable_data || {};
   const name  = escHtml(asset.name || data.name || 'Unknown');
   const media = resolveMedia(asset);
@@ -3002,6 +3126,17 @@ function historyCardHtml(sale) {
     ? `<a href="template/${encodeURIComponent(tid)}" class="sc-name-link">${name}</a>`
     : name;
 
+  // Bundle sale — the Name row becomes a prev/next browser + "Bundle (x of
+  // N)" counter instead (same reasoning/markup as the Listings tab's
+  // cardHtml: a bundle's "name" would just be whichever asset happens to be
+  // first, not meaningful for the sale as a whole). Wired up in
+  // wireHistoryBundleNav — needs the full `sale` object, not available here.
+  const nameOrBundleNavHtml = isBundle ? `<div class="bl-card-bundle-nav">
+      <button type="button" class="bl-card-bundle-arrow bl-card-bundle-prev" title="Previous item" aria-label="Previous item">‹</button>
+      <span class="bl-card-bundle-count">Bundle (1 of ${assets.length})</span>
+      <button type="button" class="bl-card-bundle-arrow bl-card-bundle-next" title="Next item" aria-label="Next item">›</button>
+    </div>` : `<span class="sc-name">${nameHtml}</span>`;
+
   return `<div class="act-card">
     <div class="act-card-thumb-wrap">
       <div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}" ${isBurned ? `title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}"` : ''}>${mediaHtml}</div>
@@ -3009,8 +3144,8 @@ function historyCardHtml(sale) {
     </div>
     <div class="act-card-cols">
       <div class="sc-fields">
-        <span class="sc-label">Mint #</span><span class="sc-value">${escHtml(mint)}</span>
-        <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
+        <span class="sc-label">Mint #</span><span class="sc-value act-card-mint">${escHtml(mint)}</span>
+        <span class="sc-label">Name</span><span class="sc-value">${nameOrBundleNavHtml}</span>
         <span class="sc-label">Collection</span><span class="sc-value">${collectionLinkHtml(col, colDisplay)}</span>
         <span class="sc-label">Price</span><span class="sc-value sc-price">${listingPriceHtml(sale, sale.updated_at_time)}</span>
       </div>
@@ -3022,6 +3157,70 @@ function historyCardHtml(sale) {
       </div>
     </div>
   </div>`;
+}
+
+// Prev/Next arrows on a Sales History bundle card cycle through every asset
+// in the sale, same idea and DOM-class reuse as the Listings tab's
+// wireBundleNav (thumbnail + mint value swap, count text). `popupData` is
+// optional (only bundle sales pass through here at all, but a card can in
+// principle be wired without a popup) — same in-place-mutation trick as
+// wireBundleNav so the hover tooltip reads the currently-browsed asset.
+function wireHistoryBundleNav(card, sale, popupData) {
+  const assets = sale.assets || [];
+  if (assets.length < 2) return;
+
+  const prevBtn = card.querySelector('.bl-card-bundle-prev');
+  const nextBtn = card.querySelector('.bl-card-bundle-next');
+  const countEl = card.querySelector('.bl-card-bundle-count');
+  const mintEl  = card.querySelector('.act-card-mint');
+  const thumb   = card.querySelector('.act-card-thumb');
+  let idx = 0;
+
+  function render() {
+    const asset = assets[idx] || {};
+    const media = resolveMedia(asset);
+    let mediaHtml;
+    if (media?.kind === 'video') {
+      mediaHtml = `<video data-src="${escHtml(media.url)}" muted loop playsinline preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+    } else if (media?.kind === 'img') {
+      const ipfsHash = media.url.startsWith(IPFS_GW) ? media.url.slice(IPFS_GW.length) : '';
+      mediaHtml = `<img src="${escHtml(media.url)}" alt="" loading="lazy" data-ipfs-hash="${escHtml(ipfsHash)}" data-gw-idx="0" onerror="onCardImgError(this)">`;
+    } else {
+      mediaHtml = '<div class="act-card-thumb-ph">?</div>';
+    }
+    thumb.innerHTML = mediaHtml;
+    const newMediaEl = thumb.querySelector('video');
+    if (newMediaEl) observeNewVideos(thumb);
+    if (mintEl) mintEl.textContent = asset.template_mint ? `#${asset.template_mint}` : '—';
+    if (countEl) countEl.textContent = `Bundle (${idx + 1} of ${assets.length})`;
+    if (popupData) Object.assign(popupData, assetPopupData(asset));
+  }
+
+  prevBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    idx = (idx - 1 + assets.length) % assets.length;
+    render();
+  });
+  nextBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    idx = (idx + 1) % assets.length;
+    render();
+  });
+}
+
+// Card body click navigates to the sale page, hover shows the info popup —
+// same split as the Listings tab's attachCardEvents/onCardClick. Every real
+// link on the card (View transaction, Listing ID, Name, Collection, Seller/
+// Buyer, and the bundle-nav arrows) is its own <a>/<button>, which
+// AssetPopup.wire()'s click handler already excludes from the card-wide
+// navigate — so those keep working untouched.
+function attachHistoryCardEvents(card, sale) {
+  const popupData = assetPopupData(sale.assets?.[0] || {});
+  _assetPopup.wire(card, popupData, {
+    hoverEl: card.querySelector('.act-card-thumb'),
+    onCardClick: () => { location.href = `sale/${encodeURIComponent(sale.sale_id)}`; },
+  });
+  wireHistoryBundleNav(card, sale, popupData);
 }
 
 // Resolves a sale's actual blockchain txid on demand (AtomicMarket's /sales
@@ -4001,7 +4200,7 @@ function pushUrl() {
   if (_maxP)    p.set('maxP',   _maxP);
   if (_minMint) p.set('minMint', _minMint);
   if (_maxMint) p.set('maxMint', _maxMint);
-  // _bundle intentionally not persisted — always pinned to 'single'.
+  if (_bundle !== 'all') p.set('type', _bundle);
   if (_sortBy !== 'price')  p.set('sort',  _sortBy);
   if (_sortOrd !== 'asc')   p.set('order', _sortOrd);
   if (_nameFilter) p.set('name', _nameFilter);
@@ -4030,6 +4229,8 @@ async function restoreFromUrl() {
   _sortBy     = p.get('sort')  || (_mode === 'history' ? 'created' : 'price');
   _sortOrd    = p.get('order') || (_mode === 'history' ? 'desc'    : 'asc');
   _nameFilter = p.get('name')    || '';
+  const typeParam = p.get('type');
+  _bundle     = (typeParam === 'bundle' || typeParam === 'single') ? typeParam : 'all';
   _templateId = '';
 
   // A bare ?template_id= link (template.html's "View on Explore" button)
@@ -4058,6 +4259,7 @@ async function restoreFromUrl() {
   if (!colName) return;
 
   renderSortByDd();
+  renderBundleDd();
   if (_minP) document.getElementById('minPrice').value = _minP;
   if (_maxP) document.getElementById('maxPrice').value = _maxP;
   if (_minMint) document.getElementById('minMint').value = _minMint;
@@ -4159,6 +4361,28 @@ renderTray();
 updateSelCount();
 renderQuickAccess();
 restoreFromUrl();
+
+// Browser Back/Forward restoring this page from bfcache resumes this exact
+// JS context frozen at the moment the visitor navigated away — _selected
+// stays whatever it was then, even though a card's own detail page (sale.html)
+// can change the shared cart in the meantime (its "Add to cart" only touches
+// localStorage, which this frozen context never sees). Left alone, the next
+// Explore-side cart edit would call saveCartToStorage() with this stale
+// in-memory Map and silently clobber whatever was added elsewhere. A regular
+// (non-bfcache) load already re-reads storage via the loadCartFromStorage()
+// call above, so this only needs to re-run that path specifically on restore
+// (event.persisted) — re-firing it on every normal pageshow would just be
+// redundant work, not wrong, but there's no reason to.
+window.addEventListener('pageshow', e => {
+  if (!e.persisted) return;
+  _selected.clear();
+  loadCartFromStorage();
+  renderTray();
+  updateSelCount();
+  document.querySelectorAll('#cardsGrid .bl-card[data-id]').forEach(card => {
+    setCardSelectedVisual(card, _selected.has(card.dataset.id));
+  });
+});
 </script>
 </body>
 </html>

@@ -55,6 +55,28 @@
     .sale-status--active { background: rgba(59,130,246,0.15); color: #60a5fa; }
     .sale-status--sold   { background: rgba(74,222,128,0.15); color: #4ade80; }
     .sale-status--cancelled { background: rgba(248,113,113,0.15); color: #f87171; }
+    .sale-buy-actions { display: flex; gap: 0.5rem; margin-top: 0.9rem; }
+    .sale-buy-btn, .sale-cart-btn {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.55rem 1.1rem; border-radius: 8px;
+      font-size: 0.88rem; font-weight: 700; text-align: center;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .sale-buy-btn {
+      background: rgba(192,120,40,0.16); border: 1px solid rgba(192,120,40,0.32);
+      color: var(--accent-light);
+    }
+    .sale-buy-btn:hover:not(:disabled) { background: rgba(192,120,40,0.28); border-color: rgba(192,120,40,0.55); }
+    .sale-buy-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .sale-buy-btn--bought { background: rgba(63,185,80,0.14); border-color: rgba(63,185,80,0.35); color: #3fb950; }
+    .sale-buy-btn--error { background: rgba(231,76,60,0.16); border-color: rgba(231,76,60,0.35); color: #e74c3c; }
+    .sale-cart-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14);
+      color: var(--text-secondary);
+    }
+    .sale-cart-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+    .sale-cart-btn:disabled { opacity: 0.6; cursor: default; }
     .sale-info { flex: 1; min-width: 280px; }
     .sale-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
     .sale-info-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
@@ -132,6 +154,20 @@
     .sale-bundle-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sale-bundle-mint { font-size: 0.72rem; color: var(--text-secondary); }
 
+    /* ── Bundle Sort/Group toolbar + grouped sections ── */
+    .sale-bundle-toolbar { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .sale-bundle-ctrl { display: flex; flex-direction: column; gap: 0.35rem; width: 190px; }
+    .sale-bundle-ctrl-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+    .sale-bundle-group { margin-bottom: 1.75rem; }
+    .sale-bundle-group:last-child { margin-bottom: 0; }
+    .sale-bundle-group-header {
+      display: flex; align-items: baseline; gap: 0.5rem;
+      font-size: 0.98rem; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 0.85rem; padding: 0.5rem 0.9rem; border-radius: 8px;
+      background: rgba(192,120,40,0.1); border: 1px solid rgba(192,120,40,0.22);
+    }
+    .sale-bundle-group-count { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+
     /* ── Blockchain Logs table ── */
     .sale-log-type {
       display: inline-block; padding: 2px 8px; border-radius: 6px;
@@ -173,7 +209,7 @@
   }
 </script>
 <script>
-  WalletWidget.mount(document.querySelector('.nav-inner'), {
+  const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: _p + 'shared/wax-auth.js',
     apiScript: _p + 'shared/wax-api.js',
     exploreHref: _p + 'explore',
@@ -197,6 +233,10 @@
         <div class="sale-price-label" id="salePriceLabel">Price</div>
         <div class="sale-price-val" id="salePrice">—</div>
         <div id="saleStatus"></div>
+        <div class="sale-buy-actions" id="saleBuyActions" style="display:none;">
+          <button type="button" class="sale-buy-btn" id="saleBuyBtn">Buy</button>
+          <button type="button" class="sale-cart-btn" id="saleCartBtn">🛒 Add to cart</button>
+        </div>
       </div>
       <div class="sale-info">
         <div class="sale-info-grid">
@@ -300,7 +340,24 @@
     </div>
 
     <!-- Bundle case — more than one asset in this listing -->
-    <div id="bundleWrap" class="sale-bundle-grid" style="display:none;"></div>
+    <!-- Sort/Group controls — bundle listings only, hidden for a single asset -->
+    <div class="sale-bundle-toolbar" id="bundleToolbar" style="display:none;">
+      <div class="sale-bundle-ctrl">
+        <span class="sale-bundle-ctrl-label">Sort</span>
+        <div class="cb-dropdown" id="bundleSortDd">
+          <button class="cb-dropdown-btn" type="button"><span class="cb-label"></span><span class="cb-arrow">▾</span></button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+      <div class="sale-bundle-ctrl" id="bundleGroupCtrl" style="display:none;">
+        <span class="sale-bundle-ctrl-label">Group by</span>
+        <div class="cb-dropdown" id="bundleGroupDd">
+          <button class="cb-dropdown-btn" type="button"><span class="cb-label"></span><span class="cb-arrow">▾</span></button>
+          <div class="cb-panel"></div>
+        </div>
+      </div>
+    </div>
+    <div id="bundleWrap" style="display:none;"></div>
 
     <div class="tpl-section-title">Blockchain Logs</div>
     <div class="table-wrap" id="saleLogsWrap"><div class="ast-placeholder">Loading…</div></div>
@@ -376,6 +433,40 @@ function fmtDateTime(msStr) {
   return new Date(n).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+/* ── Minimal single-select cb-dropdown plumbing — copied from collection.html/
+   template.html, not shared, matching how every page does this locally. ── */
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
+}
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => { closeAllCbDropdowns(); onSelect(item.dataset.val); });
+  });
+  const btn = container.querySelector('.cb-dropdown-btn');
+  if (!btn._wired) {
+    btn._wired = true;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = panel.classList.contains('open');
+      closeAllCbDropdowns();
+      if (!isOpen) { panel.classList.add('open'); btn.classList.add('open'); }
+    });
+  }
+}
+document.addEventListener('click', closeAllCbDropdowns);
+
 async function fetchWaxPrice() {
   try {
     const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
@@ -404,7 +495,170 @@ function getSaleIdFromUrl() {
 }
 const saleId = getSaleIdFromUrl();
 
+// Hover tooltip on each bundle item card — shared/asset-popup.js, same
+// module explore.html/inventory.html use. Only the hover half is used here:
+// each bundle card is already an <a href="asset/..."> (see bundleCardHtml),
+// so wire()'s own click-to-toggle-the-info-popup logic never fires (it
+// ignores clicks landing on/inside an <a>) — the anchor's normal navigation
+// just works underneath. The single-asset case doesn't need this: every
+// field the popup would show is already laid out on the page directly.
+const _assetPopup = AssetPopup.mount({
+  aaBase: WaxApi.aaBase,
+  apiFetch: WaxApi.apiFetch,
+  collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
+  templateHref:   id   => `${_p}template/${encodeURIComponent(id)}`,
+  walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
+  schemaHref:     (collection, schema) => `${_p}schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
+  assetHref:      id   => `${_p}asset/${encodeURIComponent(id)}`,
+});
+
 const SALE_STATE = { 1: { label: 'Active', cls: 'active' }, 2: { label: 'Cancelled', cls: 'cancelled' }, 3: { label: 'Sold', cls: 'sold' } };
+
+const TAKER_MARKETPLACE = 'hoardiostore'; // same account as explore.html — 1% commission on purchases made through the site
+const CART_STORAGE_KEY  = 'explore_cart_v1'; // shared with explore.html's own cart — see addSaleToCart below
+
+function toWaxQty(amount) {
+  return (parseInt(amount) / 1e8).toFixed(8) + ' WAX';
+}
+
+// assertsale is a free, no-authorization guard: it hard-fails the whole
+// transaction (transfer included) if the sale's asset_ids/listing_price/
+// settlement_symbol don't exactly match what's currently on-chain at
+// execution time — same reasoning as explore.html's own copy of this.
+function assertSaleAction(buyer, saleIdVal, assetIds, listingPriceAsset) {
+  return {
+    account: 'atomicmarket',
+    name:    'assertsale',
+    authorization: [{ actor: buyer, permission: 'active' }],
+    data: {
+      sale_id: saleIdVal,
+      asset_ids_to_assert: assetIds,
+      listing_price_to_assert: listingPriceAsset,
+      settlement_symbol_to_assert: '8,WAX',
+    },
+  };
+}
+
+// Same WAX/USD padding logic as explore.html's computePayment — re-fetches
+// the live rate rather than trusting whatever was shown on page load, since
+// that can be stale by the time the buyer actually clicks Buy.
+async function computePayment(sale) {
+  const listingSymbol = sale.listing_symbol || 'WAX';
+  if (listingSymbol !== 'WAX') {
+    await fetchWaxPrice();
+    if (!window._waxUsdRate) throw new Error('WAX price unavailable — try again');
+    const fiat   = Number(sale.listing_price || 0) / 100;
+    const waxAmt = (fiat / window._waxUsdRate) * 1.005;
+    if (!isFinite(waxAmt) || waxAmt <= 0) throw new Error('Invalid price calculation');
+    return {
+      quantity:          waxAmt.toFixed(8) + ' WAX',
+      delphiMedian:      Math.round(window._waxUsdRate * 10000),
+      listingPriceAsset: fiat.toFixed(2) + ' ' + listingSymbol,
+    };
+  }
+  return { quantity: toWaxQty(sale.price.amount), delphiMedian: 0, listingPriceAsset: toWaxQty(sale.price.amount) };
+}
+
+// Single-listing instant purchase — buys everything in this sale_id (one
+// asset, or the whole bundle) for the one listed price. Mirrors explore.html's
+// buyListing() exactly, just sourced from the already-fetched `sale` object
+// instead of a sale_id -> amount lookup map.
+async function buySale(btn, sale) {
+  const buyer = window.getWaxAccount();
+  if (!buyer) { _wallet.connect(); return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Buying…';
+  btn.className   = 'sale-buy-btn';
+
+  try {
+    const assetIds = (sale.assets || []).map(a => String(a.asset_id));
+    const { quantity, delphiMedian, listingPriceAsset } = await computePayment(sale);
+    await WaxAuth.transact([
+      assertSaleAction(buyer, sale.sale_id, assetIds, listingPriceAsset),
+      { account: 'eosio.token', name: 'transfer', authorization: [{ actor: buyer, permission: 'active' }],
+        data: { from: buyer, to: 'atomicmarket', quantity, memo: 'deposit' } },
+      { account: 'atomicmarket', name: 'purchasesale', authorization: [{ actor: buyer, permission: 'active' }],
+        data: { buyer, sale_id: sale.sale_id, intended_delphi_median: delphiMedian, taker_marketplace: TAKER_MARKETPLACE } },
+    ]);
+
+    btn.textContent = '✓ Purchased!';
+    btn.className   = 'sale-buy-btn sale-buy-btn--bought';
+    _wallet.refreshBalance();
+    removeFromCartStorage(String(sale.sale_id));
+    document.getElementById('saleCartBtn')?.remove();
+    document.getElementById('saleStatus').innerHTML = '<span class="sale-status sale-status--sold">Sold</span>';
+    document.getElementById('salePriceLabel').textContent = 'Sold For';
+  } catch (e) {
+    const msg       = String(e?.message || e).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    btn.disabled = false;
+    if (cancelled) {
+      btn.textContent = 'Buy';
+      btn.className   = 'sale-buy-btn';
+    } else {
+      btn.textContent = 'Failed — retry';
+      btn.className   = 'sale-buy-btn sale-buy-btn--error';
+      setTimeout(() => { btn.textContent = 'Buy'; btn.className = 'sale-buy-btn'; }, 3000);
+    }
+  }
+}
+
+// Shared with explore.html's own cart — same localStorage key, same
+// [sale_id, sale] entry shape as its saveCartToStorage/loadCartFromStorage,
+// so an item added here shows up in Explore's cart bar on the next visit,
+// and the nav cart badge (shared/wallet-widget.js listens for the same
+// 'explore-cart-change' event) updates immediately without a reload.
+function addSaleToCart(sale) {
+  const id = String(sale.sale_id);
+  let entries = [];
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+  } catch {}
+  if (!entries.some(([eid]) => eid === id)) {
+    entries.push([id, sale]);
+    try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(entries)); } catch {}
+  }
+  window.dispatchEvent(new CustomEvent('explore-cart-change'));
+}
+function removeFromCartStorage(id) {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return;
+    const entries = JSON.parse(raw).filter(([eid]) => eid !== id);
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(entries));
+  } catch {}
+  window.dispatchEvent(new CustomEvent('explore-cart-change'));
+}
+
+// Only active (state 1), not-your-own listings are purchasable. Re-run on
+// every wax-auth-change (connect/disconnect/switch account) since both
+// checks depend on the connected wallet — a listing that was "yours" pre-
+// connect (nothing shown) can become buyable post-disconnect and vice versa.
+function syncBuyActions(sale) {
+  const wrap    = document.getElementById('saleBuyActions');
+  const buyBtn  = document.getElementById('saleBuyBtn');
+  if (buyBtn.classList.contains('sale-buy-btn--bought')) return; // already bought this session — leave as-is
+
+  if (sale.state !== 1) { wrap.style.display = 'none'; return; }
+  const acc = window.getWaxAccount();
+  if (acc && sale.seller === acc) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = '';
+  buyBtn.textContent = acc ? 'Buy' : 'Connect wallet to buy';
+  buyBtn.onclick = () => acc ? buySale(buyBtn, sale) : _wallet.connect();
+}
+function wireBuyActions(sale) {
+  syncBuyActions(sale);
+  const cartBtn = document.getElementById('saleCartBtn');
+  cartBtn.onclick = () => {
+    addSaleToCart(sale);
+    cartBtn.textContent = '✓ Added to cart';
+    cartBtn.disabled = true;
+  };
+  window.addEventListener('wax-auth-change', () => syncBuyActions(sale));
+}
 
 async function loadSale() {
   const aa  = WaxApi.aaBase();
@@ -457,6 +711,8 @@ async function loadSale() {
   document.getElementById('saleTakerMarketplace').textContent = sale.state === 3 ? (sale.taker_marketplace || 'Direct') : '—';
   document.getElementById('saleMarketLink').href = singleTemplateId ? `${_p}explore?template_id=${encodeURIComponent(singleTemplateId)}` : `${_p}explore`;
 
+  wireBuyActions(sale);
+
   // Floor price — template-pooled, same query asset.html/template.html use.
   // Only shown when every asset in this listing shares one template (a
   // bundle of different templates has no single floor to compare against).
@@ -475,7 +731,8 @@ async function loadSale() {
 
   if (isBundle) {
     document.getElementById('bundleWrap').style.display = '';
-    document.getElementById('bundleWrap').innerHTML = assets.map(bundleCardHtml).join('');
+    document.getElementById('bundleToolbar').style.display = '';
+    initBundleView(assets);
   } else if (first) {
     document.getElementById('singleAssetWrap').style.display = '';
     renderSingleAsset(first, singleCollectionName, singleTemplateId);
@@ -502,6 +759,200 @@ function bundleCardHtml(a) {
       <div class="sale-bundle-mint">Mint #${a.template_mint}</div>
     </div>
   </a>`;
+}
+
+/* ── Bundle Sort / Group by — client-side only, over this one listing's
+   already-fetched assets (no extra network round-trip). "Group by" field
+   candidates follow the same spirit as explore.html's dynamic attribute
+   filters (skip image/date/junk-looking values, skip near-unique fields —
+   grouping into N groups of 1 item each defeats the point) but sized for a
+   handful of bundle items instead of a whole catalog. ── */
+
+const BUNDLE_SORT_OPTIONS = [
+  { value: 'mint_asc',  label: 'Mint (Lowest)' },
+  { value: 'mint_desc', label: 'Mint (Highest)' },
+  { value: 'name_asc',  label: 'Name (A-Z)' },
+  { value: 'name_desc', label: 'Name (Z-A)' },
+];
+let _bundleSort        = 'mint_asc'; // default per spec
+let _bundleGroup       = '__none';   // resolved in initBundleView — 'rarity' when present, else the first qualifying field, else ungrouped
+let _bundleEntries     = [];         // [{ asset, data }] — data is normalizeAssetData(asset.data)
+let _bundleGroupOptions = [];
+
+// Same normalization as explore.html's dynNormalizeData — a mixed-schema
+// bundle can have the same field declared with inconsistent casing across
+// schemas (e.g. "Rarity" vs "rarity"), which would otherwise read as two
+// unrelated fields/groups instead of one.
+function normalizeAssetData(raw) {
+  const out = {};
+  for (const [k, v] of Object.entries(raw || {})) {
+    const key = k.toLowerCase();
+    const val = typeof v === 'string' ? v.trim() : v;
+    if (out[key] === undefined || out[key] === null || out[key] === '') out[key] = val;
+  }
+  return out;
+}
+
+const BUNDLE_GROUP_EXCLUDE_NAMES = new Set(['cardid', 'name', 'img', 'video', 'backimg', 'description']);
+function isJunkBundleValue(v) {
+  const s = String(v).trim();
+  return s.length > 50 || /^https?:\/\//i.test(s) || /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58,})$/.test(s);
+}
+function isDateBundleFieldName(name) {
+  const words = String(name).replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return words.some(w => w === 'date' || w === 'dates' || w === 'datetime');
+}
+function bundleFieldLabel(name) {
+  const spaced = name.replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Structural groupings (Schema/Collection) only offered when the bundle
+// actually mixes more than one — grouping by a field every item shares is
+// pointless (one group, same as ungrouped). Rarity is offered whenever
+// present, ahead of everything else, since it's the natural default. Every
+// other .data field qualifies the same way explore.html's dynamic filters
+// do: skip junk-looking/date-named fields, and skip fields where every
+// present value is unique to its own item.
+function computeBundleGroupFields(entries) {
+  const fields = [];
+  if (new Set(entries.map(e => e.asset.schema?.schema_name || '')).size > 1) fields.push({ value: '__schema', label: 'Schema' });
+  if (new Set(entries.map(e => e.asset.collection?.collection_name || '')).size > 1) fields.push({ value: '__collection', label: 'Collection' });
+  if (entries.some(e => e.data.rarity)) fields.push({ value: 'rarity', label: 'Rarity' });
+
+  const candidateNames = new Set();
+  for (const e of entries) for (const k of Object.keys(e.data)) candidateNames.add(k);
+  for (const name of candidateNames) {
+    if (name === 'rarity' || BUNDLE_GROUP_EXCLUDE_NAMES.has(name) || isDateBundleFieldName(name)) continue;
+    const values = entries.map(e => e.data[name]).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+    if (!values.length || values.some(isJunkBundleValue)) continue;
+    const distinct = new Set(values.map(v => String(v).toLowerCase())).size;
+    if (distinct < 2 || distinct === values.length) continue; // one group, or every item its own group
+    fields.push({ value: name, label: bundleFieldLabel(name) });
+  }
+  return fields;
+}
+
+function bundleSortComparator(sortVal) {
+  const [field, dir] = sortVal.split('_');
+  const mul = dir === 'desc' ? -1 : 1;
+  return (x, y) => {
+    let a, b;
+    if (field === 'mint') { a = Number(x.asset.template_mint) || 0; b = Number(y.asset.template_mint) || 0; }
+    else { a = (x.data.name || x.asset.name || '').toLowerCase(); b = (y.data.name || y.asset.name || '').toLowerCase(); }
+    if (a < b) return -1 * mul;
+    if (a > b) return 1 * mul;
+    return 0;
+  };
+}
+
+// Groups sort alphabetically by label regardless of field (including
+// Rarity) — WAX collections use very different rarity vocabularies
+// (Common/Rare/Epic vs. Royalty/Grail/Mythic vs. something else entirely),
+// so no single "common → legendary" ranking would be correct across every
+// collection. A missing/blank value always sorts last under "Other".
+function groupBundleEntries(sortedEntries, groupField) {
+  if (!groupField || groupField === '__none') return [{ label: null, entries: sortedEntries }];
+  const valueFor = e => {
+    if (groupField === '__schema') return e.asset.schema?.schema_name || '';
+    if (groupField === '__collection') return e.asset.collection?.name || e.asset.collection?.collection_name || '';
+    return e.data[groupField];
+  };
+  const map = new Map();
+  for (const e of sortedEntries) {
+    const raw = valueFor(e);
+    const label = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw) : 'Other';
+    if (!map.has(label)) map.set(label, []);
+    map.get(label).push(e);
+  }
+  const labels = [...map.keys()].sort((a, b) => {
+    if (a === 'Other') return 1;
+    if (b === 'Other') return -1;
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+  });
+  return labels.map(label => ({ label, entries: map.get(label) }));
+}
+
+// Same shape as explore.html's cardDataFromEl/assetPopupData — built
+// straight from the asset object (bundleCardHtml never normalizes casing
+// the way explore.html's dynamic-attribute pipeline does, so this reads
+// `.data` fields as-is, matching bundleCardHtml's own direct access).
+function assetPopupData(asset) {
+  const data = asset.data || {};
+  const col  = asset.collection?.collection_name || '';
+  return {
+    assetId:        asset.asset_id || '',
+    templateId:     asset.template?.template_id || '',
+    collection:     col,
+    collectionName: asset.collection?.name || col,
+    schema:         asset.schema?.schema_name || '',
+    rarity:         data.rarity || '',
+    cardid:         data.cardid || '',
+    name:           asset.name || data.name || '',
+    owner:          asset.owner || '',
+    backedTokens:   asset.backed_tokens || [],
+  };
+}
+
+// `orderedEntries` must be in the exact same order bundleCardHtml rendered
+// them in (renderBundleWrap builds both from the same iteration) so the
+// i-th .sale-bundle-card lines up with the i-th entry without needing a
+// data-asset-id lookup back into _bundleEntries.
+function wireBundleCardHovers(orderedEntries) {
+  document.querySelectorAll('#bundleWrap .sale-bundle-card').forEach((card, i) => {
+    const asset = orderedEntries[i]?.asset;
+    if (!asset) return;
+    _assetPopup.wire(card, assetPopupData(asset), { hoverEl: card.querySelector('.sale-bundle-img-wrap') });
+  });
+}
+
+function renderBundleWrap() {
+  const sorted = [..._bundleEntries].sort(bundleSortComparator(_bundleSort));
+  const groups = groupBundleEntries(sorted, _bundleGroup);
+  const wrap = document.getElementById('bundleWrap');
+  let renderedOrder;
+  if (groups.length === 1 && groups[0].label === null) {
+    renderedOrder = groups[0].entries;
+    wrap.innerHTML = `<div class="sale-bundle-grid">${renderedOrder.map(e => bundleCardHtml(e.asset)).join('')}</div>`;
+  } else {
+    renderedOrder = groups.flatMap(g => g.entries);
+    wrap.innerHTML = groups.map(g => `
+      <div class="sale-bundle-group">
+        <div class="sale-bundle-group-header">${escHtml(g.label)} <span class="sale-bundle-group-count">${g.entries.length}</span></div>
+        <div class="sale-bundle-grid">${g.entries.map(e => bundleCardHtml(e.asset)).join('')}</div>
+      </div>`).join('');
+  }
+  wireBundleCardHovers(renderedOrder);
+}
+
+function onBundleSortChange(val) {
+  _bundleSort = val;
+  buildSingleCbDropdown('bundleSortDd', BUNDLE_SORT_OPTIONS, _bundleSort, onBundleSortChange);
+  renderBundleWrap();
+}
+function onBundleGroupChange(val) {
+  _bundleGroup = val;
+  buildSingleCbDropdown('bundleGroupDd', _bundleGroupOptions, _bundleGroup, onBundleGroupChange);
+  renderBundleWrap();
+}
+
+function initBundleView(assets) {
+  _bundleEntries = assets.map(a => ({ asset: a, data: normalizeAssetData(a.data) }));
+
+  const groupFields = computeBundleGroupFields(_bundleEntries);
+  const groupCtrl = document.getElementById('bundleGroupCtrl');
+  if (groupFields.length) {
+    groupCtrl.style.display = '';
+    _bundleGroupOptions = [{ value: '__none', label: 'None' }, ...groupFields];
+    _bundleGroup = groupFields.some(f => f.value === 'rarity') ? 'rarity' : groupFields[0].value;
+    buildSingleCbDropdown('bundleGroupDd', _bundleGroupOptions, _bundleGroup, onBundleGroupChange);
+  } else {
+    groupCtrl.style.display = 'none';
+    _bundleGroup = '__none';
+  }
+
+  buildSingleCbDropdown('bundleSortDd', BUNDLE_SORT_OPTIONS, _bundleSort, onBundleSortChange);
+  renderBundleWrap();
 }
 
 /* ── Single-asset detail — ported verbatim from asset.html's own

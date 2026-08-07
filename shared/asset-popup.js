@@ -18,7 +18,10 @@
      assetHref:      id   => `asset/${id}`        | `../asset/${id}`,               // optional, defaults shown
    });
 
-   Per card: popup.wire(cardEl, data, { hoverEl, shouldSuppressHover });
+   Per card: popup.wire(cardEl, data, { hoverEl, shouldSuppressHover, onCardClick });
+   `onCardClick`, if given, replaces the default click-to-toggle-the-info-
+   popup behavior entirely (e.g. explore.html navigates to the sale page on
+   click instead) — hover still works as usual either way.
    `data` — plain object each page builds from its own asset representation:
    { assetId, templateId, collection, collectionName, schema, rarity,
      rarityClass, cardid, name, owner, backedTokens }
@@ -364,6 +367,7 @@ window.AssetPopup = (function () {
 
       cardEl.addEventListener('click', e => {
         if (e.target.closest('a, button')) return;
+        if (wireOpts.onCardClick) { wireOpts.onCardClick(e); return; }
         if (isOpenFor(d.assetId)) close();
         else open(cardEl, d);
       });
