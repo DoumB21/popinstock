@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage RAM — Hoardio</title>
+  <meta name="description" content="Buy or sell WAX RAM directly from your connected wallet, with a live view of your current usage and quota." />
+  <link rel="canonical" href="https://www.hoardio.com/ram" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/ram" />
+  <meta property="og:title" content="Manage RAM — Hoardio" />
+  <meta property="og:description" content="Buy or sell WAX RAM directly from your connected wallet." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Manage RAM — Hoardio" />
+  <meta name="twitter:description" content="Buy or sell WAX RAM directly from your connected wallet." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    .page-main { max-width: 640px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem; text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; }
+
+    #ramContent { display: flex; flex-direction: column; gap: 1.25rem; }
+    .ram-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .ram-card-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1.1rem; }
+
+    /* ── Usage ring ── */
+    .ram-ring-row { display: flex; align-items: center; gap: 1.75rem; flex-wrap: wrap; }
+    .ram-ring-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+    .ram-ring { width: 140px; height: 140px; transform: rotate(-90deg); }
+    .ram-ring-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 10; }
+    .ram-ring-fill {
+      fill: none; stroke: var(--accent-light); stroke-width: 10; stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease;
+    }
+    .ram-ring-fill.is-warn { stroke: #e0a828; }
+    .ram-ring-fill.is-crit { stroke: #e05252; }
+    .ram-ring-center {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .ram-ring-pct { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+    .ram-ring-label { font-size: 0.68rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+
+    .ram-stats { display: flex; flex-direction: column; gap: 0.65rem; flex: 1; min-width: 160px; }
+    .ram-stat { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
+    .ram-stat:last-child { border-bottom: none; padding-bottom: 0; }
+    .ram-stat-label { color: var(--text-secondary); }
+    .ram-stat-val { color: var(--text-primary); font-weight: 700; }
+
+    .ram-price-line {
+      margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .ram-price-val { color: var(--accent-light); font-weight: 700; }
+
+    /* ── Buy / Sell forms (same pattern as token-transfer.html) ── */
+    .ram-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .ram-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .ram-amount-row { display: flex; gap: 0.6rem; }
+    .ram-amount-row .control-input { flex: 1; min-width: 0; }
+    .ram-max-btn {
+      flex-shrink: 0; font-size: 0.78rem; font-weight: 700; padding: 0 0.9rem;
+      border-radius: 8px; border: 1px solid rgba(240,168,64,0.35);
+      background: rgba(240,168,64,0.1); color: var(--accent-light); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .ram-max-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.6); }
+    .ram-max-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .ram-hint { font-size: 0.78rem; color: var(--text-secondary); min-height: 1.1em; margin-top: 0.3rem; }
+    .ram-hint--error { color: #e05252; }
+    .ram-hint--ok    { color: #4ade80; }
+
+    .ram-action-btn {
+      width: 100%; margin-top: 1.2rem; padding: 0.85rem 1.5rem;
+      border: none; border-radius: 10px; color: #fff;
+      font-size: 0.95rem; font-weight: 700; font-family: inherit; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .ram-action-btn:hover:not(:disabled) { opacity: 0.9; }
+    .ram-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ram-action-btn--buy  { background: linear-gradient(135deg, var(--accent-light), var(--accent)); }
+    .ram-action-btn--sell { background: linear-gradient(135deg, #f87171, #dc2626); }
+
+    .ram-status {
+      font-size: 0.82rem; border-radius: 6px; padding: 0.55rem 0.8rem;
+      text-align: center; margin-top: 1rem;
+    }
+    .ram-status.is-error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+    .ram-status.is-success { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+
+    .ram-disclaimer { font-size: 0.72rem; color: var(--text-secondary); opacity: 0.75; line-height: 1.5; margin-top: 0.9rem; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+  <script src="shared/wallet-menu.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="page-title">Manage <span class="accent">RAM</span></h1>
+    <p class="page-desc">Buy or sell WAX RAM for your own wallet — every WAX account needs RAM to hold NFTs, tokens, and other on-chain data.</p>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to manage your RAM.</p>
+  </div>
+
+  <div id="ramContent" style="display:none;">
+    <div class="ram-card">
+      <div class="ram-card-title">Your RAM usage</div>
+      <div class="ram-ring-row">
+        <div class="ram-ring-wrap">
+          <svg viewBox="0 0 140 140" class="ram-ring">
+            <circle class="ram-ring-track" cx="70" cy="70" r="60" />
+            <circle class="ram-ring-fill" id="ramRingFill" cx="70" cy="70" r="60" />
+          </svg>
+          <div class="ram-ring-center">
+            <div class="ram-ring-pct" id="ramRingPct">—</div>
+            <div class="ram-ring-label">used</div>
+          </div>
+        </div>
+        <div class="ram-stats">
+          <div class="ram-stat"><span class="ram-stat-label">Used</span><span class="ram-stat-val" id="ramUsedVal">—</span></div>
+          <div class="ram-stat"><span class="ram-stat-label">Free</span><span class="ram-stat-val" id="ramFreeVal">—</span></div>
+          <div class="ram-stat"><span class="ram-stat-label">Quota</span><span class="ram-stat-val" id="ramQuotaVal">—</span></div>
+        </div>
+      </div>
+      <div class="ram-price-line">
+        <span>Current market price</span>
+        <span class="ram-price-val" id="ramPriceVal">Loading…</span>
+      </div>
+    </div>
+
+    <div class="ram-card">
+      <div class="ram-card-title">Buy RAM</div>
+      <div class="ram-group">
+        <label class="ram-label" for="buyAmount">WAX to spend</label>
+        <div class="ram-amount-row">
+          <input class="control-input" id="buyAmount" type="number" min="0" step="any" placeholder="0.00000000" oninput="onBuyInput()" />
+          <button type="button" class="ram-max-btn" id="buyMaxBtn" disabled>Max</button>
+        </div>
+        <div class="ram-hint" id="buyHint"></div>
+      </div>
+      <button type="button" class="ram-action-btn ram-action-btn--buy" id="buySubmitBtn" disabled>Buy RAM</button>
+      <div class="ram-status" id="buyStatus" style="display:none;"></div>
+    </div>
+
+    <div class="ram-card">
+      <div class="ram-card-title">Sell RAM</div>
+      <div class="ram-group">
+        <label class="ram-label" for="sellAmount">Bytes to sell</label>
+        <div class="ram-amount-row">
+          <input class="control-input" id="sellAmount" type="number" min="0" step="1" placeholder="0" oninput="onSellInput()" />
+          <button type="button" class="ram-max-btn" id="sellMaxBtn" disabled>Max</button>
+        </div>
+        <div class="ram-hint" id="sellHint"></div>
+      </div>
+      <button type="button" class="ram-action-btn ram-action-btn--sell" id="sellSubmitBtn" disabled>Sell RAM</button>
+      <div class="ram-status" id="sellStatus" style="display:none;"></div>
+      <div class="ram-disclaimer">You can only sell RAM you're not currently using. Estimates use the live bancor market price and a 0.5% network fee — the exact amount may shift slightly if the market moves before your transaction confirms.</div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Hoardio &mdash; All rights reserved.
+  <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
+</footer>
+
+<script>
+'use strict';
+
+const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: walletMenuItems(),
+});
+window.addEventListener('wax-auth-change', onWalletChange);
+
+// Same convention as balances.html/token-transfer.html/gift-claim.html —
+// respects the wallet RPC endpoint set on profile.html, falling back to Greymass.
+const CHAIN_RPC = localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com';
+
+const RAM_FEE = 0.005; // eosio system contract's ram_fee (0.5%), same on WAX
+
+/* ── State ── */
+let _account    = null;
+let _ramQuota   = null;  // bytes
+let _ramUsage   = null;  // bytes
+let _liquidWax  = null;  // float WAX
+let _ramReserve = null;  // float bytes in the rammarket pool
+let _waxReserve = null;  // float WAX in the rammarket pool
+
+function fmtBytes(n) {
+  if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(2) + ' KB';
+  return Math.max(0, Math.round(n)) + ' B';
+}
+
+function fmtWax(n) {
+  return n.toFixed(8) + ' WAX';
+}
+
+/* ── Chain reads ── */
+async function fetchAccount(wallet) {
+  const res = await fetch(`${CHAIN_RPC}/v1/chain/get_account`, {
+    method: 'POST',
+    body: JSON.stringify({ account_name: wallet }),
+  });
+  if (!res.ok) throw new Error('Chain RPC error ' + res.status);
+  return res.json();
+}
+
+// The `rammarket` table (code=eosio, scope=eosio) holds the bancor pool
+// backing every buyram/sellram on the chain — base = RAM bytes reserve,
+// quote = WAX reserve. Both connectors carry a 0.5 weight, which collapses
+// the usual two-hop bancor math into a plain constant-product curve; that's
+// the formula bancorBuyBytes/bancorSellWax below implement.
+async function fetchRamMarket() {
+  const res = await fetch(`${CHAIN_RPC}/v1/chain/get_table_rows`, {
+    method: 'POST',
+    body: JSON.stringify({ code: 'eosio', scope: 'eosio', table: 'rammarket', json: true, limit: 1 }),
+  });
+  if (!res.ok) throw new Error('Chain RPC error ' + res.status);
+  const { rows } = await res.json();
+  const row = rows && rows[0];
+  if (!row) throw new Error('Empty rammarket table');
+  return {
+    ramReserve: parseFloat(row.base.balance),
+    waxReserve: parseFloat(row.quote.balance),
+  };
+}
+
+/* ── Bancor estimate helpers (display only — the contract computes the
+   real amount at execution time) ── */
+function bancorBuyBytes(ramReserve, waxReserve, waxIn) {
+  if (!(waxIn > 0)) return 0;
+  const net = waxIn * (1 - RAM_FEE);
+  return Math.floor(ramReserve * net / (waxReserve + net));
+}
+function bancorSellWax(ramReserve, waxReserve, bytesIn) {
+  if (!(bytesIn > 0)) return 0;
+  const gross = waxReserve * bytesIn / (ramReserve + bytesIn);
+  return gross * (1 - RAM_FEE);
+}
+
+/* ── Actions ── */
+function buyRamAction(payer, receiver, quant) {
+  return {
+    account: 'eosio', name: 'buyram',
+    authorization: [{ actor: payer, permission: 'active' }],
+    data: { payer, receiver, quant },
+  };
+}
+function sellRamAction(account, bytes) {
+  return {
+    account: 'eosio', name: 'sellram',
+    authorization: [{ actor: account, permission: 'active' }],
+    data: { account, bytes },
+  };
+}
+
+/* ── Usage ring ── */
+const RING_R = 60;
+const RING_CIRC = 2 * Math.PI * RING_R;
+
+function renderRing() {
+  const fill = document.getElementById('ramRingFill');
+  fill.style.strokeDasharray = `${RING_CIRC}`;
+  if (_ramQuota == null || _ramUsage == null || _ramQuota <= 0) {
+    fill.style.strokeDashoffset = `${RING_CIRC}`;
+    document.getElementById('ramRingPct').textContent = '—';
+    return;
+  }
+  const pct = Math.min(1, _ramUsage / _ramQuota);
+  fill.style.strokeDashoffset = `${RING_CIRC * (1 - pct)}`;
+  fill.classList.remove('is-warn', 'is-crit');
+  if (pct >= 0.9) fill.classList.add('is-crit');
+  else if (pct >= 0.7) fill.classList.add('is-warn');
+  document.getElementById('ramRingPct').textContent = Math.round(pct * 100) + '%';
+
+  document.getElementById('ramUsedVal').textContent = fmtBytes(_ramUsage);
+  document.getElementById('ramFreeVal').textContent = fmtBytes(Math.max(0, _ramQuota - _ramUsage));
+  document.getElementById('ramQuotaVal').textContent = fmtBytes(_ramQuota);
+}
+
+function renderMarketPrice() {
+  const el = document.getElementById('ramPriceVal');
+  if (_ramReserve == null || _waxReserve == null) { el.textContent = 'Unavailable'; return; }
+  const pricePerKb = (_waxReserve / _ramReserve) * 1024;
+  el.textContent = `≈ ${pricePerKb.toFixed(6)} WAX / KB`;
+}
+
+/* ── Buy form ── */
+function onBuyInput() { updateBuyHint(); updateBuyBtn(); }
+
+function updateBuyHint() {
+  const hint = document.getElementById('buyHint');
+  const raw = document.getElementById('buyAmount').value.trim();
+  if (!raw) { hint.textContent = ''; hint.className = 'ram-hint'; return; }
+  const amt = parseFloat(raw);
+  if (!isFinite(amt) || amt <= 0) { hint.textContent = 'Enter an amount greater than 0.'; hint.className = 'ram-hint ram-hint--error'; return; }
+  if (_liquidWax != null && amt > _liquidWax) {
+    hint.textContent = `Exceeds your available balance of ${fmtWax(_liquidWax)}.`;
+    hint.className = 'ram-hint ram-hint--error';
+    return;
+  }
+  if (_ramReserve != null && _waxReserve != null) {
+    const bytes = bancorBuyBytes(_ramReserve, _waxReserve, amt);
+    hint.textContent = `≈ ${fmtBytes(bytes)} of RAM`;
+    hint.className = 'ram-hint ram-hint--ok';
+  } else {
+    hint.textContent = '';
+    hint.className = 'ram-hint';
+  }
+}
+
+function updateBuyBtn() {
+  const btn = document.getElementById('buySubmitBtn');
+  const amt = parseFloat(document.getElementById('buyAmount').value);
+  btn.disabled = !(_account && isFinite(amt) && amt > 0 && (_liquidWax == null || amt <= _liquidWax));
+}
+
+document.getElementById('buyMaxBtn').addEventListener('click', () => {
+  if (_liquidWax == null || _liquidWax <= 0) return;
+  document.getElementById('buyAmount').value = _liquidWax.toFixed(8);
+  onBuyInput();
+});
+
+async function buyRam() {
+  const wallet = _account;
+  if (!wallet) return;
+  const amt = parseFloat(document.getElementById('buyAmount').value);
+  if (!isFinite(amt) || amt <= 0) return;
+  const quant = fmtWax(amt);
+
+  const btn = document.getElementById('buySubmitBtn');
+  const status = document.getElementById('buyStatus');
+  btn.disabled = true;
+  btn.textContent = 'Buying…';
+  status.style.display = 'none';
+
+  try {
+    await WaxAuth.transact([buyRamAction(wallet, wallet, quant)]);
+    status.textContent = `Bought RAM for ${quant}.`;
+    status.className = 'ram-status is-success';
+    status.style.display = 'block';
+    document.getElementById('buyAmount').value = '';
+    document.getElementById('buyHint').textContent = '';
+    _wallet.refreshBalance();
+    loadRamState();
+  } catch (err) {
+    const msg = String(err?.message || err).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    if (!cancelled) {
+      status.textContent = 'Purchase failed — please try again.';
+      status.className = 'ram-status is-error';
+      status.style.display = 'block';
+    }
+  } finally {
+    btn.textContent = 'Buy RAM';
+    updateBuyBtn();
+  }
+}
+document.getElementById('buySubmitBtn').addEventListener('click', buyRam);
+
+/* ── Sell form ── */
+function sellableBytes() {
+  if (_ramQuota == null || _ramUsage == null) return null;
+  return Math.max(0, _ramQuota - _ramUsage);
+}
+
+function onSellInput() { updateSellHint(); updateSellBtn(); }
+
+function updateSellHint() {
+  const hint = document.getElementById('sellHint');
+  const raw = document.getElementById('sellAmount').value.trim();
+  if (!raw) { hint.textContent = ''; hint.className = 'ram-hint'; return; }
+  const bytes = Math.floor(parseFloat(raw));
+  if (!isFinite(bytes) || bytes <= 0) { hint.textContent = 'Enter a whole number of bytes greater than 0.'; hint.className = 'ram-hint ram-hint--error'; return; }
+  const max = sellableBytes();
+  if (max != null && bytes > max) {
+    hint.textContent = `Exceeds the RAM you're not using (${fmtBytes(max)} sellable).`;
+    hint.className = 'ram-hint ram-hint--error';
+    return;
+  }
+  if (_ramReserve != null && _waxReserve != null) {
+    const wax = bancorSellWax(_ramReserve, _waxReserve, bytes);
+    hint.textContent = `≈ ${fmtWax(wax)} (${fmtBytes(bytes)})`;
+    hint.className = 'ram-hint ram-hint--ok';
+  } else {
+    hint.textContent = '';
+    hint.className = 'ram-hint';
+  }
+}
+
+function updateSellBtn() {
+  const btn = document.getElementById('sellSubmitBtn');
+  const bytes = Math.floor(parseFloat(document.getElementById('sellAmount').value));
+  const max = sellableBytes();
+  btn.disabled = !(_account && isFinite(bytes) && bytes > 0 && (max == null || bytes <= max));
+}
+
+document.getElementById('sellMaxBtn').addEventListener('click', () => {
+  const max = sellableBytes();
+  if (!max) return;
+  document.getElementById('sellAmount').value = max;
+  onSellInput();
+});
+
+async function sellRam() {
+  const wallet = _account;
+  if (!wallet) return;
+  const bytes = Math.floor(parseFloat(document.getElementById('sellAmount').value));
+  if (!isFinite(bytes) || bytes <= 0) return;
+
+  const btn = document.getElementById('sellSubmitBtn');
+  const status = document.getElementById('sellStatus');
+  btn.disabled = true;
+  btn.textContent = 'Selling…';
+  status.style.display = 'none';
+
+  try {
+    await WaxAuth.transact([sellRamAction(wallet, bytes)]);
+    status.textContent = `Sold ${fmtBytes(bytes)} of RAM.`;
+    status.className = 'ram-status is-success';
+    status.style.display = 'block';
+    document.getElementById('sellAmount').value = '';
+    document.getElementById('sellHint').textContent = '';
+    _wallet.refreshBalance();
+    loadRamState();
+  } catch (err) {
+    const msg = String(err?.message || err).toLowerCase();
+    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    if (!cancelled) {
+      status.textContent = 'Sale failed — please try again.';
+      status.className = 'ram-status is-error';
+      status.style.display = 'block';
+    }
+  } finally {
+    btn.textContent = 'Sell RAM';
+    updateSellBtn();
+  }
+}
+document.getElementById('sellSubmitBtn').addEventListener('click', sellRam);
+
+/* ── Load ── */
+async function loadRamState() {
+  const wallet = _account;
+  if (!wallet) return;
+
+  const [accountRes, marketRes] = await Promise.allSettled([fetchAccount(wallet), fetchRamMarket()]);
+
+  if (_account !== wallet) return; // wallet switched mid-flight
+
+  if (accountRes.status === 'fulfilled') {
+    const a = accountRes.value;
+    _ramQuota = a.ram_quota;
+    _ramUsage = a.ram_usage;
+    _liquidWax = a.core_liquid_balance ? parseFloat(a.core_liquid_balance) : 0;
+  } else {
+    _ramQuota = _ramUsage = _liquidWax = null;
+  }
+  renderRing();
+
+  document.getElementById('buyMaxBtn').disabled = !(_liquidWax > 0);
+  document.getElementById('sellMaxBtn').disabled = !(sellableBytes() > 0);
+
+  if (marketRes.status === 'fulfilled') {
+    _ramReserve = marketRes.value.ramReserve;
+    _waxReserve = marketRes.value.waxReserve;
+  } else {
+    _ramReserve = _waxReserve = null;
+  }
+  renderMarketPrice();
+  updateBuyHint();
+  updateSellHint();
+  updateBuyBtn();
+  updateSellBtn();
+}
+
+function onWalletChange() {
+  _account = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!_account) {
+    document.getElementById('authGate').style.display = '';
+    document.getElementById('ramContent').style.display = 'none';
+    return;
+  }
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('ramContent').style.display = '';
+  document.getElementById('buyAmount').value = '';
+  document.getElementById('sellAmount').value = '';
+  document.getElementById('buyHint').textContent = '';
+  document.getElementById('sellHint').textContent = '';
+  document.getElementById('buyStatus').style.display = 'none';
+  document.getElementById('sellStatus').style.display = 'none';
+  renderRing();
+  loadRamState();
+}
+onWalletChange();
+</script>
+<script src="shared/moved.js"></script>
+</body>
+</html>
