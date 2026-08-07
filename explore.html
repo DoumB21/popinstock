@@ -695,15 +695,17 @@
     <!-- Drop (Funko catalog mode only) -->
     <div class="filter-section hidden" id="secDrop">
       <span class="filter-label">Drop</span>
-      <div class="cb-dropdown" id="dropDd">
-        <button class="cb-dropdown-btn" id="dropTrigger" type="button">
-          <span class="cb-label">All drops</span>
-          <span class="cb-arrow">▼</span>
-        </button>
+      <div class="cb-combo" id="dropCombo">
+        <input type="text" class="cb-combo-input" id="dropComboInput" autocomplete="off" spellcheck="false" placeholder="Search drops…">
+        <button type="button" class="cb-combo-clear" id="dropComboClear" style="display:none" title="Clear">✕</button>
         <div class="cb-panel" id="dropPanel"></div>
       </div>
     </div>
 
+    <!-- Schema stays locked in Funko Catalog mode: a picked Drop already pins
+         one exact collection+schema, so there's nothing left for this control
+         to choose independently — kept visible-but-disabled rather than
+         hidden (same convention as the Bundle "Soon" options). -->
     <div class="filter-section hidden" id="secSchema">
       <span class="filter-label">Schema</span>
       <div class="cb-dropdown" id="schemaDd">
@@ -713,6 +715,20 @@
         </button>
         <button type="button" class="cb-dropdown-clear" id="schemaClear" style="display:none" title="Clear">✕</button>
         <div class="cb-panel" id="schemaPanel"></div>
+      </div>
+    </div>
+
+    <!-- Template — only populated once one exact collection+schema is known
+         (Schema pick in normal mode, Drop pick in Funko Catalog mode); jumps
+         straight to one specific card without needing an external
+         ?template_id= link (same _templateId/tplChip mechanism that link
+         already uses). -->
+    <div class="filter-section hidden" id="secTemplate">
+      <span class="filter-label">Template</span>
+      <div class="cb-combo" id="templateCombo">
+        <input type="text" class="cb-combo-input" id="templateComboInput" autocomplete="off" spellcheck="false" placeholder="All templates">
+        <button type="button" class="cb-combo-clear" id="templateComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="templatePanel"></div>
       </div>
     </div>
 
@@ -1147,10 +1163,18 @@ function closeAllDd() {
     p.style.position = ''; p.style.left = ''; p.style.width = ''; p.style.right = ''; p.style.top = ''; p.style.maxHeight = '';
   });
   document.querySelectorAll('.cb-dropdown-btn.open').forEach(t => t.classList.remove('open'));
+  const dropCombo = document.getElementById('dropCombo');
+  dropCombo.classList.remove('open');
+  // Reverts any typed-but-not-selected text back to the real current value —
+  // no-op before buildDropDropdown's first call wires it up (combo._wired).
+  if (dropCombo._wired) syncDropComboDisplay(_funkoCatalogData?.dropOptions || []);
+  const templateCombo = document.getElementById('templateCombo');
+  templateCombo.classList.remove('open');
+  if (templateCombo._wired) syncTemplateComboDisplay();
 }
 document.addEventListener('mousedown', e => {
   if (!e.target.closest('.typeahead-wrap')) hideSugs();
-  if (!e.target.closest('.cb-dropdown')) closeAllDd();
+  if (!e.target.closest('.cb-dropdown') && !e.target.closest('.cb-combo')) closeAllDd();
 });
 // A fixed-position open panel doesn't track its trigger while the sidebar
 // (or the page) scrolls, so close it rather than let it drift away.
@@ -1490,6 +1514,7 @@ function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('exploreToolbar').classList.remove('visible');
   document.getElementById('secDrop').classList.add('hidden');
+  document.getElementById('secTemplate').classList.add('hidden');
   document.getElementById('secDynMsg').classList.add('hidden');
   document.getElementById('secDynAttrs').classList.add('hidden');
   document.getElementById('schemaTrigger').disabled = false;
@@ -1561,27 +1586,177 @@ async function ensureFunkoCatalog() {
   return _funkoCatalogData;
 }
 
-function buildDropDropdown(options) {
-  const panel = document.getElementById('dropPanel');
-  panel.innerHTML = [
-    `<div class="cb-item${!_drop ? ' active' : ''}" data-val=""><span>All drops</span></div>`,
-    ...options.map(o => `<div class="cb-item${_drop === o.value ? ' active' : ''}" data-val="${escHtml(o.value)}"><span>${escHtml(o.label)}</span></div>`)
-  ].join('');
-  const curLabel = (options.find(o => o.value === _drop) || { label: 'All drops' }).label;
-  document.querySelector('#dropDd .cb-label').textContent = curLabel;
-
-  panel.querySelectorAll('.cb-item').forEach(item => {
-    item.addEventListener('click', () => {
-      _drop = item.dataset.val;
-      closeAllDd();
-      const label = (options.find(o => o.value === _drop) || { label: 'All drops' }).label;
-      document.querySelector('#dropDd .cb-label').textContent = label;
-      panel.querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === _drop));
-      pushUrl(); resetResults(); loadMore();
-    });
-  });
+// Drop list is long (every Funko collection × schema) — searchable combobox,
+// same component/shape as trade-analyzer.html's Funko "Drop" filter. No
+// "All drops" sentinel row (matches that page too) — an empty input is the
+// cleared state, which lines up with _drop === '' already meaning "no drop
+// picked, browse the whole catalog" everywhere else in this file.
+function syncDropComboDisplay(options) {
+  const input = document.getElementById('dropComboInput');
+  const clear = document.getElementById('dropComboClear');
+  const active = options.find(o => o.value === _drop);
+  input.value = active ? active.label : '';
+  clear.style.display = active ? '' : 'none';
+  document.getElementById('dropCombo').classList.toggle('has-selection', !!active);
 }
-document.getElementById('dropTrigger').addEventListener('click', () => toggleDd('dropDd'));
+
+function buildDropDropdown(options) {
+  const combo = document.getElementById('dropCombo');
+  const input = document.getElementById('dropComboInput');
+  const clear = document.getElementById('dropComboClear');
+  const panel = document.getElementById('dropPanel');
+  syncDropComboDisplay(options);
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const pick = val => {
+    _drop = val;
+    closeAllDd();
+    syncDropComboDisplay(options);
+    _dynFilters = {};
+    // A Template picked under the previous Drop's schema no longer applies —
+    // leaving it set would silently keep filtering to a template_id from a
+    // different collection/schema than the one now showing.
+    _templateId = ''; $tplChip.style.display = 'none';
+    pushUrl(); resetResults(); loadMore(); refreshDynAttrFilters();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const filtered = q ? options.filter(o => o.label.toLowerCase().includes(q)) : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(o => `<div class="cb-item${o.value === _drop ? ' active' : ''}" data-val="${escHtml(o.value)}"><span>${escHtml(o.label)}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllDd();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    positionDdPanel(combo, panel);
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllDd();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { pick(''); input.blur(); });
+}
+
+// Template — same searchable single-select combo shape as Drop above, but
+// scoped to one schema's own templatePool (populated from
+// refreshDynAttrFilters once a schema is known) rather than the Funko
+// catalog. Reuses _templateId/$tplChip — the exact same state an external
+// ?template_id= deep link already drives — so this is just a second, richer
+// way to set the same thing, not a parallel filter.
+let _templateComboItems = [];
+function syncTemplateComboDisplay() {
+  const input = document.getElementById('templateComboInput');
+  const clear = document.getElementById('templateComboClear');
+  const active = _templateComboItems.find(i => i.value === _templateId);
+  input.value = active ? active.label : '';
+  // The sidebar is narrow enough that a long name + rarity + "(#id)" routinely
+  // overflows the input's text-overflow:ellipsis clip (confirmed live: e.g.
+  // "Batman (Justice Armor) Redemption Token — Redeemable (#647092)" only
+  // shows "Batman (Justice Armor) …" — the data's there, just visually cut
+  // off). title gives a hover fallback for the full text either way.
+  input.title = active ? active.label : '';
+  clear.style.display = active ? '' : 'none';
+  document.getElementById('templateCombo').classList.toggle('has-selection', !!active);
+}
+
+function buildTemplatePicker(templatePool) {
+  const $sec = document.getElementById('secTemplate');
+  if (templatePool.length === 0) {
+    $sec.classList.add('hidden');
+    _templateComboItems = [];
+    return;
+  }
+  $sec.classList.remove('hidden');
+  // Rarity is inserted before the "(#id)" suffix, not after — pick()'s
+  // tplChip label strips a trailing " (#id)" to show a clean chip name,
+  // which only works if the id stays the very last thing in the string.
+  _templateComboItems = templatePool.map(t => {
+    const rarity = t.data?.rarity; // not every collection/schema declares one
+    let label = t.data?.name ? `${t.data.name}${rarity ? ` — ${rarity}` : ''} (#${t.template_id})` : `Template #${t.template_id}`;
+    if (!t.data?.name && rarity) label += ` — ${rarity}`;
+    return { value: t.template_id, label };
+  }).sort((a, b) => a.label.localeCompare(b.label));
+
+  const combo = document.getElementById('templateCombo');
+  syncTemplateComboDisplay();
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const input = document.getElementById('templateComboInput');
+  const clear = document.getElementById('templateComboClear');
+  const panel = document.getElementById('templatePanel');
+
+  const pick = val => {
+    _templateId = val;
+    closeAllDd();
+    syncTemplateComboDisplay();
+    const item = _templateComboItems.find(i => i.value === val);
+    if (item) {
+      document.getElementById('tplChipName').textContent = `Template: ${item.label.replace(/ \(#\d+\)$/, '')}`;
+      $tplChip.style.display = 'flex';
+    } else {
+      $tplChip.style.display = 'none';
+    }
+    pushUrl(); resetResults(); loadMore();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const filtered = q ? _templateComboItems.filter(i => i.label.toLowerCase().includes(q)) : _templateComboItems;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === _templateId ? ' active' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllDd();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    positionDdPanel(combo, panel);
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllDd();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { pick(''); input.blur(); });
+}
 
 async function selectFunkoCatalog({ restoring = false } = {}) {
   hideSugs();
@@ -1607,7 +1782,10 @@ async function selectFunkoCatalog({ restoring = false } = {}) {
   document.getElementById('schemaPanel').innerHTML = '';
   buildDropDropdown(cat.dropOptions);
   buildRarityDropdown(cat.rarities); // static list from sort_order.json — no live template scan
-  refreshDynAttrFilters(); // catalog mode never supports dynamic attribute filters — hides the section
+  // Dynamic filters only ever populate once a specific Drop is picked (that
+  // pins one exact collection+schema); with no Drop selected there's no
+  // single schema to scope them to, so this call just hides the section.
+  refreshDynAttrFilters();
 
   showFilters();
   pushUrl();
@@ -1620,25 +1798,34 @@ document.getElementById('funkoCatalogBtn').addEventListener('click', () => selec
 /* Schema / Rarity / Price / Mint / Bundle / Sort / Name filters              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-async function loadSchemas(base) {
-  if (!_col) return;
+// Feeds the dynamic attribute generator's type-exclude pass (formats) and
+// PFP/asset-level-attribute detection (asset counts, see isAssetLevelAttrSchema).
+// Shared by loadSchemas (normal single-collection mode) and refreshDynAttrFilters
+// (Funko Catalog mode, once a Drop pins one exact collection) so both scope
+// against the real on-chain schema list rather than duplicating this fetch.
+async function ensureDynSchemaCache(collection, base) {
+  if (_dynSchemaFormatCache[collection]) return;
   try {
-    const data = await WaxApi.apiFetch(`${base || WaxApi.aaBase()}/schemas?collection_name=${_col.collection_name}&limit=100`);
-    // Captured for free from the same call — feeds the dynamic attribute
-    // generator's type-exclude pass (formats) and PFP/asset-level-attribute
-    // detection (asset counts, see isAssetLevelAttrSchema).
+    const data = await WaxApi.apiFetch(`${base || WaxApi.aaBase()}/schemas?collection_name=${collection}&limit=100`);
     const formats = {};
     const assetCounts = {};
     (data || []).forEach(s => {
       formats[s.schema_name] = (s.format || []).map(f => ({ name: (f.name || '').toLowerCase(), type: f.type }));
       assetCounts[s.schema_name] = s.assets || 0;
     });
-    _dynSchemaFormatCache[_col.collection_name] = formats;
-    _dynSchemaAssetCountCache[_col.collection_name] = assetCounts;
-    buildSchemaDropdown((data || []).map(s => s.schema_name));
+    _dynSchemaFormatCache[collection] = formats;
+    _dynSchemaAssetCountCache[collection] = assetCounts;
   } catch {
-    buildSchemaDropdown([]);
+    // Deliberately left uncached on failure (unlike a successful empty
+    // response) so a later retry — e.g. reselecting the same collection —
+    // fetches again instead of being stuck on a false "no schemas" result.
   }
+}
+
+async function loadSchemas(base) {
+  if (!_col) return;
+  await ensureDynSchemaCache(_col.collection_name, base);
+  buildSchemaDropdown(Object.keys(_dynSchemaFormatCache[_col.collection_name] || {}));
 }
 function buildSchemaDropdown(schemas) {
   const panel = document.getElementById('schemaPanel');
@@ -1653,6 +1840,9 @@ function buildSchemaDropdown(schemas) {
       _schema = item.dataset.val;
       _rarity = '';
       _dynFilters = {};
+      // A Template/Card ID picked under the previous schema no longer
+      // applies — see the matching comment in the Drop combo's pick().
+      _templateId = ''; $tplChip.style.display = 'none';
       closeAllDd();
       document.querySelector('#schemaDd .cb-label').textContent = _schema || 'All schemas';
       setDdActive('schemaDd', !!_schema);
@@ -1668,6 +1858,7 @@ document.getElementById('schemaTrigger').addEventListener('click', () => toggleD
 document.getElementById('schemaClear').addEventListener('click', e => {
   e.stopPropagation(); // defensive — sibling of schemaTrigger, not a descendant, so this was never going to reopen the panel anyway
   _schema = ''; _rarity = ''; _dynFilters = {};
+  _templateId = ''; $tplChip.style.display = 'none';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
   setDdActive('schemaDd', false);
   document.getElementById('schemaPanel').querySelectorAll('.cb-item').forEach(i => i.classList.toggle('active', i.dataset.val === ''));
@@ -1785,7 +1976,11 @@ const _dynPooledCache   = {}; // collection_name → [{template_id, schema_name,
 const _dynAssetCache         = {}; // "collection::schema" → [{schema_name, data}, ...] — PFP/asset-level schemas only
 const _dynAssetFetchPromises = {}; // "collection::schema" → in-flight Promise, dedupes concurrent scan triggers
 
-const DYNAMIC_FIELD_EXCLUDE_NAMES = new Set(['rarity']); // already a dedicated filter above
+// rarity: already a dedicated filter above. cardid: near-unique per
+// template, so it would almost never pass fieldQualifies' cardinality cap on
+// its own (same reasoning as inventory.html's Card ID) — handled instead as
+// a dedicated, uncapped, force-included field in refreshDynAttrFilters.
+const DYNAMIC_FIELD_EXCLUDE_NAMES = new Set(['rarity', 'cardid']);
 const DYNAMIC_FIELD_EXCLUDE_TYPES = new Set(['image', 'ipfs']);
 const DYNAMIC_FIELD_MAX_DISTINCT  = 40;
 const DYNAMIC_FIELD_MAX_RATIO     = 0.5;  // distinct values / templates-that-carry-this-field
@@ -1839,7 +2034,12 @@ function isDateFieldName(name) {
   return words.some(w => DATE_FIELD_WORDS.has(w));
 }
 
+// cardid has no delimiter/case boundary for the generic heuristic below to
+// split on ("Cardid", not "Card ID") — matches inventory.html's hardcoded
+// label for the same field.
+const DYNAMIC_FIELD_LABEL_OVERRIDES = { cardid: 'Card ID' };
 function fieldLabel(name) {
+  if (DYNAMIC_FIELD_LABEL_OVERRIDES[name]) return DYNAMIC_FIELD_LABEL_OVERRIDES[name];
   const spaced = name.replace(/[_\-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
   return spaced.replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -2134,10 +2334,11 @@ function wireDynFieldDropdown(field, pool) {
 }
 
 // Triggered on every schema selection change (including collection select,
-// clear, and URL restore) — runs whether or not a schema is picked, so
-// people who recognize an NFT but don't know/care what schema it's in still
-// get attribute filters. Stale-guarded by _dynGen since either fetch can
-// outlive a fast follow-up schema switch.
+// clear, URL restore, and — in Funko Catalog mode — picking/clearing a
+// Drop) — runs whether or not a schema is picked, so people who recognize
+// an NFT but don't know/care what schema it's in still get attribute
+// filters. Stale-guarded by _dynGen since either fetch can outlive a fast
+// follow-up schema switch.
 async function refreshDynAttrFilters() {
   const $msgSec = document.getElementById('secDynMsg');
   const $msg    = document.getElementById('dynAttrsMsg');
@@ -2145,9 +2346,13 @@ async function refreshDynAttrFilters() {
   const $list   = document.getElementById('dynAttrsList');
   const myGen = ++_dynGen;
 
-  if (!_col || _col.isCatalog) {
+  // Catalog mode has no single collection/schema to scope against unless a
+  // Drop is picked — a Drop already pins one exact collection+schema, so
+  // effectiveScope() resolves it the same way it does for the sales fetch.
+  if (!_col || (_col.isCatalog && !_drop)) {
     $msg.innerHTML = ''; $msgSec.classList.add('hidden');
     $list.innerHTML = ''; $sec.classList.add('hidden');
+    buildTemplatePicker([]);
     return;
   }
 
@@ -2159,12 +2364,24 @@ async function refreshDynAttrFilters() {
   $list.innerHTML = '';
   $sec.classList.add('hidden');
 
-  const collection = _col.collection_name, schema = _schema;
+  const { col: collection, schema } = effectiveScope();
+  // Normal single-collection mode always has a loadSchemas() call already in
+  // flight/complete for this same collection (selectCollection/restoreFromUrl/
+  // clearFilters) — only Catalog mode's Drop-scoped path needs its own fetch
+  // here, since a Drop never goes through loadSchemas at all.
+  if (_col.isCatalog) {
+    await ensureDynSchemaCache(collection);
+    if (myGen !== _dynGen) return; // drop changed again mid-fetch
+  }
   let pool, fields;
 
   if (schema) {
     const templatePool = await fetchTemplatesForSchema(collection, schema);
     if (myGen !== _dynGen) return; // schema changed again mid-fetch
+    // Template is always template-level (one exact card = one template_id),
+    // so it's built from templatePool specifically — never the asset-level
+    // scan pool a PFP-style schema swaps in below.
+    buildTemplatePicker(templatePool);
     if (isAssetLevelAttrSchema(collection, schema)) {
       $msg.innerHTML = '<div class="dyn-attrs-msg">Scanning item attributes — this collection stores traits per-item rather than per-card…</div>';
       pool = await fetchAssetDataForSchema(collection, schema);
@@ -2173,10 +2390,18 @@ async function refreshDynAttrFilters() {
       pool = templatePool;
     }
     fields = computeDynAttrFieldsSingleSchema(pool, collection, schema);
+    // Card ID is deliberately excluded from the generator above (see
+    // DYNAMIC_FIELD_EXCLUDE_NAMES) so it can be force-included here, uncapped
+    // — same rationale as inventory.html's dedicated Card ID filter. Sourced
+    // from templatePool for the same reason as the Template picker above.
+    if (!fields.includes('cardid') && dynFieldValues(templatePool, 'cardid').length > 1) {
+      fields.unshift('cardid');
+    }
   } else {
     pool = await fetchTemplatesSampled(collection);
     if (myGen !== _dynGen) return; // schema/collection changed again mid-fetch
     fields = computeDynAttrFieldsPooled(collection);
+    buildTemplatePicker([]); // Template/Card ID only ever apply once one exact schema is known
   }
 
   for (const f of Object.keys(_dynFilters)) if (!fields.includes(f)) delete _dynFilters[f];
@@ -2298,6 +2523,7 @@ document.getElementById('nameSearch').addEventListener('input', function () {
 
 function clearFilters() {
   _schema = ''; _rarity = ''; _dynFilters = {};
+  _templateId = ''; $tplChip.style.display = 'none';
   _minP = ''; _maxP = ''; _minMint = ''; _maxMint = '';
   _bundle = 'single';
   _sortBy = 'price'; _sortOrd = 'asc';

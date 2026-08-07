@@ -1656,10 +1656,16 @@ function updateTemplateFilter(templates) {
   const schema = _filterSchema !== 'all' ? _filterSchema : null;
   const list = schema ? templates.filter(t => t.schema_name === schema) : templates;
   if (_filterTemplate !== 'all' && !list.some(t => t.template_id === _filterTemplate)) _filterTemplate = 'all';
-  _templateItemsCache = [{ value: 'all', label: 'All templates' }, ...list.map(t => ({
-    value: t.template_id,
-    label: t.name ? `${t.name} (#${t.template_id})` : `Template #${t.template_id}`,
-  })).sort((a, b) => a.label.localeCompare(b.label))];
+  // Rarity is inserted before the "(#id)" suffix, not after — the id has to
+  // stay the very last thing so it (and everything before it) reads cleanly
+  // if the label gets clipped by the combo's own text-overflow:ellipsis.
+  _templateItemsCache = [{ value: 'all', label: 'All templates' }, ...list.map(t => {
+    const rarity = t.data?.rarity; // not every collection/schema declares one
+    const label = t.name
+      ? `${t.name}${rarity ? ` — ${rarity}` : ''} (#${t.template_id})`
+      : (rarity ? `Template #${t.template_id} — ${rarity}` : `Template #${t.template_id}`);
+    return { value: t.template_id, label };
+  }).sort((a, b) => a.label.localeCompare(b.label))];
   buildCbCombo('templateCombo', _templateItemsCache, _filterTemplate, onTemplateFilterChange);
   const input = document.getElementById('templateComboInput');
   if (input) input.disabled = false;
@@ -1886,6 +1892,10 @@ function syncCbComboDisplay(combo) {
   const hasSelection = active.value !== allItem.value;
   input.placeholder = allItem.label;
   input.value = hasSelection ? active.label : '';
+  // A long selected label (collection/template name + rarity + id) routinely
+  // overflows this input's text-overflow:ellipsis clip — title gives a
+  // hover fallback for the full text (see explore.html's identical fix).
+  input.title = hasSelection ? active.label : '';
   clear.style.display = hasSelection ? '' : 'none';
   combo.classList.toggle('has-selection', hasSelection);
 }
