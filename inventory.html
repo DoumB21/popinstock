@@ -298,6 +298,13 @@
     .modal-info-row--price .modal-price-row { width: 200px; flex-shrink: 0; }
     .modal-info-row--price .modal-price-input { min-width: 0; }
 
+    .modal-bundle-note {
+      font-size: 0.75rem; color: var(--accent-light); line-height: 1.5;
+      background: rgba(192,120,40,0.1); border: 1px solid rgba(192,120,40,0.3);
+      border-radius: 8px; padding: 0.6rem 0.8rem;
+    }
+    .modal-bundle-item--current .bulk-strip-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+
     .modal-price-label {
       font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
       text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem;
@@ -601,6 +608,28 @@
     .bulk-strip-listed-price { font-size: 0.72rem; color: #4ade80; margin-top: 0.3rem; }
     .bulk-warn-text { font-size: 0.8rem; color: var(--accent-light); line-height: 1.5; text-align: left; }
 
+    /* align-self:flex-start keeps this hugging its own content instead of
+       stretching to the modal's full width — .modal-body is a flex column
+       with the default align-items:stretch, which otherwise stretches any
+       direct-child div (this one included) edge-to-edge, leaving the second
+       button stranded mid-bar with no edge to round against. Each button
+       gets its own border-radius (rather than relying on overflow:hidden
+       clipping against the outer pill) so corners are always correct
+       regardless of container width. */
+    .bl-mode-toggle {
+      display: inline-flex; align-self: flex-start; gap: 2px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px; margin-bottom: 0.8rem;
+    }
+    .bl-mode-btn {
+      background: transparent; border: none; border-radius: 7px;
+      padding: 0.45rem 1rem;
+      color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s;
+    }
+    .bl-mode-btn.active { background: var(--accent); color: #fff; }
+    .bl-mode-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+    .bl-mode-btn:not(.active):not(:disabled):hover { background: rgba(255,255,255,0.1); }
     .bl-price-panel { display: flex; flex-direction: column; gap: 0.9rem; }
     .bl-price-block { display: flex; flex-direction: column; gap: 0.4rem; }
     .bl-price-block-label {
@@ -1120,6 +1149,18 @@ function _pinWalletToUrl(wallet) {
 
 // ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──
 let _selected = new Map();          // asset_id → price string (Sell) | '' (other actions, unused)
+// Sell-only: 'individual' lists each selected asset as its own sale (price
+// lives per-item in _selected, as above); 'bundle' lists the whole selection
+// as one atomicmarket sale at a single price (_bundlePrice). Reset to
+// 'individual' on every fresh modal open — see openBulkActionModal.
+let _sellMode    = 'individual';
+let _bundlePrice = '';
+// Fee breakdown for the bundle's shared collection (all members are
+// guaranteed same-collection — see bundleEligibility) — fetched once per
+// collection via fetchCollectionFee's own cache, mirrors _listingRoyaltyPct's
+// role in the single-item modal (openModal/updateModalFees).
+let _bundleRoyaltyPct    = 0;
+let _bundleFeeCollection = null;
 const MAX_SELECTED        = 350;
 const MAX_PRICE_WAX       = 10_000_000;
 const BATCH_SIZE_SELL       = 25;  // 2 actions/asset (announcesale+createoffer)
@@ -1465,9 +1506,14 @@ function patchCard(assetId) {
 
   const btn = card.querySelector('.inv-card-btn');
   if (btn) {
-    const listed = !!listing;
-    btn.className   = `inv-card-btn ${listed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}`;
-    btn.textContent = listed ? 'Edit listing' : 'List for sale';
+    const listed  = !!listing;
+    // See cardHtml's isPending comment — a listing with no sale_id yet is
+    // real on-chain (it can't be re-listed) but not yet cancellable/editable,
+    // so it gets the same disabled placeholder cardHtml renders for it.
+    const pending = listed && listing.sale_id == null;
+    btn.className   = `inv-card-btn ${pending ? 'inv-card-btn--pending' : listed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}`;
+    btn.textContent = pending ? 'Listed' : listed ? 'Edit listing' : 'List for sale';
+    btn.disabled    = pending;
   }
 }
 
@@ -2623,7 +2669,13 @@ function cardHtml(a) {
   const mint    = a.template_mint ? `#${a.template_mint}` : '';
   const col     = a.collection?.collection_name || '';
   const listing = _listings.get(String(a.asset_id));
-  const isListed = !!listing;
+  const isListed  = !!listing;
+  // sale_id is null right after an optimistic list/edit (see bulkList,
+  // bulkListBundle, handleList) until AtomicMarket's indexer confirms the
+  // new sale (~30s) and fetchListings() resyncs the real one — cancelsale/
+  // announcesale reject a null sale_id outright (uint64 isn't optional on
+  // chain), so the button must stay disabled rather than open Edit/Cancel.
+  const isPending = isListed && listing.sale_id == null;
   const isSel   = _selected.has(String(a.asset_id));
   return `
     <div class="inv-card${isListed ? ' is-listed' : ''}${isSel ? ' selected' : ''}" data-id="${a.asset_id}">
@@ -2641,8 +2693,8 @@ function cardHtml(a) {
         ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</div>` : ''}
       </div>
       <div class="inv-card-foot">
-        <button class="inv-card-btn ${isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}">
-          ${isListed ? 'Edit listing' : 'List for sale'}
+        <button class="inv-card-btn ${isPending ? 'inv-card-btn--pending' : isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}"${isPending ? ' disabled' : ''}>
+          ${isPending ? 'Listed' : isListed ? 'Edit listing' : 'List for sale'}
         </button>
         <button type="button" class="inv-card-dots-btn" title="More actions">⋮</button>
       </div>
@@ -2779,9 +2831,16 @@ async function fetchListings(wallet) {
         const precision = sale.price?.token_precision ?? sale.token?.token_precision ?? 8;
         const rawPrice  = sale.price?.amount ?? sale.listing_price;
         const price_wax = Number(rawPrice) / Math.pow(10, precision);
-        for (const asset of (sale.assets || [])) {
+        // A sale with 2+ assets is a bundle — every member is keyed to the
+        // SAME sale_id/price_wax (atomicmarket only stores one price per
+        // sale, not per asset) plus the full sibling list, so the Edit
+        // Listing modal can recognize bundle membership and act on the
+        // whole sale instead of silently orphaning the other members.
+        const saleAssetIds = (sale.assets || []).map(a => String(a.asset_id));
+        const bundleAssetIds = saleAssetIds.length > 1 ? saleAssetIds : null;
+        for (const assetId of saleAssetIds) {
           if (!_cancelledSaleIds.has(String(sale.sale_id)))
-            fresh.set(String(asset.asset_id), { sale_id: sale.sale_id, price_wax });
+            fresh.set(assetId, { sale_id: sale.sale_id, price_wax, bundleAssetIds });
         }
       }
       if (json.data.length < limit) break;
@@ -4036,6 +4095,24 @@ async function handleAcceptOffer() {
 /* Listing modal                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+// Thumbnails for every asset in a bundle sale, reusing the bulk-action
+// modal's strip look. Sibling members may not be in the currently-loaded
+// _assets page (e.g. grid hasn't scrolled that far) — those fall back to the
+// same "?" placeholder cardHtml uses for a missing image, not a broken fetch.
+function bundleMemberThumbsHtml(ids, currentAsset) {
+  const assetsById = assetsIndex();
+  const currentId  = String(currentAsset.asset_id);
+  return ids.map(id => {
+    const sid = String(id);
+    const a   = sid === currentId ? currentAsset : assetsById.get(sid);
+    return `
+      <div class="bulk-strip-item${sid === currentId ? ' modal-bundle-item--current' : ''}">
+        <div class="bulk-strip-thumb">${a ? assetMediaHtml(a) : '<div class="inv-img-placeholder">?</div>'}</div>
+        <div class="bulk-strip-name" title="${escHtml(a?.name || '')}">${escHtml(a?.name || `Asset #${sid}`)}</div>
+      </div>`;
+  }).join('');
+}
+
 function openModal(asset) {
   const listing    = _listings.get(String(asset.asset_id)) || null;
   _modalAsset      = asset;
@@ -4077,6 +4154,12 @@ function closeModal() {
 
 function renderModal(asset, listing, floor, loadingFloor) {
   const isEdit    = !!listing;
+  // A bundle sale has 2+ asset_ids under one sale_id — editing or cancelling
+  // from any one member's card has to act on the whole sale (that's the only
+  // unit atomicmarket understands), so this modal needs to say so instead of
+  // quietly treating it like a normal single-asset listing (see handleList/
+  // handleCancelListing, which branch on this same flag).
+  const isBundle  = isEdit && Array.isArray(listing.bundleAssetIds) && listing.bundleAssetIds.length > 1;
   const mint      = asset.template_mint;
   const maxSupply = asset.template?.max_supply;
   const col       = asset.collection?.collection_name || '';
@@ -4088,7 +4171,7 @@ function renderModal(asset, listing, floor, loadingFloor) {
 
   document.getElementById('listingModal').innerHTML = `
     <div class="modal-header">
-      <span class="modal-title">${isEdit ? 'Edit Listing' : 'List for sale'}</span>
+      <span class="modal-title">${isBundle ? 'Edit Bundle Listing' : isEdit ? 'Edit Listing' : 'List for sale'}</span>
       <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
@@ -4101,9 +4184,16 @@ function renderModal(asset, listing, floor, loadingFloor) {
         ${mint ? `<div class="modal-asset-mint">Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}</div>` : ''}
       </div>
 
+      ${isBundle ? `
+      <div class="modal-bundle-note">
+        This item is listed as part of a bundle of ${listing.bundleAssetIds.length} — editing the price or cancelling applies to the whole bundle, not just this card.
+      </div>
+      <div class="bulk-strip">${bundleMemberThumbsHtml(listing.bundleAssetIds, asset)}</div>
+      ` : ''}
+
       ${isEdit ? `
       <div class="modal-info-row">
-        <span class="modal-info-label">Current listing price</span>
+        <span class="modal-info-label">Current ${isBundle ? 'bundle' : 'listing'} price</span>
         <span class="modal-info-val current-price">${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</span>
       </div>
       ` : ''}
@@ -4114,7 +4204,7 @@ function renderModal(asset, listing, floor, loadingFloor) {
       </div>
 
       <div class="modal-info-row modal-info-row--price">
-        <span class="modal-info-label">${isEdit ? 'New listing price' : 'Your listing price'}</span>
+        <span class="modal-info-label">${isBundle ? 'New bundle price' : isEdit ? 'New listing price' : 'Your listing price'}</span>
         <div class="modal-price-row">
           <input id="priceInput" type="number" class="modal-price-input"
             placeholder="0.00" min="0.01" max="10000000" step="0.01" autocomplete="off"
@@ -4143,9 +4233,9 @@ function renderModal(asset, listing, floor, loadingFloor) {
       <div id="modalMsg" class="modal-msg" style="display:none;"></div>
 
       <div class="modal-actions">
-        <button class="modal-btn modal-btn--cancel${isEdit ? ' modal-btn--danger' : ''}" id="modalCancel" ${isEdit ? '' : 'style="display:none"'}>${isEdit ? 'Cancel listing' : 'Close'}</button>
+        <button class="modal-btn modal-btn--cancel${isEdit ? ' modal-btn--danger' : ''}" id="modalCancel" ${isEdit ? '' : 'style="display:none"'}>${isBundle ? 'Cancel bundle' : isEdit ? 'Cancel listing' : 'Close'}</button>
         <button class="modal-btn modal-btn--list"   id="modalList">
-          ${isEdit ? 'Update listing' : 'List for sale'}
+          ${isBundle ? 'Update bundle' : isEdit ? 'Update listing' : 'List for sale'}
         </button>
       </div>
 
@@ -4266,8 +4356,16 @@ async function handleCancelListing() {
       data: { sale_id: listing.sale_id },
     }]);
     _cancelledSaleIds.add(String(listing.sale_id));
-    _listings.delete(String(asset.asset_id));
-    patchCard(asset.asset_id);
+    // cancelsale kills the whole sale, so every bundle member (not just this
+    // card) is unlisted now — clear/patch all of them so a sibling card
+    // doesn't keep showing "Edit listing" against a sale_id that no longer
+    // exists (that dead-sale_id state is exactly what the "already
+    // cancelled" error branch below has to recover from otherwise).
+    const affectedIds = (listing.bundleAssetIds?.length > 1) ? listing.bundleAssetIds : [String(asset.asset_id)];
+    for (const id of affectedIds) {
+      _listings.delete(String(id));
+      patchCard(id);
+    }
     closeModal();
     fetchListings(wallet); // background sync
   } catch (err) {
@@ -4326,6 +4424,13 @@ async function handleList() {
 
   const asset   = _modalAsset;
   const listing = _selectedListing;
+  // Editing a bundle listing must re-announce ALL of its members, not just
+  // the one card the user opened — announcesale/createoffer with only
+  // asset.asset_id would cancel the whole bundle sale (the cancelsale below)
+  // and then re-list just this one card, silently dropping every sibling
+  // back to unlisted while their _listings entries kept pointing at the
+  // now-dead sale_id.
+  const listAssetIds = (listing?.bundleAssetIds?.length > 1) ? listing.bundleAssetIds : [asset.asset_id];
 
   if (listBtn) listBtn.textContent = listing ? 'Updating…' : 'Listing…';
   const listingPrice = `${priceWax.toFixed(8)} WAX`;
@@ -4348,7 +4453,7 @@ async function handleList() {
       authorization: [{ actor: wallet, permission: 'active' }],
       data: {
         seller: wallet,
-        asset_ids: [asset.asset_id],
+        asset_ids: listAssetIds,
         listing_price: listingPrice,
         settlement_symbol: '8,WAX',
         maker_marketplace: MAKER,
@@ -4361,7 +4466,7 @@ async function handleList() {
       data: {
         sender: wallet,
         recipient: 'atomicmarket',
-        sender_asset_ids: [asset.asset_id],
+        sender_asset_ids: listAssetIds,
         recipient_asset_ids: [],
         memo: 'sale',
       },
@@ -4371,11 +4476,16 @@ async function handleList() {
   try {
     await WaxAuth.transact(actions);
     closeModal();
-    // Show a non-clickable "Listed" label — real "Edit listing" appears after indexer confirms (~30s)
-    const card = document.querySelector(`.inv-card[data-id="${asset.asset_id}"]`);
-    if (card) {
-      const btn = card.querySelector('.inv-card-btn');
-      if (btn) { btn.className = 'inv-card-btn inv-card-btn--pending'; btn.textContent = 'Listed'; btn.disabled = true; }
+    // sale_id isn't known until the indexer confirms the new sale (~30s) —
+    // optimistically record the new price/bundle membership now (matching
+    // bulkList/bulkListBundle) so patchCard renders the right disabled
+    // "Listed" placeholder on every relisted card (all bundle members, or
+    // just this one for a plain single-asset list/edit) instead of stale or
+    // missing data until fetchListings() resyncs.
+    const bundleAssetIds = listAssetIds.length > 1 ? listAssetIds.slice() : null;
+    for (const id of listAssetIds) {
+      _listings.set(String(id), { sale_id: null, price_wax: priceWax, bundleAssetIds });
+      patchCard(id);
     }
   } catch (err) {
     console.error('Transaction failed:', err);
@@ -4420,8 +4530,27 @@ function assetsIndex() {
   return new Map(_assets.map(a => [String(a.asset_id), a]));
 }
 
+// A listing with no sale_id yet (optimistic, unconfirmed by the indexer —
+// see cardHtml's isPending) is real on-chain but has nothing a cancelsale
+// action could reference. selectedNotListed() still excludes it (it can't be
+// re-listed either), so it's simply absent from both bulk sets until
+// fetchListings() resyncs the real sale_id — same limbo the disabled
+// per-card button already reflects.
+function isPendingListing(id) { const l = _listings.get(id); return !!l && l.sale_id == null; }
 function selectedNotListed() { return [..._selected.keys()].filter(id => !_listings.has(id)); }
-function selectedListed()    { return [..._selected.keys()].filter(id => _listings.has(id)); }
+function selectedListed()    { return [..._selected.keys()].filter(id => _listings.has(id) && !isPendingListing(id)); }
+
+// Bundle mode needs 2+ not-yet-listed items, and atomicmarket bundle sales
+// only take one collection's worth of assets (fees settle against a single
+// collection) — so mixed-collection selections can only list individually.
+function bundleEligibility() {
+  const ids = selectedNotListed();
+  if (ids.length < 2) return { ok: false, reason: 'Select at least 2 unlisted items to list as a bundle.' };
+  const assetsById = assetsIndex();
+  const cols = new Set(ids.map(id => assetsById.get(id)?.collection?.collection_name || ''));
+  if (cols.size > 1) return { ok: false, reason: 'Bundle listings require all selected items to be from the same collection.' };
+  return { ok: true, reason: '', collection: [...cols][0] };
+}
 
 // Sums each selected asset's backed_tokens (integer smallest-unit arithmetic,
 // same reasoning as bulkBackTokens — avoids float drift) — what actually
@@ -4882,15 +5011,24 @@ function bulkStripHtml() {
       const listed = _listings.has(id);
       if (listed) {
         extra = `<div class="bulk-strip-listed-price">Already listed — skipped</div>`;
+      } else if (_sellMode === 'bundle') {
+        extra = ''; // one price for the whole bundle, set once above — no per-card input
       } else {
         const price = _selected.get(id) || '';
         extra = `<div class="bulk-strip-price"><input type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01" class="control-input${!price ? ' missing' : ''}" placeholder="0.00" value="${price}" data-id="${escHtml(id)}" oninput="onBulkPriceInput(this)"><span class="bulk-strip-price-unit">WAX</span></div>`;
       }
     } else if (_bulkAction === 'cancel') {
       const listing = _listings.get(id);
-      extra = listing
+      // Pending (no sale_id yet — see isPendingListing) has to be excluded
+      // the same as "not listed", not shown as cancellable: selectedListed()
+      // already drops it from what bulkCancel() actually submits, so showing
+      // its price here without the skip note would silently mismatch what
+      // Submit does with it.
+      extra = listing && !isPendingListing(id)
         ? `<div class="bulk-strip-listed-price">${listing.price_wax.toFixed(2)} WAX</div>`
-        : `<div class="bulk-strip-listed-price" style="color:var(--text-secondary)">Not listed — skipped</div>`;
+        : listing
+          ? `<div class="bulk-strip-listed-price" style="color:var(--text-secondary)">Pending confirmation — skipped</div>`
+          : `<div class="bulk-strip-listed-price" style="color:var(--text-secondary)">Not listed — skipped</div>`;
     } else if (_bulkAction === 'backtokens') {
       const amt = _selected.get(id) || '';
       const tok = activeBackToken();
@@ -4920,6 +5058,10 @@ function openBulkActionModal(action) {
   // reappearing if you cancel and reopen "List" again. Only the membership
   // (the keys) survives; every fresh open starts blank.
   _selected.forEach((_, id) => _selected.set(id, ''));
+  _sellMode = 'individual';
+  _bundlePrice = '';
+  _bundleRoyaltyPct = 0;
+  _bundleFeeCollection = null;
   _giftStep = 'confirm';
   _giftResult = null;
   _giftMemo = '';
@@ -4964,38 +5106,89 @@ function renderBulkActionModal() {
   const notListed = selectedNotListed();
   const listed    = selectedListed();
 
+  // Clamp back to individual before the strip below is built (its per-item
+  // price inputs vs. plain thumbnails depend on _sellMode) — e.g. removing a
+  // strip item can drop a bundle-eligible selection below 2 items mid-modal.
+  if (_bulkAction === 'sell') {
+    const bundleElig = bundleEligibility();
+    if (_sellMode === 'bundle' && !bundleElig.ok) _sellMode = 'individual';
+  }
+
   let bodyHtml = `<div class="bulk-strip" id="bulkStrip">${bulkStripHtml()}</div>`;
 
   if (_bulkAction === 'sell') {
+    const bundleElig = bundleEligibility();
     const skipNote = listed.length ? `<div class="bl-price-note">${listed.length} already-listed item${listed.length !== 1 ? 's' : ''} will be skipped — use Edit listing on those instead.</div>` : '';
-    bodyHtml = `
-      <div class="bl-price-panel">
-        <div class="bl-price-block">
-          <div class="bl-price-block-label">Fixed price</div>
-          <div class="bl-price-row">
-            <input class="control-input" id="bulkSetAllInput" type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01" placeholder="0.00" oninput="clampPriceInputEl(this)" />
-            <span class="bl-price-unit">WAX</span>
-            <button class="bl-set-all-btn" type="button" onclick="applyBulkFixedPriceToAll()">Apply to all</button>
-          </div>
-        </div>
-        <div class="bl-price-block">
-          <div class="bl-price-block-label">Below floor</div>
-          <div class="bl-price-row">
-            <input class="control-input" id="bulkBelowFloorWaxInput" type="number" min="0" step="0.01" value="0.01" />
-            <span class="bl-price-unit">WAX</span>
-            <button class="bl-set-all-btn" type="button" onclick="applyBulkBelowFloorWax()">Apply to all</button>
-          </div>
-          <div class="bl-price-row">
-            <input class="control-input" id="bulkBelowFloorPctInput" type="number" min="0" max="100" step="0.1" value="1" />
-            <span class="bl-price-unit">%</span>
-            <button class="bl-set-all-btn" type="button" onclick="applyBulkBelowFloorPercent()">Apply to all</button>
-          </div>
-          <div class="bl-price-note" id="bulkFloorApplyNote"></div>
-        </div>
+    const modeToggleHtml = `
+      <div class="bl-mode-toggle" role="group" aria-label="Listing mode">
+        <button type="button" class="bl-mode-btn${_sellMode === 'individual' ? ' active' : ''}" onclick="setSellMode('individual')">Individual</button>
+        <button type="button" class="bl-mode-btn${_sellMode === 'bundle' ? ' active' : ''}"${bundleElig.ok ? '' : ' disabled'} onclick="setSellMode('bundle')"${bundleElig.ok ? '' : ` title="${escHtml(bundleElig.reason)}"`}>Bundle</button>
       </div>
-      ${skipNote}
-      ${bodyHtml}
-      <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkTotal">0.00 WAX</span></div>`;
+      ${!bundleElig.ok ? `<div class="bl-price-note">${escHtml(bundleElig.reason)}</div>` : ''}`;
+
+    if (_sellMode === 'bundle') {
+      const price = _bundlePrice || '';
+      bodyHtml = `
+        ${modeToggleHtml}
+        <div class="bl-price-block">
+          <div class="bl-price-block-label">Bundle price</div>
+          <div class="bl-price-row">
+            <input class="control-input" id="bulkBundlePriceInput" type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01" placeholder="0.00" value="${escHtml(price)}" oninput="onBulkBundlePriceInput(this)" />
+            <span class="bl-price-unit">WAX</span>
+          </div>
+          <div class="bl-price-note">One combined listing for all ${notListed.length} items below — a buyer purchases the whole bundle at this price.</div>
+        </div>
+
+        <div class="modal-info-row modal-info-row--price">
+          <div class="modal-info-label">You receive<div id="bulkBundleReceiveUsd" style="font-size:0.75rem;color:#4ade80;font-weight:500;margin-top:2px"></div></div>
+          <div class="modal-price-row">
+            <span id="bulkBundleYouReceive" class="modal-price-display">—</span>
+            <span class="modal-price-unit">WAX</span>
+          </div>
+        </div>
+
+        <details class="fee-details" id="bulkBundleFeeDetails" style="display:none">
+          <summary>
+            <span id="bulkBundleTotalFeesLabel">Total Fees</span>
+            <span class="fee-arrow">▾</span>
+          </summary>
+          <div class="fee-items" id="bulkBundleFeeItems"></div>
+        </details>
+
+        ${skipNote}
+        ${bodyHtml}
+        <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkTotal">0.00 WAX</span></div>`;
+    } else {
+      bodyHtml = `
+        ${modeToggleHtml}
+        <div class="bl-price-panel">
+          <div class="bl-price-block">
+            <div class="bl-price-block-label">Fixed price</div>
+            <div class="bl-price-row">
+              <input class="control-input" id="bulkSetAllInput" type="number" min="0.01" max="${MAX_PRICE_WAX}" step="0.01" placeholder="0.00" oninput="clampPriceInputEl(this)" />
+              <span class="bl-price-unit">WAX</span>
+              <button class="bl-set-all-btn" type="button" onclick="applyBulkFixedPriceToAll()">Apply to all</button>
+            </div>
+          </div>
+          <div class="bl-price-block">
+            <div class="bl-price-block-label">Below floor</div>
+            <div class="bl-price-row">
+              <input class="control-input" id="bulkBelowFloorWaxInput" type="number" min="0" step="0.01" value="0.01" />
+              <span class="bl-price-unit">WAX</span>
+              <button class="bl-set-all-btn" type="button" onclick="applyBulkBelowFloorWax()">Apply to all</button>
+            </div>
+            <div class="bl-price-row">
+              <input class="control-input" id="bulkBelowFloorPctInput" type="number" min="0" max="100" step="0.1" value="1" />
+              <span class="bl-price-unit">%</span>
+              <button class="bl-set-all-btn" type="button" onclick="applyBulkBelowFloorPercent()">Apply to all</button>
+            </div>
+            <div class="bl-price-note" id="bulkFloorApplyNote"></div>
+          </div>
+        </div>
+        ${skipNote}
+        ${bodyHtml}
+        <div class="bl-tray-total"><span>Total</span><span class="bl-tray-total-val" id="bulkTotal">0.00 WAX</span></div>`;
+    }
   } else if (_bulkAction === 'transfer') {
     bodyHtml = `
       ${bodyHtml}
@@ -5094,7 +5287,7 @@ function renderBulkActionModal() {
         <button class="modal-btn modal-btn--cancel" id="bulkModalCancel">Cancel</button>
         <button class="modal-btn modal-btn--list" id="bulkModalSubmit">Submit</button>
       </div>
-      <div class="bulk-batch-note">${_bulkAction === 'gift' ? '1 wallet signature to create the link' : `1 wallet signature per ${BULK_BATCH_SIZES[_bulkAction] || '?'} items`}</div>`;
+      <div class="bulk-batch-note">${_bulkAction === 'gift' ? '1 wallet signature to create the link' : (_bulkAction === 'sell' && _sellMode === 'bundle') ? '1 wallet signature to create the bundle' : `1 wallet signature per ${BULK_BATCH_SIZES[_bulkAction] || '?'} items`}</div>`;
 
   modal.innerHTML = `
     <div class="modal-header">
@@ -5113,6 +5306,7 @@ function renderBulkActionModal() {
   document.getElementById('bulkModalSubmit')?.addEventListener('click', submitBulkAction);
   initLazyVideos();
   if (_bulkAction === 'sell') updateBulkTotal();
+  if (_bulkAction === 'sell' && _sellMode === 'bundle') updateBulkBundleFees();
   if (_bulkAction === 'backtokens') { renderBulkBackTokenDropdown(); updateBulkBackTotal(); }
   updateBulkActionBtn(); // no-ops on the result screen — no #bulkModalSubmit there, already self-guarded
 }
@@ -5210,12 +5404,110 @@ function updateBulkTotal() {
   const el = document.getElementById('bulkTotal');
   if (!el || _bulkAction !== 'sell') return;
   let total = 0;
-  for (const id of selectedNotListed()) {
-    const n = parseFloat(_selected.get(id));
-    if (isFinite(n) && n > 0) total += n;
+  if (_sellMode === 'bundle') {
+    const n = parseFloat(_bundlePrice);
+    if (isFinite(n) && n > 0) total = n;
+  } else {
+    for (const id of selectedNotListed()) {
+      const n = parseFloat(_selected.get(id));
+      if (isFinite(n) && n > 0) total += n;
+    }
   }
   const usd = _waxUsdRate && total > 0 ? ` ≈ $${(total * _waxUsdRate).toFixed(2)}` : '';
   el.textContent = `${total.toFixed(2)} WAX${usd}`;
+}
+
+function setSellMode(mode) {
+  if (mode === _sellMode) return;
+  if (mode === 'bundle' && !bundleEligibility().ok) return;
+  _sellMode = mode;
+  renderBulkActionModal();
+}
+
+function onBulkBundlePriceInput(el) {
+  clampPriceInputEl(el);
+  _bundlePrice = el.value;
+  el.classList.toggle('missing', !el.value);
+  updateBulkTotal();
+  updateBulkBundleReceipt();
+  updateBulkActionBtn();
+}
+
+// Mirrors openModal/updateModalFees/updateListingReceipt for the single-item
+// modal — same fee math (MARKET_FEE + ECOSYSTEM_FEE + collection royalty),
+// same fee-details markup, reusing fetchCollectionFee's own per-collection
+// cache so re-renders (every keystroke doesn't call this, but toggling mode
+// or editing the strip does) cost nothing after the first fetch.
+function updateBulkBundleFees() {
+  const detailsEl = document.getElementById('bulkBundleFeeDetails');
+  if (!detailsEl) return; // not currently showing the bundle price block
+  const elig = bundleEligibility();
+  if (!elig.ok) { detailsEl.style.display = 'none'; return; }
+
+  if (_bundleFeeCollection !== elig.collection) {
+    _bundleFeeCollection = elig.collection;
+    _bundleRoyaltyPct = 0; // unknown until the fetch below resolves
+    fetchCollectionFee(elig.collection).then(fee => {
+      if (_bundleFeeCollection !== elig.collection) return; // selection moved to a different collection meanwhile
+      _bundleRoyaltyPct = fee;
+      renderBulkBundleFeeItems();
+      updateBulkBundleReceipt();
+    });
+  }
+  renderBulkBundleFeeItems();
+  updateBulkBundleReceipt();
+}
+
+function renderBulkBundleFeeItems() {
+  const detailsEl = document.getElementById('bulkBundleFeeDetails');
+  const labelEl   = document.getElementById('bulkBundleTotalFeesLabel');
+  const itemsEl   = document.getElementById('bulkBundleFeeItems');
+  if (!detailsEl || !labelEl || !itemsEl) return;
+  const totalPct = (MARKET_FEE + ECOSYSTEM_FEE + _bundleRoyaltyPct) * 100;
+  labelEl.textContent = `Total Fees: ${totalPct.toFixed(2)}%`;
+  const royaltyItem = _bundleRoyaltyPct > 0
+    ? `<div class="fee-item">
+        <span class="fee-item-pct">${(_bundleRoyaltyPct * 100).toFixed(2)}%</span>
+        <div class="fee-item-info">
+          <span class="fee-item-name">Collection Fee</span>
+          <span class="fee-item-desc">A % set by the collection creator, received on every secondary market transaction.</span>
+        </div>
+      </div>`
+    : '';
+  itemsEl.innerHTML = `
+    <div class="fee-item">
+      <span class="fee-item-pct">1.00%</span>
+      <div class="fee-item-info">
+        <span class="fee-item-name">Ecosystem Fee</span>
+        <span class="fee-item-desc">A blockchain-specific fee for processing the transaction.</span>
+      </div>
+    </div>
+    <div class="fee-item">
+      <span class="fee-item-pct">2.00%</span>
+      <div class="fee-item-info">
+        <span class="fee-item-name">Market Fee</span>
+        <span class="fee-item-desc">A flat fee to maintain &amp; improve marketplaces.</span>
+      </div>
+    </div>
+    ${royaltyItem}
+  `;
+  detailsEl.style.display = '';
+}
+
+function updateBulkBundleReceipt() {
+  const receiveEl = document.getElementById('bulkBundleYouReceive');
+  const usdEl     = document.getElementById('bulkBundleReceiveUsd');
+  if (!receiveEl) return;
+  const price = parseFloat(_bundlePrice);
+  if (!isFinite(price) || price <= 0) {
+    receiveEl.textContent = '—';
+    if (usdEl) usdEl.textContent = '';
+    return;
+  }
+  const totalFee = MARKET_FEE + ECOSYSTEM_FEE + _bundleRoyaltyPct;
+  const net = price * (1 - totalFee);
+  receiveEl.textContent = fmtWax(net);
+  if (usdEl) usdEl.textContent = _waxUsdRate ? `≈ $${(net * _waxUsdRate).toFixed(2)}` : '';
 }
 
 function applyBulkBackAmountToAll() {
@@ -5274,7 +5566,13 @@ function updateBulkActionBtn() {
   if (!btn) return;
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
 
-  if (_bulkAction === 'sell') {
+  if (_bulkAction === 'sell' && _sellMode === 'bundle') {
+    const ids = selectedNotListed();
+    const v = parseFloat(_bundlePrice);
+    const valid = ids.length >= 2 && isFinite(v) && v >= 0.01 && v <= MAX_PRICE_WAX;
+    btn.disabled = _busy || !valid;
+    btn.textContent = ids.length ? `List ${ids.length} items as a bundle` : 'List for sale';
+  } else if (_bulkAction === 'sell') {
     const ids = selectedNotListed();
     const allValid = ids.length > 0 && ids.every(id => {
       const v = parseFloat(_selected.get(id));
@@ -5329,7 +5627,7 @@ function setBulkProgress(msg, type) {
 }
 
 function submitBulkAction() {
-  if (_bulkAction === 'sell')       return bulkList();
+  if (_bulkAction === 'sell')       return _sellMode === 'bundle' ? bulkListBundle() : bulkList();
   if (_bulkAction === 'transfer')   return bulkTransfer();
   if (_bulkAction === 'cancel')     return bulkCancel();
   if (_bulkAction === 'burn')       return bulkBurn();
@@ -5432,6 +5730,42 @@ async function bulkList() {
   });
 
   if (listed) setBulkProgress(`${listed} item${listed !== 1 ? 's' : ''} listed successfully!`, 'success');
+}
+
+// One atomicmarket sale spanning the whole selection at one price, instead of
+// bulkList()'s one-sale-per-asset loop. batchSize is the selection's own
+// length so runBulkAction always treats it as a single chunk/signature — the
+// whole point of a bundle is that it's one sale_id, so it can never be split
+// across transactions the way individual/transfer/burn chunks safely can.
+async function bulkListBundle() {
+  const ids = selectedNotListed();
+  const priceWax = Math.round(parseFloat(_bundlePrice) * 100) / 100;
+  if (ids.length < 2 || !isFinite(priceWax) || priceWax < 0.01 || priceWax > MAX_PRICE_WAX) return;
+
+  const listed = await runBulkAction(ids, ids.length, (chunk, wallet) => {
+    const listingPrice = `${priceWax.toFixed(8)} WAX`;
+    return [
+      { account: 'atomicmarket', name: 'announcesale', authorization: [{ actor: wallet, permission: 'active' }],
+        data: { seller: wallet, asset_ids: chunk, listing_price: listingPrice, settlement_symbol: '8,WAX', maker_marketplace: MAKER } },
+      { account: 'atomicassets', name: 'createoffer', authorization: [{ actor: wallet, permission: 'active' }],
+        data: { sender: wallet, recipient: 'atomicmarket', sender_asset_ids: chunk, recipient_asset_ids: [], memo: 'sale' } },
+    ];
+  }, (chunk) => {
+    // Matches how fetchListings() itself represents a bundle sale — every
+    // member asset keyed to the same (whole-bundle) price_wax and sibling
+    // list, since that's the one price atomicmarket actually stores per
+    // sale_id (see the Edit Listing modal's isBundle handling).
+    const bundleAssetIds = chunk.length > 1 ? chunk.slice() : null;
+    for (const assetId of chunk) {
+      _selected.delete(assetId);
+      _listings.set(assetId, { sale_id: null, price_wax: priceWax, bundleAssetIds });
+      patchCard(assetId);
+      clearBulkCardSelectedVisual(assetId);
+    }
+    renderBulkActionModal();
+  });
+
+  if (listed) setBulkProgress(`Bundle of ${listed} items listed for ${priceWax.toFixed(2)} WAX!`, 'success');
 }
 
 async function bulkCancel() {
