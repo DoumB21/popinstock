@@ -498,6 +498,20 @@ body::before {
   opacity: 0.7;
 }
 
+/* ── Resource-error status link (shared/tx-error.js) ──
+   The RAM/CPU/NET call-to-action appended to an is-error status box's text
+   — inherits that box's color so it doesn't need its own error/warning
+   palette, just needs to read as clickable. */
+.tx-err-link {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  margin-left: 0.35em;
+}
+.tx-err-link:hover { opacity: 0.8; }
+
 
 /* ── Hero (section hub pages) ── */
 .hero {

@@ -19,6 +19,7 @@
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/gift-crypto.js">\x3c/script>' +
       '<script src="' + _p + 'shared/qrcode.js">\x3c/script>'
@@ -3984,11 +3985,11 @@ async function _renderOfferPhase2(asset, offer) {
   document.getElementById('acceptModalAccept').addEventListener('click', handleAcceptOffer);
 }
 
-function showAcceptMsg(text, type) {
+function showAcceptMsg(text, type, html = false) {
   const el = document.getElementById('acceptModalMsg');
   if (!el) return;
   el.className = `modal-msg modal-msg--${type}`;
-  el.textContent = text;
+  if (html) el.innerHTML = text; else el.textContent = text;
   el.style.display = 'block';
 }
 
@@ -4081,10 +4082,14 @@ async function handleAcceptOffer() {
     fetchListings(wallet);
   } catch (err) {
     console.error('Accept offer failed:', err);
-    const msg  = (err?.message || '').toLowerCase();
-    const text = (msg.includes('cancel') || msg.includes('user') || msg.includes('abort'))
-      ? 'Transaction cancelled.' : (err.message || 'Transaction failed.');
-    showAcceptMsg(text, 'error');
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      showAcceptMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      showAcceptMsg(txErrorHtml(info, '', _p), 'error', true);
+    } else {
+      showAcceptMsg(err.message || 'Transaction failed.', 'error');
+    }
     _acceptBusy = false;
     if (acceptBtn) { acceptBtn.disabled = false; acceptBtn.textContent = 'Accept Offer'; }
     if (cancelBtn) cancelBtn.disabled = false;
@@ -4320,11 +4325,11 @@ function updateModalFees(royaltyPct) {
   detailsEl.style.display = '';
 }
 
-function showModalMsg(text, type) {
+function showModalMsg(text, type, html = false) {
   const el = document.getElementById('modalMsg');
   if (!el) return;
   el.className = `modal-msg modal-msg--${type}`;
-  el.textContent = text;
+  if (html) el.innerHTML = text; else el.textContent = text;
   el.style.display = '';
 }
 
@@ -4371,12 +4376,16 @@ async function handleCancelListing() {
   } catch (err) {
     console.error('Cancel listing failed:', err);
     const msg  = (err?.message || '').toLowerCase();
-    const text = msg.includes('no sale with this sale_id')
-      ? 'This listing is already cancelled. Your inventory may take up to 30 seconds to reflect recent changes.'
-      : msg.includes('cancel') || msg.includes('user') || msg.includes('abort')
-        ? 'Transaction cancelled.'
-        : err.message || 'Transaction failed.';
-    showModalMsg(text, 'error');
+    const info = describeTxError(err);
+    if (msg.includes('no sale with this sale_id')) {
+      showModalMsg('This listing is already cancelled. Your inventory may take up to 30 seconds to reflect recent changes.', 'error');
+    } else if (info.kind === 'cancelled') {
+      showModalMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      showModalMsg(txErrorHtml(info, '', _p), 'error', true);
+    } else {
+      showModalMsg(err.message || 'Transaction failed.', 'error');
+    }
     _listBusy = false;
     if (msg.includes('no sale with this sale_id')) {
       if (listBtn) listBtn.style.display = 'none';
@@ -4490,14 +4499,18 @@ async function handleList() {
   } catch (err) {
     console.error('Transaction failed:', err);
     const msg  = (err?.message || '').toLowerCase();
-    const text = msg.includes('already announced a sale')
-      ? 'This asset is already listed for sale. Your inventory may take up to 30 seconds to reflect recent changes.'
-      : msg.includes('no sale with this sale_id')
-        ? 'This listing is already cancelled. Your inventory may take up to 30 seconds to reflect recent changes.'
-        : msg.includes('cancel') || msg.includes('abort')
-          ? 'Transaction cancelled.'
-          : err?.message || 'Transaction failed.';
-    showModalMsg(text, 'error');
+    const info = describeTxError(err);
+    if (msg.includes('already announced a sale')) {
+      showModalMsg('This asset is already listed for sale. Your inventory may take up to 30 seconds to reflect recent changes.', 'error');
+    } else if (msg.includes('no sale with this sale_id')) {
+      showModalMsg('This listing is already cancelled. Your inventory may take up to 30 seconds to reflect recent changes.', 'error');
+    } else if (info.kind === 'cancelled') {
+      showModalMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      showModalMsg(txErrorHtml(info, '', _p), 'error', true);
+    } else {
+      showModalMsg(err?.message || 'Transaction failed.', 'error');
+    }
     _listBusy = false;
     if (msg.includes('already announced a sale') || msg.includes('no sale with this sale_id')) {
       if (listBtn) listBtn.style.display = 'none';
@@ -5613,12 +5626,12 @@ function updateBulkActionBtn() {
   }
 }
 
-function setBulkProgress(msg, type) {
+function setBulkProgress(msg, type, html = false) {
   const el = document.getElementById('bulkProgress');
   if (!el) return;
   if (type === 'success' || type === 'error') {
     el.className = `modal-msg modal-msg--${type} bl-progress-msg`;
-    el.innerHTML = `<span class="bl-progress-msg-text">${escHtml(msg || '')}</span><button type="button" class="bl-progress-msg-close">Close</button>`;
+    el.innerHTML = `<span class="bl-progress-msg-text">${html ? (msg || '') : escHtml(msg || '')}</span><button type="button" class="bl-progress-msg-close">Close</button>`;
     el.querySelector('.bl-progress-msg-close').addEventListener('click', closeBulkActionModal);
   } else {
     el.textContent = msg || '';
@@ -5662,9 +5675,14 @@ async function runBulkAction(items, batchSize, buildActions, onChunkSuccess) {
     } catch (err) {
       _busy = false;
       updateBulkActionBtn();
-      const msg  = (err?.message || '').toLowerCase();
-      const text = msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`;
-      setBulkProgress(text, 'error');
+      const info = describeTxError(err);
+      if (info.kind === 'cancelled') {
+        setBulkProgress('Transaction cancelled.', 'error');
+      } else if (info.kind !== 'generic') {
+        setBulkProgress(txErrorHtml(info, '', _p), 'error', true);
+      } else {
+        setBulkProgress(`Error: ${err?.message || 'Unknown error'}`, 'error');
+      }
       return done;
     }
   }
@@ -5953,9 +5971,14 @@ async function bulkGift() {
   } catch (err) {
     _busy = false;
     updateBulkActionBtn();
-    const msg  = (err?.message || '').toLowerCase();
-    const text = msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`;
-    setBulkProgress(text, 'error');
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      setBulkProgress('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      setBulkProgress(txErrorHtml(info, '', _p), 'error', true);
+    } else {
+      setBulkProgress(`Error: ${err?.message || 'Unknown error'}`, 'error');
+    }
     return;
   }
 

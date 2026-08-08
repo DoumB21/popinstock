@@ -16,6 +16,7 @@
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>'
@@ -590,16 +591,17 @@ async function buySale(btn, sale) {
     document.getElementById('saleStatus').innerHTML = '<span class="sale-status sale-status--sold">Sold</span>';
     document.getElementById('salePriceLabel').textContent = 'Sold For';
   } catch (e) {
-    const msg       = String(e?.message || e).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    const info = describeTxError(e);
     btn.disabled = false;
-    if (cancelled) {
+    if (info.kind === 'cancelled') {
       btn.textContent = 'Buy';
       btn.className   = 'sale-buy-btn';
-    } else {
+    } else if (info.kind === 'generic') {
       btn.textContent = 'Failed — retry';
       btn.className   = 'sale-buy-btn sale-buy-btn--error';
       setTimeout(() => { btn.textContent = 'Buy'; btn.className = 'sale-buy-btn'; }, 3000);
+    } else {
+      applyResourceErrorToBuyBtn(btn, info, 'sale-buy-btn sale-buy-btn--error', _p);
     }
   }
 }

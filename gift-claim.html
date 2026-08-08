@@ -92,6 +92,7 @@
   <script src="shared/supabase-config.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
+  <script src="shared/tx-error.js"></script>
   <script src="shared/gift-crypto.js"></script>
 </head>
 <body>
@@ -284,10 +285,10 @@ async function loadLink() {
   }
 }
 
-function setMsg(msg, type) {
+function setMsg(msg, type, html = false) {
   const el = document.getElementById('claimMsg');
   if (!el) return;
-  el.textContent = msg || '';
+  if (html) el.innerHTML = msg || ''; else el.textContent = msg || '';
   el.className = 'claim-msg' + (type ? ` is-${type}` : '');
 }
 
@@ -331,8 +332,14 @@ async function handleClaim() {
       <a class="empty-cta" href="inventory">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
   } catch (err) {
     btn.disabled = false;
-    const msg = (err?.message || '').toLowerCase();
-    setMsg(msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`, 'error');
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      setMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      setMsg(txErrorHtml(info, '', ''), 'error', true);
+    } else {
+      setMsg(`Error: ${err?.message || 'Unknown error'}`, 'error');
+    }
   }
 }
 

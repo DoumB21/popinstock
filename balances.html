@@ -71,6 +71,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
 </head>
 <body>
 
@@ -256,14 +257,15 @@ async function claimOne(btn) {
       claimAllWrap.innerHTML = '';
     }
   } catch (err) {
-    const msg = String(err?.message || err).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
+    const info = describeTxError(err);
     btn.disabled = false;
-    if (cancelled) {
+    if (info.kind === 'cancelled') {
       btn.textContent = 'Claim';
-    } else {
+    } else if (info.kind === 'generic') {
       btn.textContent = 'Failed — retry';
       btn.classList.add('is-error');
+    } else {
+      applyResourceErrorToBuyBtn(btn, info, 'claim-btn is-error', '');
     }
   }
 }
@@ -287,9 +289,14 @@ async function claimAll(btn) {
     body.innerHTML = '<div class="bal-empty">Nothing to claim right now.</div>';
     btn.parentElement.innerHTML = '';
   } catch (err) {
-    btn.disabled = false;
-    btn.textContent = 'Claim all';
     rows.forEach(r => { const b = r.querySelector('.claim-btn'); if (b) b.disabled = false; });
+    btn.disabled = false;
+    const info = describeTxError(err);
+    if (info.kind === 'generic' || info.kind === 'cancelled') {
+      btn.textContent = 'Claim all';
+    } else {
+      applyResourceErrorToBuyBtn(btn, info, 'claim-all-btn is-error', '');
+    }
   }
 }
 

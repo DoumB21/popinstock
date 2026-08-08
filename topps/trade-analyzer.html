@@ -394,6 +394,7 @@
   </div>
 
   <script src="nav.js"></script>
+  <script src="../shared/tx-error.js"></script>
   <script>
     'use strict';
 
@@ -1292,8 +1293,16 @@
         setTimeout(() => { btn.classList.remove('trade-action-btn--sent'); clearTrade(); btn.textContent = 'Send Trade Offer'; }, 2200);
       } catch (e) {
         console.error('Trade offer failed:', e);
-        btn.textContent = 'Failed — try again';
-        setTimeout(() => { btn.textContent = 'Send Trade Offer'; updateOfferBtn(); }, 2500);
+        const info = describeTxError(e);
+        if (info.kind === 'cancelled') {
+          btn.textContent = 'Send Trade Offer';
+          updateOfferBtn();
+        } else if (info.kind === 'generic') {
+          btn.textContent = 'Failed — try again';
+          setTimeout(() => { btn.textContent = 'Send Trade Offer'; updateOfferBtn(); }, 2500);
+        } else {
+          applyResourceErrorToBuyBtn(btn, info, btn.className, '../');
+        }
       }
     }
 

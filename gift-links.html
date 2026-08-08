@@ -136,6 +136,7 @@
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
   <script src="shared/gift-crypto.js"></script>
 </head>
 <body>
@@ -371,7 +372,11 @@ async function handleLinkAction(btn) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) return;
   const progressEl = document.getElementById(`linkProgress-${linkId}`);
-  const setMsg = (msg, type) => { if (progressEl) { progressEl.textContent = msg; progressEl.className = 'bl-progress' + (type ? ` is-${type}` : ''); } };
+  const setMsg = (msg, type, html = false) => {
+    if (!progressEl) return;
+    if (html) progressEl.innerHTML = msg; else progressEl.textContent = msg;
+    progressEl.className = 'bl-progress' + (type ? ` is-${type}` : '');
+  };
 
   const item = btn.closest('.offer-item');
   item.querySelectorAll('.offer-btn').forEach(b => b.disabled = true);
@@ -399,8 +404,14 @@ async function handleLinkAction(btn) {
     }
   } catch (err) {
     item.querySelectorAll('.offer-btn').forEach(b => b.disabled = false);
-    const msg = (err?.message || '').toLowerCase();
-    setMsg(msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.' : `Error: ${err?.message || 'Unknown error'}`, 'error');
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      setMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      setMsg(txErrorHtml(info, '', ''), 'error', true);
+    } else {
+      setMsg(`Error: ${err?.message || 'Unknown error'}`, 'error');
+    }
   }
 }
 const GIFT_MEMO_FALLBACK = 'A fellow collector sent you a gift.';

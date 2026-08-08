@@ -290,6 +290,7 @@
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
 </head>
 <body>
 
@@ -1107,8 +1108,18 @@ async function handleOfferAction(offerId, action, itemEl) {
   } catch (err) {
     console.error(`${action} offer failed:`, err);
     [acceptBtn, declineBtn, cancelBtn].forEach(b => { if (b) b.disabled = false; });
-    activeBtn.textContent = 'Failed — try again';
-    setTimeout(() => { activeBtn.textContent = OFFER_LABEL[action]; }, 2500);
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      activeBtn.textContent = OFFER_LABEL[action];
+    } else if (info.kind === 'generic') {
+      activeBtn.textContent = 'Failed — try again';
+      setTimeout(() => { activeBtn.textContent = OFFER_LABEL[action]; }, 2500);
+    } else {
+      // Only accepting an offer actually receives new assets (the usual RAM
+      // trigger), but NET/CPU exhaustion can fail any transact — worth
+      // pointing the fix out regardless of which button was pressed.
+      applyResourceErrorToBuyBtn(activeBtn, info, activeBtn.className, '');
+    }
   }
 }
 

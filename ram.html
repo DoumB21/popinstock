@@ -107,6 +107,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
 </head>
 <body>
 
@@ -447,10 +448,11 @@ async function buyRam() {
     _wallet.refreshBalance();
     reloadRamStateAfterAction(wallet, prevQuota, prevLiquidWax);
   } catch (err) {
-    const msg = String(err?.message || err).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
-    if (!cancelled) {
-      status.textContent = 'Purchase failed — please try again.';
+    const info = describeTxError(err);
+    if (info.kind !== 'cancelled') {
+      status.innerHTML = info.kind === 'net' || info.kind === 'cpu'
+        ? txErrorHtml(info, '', '')
+        : 'Purchase failed — please try again.';
       status.className = 'ram-status is-error';
       status.style.display = 'block';
     }
@@ -529,10 +531,11 @@ async function sellRam() {
     _wallet.refreshBalance();
     reloadRamStateAfterAction(wallet, prevQuota, prevLiquidWax);
   } catch (err) {
-    const msg = String(err?.message || err).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
-    if (!cancelled) {
-      status.textContent = 'Sale failed — please try again.';
+    const info = describeTxError(err);
+    if (info.kind !== 'cancelled') {
+      status.innerHTML = info.kind === 'net' || info.kind === 'cpu'
+        ? txErrorHtml(info, '', '')
+        : 'Sale failed — please try again.';
       status.className = 'ram-status is-error';
       status.style.display = 'block';
     }

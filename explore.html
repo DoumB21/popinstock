@@ -641,6 +641,7 @@
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
   <script src="shared/asset-popup.js"></script>
   <script src="shared/ad-slot.js"></script>
 </head>
@@ -3573,10 +3574,10 @@ function updateActionBtn() {
   btn.textContent = n ? `Buy ${n} item${n !== 1 ? 's' : ''}` : 'Buy items';
 }
 
-function setProgress(msg, type = '') {
+function setProgress(msg, type = '', html = false) {
   const el = document.getElementById('blProgress');
   if (!el) return;
-  el.textContent = msg;
+  if (html) el.innerHTML = msg; else el.textContent = msg;
   el.className   = 'bl-progress' + (type ? ` is-${type}` : '');
 }
 
@@ -3629,11 +3630,16 @@ async function runBulkAction(items, batchSize, buildActions, onChunkSuccess) {
       _buyBusy = false;
       updateActionBtn();
       const msg  = (err?.message || '').toLowerCase();
-      const text = msg.includes('cancelled the atomicassets offer') || msg.includes('to assert differs from')
-        ? 'One of these listings sold or changed right before your batch went through — nothing in this batch was purchased. Try again.'
-        : msg.includes('cancel') || msg.includes('abort') ? 'Transaction cancelled.'
-        : `Error: ${err?.message || 'Unknown error'}`;
-      setProgress(text, 'error');
+      const info = describeTxError(err);
+      if (msg.includes('cancelled the atomicassets offer') || msg.includes('to assert differs from')) {
+        setProgress('One of these listings sold or changed right before your batch went through — nothing in this batch was purchased. Try again.', 'error');
+      } else if (info.kind === 'cancelled') {
+        setProgress('Transaction cancelled.', 'error');
+      } else if (info.kind !== 'generic') {
+        setProgress(txErrorHtml(info, '', ''), 'error', true);
+      } else {
+        setProgress(`Error: ${err?.message || 'Unknown error'}`, 'error');
+      }
       return done;
     }
   }
@@ -3796,19 +3802,20 @@ async function buyListing(btn, saleId) {
     // A bought item can't stay purchasable in the cart too.
     if (_selected.has(saleId)) removeFromSelection(saleId);
   } catch (e) {
-    const msg       = String(e?.message || e).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
-    btn.disabled    = false;
-    if (cancelled) {
+    const info   = describeTxError(e);
+    btn.disabled = false;
+    if (info.kind === 'cancelled') {
       btn.textContent = 'Buy';
       btn.className   = 'ex-buy-btn';
-    } else {
+    } else if (info.kind === 'generic') {
       btn.textContent = 'Failed — retry';
       btn.className   = 'ex-buy-btn ex-buy-btn--error';
       setTimeout(() => {
         btn.textContent = 'Buy';
         btn.className   = 'ex-buy-btn';
       }, 3000);
+    } else {
+      applyResourceErrorToBuyBtn(btn, info, 'ex-buy-btn ex-buy-btn--error', '');
     }
   }
 }
@@ -4049,11 +4056,11 @@ function updateEditReceipt(priceStr, totalFeePct) {
   if (usdEl) usdEl.textContent = _waxUsd ? `≈ $${(net * _waxUsd).toFixed(2)}` : '';
 }
 
-function showEditModalMsg(text, type) {
+function showEditModalMsg(text, type, html = false) {
   const el = document.getElementById('editModalMsg');
   if (!el) return;
   el.className = `modal-msg modal-msg--${type}`;
-  el.textContent = text;
+  if (html) el.innerHTML = text; else el.textContent = text;
   el.style.display = '';
 }
 
@@ -4092,12 +4099,16 @@ async function handleCancelListingExplore() {
     markCardEdited(sale.sale_id, '✓ Cancelled');
   } catch (err) {
     const msg  = (err?.message || '').toLowerCase();
-    const text = msg.includes('no sale with this sale_id')
-      ? 'This listing is already cancelled or sold.'
-      : msg.includes('cancel') || msg.includes('user') || msg.includes('abort')
-        ? 'Transaction cancelled.'
-        : err.message || 'Transaction failed.';
-    showEditModalMsg(text, 'error');
+    const info = describeTxError(err);
+    if (msg.includes('no sale with this sale_id')) {
+      showEditModalMsg('This listing is already cancelled or sold.', 'error');
+    } else if (info.kind === 'cancelled') {
+      showEditModalMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      showEditModalMsg(txErrorHtml(info, '', ''), 'error', true);
+    } else {
+      showEditModalMsg(err.message || 'Transaction failed.', 'error');
+    }
     _editBusy = false;
     if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel listing'; }
     if (updateBtn) updateBtn.disabled = false;
@@ -4141,11 +4152,14 @@ async function handleUpdateListingExplore() {
     closeEditModal();
     markCardEdited(sale.sale_id, '✓ Updated');
   } catch (err) {
-    const msg  = (err?.message || '').toLowerCase();
-    const text = msg.includes('cancel') || msg.includes('user') || msg.includes('abort')
-      ? 'Transaction cancelled.'
-      : err.message || 'Transaction failed.';
-    showEditModalMsg(text, 'error');
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      showEditModalMsg('Transaction cancelled.', 'error');
+    } else if (info.kind !== 'generic') {
+      showEditModalMsg(txErrorHtml(info, '', ''), 'error', true);
+    } else {
+      showEditModalMsg(err.message || 'Transaction failed.', 'error');
+    }
     _editBusy = false;
     if (cancelBtn) cancelBtn.disabled = false;
     if (updateBtn) { updateBtn.disabled = false; updateBtn.textContent = 'Update listing'; }

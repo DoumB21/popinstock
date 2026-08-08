@@ -80,6 +80,7 @@
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
 </head>
 <body>
 
@@ -458,10 +459,9 @@ async function sendTransfer() {
     if (token.contract === 'eosio.token' && token.symbol === 'WAX') _wallet.refreshBalance();
     refreshLiveBalance();
   } catch (err) {
-    const msg = String(err?.message || err).toLowerCase();
-    const cancelled = msg.includes('cancel') || msg.includes('abort') || msg.includes('user');
-    if (!cancelled) {
-      status.textContent = 'Transfer failed — please try again.';
+    const info = describeTxError(err);
+    if (info.kind !== 'cancelled') {
+      status.innerHTML = txErrorHtml(info, 'Transfer failed — please try again.', '');
       status.className = 'xfer-status is-error';
       status.style.display = 'block';
     }
