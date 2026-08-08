@@ -201,7 +201,22 @@ const privKey = location.hash.replace(/^#/, '');
 
 let _link = null; // { creator, memo, asset_ids }
 
-function showEmpty(icon, variant, title, hint) {
+// Shared by loadLink() (claimable state) and showEmpty() (resolved state, see
+// showResolvedState) so the "here's what was in it" strip looks identical either way.
+function stripItemHtml(a) {
+  const name  = a?.name || 'Unknown';
+  const mint  = a?.template_mint ? `#${a.template_mint}` : '';
+  const thumb = a ? assetMediaHtml(a) : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);">?</div>';
+  return `<div class="bulk-strip-item">
+    <div class="bulk-strip-thumb">${thumb}</div>
+    <div class="bulk-strip-name" title="${escHtml(name)}">${escHtml(name)}</div>
+    ${mint ? `<div class="bulk-strip-name">${mint}</div>` : ''}
+  </div>`;
+}
+
+// `assets`, when passed, renders the same bulk-strip as the claimable state above
+// the message — lets a too-late visitor still see what the gift contained.
+function showEmpty(icon, variant, title, hint, assets) {
   document.getElementById('loadWrap').style.display = 'none';
   document.getElementById('claimCard').style.display = 'none';
   const el = document.getElementById('emptyWrap');
@@ -209,8 +224,10 @@ function showEmpty(icon, variant, title, hint) {
     <div class="empty-icon is-${variant}">${icon}</div>
     <div class="empty-title">${escHtml(title)}</div>
     ${hint ? `<div class="empty-hint">${hint}</div>` : ''}
+    ${assets?.length ? `<div class="bulk-strip" style="margin-top:1.25rem;">${assets.map(stripItemHtml).join('')}</div>` : ''}
     <a class="empty-cta" href="inventory">🎁 Keep the gifting going!<br>Create a gift link and surprise another collector.</a>`;
   el.style.display = '';
+  if (assets?.length) initLazyVideos();
 }
 
 const TOOLS_API = 'https://wax.api.atomicassets.io/atomictools/v1';
@@ -221,11 +238,11 @@ async function showResolvedState() {
     const body = await res.json();
     const link = body?.success ? body.data : null;
     if (link?.state === 3) {
-      showEmpty('⚡', 'claimed', `Already claimed by ${link.claimer}!`, 'You were just a little too late.');
+      showEmpty('⚡', 'claimed', `Already claimed by ${link.claimer}!`, 'You were just a little too late.', link.assets);
       return;
     }
     if (link?.state === 2) {
-      showEmpty('🚫', 'cancelled', 'This gift link has been cancelled', 'Looks like the sender changed their mind.');
+      showEmpty('🚫', 'cancelled', 'This gift link has been cancelled', 'Looks like the sender changed their mind.', link.assets);
       return;
     }
   } catch (err) { /* fall through to generic message */ }
@@ -255,17 +272,7 @@ async function loadLink() {
     const assets = await WaxApi.apiFetch(`${WaxApi.aaBase()}/assets?ids=${_link.asset_ids.join(',')}&limit=${_link.asset_ids.length}`);
     const assetsById = new Map(assets.map(a => [String(a.asset_id), a]));
 
-    const stripHtml = _link.asset_ids.map(id => {
-      const a = assetsById.get(String(id));
-      const name = a?.name || 'Unknown';
-      const mint = a?.template_mint ? `#${a.template_mint}` : '';
-      const thumb = a ? assetMediaHtml(a) : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);">?</div>';
-      return `<div class="bulk-strip-item">
-        <div class="bulk-strip-thumb">${thumb}</div>
-        <div class="bulk-strip-name" title="${escHtml(name)}">${escHtml(name)}</div>
-        ${mint ? `<div class="bulk-strip-name">${mint}</div>` : ''}
-      </div>`;
-    }).join('');
+    const stripHtml = _link.asset_ids.map(id => stripItemHtml(assetsById.get(String(id)))).join('');
 
     document.getElementById('loadWrap').style.display = 'none';
     document.getElementById('emptyWrap').style.display = 'none';
