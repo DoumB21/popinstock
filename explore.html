@@ -4280,7 +4280,9 @@ async function restoreFromUrl() {
   if (_maxMint) document.getElementById('maxMint').value = _maxMint;
   if (_nameFilter) document.getElementById('nameSearch').value = _nameFilter;
 
-  if (colName === 'allfunko') {
+  // '__funko__' was the old value (col=allfunko replaced it 2026-08-07) —
+  // kept working indefinitely since it's already out on social links.
+  if (colName === 'allfunko' || colName === '__funko__') {
     _drop = p.get('drop') || '';
     try {
       await selectFunkoCatalog({ restoring: true });
