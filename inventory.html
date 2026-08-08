@@ -737,7 +737,7 @@
         <div class="buyoffer-banner-icon">💎</div>
         <div>
           <div class="buyoffer-banner-label">Premium Feature</div>
-          <div class="buyoffer-banner-desc">Fetch active buy offers across all collections in your wallet. Each card will display its best offer price and unlock the <strong>Buy Offer (Highest)</strong> sort option.</div>
+          <div class="buyoffer-banner-desc">Fetch active buy offers across all collections in your wallet. Each card will display its best offer price and unlock the <strong>Buy Offer</strong> sort option.</div>
           <div class="buyoffer-banner-sub" id="buyofferBannerSub">Connect your wallet to use this feature.</div>
         </div>
       </div>
@@ -753,7 +753,7 @@
         <div class="buyoffer-banner-icon">💰</div>
         <div>
           <div class="buyoffer-banner-label">Premium Feature</div>
-          <div class="buyoffer-banner-desc">Fetch the lowest active listing across all collections in your wallet. Each card will display its floor price and unlock the <strong>Floor Price (Highest)</strong> sort option.</div>
+          <div class="buyoffer-banner-desc">Fetch the lowest active listing across all collections in your wallet. Each card will display its floor price and unlock the <strong>Floor Price</strong> sort option.</div>
           <div class="buyoffer-banner-sub" id="floorpriceBannerSub">Connect your wallet to use this feature.</div>
         </div>
       </div>
@@ -769,7 +769,7 @@
         <div class="buyoffer-banner-icon">🧾</div>
         <div>
           <div class="buyoffer-banner-label">Premium Feature</div>
-          <div class="buyoffer-banner-desc">Fetch each template's most recent sale price across all collections in your wallet. Only sales from the <strong>last 6 months</strong> are checked, so templates that haven't sold recently won't get a match. Each card will display its last sold price and unlock the <strong>Last Sold (Highest)</strong> sort option.</div>
+          <div class="buyoffer-banner-desc">Fetch each template's most recent sale price across all collections in your wallet. Only sales from the <strong>last 6 months</strong> are checked, so templates that haven't sold recently won't get a match. Each card will display its last sold price and unlock the <strong>Last Sold</strong> sort option.</div>
           <div class="buyoffer-banner-sub" id="lastsoldBannerSub">Connect your wallet to use this feature.</div>
         </div>
       </div>
@@ -809,9 +809,9 @@
       </div>
     </div>
     <div class="unlock-links-row">
-      <div class="buyoffer-unlock-link" id="buyofferUnlockLink" onclick="toggleBuyOfferBanner(true)">🔒 <strong>Buy Offer (Highest)</strong> →</div>
-      <div class="buyoffer-unlock-link" id="floorpriceUnlockLink" onclick="toggleFloorPriceBanner(true)">🔒 <strong>Floor Price (Highest)</strong> →</div>
-      <div class="buyoffer-unlock-link" id="lastsoldUnlockLink" onclick="toggleLastSoldBanner(true)">🔒 <strong>Last Sold (Highest)</strong> →</div>
+      <div class="buyoffer-unlock-link" id="buyofferUnlockLink" onclick="toggleBuyOfferBanner(true)" title="Unlock Buy Offer sort filter">🔒 <strong>Buy Offer</strong> →</div>
+      <div class="buyoffer-unlock-link" id="floorpriceUnlockLink" onclick="toggleFloorPriceBanner(true)" title="Unlock Floor Price sort filter">🔒 <strong>Floor Price</strong> →</div>
+      <div class="buyoffer-unlock-link" id="lastsoldUnlockLink" onclick="toggleLastSoldBanner(true)" title="Unlock Last Sold sort filter">🔒 <strong>Last Sold</strong> →</div>
     </div>
     <div class="controls-row filter-row">
       <div class="control-group" id="schemaGroup">
@@ -983,9 +983,13 @@ const SORT_OPTIONS = [
   { value: 'mint_desc',        label: 'Mint (Highest)',        sort: 'template_mint', order: 'desc' },
   { value: 'mint_asc',         label: 'Mint (Lowest)',         sort: 'template_mint', order: 'asc'  },
   { value: 'name_asc',         label: 'Alphabetical (A-Z)',    sort: 'name',          order: 'asc'  },
-  { value: 'buyoffer_desc',    label: 'Buy Offer (Highest)',  sort: 'transferred',   order: 'desc' },
-  { value: 'floorprice_desc',  label: 'Floor Price (Highest)', sort: 'transferred', order: 'desc' },
-  { value: 'lastsold_desc',   label: 'Last Sold (Highest)',   sort: 'transferred', order: 'desc' },
+  { value: 'name_desc',        label: 'Alphabetical (Z-A)',    sort: 'name',          order: 'desc' },
+  { value: 'buyoffer_desc',    label: 'Buy Offer (Highest)',   sort: 'transferred',   order: 'desc' },
+  { value: 'buyoffer_asc',     label: 'Buy Offer (Lowest)',    sort: 'transferred',   order: 'desc' },
+  { value: 'floorprice_desc',  label: 'Floor Price (Highest)', sort: 'transferred',   order: 'desc' },
+  { value: 'floorprice_asc',   label: 'Floor Price (Lowest)',  sort: 'transferred',   order: 'desc' },
+  { value: 'lastsold_desc',    label: 'Last Sold (Highest)',   sort: 'transferred',   order: 'desc' },
+  { value: 'lastsold_asc',     label: 'Last Sold (Lowest)',    sort: 'transferred',   order: 'desc' },
 ];
 
 const LISTINGS_FILTER_OPTIONS = [
@@ -1040,19 +1044,22 @@ let _floorCache      = {};          // templateId → { price, loaded }
 let _buyOffers             = {};         // templateId → highest WAX offer price
 let _buyOffersFetched      = false;
 let _buyOffersBusy         = false;
-let _buyOfferSortedTids    = [];         // template IDs sorted by price desc
+let _buyOfferSortedTids    = [];         // template IDs sorted by price, direction per _buyOfferSortDir
+let _buyOfferSortDir       = 'desc';     // direction of the current _buyOfferSortedTids / _buyOfferBuffer ordering
 let _buyOfferChunkIdx      = 0;          // next chunk index to fetch
 let _buyOfferBuffer        = [];         // all fetched offer-sorted assets
 let _floorOffers           = {};         // templateId → lowest active listing price (WAX)
 let _floorOffersFetched    = false;
 let _floorOffersBusy       = false;
-let _floorSortedTids       = [];         // template IDs sorted by floor price desc
+let _floorSortedTids       = [];         // template IDs sorted by floor price, direction per _floorSortDir
+let _floorSortDir          = 'desc';     // direction of the current _floorSortedTids / _floorBuffer ordering
 let _floorChunkIdx         = 0;          // next chunk index to fetch
 let _floorBuffer           = [];         // all fetched floor-sorted assets
 let _lastSold              = {};         // templateId → most recent sale price (WAX), within LASTSOLD_WINDOW_MS
 let _lastSoldFetched       = false;
 let _lastSoldBusy          = false;
-let _lastSoldSortedTids    = [];         // template IDs sorted by last-sold price desc
+let _lastSoldSortedTids    = [];         // template IDs sorted by last-sold price, direction per _lastSoldSortDir
+let _lastSoldSortDir       = 'desc';     // direction of the current _lastSoldSortedTids / _lastSoldBuffer ordering
 let _lastSoldChunkIdx      = 0;          // next chunk index to fetch
 let _lastSoldBuffer        = [];         // all fetched last-sold-sorted assets
 let _clientPage            = PAGE_SIZE;  // visible asset count in client-side sort mode
@@ -2654,7 +2661,7 @@ function renderGrid() {
   empty.style.display = 'none';
   grid.style.display  = '';
 
-  const isClientSorted = _sortOrder === 'buyoffer_desc' || _sortOrder === 'floorprice_desc' || _sortOrder === 'lastsold_desc';
+  const isClientSorted = _sortOrder.startsWith('buyoffer_') || _sortOrder.startsWith('floorprice_') || _sortOrder.startsWith('lastsold_');
   const display = isClientSorted ? list.slice(0, _clientPage) : list;
   grid.innerHTML = display.map(cardHtml).join('');
 
@@ -3163,7 +3170,7 @@ function updateFloorPriceBanner() {
   const n = _collections.size;
   if (_floorOffersFetched) {
     const count = Object.keys(_floorOffers).length;
-    sub.textContent = `We found ${count} templates with active listings across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Floor Price (Highest)".`;
+    sub.textContent = `We found ${count} templates with active listings across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Floor Price" (Highest or Lowest).`;
     btn.style.display = 'none';
   } else {
     btn.style.display = '';
@@ -3240,14 +3247,15 @@ async function fetchNextFloorPriceChunk() {
   _floorBuffer.sort((a, b) => {
     const pa = _floorOffers[String(a.template?.template_id)] ?? -1;
     const pb = _floorOffers[String(b.template?.template_id)] ?? -1;
-    return pb - pa;
+    return _floorSortDir === 'asc' ? pa - pb : pb - pa;
   });
   return true;
 }
 
-async function sortByFloorPrice() {
+async function sortByFloorPrice(direction = 'desc') {
+  _floorSortDir    = direction;
   _floorSortedTids = Object.entries(_floorOffers)
-    .sort(([, a], [, b]) => b - a)
+    .sort(([, a], [, b]) => direction === 'asc' ? a - b : b - a)
     .map(([tid]) => tid);
   if (!_floorSortedTids.length) return;
 
@@ -3374,7 +3382,7 @@ function updateBuyOfferBanner() {
   const n = _collections.size;
   if (_buyOffersFetched) {
     const count = Object.keys(_buyOffers).length;
-    sub.textContent = `We found ${count} templates with active buy offers across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Buy Offer (Highest)".`;
+    sub.textContent = `We found ${count} templates with active buy offers across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Buy Offer" (Highest or Lowest).`;
     btn.style.display = 'none';
   } else {
     btn.style.display = '';
@@ -3448,14 +3456,15 @@ async function fetchNextBuyOfferChunk() {
   _buyOfferBuffer.sort((a, b) => {
     const pa = _buyOffers[String(a.template?.template_id)]?.price ?? -1;
     const pb = _buyOffers[String(b.template?.template_id)]?.price ?? -1;
-    return pb - pa;
+    return _buyOfferSortDir === 'asc' ? pa - pb : pb - pa;
   });
   return true;
 }
 
-async function sortByBuyOffer() {
+async function sortByBuyOffer(direction = 'desc') {
+  _buyOfferSortDir    = direction;
   _buyOfferSortedTids = Object.entries(_buyOffers)
-    .sort(([, a], [, b]) => b.price - a.price)
+    .sort(([, a], [, b]) => direction === 'asc' ? a.price - b.price : b.price - a.price)
     .map(([tid]) => tid);
   if (!_buyOfferSortedTids.length) return;
 
@@ -3585,7 +3594,7 @@ function updateLastSoldBanner() {
   const n = _collections.size;
   if (_lastSoldFetched) {
     const count = Object.keys(_lastSold).length;
-    sub.textContent = `We found a sale within the last 6 months for ${count} template${count !== 1 ? 's' : ''} across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Last Sold (Highest)".`;
+    sub.textContent = `We found a sale within the last 6 months for ${count} template${count !== 1 ? 's' : ''} across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Last Sold" (Highest or Lowest).`;
     btn.style.display = 'none';
   } else {
     btn.style.display = '';
@@ -3663,14 +3672,15 @@ async function fetchNextLastSoldChunk() {
   _lastSoldBuffer.sort((a, b) => {
     const pa = _lastSold[String(a.template?.template_id)]?.price ?? -1;
     const pb = _lastSold[String(b.template?.template_id)]?.price ?? -1;
-    return pb - pa;
+    return _lastSoldSortDir === 'asc' ? pa - pb : pb - pa;
   });
   return true;
 }
 
-async function sortByLastSold() {
+async function sortByLastSold(direction = 'desc') {
+  _lastSoldSortDir    = direction;
   _lastSoldSortedTids = Object.entries(_lastSold)
-    .sort(([, a], [, b]) => b.price - a.price)
+    .sort(([, a], [, b]) => direction === 'asc' ? a.price - b.price : b.price - a.price)
     .map(([tid]) => tid);
   if (!_lastSoldSortedTids.length) return;
 
@@ -6186,19 +6196,19 @@ function renderSortDropdown() {
   const items = SORT_OPTIONS.map(o => ({
     value: o.value,
     label: o.label,
-    disabled: (o.value === 'buyoffer_desc' && !_buyOffersFetched) ||
-              (o.value === 'floorprice_desc' && !_floorOffersFetched) ||
-              (o.value === 'lastsold_desc' && !_lastSoldFetched),
+    disabled: (o.value.startsWith('buyoffer_') && !_buyOffersFetched) ||
+              (o.value.startsWith('floorprice_') && !_floorOffersFetched) ||
+              (o.value.startsWith('lastsold_') && !_lastSoldFetched),
   }));
   buildSingleCbDropdown('sortDropdown', items, _sortOrder, async val => {
     _sortOrder = val;
     renderSortDropdown();
-    if (_sortOrder === 'buyoffer_desc' && _buyOffersFetched) {
-      await sortByBuyOffer();
-    } else if (_sortOrder === 'floorprice_desc' && _floorOffersFetched) {
-      await sortByFloorPrice();
-    } else if (_sortOrder === 'lastsold_desc' && _lastSoldFetched) {
-      await sortByLastSold();
+    if (_sortOrder.startsWith('buyoffer_') && _buyOffersFetched) {
+      await sortByBuyOffer(_sortOrder === 'buyoffer_asc' ? 'asc' : 'desc');
+    } else if (_sortOrder.startsWith('floorprice_') && _floorOffersFetched) {
+      await sortByFloorPrice(_sortOrder === 'floorprice_asc' ? 'asc' : 'desc');
+    } else if (_sortOrder.startsWith('lastsold_') && _lastSoldFetched) {
+      await sortByLastSold(_sortOrder === 'lastsold_asc' ? 'asc' : 'desc');
     } else {
       loadAssets(true);
     }
@@ -6208,7 +6218,7 @@ renderSortDropdown();
 buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
 
 async function loadNextChunk() {
-  if (_sortOrder === 'buyoffer_desc') {
+  if (_sortOrder.startsWith('buyoffer_')) {
     const btn = document.getElementById('loadMoreBtn');
     const prev = _clientPage;
     _clientPage += PAGE_SIZE;
@@ -6232,7 +6242,7 @@ async function loadNextChunk() {
     }
     const hasMore = _buyOfferBuffer.length > _clientPage || _buyOfferChunkIdx * BUYOFFER_CHUNK < _buyOfferSortedTids.length;
     document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
-  } else if (_sortOrder === 'floorprice_desc') {
+  } else if (_sortOrder.startsWith('floorprice_')) {
     const btn = document.getElementById('loadMoreBtn');
     const prev = _clientPage;
     _clientPage += PAGE_SIZE;
@@ -6256,7 +6266,7 @@ async function loadNextChunk() {
     }
     const hasMore = _floorBuffer.length > _clientPage || _floorChunkIdx * FLOORPRICE_CHUNK < _floorSortedTids.length;
     document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
-  } else if (_sortOrder === 'lastsold_desc') {
+  } else if (_sortOrder.startsWith('lastsold_')) {
     const btn = document.getElementById('loadMoreBtn');
     const prev = _clientPage;
     _clientPage += PAGE_SIZE;
