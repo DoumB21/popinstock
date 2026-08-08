@@ -4201,7 +4201,7 @@ function cardDataFromEl(cardEl) {
 function pushUrl() {
   const p = new URLSearchParams();
   if (_col?.isCatalog) {
-    p.set('col', '__funko__');
+    p.set('col', 'allfunko');
     if (_drop) p.set('drop', _drop);
   } else if (_col) {
     p.set('col', _col.collection_name);
@@ -4280,7 +4280,7 @@ async function restoreFromUrl() {
   if (_maxMint) document.getElementById('maxMint').value = _maxMint;
   if (_nameFilter) document.getElementById('nameSearch').value = _nameFilter;
 
-  if (colName === '__funko__') {
+  if (colName === 'allfunko') {
     _drop = p.get('drop') || '';
     try {
       await selectFunkoCatalog({ restoring: true });
