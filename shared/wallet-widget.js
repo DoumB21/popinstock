@@ -319,9 +319,13 @@
     let _lastOffersAcc      = undefined; // avoid re-fetching the count on every re-render for the same account
     let _haveLiveOffersCount = false;    // true once a real (non-cached) fetch has painted this page load
 
+    // The icon itself (not just its badge) is hidden at n=0 — it took up a
+    // fixed slot in the nav for the ~99% of visits with nothing pending, so
+    // it now only appears when there's actually something to act on.
     function _paintOffersBadge(n) {
       offersBadge.textContent   = n > 99 ? '99+' : String(n);
       offersBadge.style.display = n > 0 ? '' : 'none';
+      offersBtn.style.display   = n > 0 ? '' : 'none';
     }
 
     function _paintCachedOffersCount(acc) {
@@ -414,7 +418,9 @@
         }
         _paintCachedBalance(acc);
         _refreshBalance(acc, false).catch(() => {});
-        offersBtn.style.display = '';
+        // Left as whatever it already was (hidden by default, see the
+        // initial markup above) until a count — cached or freshly fetched —
+        // comes in and _paintOffersBadge decides whether to show it.
         _paintCachedOffersCount(acc);
         _refreshOffersCount(acc, false).catch(() => {});
         if (!_balancePoll) {
