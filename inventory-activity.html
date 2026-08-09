@@ -259,6 +259,21 @@
       flex-shrink: 0; font-size: 0.68rem; font-weight: 700; color: var(--text-secondary);
       background: rgba(255,255,255,0.06); border-radius: 6px; padding: 0.15rem 0.45rem;
     }
+    /* A bundle mixing many different templates can run long — rows past
+       BUNDLE_COLLAPSE_THRESHOLD (see JS) stay hidden until "Show N more" is
+       clicked, which adds .is-expanded to .act-card-assets. */
+    .act-card-asset--extra { display: none; }
+    .act-card-assets.is-expanded .act-card-asset--extra { display: flex; }
+    .bundle-toggle-btn { align-self: flex-start; padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+
+    /* colCombo results — display name on top, raw collection_name slug
+       underneath (same two-line shape as explore.html's .col-sug-name/
+       .col-sug-slug) so a scam collection spoofing a real display name is
+       still distinguishable by its slug. */
+    .cb-item--col { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+    .cb-item-name { font-size: 0.83rem; color: var(--text-primary); }
+    .cb-item--col.active .cb-item-name { color: var(--accent-light); }
+    .cb-item-slug { font-size: 0.71rem; color: var(--text-secondary); }
 
     @media (max-width: 700px) {
       .page-main { padding: 1.25rem 0.75rem 3rem; }
@@ -579,9 +594,23 @@ function cbItemHtml(i, currentValue) {
   return `<div class="cb-item${i.value === currentValue ? ' active' : ''}${i.disabled ? ' disabled' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
 }
 
+// colCombo only (see renderCbItemsInto below) — a search across every
+// collection on chain surfaces plenty of scam/lookalike collections that
+// copy a real display name (e.g. a fake "Funko Digital Pop!"), so the row
+// also shows the raw collection_name slug underneath, same as explore.html's
+// suggestions, letting the real one be told apart from a copycat.
+function colItemHtml(i, currentValue) {
+  return `<div class="cb-item cb-item--col${i.value === currentValue ? ' active' : ''}" data-val="${escHtml(i.value)}">
+    <span class="cb-item-name">${escHtml(i.label)}</span>
+    <span class="cb-item-slug">${escHtml(i.value)}</span>
+  </div>`;
+}
+
+// colCombo's own item renderer — every call site is inside buildCbCombo
+// below (owned-list, filtered owned-list, live search results).
 function renderCbItemsInto(listEl, items, currentValue, onSelect) {
   listEl.innerHTML = items.length
-    ? items.map(i => cbItemHtml(i, currentValue)).join('')
+    ? items.map(i => colItemHtml(i, currentValue)).join('')
     : `<div class="cb-empty">No matches</div>`;
   listEl.querySelectorAll('.cb-item:not(.disabled)').forEach(item => {
     item.addEventListener('click', () => {
@@ -610,10 +639,18 @@ function syncCbComboDisplay(combo) {
   const input   = combo.querySelector('.cb-combo-input');
   const clear   = combo.querySelector('.cb-combo-clear');
   const allItem = combo._cbItems[0];
-  const active  = combo._cbItems.find(i => i.value === combo._cbCurrentValue) || allItem;
-  const hasSelection = active.value !== allItem.value;
+  const hasSelection = combo._cbCurrentValue !== allItem.value;
+  // colCombo's picks can come from a live search across every collection on
+  // chain (see buildCbCombo below), not just the ones in combo._cbItems (the
+  // wallet's owned collections) — fall back to the shared _collectionNames
+  // label cache, and finally the raw slug, so a filter for a collection the
+  // wallet doesn't hold still displays correctly instead of reverting to
+  // "All collections".
+  const found = combo._cbItems.find(i => i.value === combo._cbCurrentValue);
+  const label = found ? found.label
+    : (hasSelection ? (_collectionNames.get(combo._cbCurrentValue) || combo._cbCurrentValue) : allItem.label);
   input.placeholder = allItem.label;
-  input.value = hasSelection ? active.label : '';
+  input.value = hasSelection ? label : '';
   clear.style.display = hasSelection ? '' : 'none';
   combo.classList.toggle('has-selection', hasSelection);
 }
@@ -626,6 +663,28 @@ function closeAllCbCombos() {
   });
 }
 
+// Search-window/endpoint choice mirrors explore.html's collection typeahead
+// (see its COL_SEARCH_WINDOW_MS comment): atomicmarket's stats/collections
+// ?search= full-text-matches name AND slug across every registered
+// collection, not just ones the wallet currently holds — an `after=` window
+// keeps the underlying volume aggregation cheap instead of a multi-second
+// cold scan over all-time sales.
+const COL_SEARCH_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+let _colSearchGen = 0;
+async function searchAllCollections(q) {
+  const myGen = ++_colSearchGen;
+  try {
+    const after = Date.now() - COL_SEARCH_WINDOW_MS;
+    const data = await WaxApi.apiFetch(`${WaxApi.marketBase()}/stats/collections?symbol=WAX&search=${encodeURIComponent(q)}&sort=volume&order=desc&limit=15&after=${after}`);
+    if (myGen !== _colSearchGen) return null; // superseded by a newer keystroke
+    return (data?.results || []).map(r => ({ value: r.collection_name, label: r.name || r.collection_name }));
+  } catch { return null; }
+}
+
+// colCombo only — items is the wallet's owned collections (a fast local
+// "quick list" shown on focus/short queries); anything longer runs a live
+// search across every collection on chain, so activity tied to a collection
+// the wallet no longer holds any assets from can still be filtered to.
 function buildCbCombo(comboId, items, currentValue, onSelect) {
   const combo = document.getElementById(comboId);
   combo._cbItems        = items;
@@ -639,27 +698,51 @@ function buildCbCombo(comboId, items, currentValue, onSelect) {
   const clear = combo.querySelector('.cb-combo-clear');
   const panel = combo.querySelector('.cb-panel');
 
-  const renderList = filterText => {
-    const q = filterText.trim().toLowerCase();
-    const options = combo._cbItems.slice(1);
-    const filtered = q
-      ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
-      : options;
-    renderCbItemsInto(panel, filtered, combo._cbCurrentValue, val => {
-      combo._cbCurrentValue = val;
-      closeAllCbDropdowns();
-      combo._cbOnSelect(val);
-    });
+  const selectValue = (val, label) => {
+    combo._cbCurrentValue = val;
+    if (label) _collectionNames.set(val, label);
+    closeAllCbDropdowns();
+    combo._cbOnSelect(val);
+  };
+
+  const renderOwned = () => {
+    renderCbItemsInto(panel, combo._cbItems.slice(1), combo._cbCurrentValue, selectValue);
+  };
+  const renderOwnedFiltered = q => {
+    const ql = q.toLowerCase();
+    const filtered = combo._cbItems.slice(1).filter(i => i.label.toLowerCase().includes(ql) || i.value.toLowerCase().includes(ql));
+    renderCbItemsInto(panel, filtered, combo._cbCurrentValue, selectValue);
+  };
+
+  let _searchDebounce = null;
+  const renderSearch = q => {
+    clearTimeout(_searchDebounce);
+    _searchDebounce = setTimeout(async () => {
+      panel.innerHTML = `<div class="cb-empty">Searching…</div>`;
+      const results = await searchAllCollections(q);
+      if (results === null) return; // stale request — a newer one is already in flight or panel closed
+      renderCbItemsInto(panel, results, combo._cbCurrentValue, val => {
+        selectValue(val, results.find(r => r.value === val)?.label);
+      });
+    }, 300);
   };
 
   input.addEventListener('focus', () => {
     closeAllCbDropdowns();
     combo.classList.add('open');
     panel.classList.add('open');
-    renderList('');
+    renderOwned();
     input.select();
   });
-  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    // Below this length atomicmarket's search is a cheap-but-noisy near-match
+    // over everything — filtering the wallet's own (already-loaded) list
+    // instead keeps it instant and useful until there's enough to search on.
+    if (!q) renderOwned();
+    else if (q.length < 3) renderOwnedFiltered(q);
+    else renderSearch(q);
+  });
   input.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       e.stopPropagation();
@@ -708,8 +791,25 @@ function updateColFilter() {
       const nb = (_collectionNames.get(b) || b).toLowerCase();
       return na < nb ? -1 : na > nb ? 1 : 0;
     }).map(c => ({ value: c, label: _collectionNames.get(c) || c }))];
-  const cur = _colItemsCache.some(i => i.value === _filterCol) ? _filterCol : 'all';
-  buildCbCombo('colCombo', _colItemsCache, cur, onColFilterChange);
+  // Pass _filterCol through as-is (not coerced to 'all' when it's not in the
+  // owned list) — syncCbComboDisplay falls back to _collectionNames for the
+  // label, so a filter for a collection the wallet no longer holds still
+  // shows correctly instead of silently reverting to "All collections".
+  buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
+  if (_filterCol !== 'all' && !_collectionNames.has(_filterCol)) resolveCollectionLabel(_filterCol);
+}
+
+// Fills in a display name for a collection filter (e.g. from a ?col= deep
+// link, or restored from the URL) that isn't in the wallet's owned list, so
+// the combo shows "Funko Digital Pop!" instead of the raw slug once it
+// resolves.
+async function resolveCollectionLabel(name) {
+  try {
+    const data = await WaxApi.apiFetch(`${WaxApi.aaBase()}/collections/${encodeURIComponent(name)}`);
+    if (data?.name) _collectionNames.set(name, data.name);
+  } catch { return; }
+  const combo = document.getElementById('colCombo');
+  if (combo?._cbCurrentValue === name) syncCbComboDisplay(combo);
 }
 
 function onColFilterChange(val) {
@@ -938,10 +1038,9 @@ function assetFields(asset) {
   return { name, collName, mint, nameHtml, collHtml };
 }
 
-/* AtomicHub-style card — one per asset. Record-level fields (listing id,
-   date, seller/buyer) are shared by every asset in a bundle, so a
-   multi-asset sale repeats them across each asset's card, same as
-   AtomicHub does. transferCardHtml below follows the same shape. */
+/* AtomicHub-style card for a single-asset sale. saleBundleCardHtml below
+   handles the multi-asset (bundle) case — same shape as transferCardHtml /
+   transferBundleCardHtml. */
 function saleCardHtml(item, asset) {
   const precision = item.price?.token_precision ?? 8;
   const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
@@ -960,6 +1059,29 @@ function saleCardHtml(item, asset) {
         <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax, item.updated_at_time)}</span>
       </div>
       <div class="sc-fields sc-fields--meta">
+        <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
+        <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
+        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(item.seller)}</span>
+        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${walletLinkHtml(item.buyer)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* A bundle sale (several assets sold together under one Listing ID — same
+   sale_id repeated on every asset, real bundle listings, not a coincidence)
+   repeats the same listing id/price/date/seller/buyer across every asset.
+   Show that once instead of once per asset, same grouping/mint-range
+   treatment as transferBundleCardHtml. */
+function saleBundleCardHtml(item, assets) {
+  const precision = item.price?.token_precision ?? 8;
+  const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
+  return `<div class="act-card act-card--bundle">
+    <div class="act-card-assets">${bundleAssetsHtml(assets)}<a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a></div>
+    <div class="act-card-meta">
+      <span class="act-card-count">${assets.length} items</span>
+      <div class="sc-fields sc-fields--meta">
+        <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax, item.updated_at_time)}</span>
         <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
         <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(item.seller)}</span>
@@ -1054,6 +1176,34 @@ function mintRangesHtml(mints) {
   }).join(', ');
 }
 
+function bundleAssetRowHtml(group, extraClass) {
+  const { nameHtml, collHtml } = assetFields(group[0]);
+  const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
+  return `<div class="act-card-asset${extraClass}">
+    ${thumbWrapHtml(group[0])}
+    <div class="sc-fields sc-fields--wrap">
+      <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
+      <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
+      <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
+    </div>
+  </div>`;
+}
+
+// A bundle mixing several *different* templates (rather than many copies of
+// the same one, which groupAssetsByTemplate already collapses to one row)
+// can still run long — only the first few grouped rows show by default,
+// the rest get a .act-card-asset--extra class that CSS hides until the
+// "Show N more" toggle (delegated on #actList, see onActListClick) flips
+// .act-card-assets to .is-expanded.
+const BUNDLE_COLLAPSE_THRESHOLD = 3;
+function bundleAssetsHtml(assets) {
+  const groups = groupAssetsByTemplate(assets);
+  const rows = groups.map((g, i) => bundleAssetRowHtml(g, i >= BUNDLE_COLLAPSE_THRESHOLD ? ' act-card-asset--extra' : '')).join('');
+  const hidden = groups.length - BUNDLE_COLLAPSE_THRESHOLD;
+  if (hidden <= 0) return rows;
+  return rows + `<button type="button" class="show-more-btn bundle-toggle-btn" data-more="Show ${hidden} more" data-less="Show less">Show ${hidden} more</button>`;
+}
+
 /* A bundle transfer (one blockchain transaction moving several assets at
    once — real transfer_id, not a coincidence) repeats the same
    transfer_id/date/from/to across every asset. Show that once instead of
@@ -1063,21 +1213,9 @@ function transferBundleCardHtml(item, assets) {
     ? `<a class="act-card-txlink" href="https://waxblock.io/transaction/${item.txid}" target="_blank" rel="noopener">View transaction ↗</a>`
     : '';
   const memoHtml = item.memo ? `<div class="act-card-memo">Memo: <span>${escHtml(item.memo)}</span></div>` : '';
-  const assetRows = groupAssetsByTemplate(assets).map(group => {
-    const { nameHtml, collHtml } = assetFields(group[0]);
-    const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
-    return `<div class="act-card-asset">
-      ${thumbWrapHtml(group[0])}
-      <div class="sc-fields sc-fields--wrap">
-        <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
-        <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
-        <span class="sc-label">Collection</span><span class="sc-value">${collHtml}</span>
-      </div>
-    </div>`;
-  }).join('');
 
   return `<div class="act-card act-card--bundle">
-    <div class="act-card-assets">${transferDirectionHtml(item)}${assetRows}${txlinkHtml}</div>
+    <div class="act-card-assets">${transferDirectionHtml(item)}${bundleAssetsHtml(assets)}${txlinkHtml}</div>
     <div class="act-card-meta">
       <span class="act-card-count">${assets.length} items</span>
       <div class="sc-fields sc-fields--meta">
@@ -1093,7 +1231,7 @@ function transferBundleCardHtml(item, assets) {
 
 function renderSaleItem(item) {
   const assets = item.assets && item.assets.length ? item.assets : [{}];
-  return assets.map(a => saleCardHtml(item, a)).join('');
+  return assets.length > 1 ? saleBundleCardHtml(item, assets) : saleCardHtml(item, assets[0]);
 }
 
 function renderTransferItem(item) {
@@ -1185,6 +1323,13 @@ async function onSaleTxLinkClick(link) {
 }
 
 document.getElementById('actList').addEventListener('click', e => {
+  const toggle = e.target.closest('.bundle-toggle-btn');
+  if (toggle) {
+    const wrap = toggle.closest('.act-card-assets');
+    const expanded = wrap.classList.toggle('is-expanded');
+    toggle.textContent = expanded ? toggle.dataset.less : toggle.dataset.more;
+    return;
+  }
   const link = e.target.closest('.tx-link[data-sale-id]');
   if (link && link.dataset.resolved !== '1') {
     e.preventDefault();
