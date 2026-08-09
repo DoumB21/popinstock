@@ -146,7 +146,16 @@
     .wallet-link:hover { text-decoration: underline; }
 
     /* ── Bundle grid (more than one asset in this listing) ── */
-    .sale-bundle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+    /* Card min-width tuned to ~5 columns at this page's max content width
+       (was 150px / ~7 columns) — even with lazy-loaded, non-autoplaying
+       video thumbnails, a dense grid still puts far more of them inside the
+       IntersectionObserver's rootMargin at once than the browser can fetch/
+       decode a still frame for concurrently without freezing (reported
+       live: 7×5 = 35 on screen still froze the tab). Fewer, bigger cards
+       for the same viewport height is the same structural lever noted in
+       [[project_video_quality_and_perf]] for inventory.html vs.
+       inventory-bulk.html's grid density. */
+    .sale-bundle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; }
     .sale-bundle-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; display: block; }
     .sale-bundle-img-wrap { aspect-ratio: 1; background: var(--bg); display: flex; align-items: center; justify-content: center; }
     .sale-bundle-img-wrap img, .sale-bundle-img-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -749,8 +758,16 @@ async function loadSale() {
 function bundleCardHtml(a) {
   const data = a.data || {};
   const name = data.name || a.name || `#${a.template_mint}`;
+  // Lazy + no autoplay (data-src, wired by initBundleLazyMedia below) — this
+  // used to be an eager `<video autoplay>` with an immediate src, which for
+  // a bundle mixing many different templates (verified live: a real 96-item
+  // listing where every asset is a distinct template, all video-only media)
+  // meant dozens of full-resolution videos started decoding and playing the
+  // instant the page rendered, freezing the tab. A still first frame is
+  // enough for a listing preview grid and has no such cost regardless of
+  // bundle size — same fix as inventory-activity.html's bundle rows.
   const media = data.video
-    ? `<video muted loop playsinline autoplay><source src="${escHtml(toMediaUrl(data.video))}" type="video/mp4"></video>`
+    ? `<video muted playsinline preload="metadata" data-src="${escHtml(toMediaUrl(data.video))}"></video>`
     : (data.img || data.backimg)
     ? `<img src="${escHtml(toMediaUrl(data.img || data.backimg))}" alt="" loading="lazy" data-ipfs-hash="${escHtml(data.img || data.backimg)}" data-gw-idx="0" onerror="onImgError(this)">`
     : `<div class="sale-bundle-img-ph">?</div>`;
@@ -908,6 +925,31 @@ function wireBundleCardHovers(orderedEntries) {
   });
 }
 
+// Lazy-loads bundle video thumbnails as they're scrolled into view and
+// tears the src back down once scrolled past, instead of every video in the
+// listing loading (and, before this fix, autoplaying) at once — see
+// bundleCardHtml's comment. Re-run after every renderBundleWrap() since sort/
+// group changes replace #bundleWrap's contents wholesale.
+let _bundleMediaObserver = null;
+function initBundleLazyMedia() {
+  if (_bundleMediaObserver) _bundleMediaObserver.disconnect();
+  _bundleMediaObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        if (video.dataset.src && !video.src) {
+          video.src = video.dataset.src;
+          video.load();
+        }
+      } else if (video.src) {
+        video.removeAttribute('src');
+        video.load();
+      }
+    }
+  }, { rootMargin: '300px' });
+  document.querySelectorAll('#bundleWrap video[data-src]').forEach(v => _bundleMediaObserver.observe(v));
+}
+
 function renderBundleWrap() {
   const sorted = [..._bundleEntries].sort(bundleSortComparator(_bundleSort));
   const groups = groupBundleEntries(sorted, _bundleGroup);
@@ -925,6 +967,7 @@ function renderBundleWrap() {
       </div>`).join('');
   }
   wireBundleCardHovers(renderedOrder);
+  initBundleLazyMedia();
 }
 
 function onBundleSortChange(val) {
