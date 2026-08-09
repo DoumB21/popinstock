@@ -265,6 +265,10 @@
     .act-card-asset--extra { display: none; }
     .act-card-assets.is-expanded .act-card-asset--extra { display: flex; }
     .bundle-toggle-btn { align-self: flex-start; padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+    /* Second toggle next to the item count, so collapsing a long expanded
+       bundle back down doesn't require scrolling to the bottom one. */
+    .act-card-meta-top { display: flex; align-items: center; gap: 0.5rem; }
+    .bundle-toggle-btn-top { padding: 0.2rem 0.6rem; font-size: 0.7rem; }
 
     /* colCombo results — display name on top, raw collection_name slug
        underneath (same two-line shape as explore.html's .col-sug-name/
@@ -995,13 +999,13 @@ function debounceLoad() {
 // Sales History cards) whenever the asset's own burned_at_time is set.
 // Every endpoint that nests a full asset object here (sales, transfers)
 // carries this field — confirmed live against real transfer/sale records.
-function thumbWrapHtml(asset) {
+function thumbWrapHtml(asset, opts) {
   const isBurned = !!asset.burned_at_time;
   const title = isBurned ? ` title="${escHtml(asset.burned_by_account ? 'Burned by ' + asset.burned_by_account : 'Burned')}"` : '';
-  return `<div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${title}>${assetThumbHtml(asset)}</div>`;
+  return `<div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${title}>${assetThumbHtml(asset, opts)}</div>`;
 }
 
-function assetThumbHtml(asset) {
+function assetThumbHtml(asset, opts) {
   const d     = asset.data || {};
   const t     = asset.template?.immutable_data || {};
   const video = d.video || t.video || '';
@@ -1010,7 +1014,24 @@ function assetThumbHtml(asset) {
   // static img fallback — same video-first check as inventory.html's
   // assetMediaHtml, so those don't fall through to the "?" placeholder.
   if (video) {
-    return `<video data-src="${imgUrl(video)}" muted playsinline loop preload="none" style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
+    // Bundle asset rows (opts.staticVideo, see bundleAssetRowHtml) get a
+    // still first frame instead of an autoplaying loop. Rows there are
+    // compact enough that far more of them sit inside the observer's
+    // rootMargin at once than a concurrency cap could reasonably allow —
+    // verified live against a real 96-item, all-video, all-distinct-template
+    // bundle: capping concurrent playback (an earlier attempt) stopped the
+    // crash but produced a worse bug, a FIFO play queue whose priority
+    // didn't track what was actually on screen, so already-scrolled-past
+    // rows kept "playing" (holding their slot) while newly-visible rows
+    // stayed blank until the user scrolled back up to the stale ones. A
+    // static frame has no slot to contend over — every row that's been
+    // scrolled into view shows its thumbnail, full stop, and there's
+    // nothing to decode continuously so dozens of them on screen is cheap.
+    const isStatic = !!opts?.staticVideo;
+    const loopAttr = isStatic ? '' : ' loop';
+    const preload  = isStatic ? 'metadata' : 'none';
+    const staticAttr = isStatic ? ' data-static-video="1"' : '';
+    return `<video data-src="${imgUrl(video)}" muted playsinline${loopAttr} preload="${preload}"${staticAttr} style="width:100%;height:100%;object-fit:contain;display:block"></video>`;
   }
   // loading="lazy" matters more here than on inventory.html's grid — a page
   // of 20 cards fires 20 simultaneous requests to the same IPFS gateway
@@ -1076,10 +1097,11 @@ function saleCardHtml(item, asset) {
 function saleBundleCardHtml(item, assets) {
   const precision = item.price?.token_precision ?? 8;
   const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
+  const { assetsHtml, topToggleHtml } = bundleAssetsHtml(assets);
   return `<div class="act-card act-card--bundle">
-    <div class="act-card-assets">${bundleAssetsHtml(assets)}<a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a></div>
+    <div class="act-card-assets">${assetsHtml}<a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a></div>
     <div class="act-card-meta">
-      <span class="act-card-count">${assets.length} items</span>
+      <div class="act-card-meta-top"><span class="act-card-count">${assets.length} items</span>${topToggleHtml}</div>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax, item.updated_at_time)}</span>
         <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
@@ -1180,7 +1202,7 @@ function bundleAssetRowHtml(group, extraClass) {
   const { nameHtml, collHtml } = assetFields(group[0]);
   const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
   return `<div class="act-card-asset${extraClass}">
-    ${thumbWrapHtml(group[0])}
+    ${thumbWrapHtml(group[0], { staticVideo: true })}
     <div class="sc-fields sc-fields--wrap">
       <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
       <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
@@ -1192,16 +1214,22 @@ function bundleAssetRowHtml(group, extraClass) {
 // A bundle mixing several *different* templates (rather than many copies of
 // the same one, which groupAssetsByTemplate already collapses to one row)
 // can still run long — only the first few grouped rows show by default,
-// the rest get a .act-card-asset--extra class that CSS hides until the
-// "Show N more" toggle (delegated on #actList, see onActListClick) flips
-// .act-card-assets to .is-expanded.
+// the rest get a .act-card-asset--extra class that CSS hides until a "Show
+// N more" toggle flips .act-card-assets to .is-expanded. There are two
+// toggle buttons (delegated together on #actList, see the click listener
+// below) — one at the bottom of the row list, one up top next to the item
+// count — so collapsing a long bundle back down doesn't require scrolling
+// past dozens of rows to reach the only control that does it.
 const BUNDLE_COLLAPSE_THRESHOLD = 3;
 function bundleAssetsHtml(assets) {
   const groups = groupAssetsByTemplate(assets);
   const rows = groups.map((g, i) => bundleAssetRowHtml(g, i >= BUNDLE_COLLAPSE_THRESHOLD ? ' act-card-asset--extra' : '')).join('');
   const hidden = groups.length - BUNDLE_COLLAPSE_THRESHOLD;
-  if (hidden <= 0) return rows;
-  return rows + `<button type="button" class="show-more-btn bundle-toggle-btn" data-more="Show ${hidden} more" data-less="Show less">Show ${hidden} more</button>`;
+  if (hidden <= 0) return { assetsHtml: rows, topToggleHtml: '' };
+  const toggleAttrs = ` data-more="Show ${hidden} more" data-less="Show less"`;
+  const bottomToggle = `<button type="button" class="show-more-btn bundle-toggle-btn"${toggleAttrs}>Show ${hidden} more</button>`;
+  const topToggle    = `<button type="button" class="show-more-btn bundle-toggle-btn-top"${toggleAttrs}>Show ${hidden} more</button>`;
+  return { assetsHtml: rows + bottomToggle, topToggleHtml: topToggle };
 }
 
 /* A bundle transfer (one blockchain transaction moving several assets at
@@ -1213,11 +1241,12 @@ function transferBundleCardHtml(item, assets) {
     ? `<a class="act-card-txlink" href="https://waxblock.io/transaction/${item.txid}" target="_blank" rel="noopener">View transaction ↗</a>`
     : '';
   const memoHtml = item.memo ? `<div class="act-card-memo">Memo: <span>${escHtml(item.memo)}</span></div>` : '';
+  const { assetsHtml, topToggleHtml } = bundleAssetsHtml(assets);
 
   return `<div class="act-card act-card--bundle">
-    <div class="act-card-assets">${transferDirectionHtml(item)}${bundleAssetsHtml(assets)}${txlinkHtml}</div>
+    <div class="act-card-assets">${transferDirectionHtml(item)}${assetsHtml}${txlinkHtml}</div>
     <div class="act-card-meta">
-      <span class="act-card-count">${assets.length} items</span>
+      <div class="act-card-meta-top"><span class="act-card-count">${assets.length} items</span>${topToggleHtml}</div>
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
@@ -1261,16 +1290,42 @@ async function appendRows(items) {
 }
 
 /* Same lazy-load/unload pattern as inventory.html's initLazyVideos() —
-   playing every video on a 20-card page at once is what caused the tray
-   video crash there (see [[project_bulk_actions]]); only the videos
-   actually scrolled into view get a src, and it's torn down again once
-   scrolled past to free decoder memory. */
+   only the videos actually scrolled into view get a src, torn down again
+   once scrolled past to free decoder memory.
+
+   Bundle asset rows (data-static-video, see assetThumbHtml) are handled
+   separately and never autoplay/loop at all — just a lazy src swap for a
+   still first frame. An earlier version tried capping how many bundle rows
+   could autoplay concurrently, which did stop the crash but broke the
+   *view*: with rootMargin 300px and rows this compact, far more than the
+   cap were "intersecting" at once, so a FIFO queue handed playing slots to
+   whichever rows entered that zone first — not whatever's actually on
+   screen now — leaving already-scrolled-past rows still "playing" (holding
+   their slot) while newly-visible ones stayed blank until scrolling back up
+   to the stale ones. A static frame sidesteps that entirely: nothing to
+   contend over, so every row that's been scrolled into view just shows its
+   thumbnail. Verified live against a real 96-item, all-video,
+   all-distinct-template bundle (sale #29069620) — see
+   [[project_bulk_actions]], [[project_video_quality_and_perf]]. */
 let _actVideoObserver = null;
+
 function initLazyVideos() {
   if (_actVideoObserver) _actVideoObserver.disconnect();
   _actVideoObserver = new IntersectionObserver(entries => {
     for (const entry of entries) {
       const video = entry.target;
+      if (video.dataset.staticVideo === '1') {
+        if (entry.isIntersecting) {
+          if (video.dataset.src && !video.src) {
+            video.src = video.dataset.src;
+            video.load();
+          }
+        } else if (video.src) {
+          video.removeAttribute('src');
+          video.load();
+        }
+        continue;
+      }
       if (entry.isIntersecting) {
         if (video.dataset.src && !video.src) {
           video.src = video.dataset.src;
@@ -1323,11 +1378,17 @@ async function onSaleTxLinkClick(link) {
 }
 
 document.getElementById('actList').addEventListener('click', e => {
-  const toggle = e.target.closest('.bundle-toggle-btn');
+  // Two toggle buttons per bundle (bottom of the row list + up top next to
+  // the item count, see bundleAssetsHtml) drive the same .is-expanded state
+  // — clicking either one flips both so their labels never disagree.
+  const toggle = e.target.closest('.bundle-toggle-btn, .bundle-toggle-btn-top');
   if (toggle) {
-    const wrap = toggle.closest('.act-card-assets');
+    const card = toggle.closest('.act-card--bundle');
+    const wrap = card.querySelector('.act-card-assets');
     const expanded = wrap.classList.toggle('is-expanded');
-    toggle.textContent = expanded ? toggle.dataset.less : toggle.dataset.more;
+    card.querySelectorAll('.bundle-toggle-btn, .bundle-toggle-btn-top').forEach(btn => {
+      btn.textContent = expanded ? btn.dataset.less : btn.dataset.more;
+    });
     return;
   }
   const link = e.target.closest('.tx-link[data-sale-id]');
