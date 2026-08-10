@@ -16,6 +16,7 @@
       '<link rel="icon" href="' + _p + 'images/Hoardio_fav.png" type="image/png" />' +
       '<link rel="stylesheet" href="' + _p + 'shared/global.css" />' +
       '<script src="' + _p + 'shared/supabase-config.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
@@ -950,25 +951,19 @@
 <script>
 'use strict';
 
-// Asset inventory queries — official endpoint times out on sort=transferred from JS, use alternates first
-const ATOMIC_ENDPOINTS = [
-  'https://wax.eosusa.io',
-  'https://atomic.wax.detroitledger.tech',
-  'https://atomic.hivebp.io',
-  'https://atomic.sentnl.io',
-  'https://atomic-api.wax.cryptolions.io',
-  'https://wax-atomic.alcor.exchange',
-  'https://atomic.wax.eosrio.io',
-  'https://api.waxsweden.org',
-  'https://wax-aa.eu.eosamsterdam.net',
-  'https://wax.api.atomicassets.io',
-  'https://wax-atomic-api.eosphere.io',
-];
-let _endpointIdx = 0;
-function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.length]; }
-
-// Market/sales queries — official endpoint has the freshest index; no CORS timeout here
-const MARKET_API = 'https://wax.api.atomicassets.io';
+// Endpoint selection (rotation, health checks, penalty box) is centralized in
+// shared/wax-api.js, backed by a Supabase-managed list (public.wax_endpoint_health)
+// that an external health-check agent updates several times a day — no page
+// should maintain its own separate hardcoded endpoint list. This page used to
+// (a local ATOMIC_ENDPOINTS array + its own atomicApi()/retry helper, removed
+// 2026-08-10), which is why a since-deprioritized node (atomic.hivebp.io, very
+// slow though not outright erroring) kept getting used here even after other
+// pages had long since stopped routing to it. All AtomicAssets calls now go
+// through WaxApi.aaBase()/WaxApi.rawFetch(); AtomicMarket calls use
+// WaxApi.marketBase() (a fixed official-node URL — market endpoints don't
+// rotate, same reasoning
+// this page's old MARKET_API constant already had, just now sourced from the
+// shared module instead of duplicated here).
 
 const PAGE_SIZE  = 18;
 const MAKER      = 'hoardiostore';
@@ -1048,6 +1043,8 @@ let _buyOfferSortedTids    = [];         // template IDs sorted by price, direct
 let _buyOfferSortDir       = 'desc';     // direction of the current _buyOfferSortedTids / _buyOfferBuffer ordering
 let _buyOfferChunkIdx      = 0;          // next chunk index to fetch
 let _buyOfferBuffer        = [];         // all fetched offer-sorted assets
+let _buyOffersByCol        = {};         // collection_name → Set(templateId) with a known offer — lets a Collection-filtered sort work from cache alone, no re-fetch (see _floorOffersByCol's comment)
+let _buyOfferFetchSkipped  = 0;          // chunks that exhausted WaxApi.rawFetch's retries and got no data this run — see fetchBuyOfferChunk
 let _floorOffers           = {};         // templateId → lowest active listing price (WAX)
 let _floorOffersFetched    = false;
 let _floorOffersBusy       = false;
@@ -1055,6 +1052,15 @@ let _floorSortedTids       = [];         // template IDs sorted by floor price, 
 let _floorSortDir          = 'desc';     // direction of the current _floorSortedTids / _floorBuffer ordering
 let _floorChunkIdx         = 0;          // next chunk index to fetch
 let _floorBuffer           = [];         // all fetched floor-sorted assets
+// collection_name → Set(templateId) that have a known floor price. _floorOffers
+// itself is a flat wallet-wide map (needed for the "All collections" sort), but
+// scoping a sort to one collection from that flat map alone would mean walking
+// _floorOffers in *global* price-rank order hoping to bump into that collection's
+// (possibly sparse) entries — same shape of bug as the fetch-side one this
+// feature was rewritten to fix. This side table lets sortByFloorPrice() build
+// _floorSortedTids already scoped to the selected collection directly, no walk.
+let _floorOffersByCol      = {};
+let _floorFetchSkipped     = 0;          // chunks that exhausted WaxApi.rawFetch's retries and got no data this run — see fetchFloorPriceChunk
 let _lastSold              = {};         // templateId → most recent sale price (WAX), within LASTSOLD_WINDOW_MS
 let _lastSoldFetched       = false;
 let _lastSoldBusy          = false;
@@ -1062,6 +1068,8 @@ let _lastSoldSortedTids    = [];         // template IDs sorted by last-sold pri
 let _lastSoldSortDir       = 'desc';     // direction of the current _lastSoldSortedTids / _lastSoldBuffer ordering
 let _lastSoldChunkIdx      = 0;          // next chunk index to fetch
 let _lastSoldBuffer        = [];         // all fetched last-sold-sorted assets
+let _lastSoldFetchSkipped  = 0;          // chunks that exhausted WaxApi.rawFetch's retries and got no data this run — see fetchLastSoldChunk
+let _lastSoldByCol         = {};         // collection_name → Set(templateId) with a known last-sold price — see _floorOffersByCol's comment
 let _clientPage            = PAGE_SIZE;  // visible asset count in client-side sort mode
 let _listBusy           = false;
 let _listingRoyaltyPct  = 0;
@@ -1379,23 +1387,6 @@ function timeAgo(ms) {
   return `${months} month${months !== 1 ? 's' : ''} ago`;
 }
 
-async function fetchWithRetry(url, retries = 2) {
-  let currentUrl = url;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch(currentUrl);
-      if ((res.status !== 408 && res.status !== 429 && res.status !== 503) || attempt === retries) return res;
-    } catch (err) {
-      if (attempt === retries) throw err;
-    }
-    // rotate to next provider and patch the URL
-    const oldBase = ATOMIC_ENDPOINTS.find(ep => currentUrl.startsWith(ep)) || ATOMIC_ENDPOINTS[0];
-    _endpointIdx++;
-    currentUrl = currentUrl.replace(oldBase, atomicApi());
-    await new Promise(r => setTimeout(r, 400));
-  }
-}
-
 function imgUrl(hash) {
   if (!hash) return '';
   if (hash.startsWith('http')) return hash;
@@ -1562,8 +1553,14 @@ function attachCardEvents(card, asset) {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 const _assetPopup = AssetPopup.mount({
-  aaBase: () => atomicApi() + '/atomicassets/v1',
-  apiFetch: url => fetchWithRetry(url).then(r => r.json()).then(j => j.data),
+  // Lazy wrappers, not direct WaxApi.aaBase/apiFetch references — shared/wax-api.js
+  // is loaded dynamically (later than this synchronous top-level script block
+  // runs), so a direct reference would evaluate `WaxApi` too early and throw
+  // "WaxApi is not defined". AssetPopup only calls these on demand (hover/
+  // interaction, well after load), so deferring the lookup into the function
+  // body — same lazy shape the pre-WaxApi-migration code already used here — fixes it.
+  aaBase: () => WaxApi.aaBase(),
+  apiFetch: url => WaxApi.apiFetch(url),
   // Defaults are root-relative — need the _p prefix here since this page
   // itself can be loaded one level deep via /inventory/:wallet.
   collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
@@ -1604,8 +1601,8 @@ function assetPopupData(asset) {
 async function fetchSchemasForCollection(collection) {
   if (_schemaCache[collection]) return _schemaCache[collection];
   try {
-    const url  = `${atomicApi()}/atomicassets/v1/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
-    const res  = await fetchWithRetry(url);
+    const url  = `${WaxApi.aaBase()}/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
+    const res  = await WaxApi.rawFetch(url);
     const json = await res.json();
     const formats = {};
     const assetCounts = {};
@@ -1635,8 +1632,8 @@ async function fetchWalletSchemaCounts(wallet, collection) {
   const key = `${wallet}|${collection}`;
   if (_walletSchemaCountCache[key]) return _walletSchemaCountCache[key];
   try {
-    const url  = `${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(collection)}`;
-    const res  = await fetchWithRetry(url);
+    const url  = `${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(collection)}`;
+    const res  = await WaxApi.rawFetch(url);
     const json = await res.json();
     const counts = {};
     for (const s of (json.data?.schemas || [])) counts[s.schema_name] = Number(s.assets) || 0;
@@ -1777,8 +1774,8 @@ async function fetchTemplatesForCollection(collection) {
   let page = 1;
   while (true) {
     try {
-      const url  = `${atomicApi()}/atomicassets/v1/templates?collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
-      const res  = await fetchWithRetry(url);
+      const url  = `${WaxApi.aaBase()}/templates?collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
+      const res  = await WaxApi.rawFetch(url);
       const json = await res.json();
       if (!json.success || !json.data.length) break;
       for (const t of json.data) {
@@ -2250,8 +2247,10 @@ function collectionHasAssetLevelSchema(collection) {
 // asset immutable_data + asset mutable_data, asset-level wins), confirmed
 // live to be present on the bulk /assets endpoint, not just single-asset
 // lookups. Pages fetched in parallel batches, each request seeded to a
-// different node from ATOMIC_ENDPOINTS, so a scan is a handful of
-// round-trips instead of dozens of sequential ones. Capped at
+// different node via WaxApi.aaBases() (fans out across the shared,
+// health-checked endpoint pool instead of serializing on one origin's
+// browser connection limit), so a scan is a handful of round-trips instead
+// of dozens of sequential ones. Capped at
 // ASSET_SCAN_MAX_PAGES (20,000 assets) — comfortably above a typical 10k
 // PFP drop; beyond that this is a representative sample, not exhaustive,
 // same tradeoff explore.html's rarity scan already makes. Memoized via a
@@ -2273,10 +2272,11 @@ function fetchAssetDataForSchema(collection, schema) {
     while (!done && page <= ASSET_SCAN_MAX_PAGES) {
       const batchPages = [];
       for (let i = 0; i < ASSET_SCAN_BATCH_SIZE && page + i <= ASSET_SCAN_MAX_PAGES; i++) batchPages.push(page + i);
+      const bases = WaxApi.aaBases(ASSET_SCAN_BATCH_SIZE);
       const results = await Promise.all(batchPages.map((p, i) => {
-        const base = ATOMIC_ENDPOINTS[i % ATOMIC_ENDPOINTS.length];
-        const url  = `${base}/atomicassets/v1/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`;
-        return fetchWithRetry(url).then(res => res.json()).catch(() => ({ success: false, data: [] }));
+        const base = bases[i % bases.length];
+        const url  = `${base}/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`;
+        return WaxApi.rawFetch(url).then(res => res.json()).catch(() => ({ success: false, data: [] }));
       }));
       for (const json of results) {
         if (!json.success || !json.data || !json.data.length) { done = true; continue; }
@@ -2795,7 +2795,21 @@ function onColFilterChange(val) {
     });
   }
 
-  loadAssets(true);
+  // applyCurrentSort() (not loadAssets(true) directly) — reported live:
+  // selecting or clearing the Collection filter while a premium sort (Buy
+  // Offer/Floor Price/Last Sold) is active silently reverted the grid to the
+  // default order without updating the sort dropdown, which still showed the
+  // premium option as selected. Collection is the one filter dimension the
+  // premium fetch pipeline already understands (fetchNextFloorPriceChunk's
+  // colParam etc.), so re-running the sort here re-scopes it correctly to
+  // the new collection. Other filters (Schema, Template, mint range, search,
+  // Card ID, dynamic attributes, "Only listings") aren't threaded into that
+  // pipeline at all yet — wiring THEM through applyCurrentSort() too would
+  // silently drop that filter's scoping instead of fixing anything, so they
+  // still call loadAssets(true) directly and, same as before this fix, will
+  // fall back to the default order if a premium sort is active. That's a
+  // separate, larger gap, not part of this fix.
+  applyCurrentSort();
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -2804,7 +2818,7 @@ function onColFilterChange(val) {
 
 async function fetchAllCollections(wallet) {
   try {
-    const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}`);
+    const res  = await WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`);
     const json = await res.json();
     if (!json.success) return;
     if (json.data?.assets != null) _totalAssets = json.data.assets;
@@ -2831,8 +2845,8 @@ async function fetchListings(wallet) {
     const limit = 100;
     let page = 1;
     while (true) {
-      const url  = `${MARKET_API}/atomicmarket/v1/sales?state=1&seller=${encodeURIComponent(wallet)}&limit=${limit}&page=${page}`;
-      const res  = await fetchWithRetry(url);
+      const url  = `${WaxApi.marketBase()}/sales?state=1&seller=${encodeURIComponent(wallet)}&limit=${limit}&page=${page}`;
+      const res  = await WaxApi.rawFetch(url);
       const json = await res.json();
       if (!json.success || !json.data.length) break;
       for (const sale of json.data) {
@@ -2899,6 +2913,18 @@ async function readUrlParams(wallet) {
   _listingsFilter = (listedParam === 'only' || listedParam === 'hide') ? listedParam : 'all';
   _sortOrder     = p.get('sort')   || SORT_OPTIONS[0].value;
   _filterText    = p.get('q')     || '';
+  // A premium sort (Buy Offer/Floor Price/Last Sold) deep-linked via URL can't
+  // actually take effect until its "unlock" fetch has run — that flag is never
+  // persisted across page loads (see project_inventory_premium_unlocks memory
+  // on why it isn't auto-triggered: it walks every collection in the wallet,
+  // which is fine on an explicit click but not something to fire unprompted
+  // for a wallet with hundreds of collections). Without this, the dropdown
+  // silently shows the premium option "selected" while the grid quietly loads
+  // in the unrelated default order with no indication anything's off — surface
+  // the relevant banner instead so the user sees they need to click Fetch.
+  if (_sortOrder.startsWith('buyoffer_') && !_buyOffersFetched) toggleBuyOfferBanner(true);
+  else if (_sortOrder.startsWith('floorprice_') && !_floorOffersFetched) toggleFloorPriceBanner(true);
+  else if (_sortOrder.startsWith('lastsold_') && !_lastSoldFetched) toggleLastSoldBanner(true);
   document.getElementById('mintMin').value     = _filterMintMin;
   document.getElementById('mintMax').value     = _filterMintMax;
   buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
@@ -3029,12 +3055,12 @@ async function loadAssets(reset = false, walletChange = false) {
     // regardless of which one, matching what was actually asked for.
     const backedParam    = _onlyBacked    ? `&has_backed_tokens=true` : '';
     const sortOpt        = SORT_OPTIONS.find(o => o.value === _sortOrder) || SORT_OPTIONS[0];
-    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}${idsParam}${backedParam}`;
+    const baseUrl        = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}${idsParam}${backedParam}`;
 
     let batch = [];
 
     if (reset) {
-      const r1 = await fetchWithRetry(`${baseUrl}&page=1`);
+      const r1 = await WaxApi.rawFetch(`${baseUrl}&page=1`);
       if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
       const j1 = await r1.json();
       if (!j1.success) throw new Error(j1.message || 'API error');
@@ -3043,7 +3069,7 @@ async function loadAssets(reset = false, walletChange = false) {
       _hasMore = batch.length === PAGE_SIZE;
       _page    = 2;
     } else {
-      const res = await fetchWithRetry(`${baseUrl}&page=${_page}`);
+      const res = await WaxApi.rawFetch(`${baseUrl}&page=${_page}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.message || 'API error');
@@ -3123,8 +3149,8 @@ async function fetchFloorPrice(templateId, collection) {
 
   _floorCache[templateId] = { loaded: false, price: null };
   try {
-    const url  = `${MARKET_API}/atomicmarket/v1/sales?state=1&template_id=${templateId}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`;
-    const res  = await fetchWithRetry(url);
+    const url  = `${WaxApi.marketBase()}/sales?state=1&template_id=${templateId}&collection_name=${encodeURIComponent(collection)}&symbol=WAX&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`;
+    const res  = await WaxApi.rawFetch(url);
     const json = await res.json();
     let price  = null;
     if (json.success && json.data.length > 0) {
@@ -3170,6 +3196,14 @@ function updateFloorPriceBanner() {
   const n = _collections.size;
   if (_floorOffersFetched) {
     const count = Object.keys(_floorOffers).length;
+    // A skipped chunk (a lookup that still failed after WaxApi.rawFetch's own
+    // retries) used to surface a "Retry N skipped →" button here. Dropped —
+    // a skip is essentially always the same rate-limit condition the batched
+    // fetch itself is built to respect, so retrying tends to just reproduce
+    // the same result rather than actually recovering anything, and inviting
+    // a retry the user expects to help (when it usually won't) is worse than
+    // quietly leaving whatever data was found. _floorFetchSkipped is still
+    // tracked internally for future debugging, just no longer shown.
     sub.textContent = `We found ${count} templates with active listings across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Floor Price" (Highest or Lowest).`;
     btn.style.display = 'none';
   } else {
@@ -3186,38 +3220,193 @@ function updateFloorPriceBanner() {
   btn.disabled = !_collectionsReady || n === 0;
 }
 
-// /sales/templates returns one pre-deduped row per template_id (cheapest sale),
-// so this only needs to page through distinct templates, not every raw sale —
-// avoids the deep-OFFSET pagination timeout a full /sales walk risks on large collections.
-async function fetchFloorPriceForCollection(col) {
-  const needed = new Set(
-    _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
-           .map(a => String(a.template.template_id))
-  );
-  let page = 1;
-  while (true) {
-    let json;
-    try {
-      const res = await fetch(`${MARKET_API}/atomicmarket/v1/sales/templates?state=1&collection_whitelist=${encodeURIComponent(col)}&min_assets=1&max_assets=1&sort=price&order=asc&limit=100&page=${page}&symbol=WAX`);
-      json = await res.json();
-    } catch { break; }
-    if (!json.success || !json.data.length) break;
-    for (const sale of json.data) {
-      if (sale.assets?.length !== 1) continue; // bundle listings don't reflect a single template's floor
-      const tid = String(sale.assets[0]?.template?.template_id || '');
-      if (!tid) continue;
-      if (_floorOffers[tid] == null) {
-        const precision = sale.price?.token_precision ?? 8;
-        const price = Number(sale.price.amount) / Math.pow(10, precision);
-        _floorOffers[tid] = price;
-        _floorCache[tid]  = { loaded: true, price };
-      }
-      needed.delete(tid);
+// Runs `worker` over `items` with at most `limit` in flight at once, pulling
+// the next item the instant a slot frees up — not gated by fixed-size
+// batches. This matters specifically because each collection's own work here
+// is a short *sequential chain* (one ownership call, then one or more price
+// chunks) — under a `for` loop of Promise.all(batch of 10) with a wait
+// between batches, a single collection needing several chunks (say 660
+// templates ÷ 100 = 7 chunks) made the other 9 collections in its batch sit
+// idle after their own 1-chunk work finished, since the whole batch waits on
+// its slowest member before the next batch can even start. Confirmed live on
+// bw2vy.wam (303 collections, ~635 total requests needed): that batching
+// produced ~3 req/s effective throughput despite real per-request latency
+// (~0.6-1s against these public APIs) that should support far more overlap —
+// 213s end to end. A flat, continuously-refilled pool keeps every available
+// slot busy regardless of which collection a task belongs to.
+async function runWithConcurrency(items, limit, worker) {
+  let idx = 0;
+  async function runNext() {
+    while (idx < items.length) {
+      const i = idx++;
+      await worker(items[i], i);
     }
-    if (needed.size === 0 || json.data.length < 100) break;
-    page++;
-    await new Promise(r => setTimeout(r, 300));
   }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runNext));
+}
+
+// Runs `tasks` through `worker` at up to `concurrency` at once, but decides
+// up front — per BATCH, not per request — how many can safely go out before
+// touching shared/wax-api.js's tracked market budget (WaxApi.getMarketBudget()).
+// Replaced three straight rewrites of a PER-REQUEST gate living in wax-api.js
+// itself (sliding-window, then fixed-window-with-throttle-stage, then a
+// paced-admission version) — each fix live-reproduced and fixed one bug
+// (a stutter, then a genuine deadlock, then an infinite loop that silently
+// stopped firing ANY requests while a "slowing down" label sat there implying
+// progress that wasn't happening). The insight that actually ends that cycle,
+// from the user directly: this was never a per-request decision to begin
+// with. We track our own remaining budget exactly (not an estimate needing
+// live response headers, which are CORS-blocked from the browser anyway —
+// see shared/wax-api.js's top comment), so before dispatching any batch we
+// already know precisely how many of the tasks in front of us can run.
+//
+// The logic, matching the user's own description of it:
+//   1. Check remaining budget and how many tasks are left.
+//   2. If remaining > tasks left: the whole rest fits, run it all at once.
+//   3. Otherwise: run only `remaining - MARKET_STOP_THRESHOLD` of them (stop
+//      with a safety cushion, not right at the wire), then show a plain
+//      static "waiting" message — no countdown, no sub-states, nothing to
+//      get subtly wrong again — and wait for our tracked window to reset
+//      (+ a flat few-second buffer, since our tracked reset is itself an
+//      estimate, not a value read from the server).
+//   4. Hide the waiting message, go back to step 1 with whatever's left.
+//
+// `maxRequestsPerTask` (default 1) exists because "1 task = 1 market
+// request" is only true for Floor Price — that endpoint is deduped
+// server-side, so a chunk always resolves in one page. Buy Offer and Last
+// Sold are NOT deduped (a template can have several competing offers/sales)
+// and each internally pages up to CHUNK_PAGE_CAP times per task — see
+// fetchBuyOfferChunk/fetchLastSoldChunk. Sizing a batch by task count alone
+// silently assumed 1 request per task for those too, undercounting the real
+// cost of a batch by up to 5x — confirmed live as the actual cause of Last
+// Sold busting the rate limit when Floor Price (genuinely 1:1) did not. This
+// parameter makes the batch math use each task's true WORST-CASE request
+// cost, not its best case, so a batch can never fire more real requests than
+// the tracked budget actually allows even if every task in it hits the cap.
+const MARKET_STOP_THRESHOLD = 20; // stop dispatching once this close to the tracked limit, not right at it
+const MARKET_RESET_BUFFER_MS = 3000; // extra cushion past our tracked reset instant, since that's our own estimate, not a value read from the server
+
+async function runMarketBudgetedBatches(tasks, concurrency, worker, progLabel, waitingText, maxRequestsPerTask = 1) {
+  let idx = 0;
+  while (idx < tasks.length) {
+    const tasksLeft = tasks.length - idx;
+    const { remaining, resetAt } = WaxApi.getMarketBudget();
+
+    // Only the REAL remaining decides whether to wait — not "are there still
+    // tasks left" (which is true for almost the whole run whenever a batch
+    // is sized below tasksLeft, e.g. every batch for a 5-requests-per-task
+    // feature on a wallet with 300+ tasks — "run everything in one shot"
+    // can never trigger there, since remaining tops out at 240 but
+    // tasksLeft*5 is usually 1000+). Confirmed live: that conflation made
+    // Last Sold wait after EVERY batch regardless of real remaining
+    // afterward, even right after a fresh reset — most chunks only cost 1
+    // request in practice (5 is the worst case, used only for safe sizing),
+    // so a "sized conservatively" batch usually leaves plenty of real
+    // budget behind, and the old code never looked before pausing anyway.
+    if (remaining <= MARKET_STOP_THRESHOLD) {
+      const savedText = progLabel.textContent;
+      progLabel.textContent = waitingText;
+      const waitMs = Math.max(0, resetAt - Date.now()) + MARKET_RESET_BUFFER_MS;
+      await new Promise(r => setTimeout(r, waitMs));
+      progLabel.textContent = savedText; // hide the waiting message — back to the plain progress bar/count
+      continue; // re-check real state fresh after waiting, don't assume anything
+    }
+
+    // Worst-case sizing still guarantees this one batch can't overshoot —
+    // it just no longer forces a wait afterward if the real cost (checked
+    // fresh on the NEXT loop iteration) turns out to be much less than the
+    // worst case assumed here.
+    const batchSize = remaining > tasksLeft * maxRequestsPerTask
+      ? tasksLeft
+      : Math.max(1, Math.floor((remaining - MARKET_STOP_THRESHOLD) / maxRequestsPerTask));
+    const batch = tasks.slice(idx, idx + batchSize);
+    await runWithConcurrency(batch, concurrency, worker);
+    idx += batchSize;
+  }
+}
+
+// Distinct template_ids the wallet owns in one collection, with owned-copy
+// counts — via /atomicassets/v1/accounts/{wallet}/{collection}, ONE
+// non-paginated call that never enumerates individual duplicate assets.
+// This replaced an asset-level walk (fetchOwnedTemplateIds, retired) that
+// had two real problems: (1) it was built from `_assets`, the grid's own
+// paginated array — only ever whatever's been scrolled into view, which
+// undercounted ownership and made a downstream early-exit trigger too soon
+// (confirmed live: jlasvegas.gm's mlb.topps "Floor Price (Highest)" showed a
+// 14 WAX template as "highest" when the actual highest-floor owned template,
+// Tyler Chatwood at 5,750,000 WAX, was never reached); (2) even fixed to walk
+// every owned asset directly, it still paged once per 1000 *assets*, which
+// is wasteful when a wallet owns many duplicate copies of the same template
+// (100+ copies of one template is common) — this endpoint counts templates,
+// not copies, so duplication costs nothing extra. Verified live: jlasvegas.gm
+// owns 1,466 distinct templates in mlb.topps alone, all returned in one
+// ~56KB response, no pagination needed regardless of count.
+//
+// This only ever runs from the explicit "Fetch" click (same trigger as
+// everything else in this feature, never on page load) — see
+// project_inventory_premium_unlocks for why an *automatic*, on-load version
+// of a per-collection call to this same endpoint was rejected before; that
+// objection was about *when* it fires, not the endpoint itself.
+async function fetchOwnedTemplatesForCollection(wallet, col) {
+  const owned = new Map(); // template_id -> owned copy count
+  try {
+    const res  = await WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(col)}`);
+    const json = await res.json();
+    if (json.success) {
+      for (const t of (json.data?.templates || [])) {
+        if (t.template_id) owned.set(String(t.template_id), Number(t.assets) || 0);
+      }
+    }
+  } catch { /* leave owned empty — this collection just won't get any prices this round */ }
+  return owned;
+}
+
+// Direct per-template lookup instead of scanning a collection's listings
+// hoping to bump into owned templates — the fix for a real bottleneck: some
+// collections run 20,000-40,000+ templates (kogsofficial: 44,889, confirmed
+// live), and a wallet can easily own only a handful of them. The old scan
+// (sort=price&order=asc, page through the WHOLE collection until every owned
+// template's been seen) had no upper bound tied to what's actually owned —
+// reproduced live paging past 200+ pages to price just 15 owned templates in
+// kogsofficial. /sales/templates is pre-deduped to one row per template_id
+// (confirmed live: 200 input ids at limit=100 returned 83 distinct templates,
+// no repeats), so a ≤100-id chunk always resolves in a single page — no scan,
+// no early-exit bookkeeping, no way to stop short of the truth.
+//
+// Takes one already-chunked (≤100 ids) piece of one collection's owned
+// template set — orchestration (chunking, and running many of these
+// concurrently across every collection at once via runWithConcurrency) lives
+// in startFloorPriceFetch(), not here. Kept as a single-chunk unit (rather
+// than looping every chunk for one collection internally, as an earlier
+// version did) specifically so a collection needing many chunks doesn't
+// serialize behind itself — every chunk from every collection competes for
+// the same shared concurrency pool equally.
+//
+// Returns true/false — whether this chunk's own API call actually succeeded,
+// not whether every id in it got a price (most owned templates legitimately
+// have no active listing at all, which isn't a failure). WaxApi.rawFetch
+// already retries a 429/408/503, rotating to a different healthy mirror —
+// false here means it was STILL failing after those retries were exhausted,
+// so the caller can count real gaps instead of them being silent.
+async function fetchFloorPriceChunk(col, chunk, owned) {
+  const colSet = _floorOffersByCol[col] || (_floorOffersByCol[col] = new Set());
+  let json;
+  try {
+    const res = await WaxApi.rawFetch(`${WaxApi.marketBase()}/sales/templates?state=1&template_id=${chunk.join(',')}&min_assets=1&max_assets=1&symbol=WAX&limit=100`);
+    json = await res.json();
+  } catch { return false; } // this chunk's templates just don't get a price this round — the rest of the collection isn't affected
+  if (!json.success) return false;
+  for (const sale of json.data) {
+    if (sale.assets?.length !== 1) continue; // bundle listings don't reflect a single template's floor
+    const tid = String(sale.assets[0]?.template?.template_id || '');
+    if (!tid || !owned.has(tid)) continue;
+    const precision = sale.price?.token_precision ?? 8;
+    const price = Number(sale.price.amount) / Math.pow(10, precision);
+    _floorOffers[tid] = price;
+    _floorCache[tid]  = { loaded: true, price };
+    colSet.add(tid);
+  }
+  return true;
 }
 
 const FLOORPRICE_CHUNK = 200;
@@ -3234,7 +3423,7 @@ async function fetchNextFloorPriceChunk() {
   let page = 1;
   while (true) {
     try {
-      const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
+      const res  = await WaxApi.rawFetch(`${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
       const json = await res.json();
       if (!json.success || !json.data.length) break;
       _floorBuffer.push(...json.data);
@@ -3253,10 +3442,17 @@ async function fetchNextFloorPriceChunk() {
 }
 
 async function sortByFloorPrice(direction = 'desc') {
-  _floorSortDir    = direction;
-  _floorSortedTids = Object.entries(_floorOffers)
-    .sort(([, a], [, b]) => direction === 'asc' ? a - b : b - a)
-    .map(([tid]) => tid);
+  _floorSortDir = direction;
+  // Scoped to the selected collection when one is active, using
+  // _floorOffersByCol (populated per-collection during the fetch) instead of
+  // walking the full wallet-wide _floorOffers in global price-rank order —
+  // that walk was the earlier source of "switching collections re-does the
+  // fetch," since a chunk of top-ranked wallet-wide tids can easily contain
+  // none of the newly-selected collection's (possibly cheaper) templates.
+  // Scoping here means picking a different collection costs nothing further
+  // once the wallet-wide fetch has completed — it's already cached.
+  const relevantTids = _filterCol !== 'all' ? [...(_floorOffersByCol[_filterCol] || [])] : Object.keys(_floorOffers);
+  _floorSortedTids = relevantTids.sort((a, b) => direction === 'asc' ? _floorOffers[a] - _floorOffers[b] : _floorOffers[b] - _floorOffers[a]);
   if (!_floorSortedTids.length) return;
 
   _assets           = [];
@@ -3290,10 +3486,42 @@ async function sortByFloorPrice(direction = 'desc') {
   document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
 }
 
+// In-flight request cap for Phase 1 (ownership lookups, see startXFetch
+// below) — measured live on bw2vy.wam (303 collections): 967 requests in
+// 88s. Safe to keep fairly high because ownership calls hit WaxApi.aaBase(),
+// which fans out across 11 rotatable AtomicAssets mirrors — no single host
+// absorbs the full concurrent load.
+const PREMIUM_FETCH_CONCURRENCY = 12;
+
+// Concurrency cap for Phase 2 (price/offer/sale chunk lookups) — these all
+// hit WaxApi.marketBase(), always the same single official node (AtomicMarket
+// data isn't reliable on the community mirrors, so it never rotates — see
+// shared/wax-api.js's _canRotate). That host enforces a real 240-request/
+// 60-second FIXED window (confirmed live via curl: ratelimit-reset counts
+// straight down in lockstep with wall-clock time, remaining never partially
+// recovers mid-window — the whole budget refills at once, for every
+// worker/tab, at one shared reset instant), shared by every concurrent chunk
+// regardless of which collection it's for.
+//
+// Overshoot protection near the budget boundary does NOT come from this
+// constant, or from anything in shared/wax-api.js anymore — three straight
+// per-request gates living there (see runMarketBudgetedBatches's comment for
+// the full history) each fixed one live-reproduced bug and left another.
+// Protection now comes from runMarketBudgetedBatches deciding, per BATCH,
+// exactly how many requests are safe to dispatch before touching the
+// network at all — so within a single dispatched batch, these workers just
+// run at plain full speed with no per-request bookkeeping. 10 is simply a
+// throughput/latency knob for that batch, same as PREMIUM_FETCH_CONCURRENCY
+// above — "10-12 workers reach the budget plenty fast," per the user
+// directly, no need to push it higher.
+const MARKET_FETCH_CONCURRENCY = 10;
+
 async function startFloorPriceFetch() {
   if (_floorOffersBusy) return;
   _floorOffersBusy    = true;
   _floorOffers        = {};
+  _floorOffersByCol   = {};
+  _floorFetchSkipped  = 0;
   _floorOffersFetched = false;
 
   const btn       = document.getElementById('floorpriceFetchBtn');
@@ -3308,19 +3536,46 @@ async function startFloorPriceFetch() {
   progFill.style.width   = '0%';
 
   const collections = [..._collections];
-  const total = collections.length;
-  let done = 0;
 
-  const BATCH = 10;
-  for (let i = 0; i < collections.length; i += BATCH) {
-    const batch = collections.slice(i, i + BATCH);
-    await Promise.all(batch.map(col => fetchFloorPriceForCollection(col)));
-    done += batch.length;
-    progFill.style.width   = Math.round((done / total) * 100) + '%';
-    progLabel.textContent  = `Fetching floor prices… ${done} / ${total} collections`;
-    loadFloorPricesForCards(_assets.slice(0, _clientPage)); // refresh visible cards from cache
-    if (i + BATCH < collections.length) await new Promise(r => setTimeout(r, 350));
+  // Phase 1: ownership for every collection, one flat concurrent pool — not
+  // grouped into fixed batches, so a collection that'll later need several
+  // price chunks doesn't make quicker collections in "its" batch wait on it.
+  const ownedByCol = new Map();
+  let ownDone = 0;
+  progLabel.textContent = `Checking your holdings… 0 / ${collections.length} collections`;
+  await runWithConcurrency(collections, PREMIUM_FETCH_CONCURRENCY, async col => {
+    const owned = await fetchOwnedTemplatesForCollection(_activeWallet, col);
+    // Every entry in _collections came from fetchAllCollections()'s own
+    // successful wallet-wide call, so the wallet is guaranteed to own at
+    // least one asset here — an empty Map back from the per-collection
+    // ownership lookup essentially always means THAT call failed (network
+    // error, or WaxApi.rawFetch exhausted its retries), not a legitimate
+    // "owns nothing" result. Counted as skipped for the same reason as a
+    // failed price chunk — this collection gets no price data this round.
+    if (owned.size) ownedByCol.set(col, owned); else _floorFetchSkipped++;
+    ownDone++;
+    progFill.style.width  = Math.round((ownDone / collections.length) * 40) + '%';
+    progLabel.textContent = `Checking your holdings… ${ownDone} / ${collections.length} collections`;
+  });
+
+  // Phase 2: every collection's price-lookup chunks flattened into one queue
+  // and run through the same pool — which collection a chunk belongs to
+  // doesn't matter once ownership is known, each chunk is independent.
+  const tasks = [];
+  for (const [col, owned] of ownedByCol) {
+    const tids = [...owned.keys()];
+    for (let i = 0; i < tids.length; i += 100) tasks.push({ col, chunk: tids.slice(i, i + 100), owned });
   }
+  let chunkDone = 0;
+  progLabel.textContent = `Fetching floor prices… ${chunkDone} / ${tasks.length}`;
+  await runMarketBudgetedBatches(tasks, MARKET_FETCH_CONCURRENCY, async task => {
+    const ok = await fetchFloorPriceChunk(task.col, task.chunk, task.owned);
+    if (!ok) _floorFetchSkipped++;
+    chunkDone++;
+    progFill.style.width  = 40 + Math.round((chunkDone / Math.max(tasks.length, 1)) * 60) + '%';
+    progLabel.textContent = `Fetching floor prices… ${chunkDone} / ${tasks.length}`;
+    loadFloorPricesForCards(_assets.slice(0, _clientPage)); // refresh visible cards from cache
+  }, progLabel, 'Waiting for the API rate limit to reset.');
 
   _floorOffersFetched = true;
   _floorOffersBusy    = false;
@@ -3329,6 +3584,10 @@ async function startFloorPriceFetch() {
   btn.disabled = false;
   renderSortDropdown();
   updateFloorPriceBanner();
+  // A URL deep link (readUrlParams) can leave _sortOrder pointing at this sort
+  // before it was unlocked — apply it now that the fetch just completed,
+  // instead of leaving the dropdown showing it "selected" but still inert.
+  if (_sortOrder.startsWith('floorprice_')) await sortByFloorPrice(_sortOrder === 'floorprice_asc' ? 'asc' : 'desc');
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -3382,6 +3641,8 @@ function updateBuyOfferBanner() {
   const n = _collections.size;
   if (_buyOffersFetched) {
     const count = Object.keys(_buyOffers).length;
+    // See updateFloorPriceBanner's matching comment on _floorFetchSkipped —
+    // no "Retry N skipped" button anymore, kept silent.
     sub.textContent = `We found ${count} templates with active buy offers across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Buy Offer" (Highest or Lowest).`;
     btn.style.display = 'none';
   } else {
@@ -3396,22 +3657,42 @@ function updateBuyOfferBanner() {
   btn.disabled = !_collectionsReady || n === 0;
 }
 
-async function fetchBuyOffersForCollection(col) {
-  const needed = new Set(
-    _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
-           .map(a => String(a.template.template_id))
-  );
+// Same fetchOwnedTemplatesForCollection + template_id= chunking strategy as
+// fetchFloorPriceChunk, with one difference: /template_buyoffers is NOT
+// pre-deduped to one row per template the way /sales/templates is — several
+// buyers can bid on the same template (confirmed live: up to 12 competing
+// offers for one template within a single 100-row page), so a ≤100-id chunk
+// can't be assumed to resolve in one page. Still paged, but only within this
+// one chunk's own small "still looking for these" set (≤100 ids) — bounded
+// by how many offers exist among at most 100 specific templates, not by the
+// whole collection's offer volume, with a hard page cap as a defensive
+// backstop. Takes one already-chunked piece of one collection — see
+// fetchFloorPriceChunk's comment for why chunks aren't looped internally
+// per-collection (so one collection needing many chunks can't serialize
+// behind itself in the shared concurrency pool).
+//
+// Returns true/false — see fetchFloorPriceChunk's comment on the same
+// return shape. Here specifically: a page genuinely having zero offers is
+// NOT a failure (most templates simply have no active buy offer), only a
+// network error or API-level failure (after WaxApi.rawFetch's own retries
+// are exhausted) counts.
+async function fetchBuyOfferChunk(col, chunk, owned) {
+  const colSet = _buyOffersByCol[col] || (_buyOffersByCol[col] = new Set());
+  const CHUNK_PAGE_CAP = 5; // 500 rows for at most 100 templates — generous margin over the ~12-offers-for-one-template case seen live
+  const needed = new Set(chunk);
   let page = 1;
-  while (true) {
+  let ok = true;
+  while (page <= CHUNK_PAGE_CAP && needed.size > 0) {
     let json;
     try {
-      const res = await fetch(`${MARKET_API}/atomicmarket/v1/template_buyoffers?state=0&collection_whitelist=${encodeURIComponent(col)}&sort=price&order=desc&limit=100&page=${page}&symbol=WAX`);
+      const res = await WaxApi.rawFetch(`${WaxApi.marketBase()}/template_buyoffers?state=0&template_id=${chunk.join(',')}&sort=price&order=desc&limit=100&page=${page}&symbol=WAX`);
       json = await res.json();
-    } catch { break; }
-    if (!json.success || !json.data.length) break;
+    } catch { ok = false; break; }
+    if (!json.success) { ok = false; break; }
+    if (!json.data.length) break; // genuinely no (more) active offers for these templates — not a failure
     for (const offer of json.data) {
       const tid = String(offer.template?.template_id || '');
-      if (!tid) continue;
+      if (!tid || !owned.has(tid)) continue;
       if (_buyOffers[tid] == null) {
         _buyOffers[tid] = {
           price:           Number(offer.price.amount) / Math.pow(10, offer.price.token_precision),
@@ -3420,13 +3701,15 @@ async function fetchBuyOffersForCollection(col) {
           raw_amount:      offer.price.amount,
           token_precision: offer.price.token_precision,
         };
+        colSet.add(tid);
       }
       needed.delete(tid);
     }
-    if (needed.size === 0 || json.data.length < 100) break;
+    if (json.data.length < 100) break;
     page++;
-    await new Promise(r => setTimeout(r, 300));
+    if (page <= CHUNK_PAGE_CAP && needed.size > 0) await new Promise(r => setTimeout(r, 300));
   }
+  return ok;
 }
 
 const BUYOFFER_CHUNK = 200;
@@ -3443,7 +3726,7 @@ async function fetchNextBuyOfferChunk() {
   let page = 1;
   while (true) {
     try {
-      const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
+      const res  = await WaxApi.rawFetch(`${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
       const json = await res.json();
       if (!json.success || !json.data.length) break;
       _buyOfferBuffer.push(...json.data);
@@ -3462,10 +3745,12 @@ async function fetchNextBuyOfferChunk() {
 }
 
 async function sortByBuyOffer(direction = 'desc') {
-  _buyOfferSortDir    = direction;
-  _buyOfferSortedTids = Object.entries(_buyOffers)
-    .sort(([, a], [, b]) => direction === 'asc' ? a.price - b.price : b.price - a.price)
-    .map(([tid]) => tid);
+  _buyOfferSortDir = direction;
+  // Scoped to the selected collection via _buyOffersByCol — see the matching
+  // comment in sortByFloorPrice for why (avoids re-walking wallet-wide data
+  // in global rank order every time the Collection filter changes).
+  const relevantTids = _filterCol !== 'all' ? [...(_buyOffersByCol[_filterCol] || [])] : Object.keys(_buyOffers);
+  _buyOfferSortedTids = relevantTids.sort((a, b) => direction === 'asc' ? _buyOffers[a].price - _buyOffers[b].price : _buyOffers[b].price - _buyOffers[a].price);
   if (!_buyOfferSortedTids.length) return;
 
   _assets           = [];
@@ -3503,12 +3788,13 @@ async function sortByBuyOffer(direction = 'desc') {
 
 async function startBuyOfferFetch() {
   if (_buyOffersBusy) return;
-  _buyOffersBusy = true;
-  _buyOffers     = {};
-  _buyOffersFetched = false;
+  _buyOffersBusy       = true;
+  _buyOffers           = {};
+  _buyOffersByCol      = {};
+  _buyOfferFetchSkipped = 0;
+  _buyOffersFetched    = false;
 
   const btn       = document.getElementById('buyofferFetchBtn');
-  const sub       = document.getElementById('buyofferBannerSub');
   const progWrap  = document.getElementById('buyofferProgressWrap');
   const progFill  = document.getElementById('buyofferProgressFill');
   const progLabel = document.getElementById('buyofferProgressLabel');
@@ -3520,19 +3806,38 @@ async function startBuyOfferFetch() {
   progFill.style.width   = '0%';
 
   const collections = [..._collections];
-  const total = collections.length;
-  let done = 0;
 
-  const BATCH = 10;
-  for (let i = 0; i < collections.length; i += BATCH) {
-    const batch = collections.slice(i, i + BATCH);
-    await Promise.all(batch.map(col => fetchBuyOffersForCollection(col)));
-    done += batch.length;
-    progFill.style.width   = Math.round((done / total) * 100) + '%';
-    progLabel.textContent  = `Fetching buy offers… ${done} / ${total} collections`;
-    updateBuyOfferCards();
-    if (i + BATCH < collections.length) await new Promise(r => setTimeout(r, 350));
+  // See startFloorPriceFetch's matching comment — same two-phase, flat
+  // concurrency-pool shape (ownership for every collection, then every
+  // collection's chunks flattened into one queue), not fixed batches of 10.
+  const ownedByCol = new Map();
+  let ownDone = 0;
+  progLabel.textContent = `Checking your holdings… 0 / ${collections.length} collections`;
+  await runWithConcurrency(collections, PREMIUM_FETCH_CONCURRENCY, async col => {
+    const owned = await fetchOwnedTemplatesForCollection(_activeWallet, col);
+    // See startFloorPriceFetch's matching comment — empty here essentially
+    // always means the ownership call itself failed, not "owns nothing".
+    if (owned.size) ownedByCol.set(col, owned); else _buyOfferFetchSkipped++;
+    ownDone++;
+    progFill.style.width  = Math.round((ownDone / collections.length) * 40) + '%';
+    progLabel.textContent = `Checking your holdings… ${ownDone} / ${collections.length} collections`;
+  });
+
+  const tasks = [];
+  for (const [col, owned] of ownedByCol) {
+    const tids = [...owned.keys()];
+    for (let i = 0; i < tids.length; i += 100) tasks.push({ col, chunk: tids.slice(i, i + 100), owned });
   }
+  let chunkDone = 0;
+  progLabel.textContent = `Fetching buy offers… ${chunkDone} / ${tasks.length}`;
+  await runMarketBudgetedBatches(tasks, MARKET_FETCH_CONCURRENCY, async task => {
+    const ok = await fetchBuyOfferChunk(task.col, task.chunk, task.owned);
+    if (!ok) _buyOfferFetchSkipped++;
+    chunkDone++;
+    progFill.style.width  = 40 + Math.round((chunkDone / Math.max(tasks.length, 1)) * 60) + '%';
+    progLabel.textContent = `Fetching buy offers… ${chunkDone} / ${tasks.length}`;
+    updateBuyOfferCards();
+  }, progLabel, 'Waiting for the API rate limit to reset.', 5); // 5 = fetchBuyOfferChunk's own CHUNK_PAGE_CAP — not deduped server-side, so a task can cost up to 5 real requests
 
   _buyOffersFetched = true;
   _buyOffersBusy    = false;
@@ -3541,6 +3846,9 @@ async function startBuyOfferFetch() {
   btn.disabled = false;
   renderSortDropdown();
   updateBuyOfferBanner();
+  // See the matching comment in startFloorPriceFetch — applies a sort left
+  // pending by a URL deep link once its unlock fetch just completed.
+  if (_sortOrder.startsWith('buyoffer_')) await sortByBuyOffer(_sortOrder === 'buyoffer_asc' ? 'asc' : 'desc');
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -3594,6 +3902,8 @@ function updateLastSoldBanner() {
   const n = _collections.size;
   if (_lastSoldFetched) {
     const count = Object.keys(_lastSold).length;
+    // See updateFloorPriceBanner's matching comment on _floorFetchSkipped —
+    // no "Retry N skipped" button anymore, kept silent.
     sub.textContent = `We found a sale within the last 6 months for ${count} template${count !== 1 ? 's' : ''} across ${n} collection${n !== 1 ? 's' : ''}. You can now sort your inventory by "Last Sold" (Highest or Lowest).`;
     btn.style.display = 'none';
   } else {
@@ -3608,41 +3918,52 @@ function updateLastSoldBanner() {
   btn.disabled = !_collectionsReady || n === 0;
 }
 
-// Sold sales come back most-recent-first for the whole collection, so the
-// first time a template_id is seen in that stream is its last sale — same
-// keep-first-seen trick the floor-price/buy-offer walks use, just ordered
-// by recency instead of price, and bounded to LASTSOLD_WINDOW_MS via `after`.
-async function fetchLastSoldForCollection(col) {
-  const needed = new Set(
-    _assets.filter(a => a.collection?.collection_name === col && a.template?.template_id)
-           .map(a => String(a.template.template_id))
-  );
-  const after = Date.now() - LASTSOLD_WINDOW_MS;
+// Same fetchOwnedTemplatesForCollection + template_id= chunking strategy as
+// fetchFloorPriceChunk/fetchBuyOfferChunk. /sales?state=3 is not pre-deduped
+// per template either — a popular template can have sold many times within
+// LASTSOLD_WINDOW_MS — so each ≤100-id chunk gets its own small bounded scan
+// (sold sales come back most-recent-first, so the first time a template_id
+// is seen in that stream, within this one chunk, is its last sale), same
+// shape as Buy Offer's chunk scan. Takes one already-chunked piece of one
+// collection — see fetchFloorPriceChunk's comment for why.
+//
+// Returns true/false — see fetchBuyOfferChunk's comment on the same return
+// shape (a page with zero sales isn't a failure, only a real API/network
+// failure after retries are exhausted is).
+async function fetchLastSoldChunk(col, chunk, owned) {
+  const colSet = _lastSoldByCol[col] || (_lastSoldByCol[col] = new Set());
+  const after  = Date.now() - LASTSOLD_WINDOW_MS;
+  const CHUNK_PAGE_CAP = 5;
+  const needed = new Set(chunk);
   let page = 1;
-  while (true) {
+  let ok = true;
+  while (page <= CHUNK_PAGE_CAP && needed.size > 0) {
     let json;
     try {
-      const res = await fetch(`${MARKET_API}/atomicmarket/v1/sales?state=3&collection_whitelist=${encodeURIComponent(col)}&sort=updated&order=desc&after=${after}&limit=100&page=${page}&symbol=WAX`);
+      const res = await WaxApi.rawFetch(`${WaxApi.marketBase()}/sales?state=3&template_id=${chunk.join(',')}&sort=updated&order=desc&after=${after}&limit=100&page=${page}&symbol=WAX`);
       json = await res.json();
-    } catch { break; }
-    if (!json.success || !json.data.length) break;
+    } catch { ok = false; break; }
+    if (!json.success) { ok = false; break; }
+    if (!json.data.length) break; // genuinely no (more) sales for these templates in the window — not a failure
     for (const sale of json.data) {
       if (sale.assets?.length !== 1) continue; // bundle sales don't reflect a single template's price
       const tid = String(sale.assets[0]?.template?.template_id || '');
-      if (!tid) continue;
+      if (!tid || !owned.has(tid)) continue;
       if (_lastSold[tid] == null) {
         const precision = sale.price?.token_precision ?? 8;
         _lastSold[tid] = {
           price:  Number(sale.price.amount) / Math.pow(10, precision),
           soldAt: Number(sale.updated_at_time),
         };
+        colSet.add(tid);
       }
       needed.delete(tid);
     }
-    if (needed.size === 0 || json.data.length < 100) break;
+    if (json.data.length < 100) break;
     page++;
-    await new Promise(r => setTimeout(r, 300));
+    if (page <= CHUNK_PAGE_CAP && needed.size > 0) await new Promise(r => setTimeout(r, 300));
   }
+  return ok;
 }
 
 const LASTSOLD_CHUNK = 200;
@@ -3659,7 +3980,7 @@ async function fetchNextLastSoldChunk() {
   let page = 1;
   while (true) {
     try {
-      const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
+      const res  = await WaxApi.rawFetch(`${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&template_whitelist=${tids.join(',')}${colParam}&limit=1000&page=${page}`);
       const json = await res.json();
       if (!json.success || !json.data.length) break;
       _lastSoldBuffer.push(...json.data);
@@ -3678,10 +3999,11 @@ async function fetchNextLastSoldChunk() {
 }
 
 async function sortByLastSold(direction = 'desc') {
-  _lastSoldSortDir    = direction;
-  _lastSoldSortedTids = Object.entries(_lastSold)
-    .sort(([, a], [, b]) => direction === 'asc' ? a.price - b.price : b.price - a.price)
-    .map(([tid]) => tid);
+  _lastSoldSortDir = direction;
+  // Scoped to the selected collection via _lastSoldByCol — see the matching
+  // comment in sortByFloorPrice for why.
+  const relevantTids = _filterCol !== 'all' ? [...(_lastSoldByCol[_filterCol] || [])] : Object.keys(_lastSold);
+  _lastSoldSortedTids = relevantTids.sort((a, b) => direction === 'asc' ? _lastSold[a].price - _lastSold[b].price : _lastSold[b].price - _lastSold[a].price);
   if (!_lastSoldSortedTids.length) return;
 
   _assets            = [];
@@ -3717,9 +4039,11 @@ async function sortByLastSold(direction = 'desc') {
 
 async function startLastSoldFetch() {
   if (_lastSoldBusy) return;
-  _lastSoldBusy    = true;
-  _lastSold        = {};
-  _lastSoldFetched = false;
+  _lastSoldBusy         = true;
+  _lastSold             = {};
+  _lastSoldByCol        = {};
+  _lastSoldFetchSkipped = 0;
+  _lastSoldFetched      = false;
 
   const btn       = document.getElementById('lastsoldFetchBtn');
   const progWrap  = document.getElementById('lastsoldProgressWrap');
@@ -3733,19 +4057,37 @@ async function startLastSoldFetch() {
   progFill.style.width   = '0%';
 
   const collections = [..._collections];
-  const total = collections.length;
-  let done = 0;
 
-  const BATCH = 10;
-  for (let i = 0; i < collections.length; i += BATCH) {
-    const batch = collections.slice(i, i + BATCH);
-    await Promise.all(batch.map(col => fetchLastSoldForCollection(col)));
-    done += batch.length;
-    progFill.style.width   = Math.round((done / total) * 100) + '%';
-    progLabel.textContent  = `Fetching last sold prices… ${done} / ${total} collections`;
-    updateLastSoldCards();
-    if (i + BATCH < collections.length) await new Promise(r => setTimeout(r, 350));
+  // See startFloorPriceFetch's matching comment — same two-phase, flat
+  // concurrency-pool shape, not fixed batches of 10.
+  const ownedByCol = new Map();
+  let ownDone = 0;
+  progLabel.textContent = `Checking your holdings… 0 / ${collections.length} collections`;
+  await runWithConcurrency(collections, PREMIUM_FETCH_CONCURRENCY, async col => {
+    const owned = await fetchOwnedTemplatesForCollection(_activeWallet, col);
+    // See startFloorPriceFetch's matching comment — empty here essentially
+    // always means the ownership call itself failed, not "owns nothing".
+    if (owned.size) ownedByCol.set(col, owned); else _lastSoldFetchSkipped++;
+    ownDone++;
+    progFill.style.width  = Math.round((ownDone / collections.length) * 40) + '%';
+    progLabel.textContent = `Checking your holdings… ${ownDone} / ${collections.length} collections`;
+  });
+
+  const tasks = [];
+  for (const [col, owned] of ownedByCol) {
+    const tids = [...owned.keys()];
+    for (let i = 0; i < tids.length; i += 100) tasks.push({ col, chunk: tids.slice(i, i + 100), owned });
   }
+  let chunkDone = 0;
+  progLabel.textContent = `Fetching last sold prices… ${chunkDone} / ${tasks.length}`;
+  await runMarketBudgetedBatches(tasks, MARKET_FETCH_CONCURRENCY, async task => {
+    const ok = await fetchLastSoldChunk(task.col, task.chunk, task.owned);
+    if (!ok) _lastSoldFetchSkipped++;
+    chunkDone++;
+    progFill.style.width  = 40 + Math.round((chunkDone / Math.max(tasks.length, 1)) * 60) + '%';
+    progLabel.textContent = `Fetching last sold prices… ${chunkDone} / ${tasks.length}`;
+    updateLastSoldCards();
+  }, progLabel, 'Waiting for the API rate limit to reset.', 5); // 5 = fetchLastSoldChunk's own CHUNK_PAGE_CAP — not deduped server-side, so a task can cost up to 5 real requests
 
   _lastSoldFetched = true;
   _lastSoldBusy    = false;
@@ -3754,6 +4096,9 @@ async function startLastSoldFetch() {
   btn.disabled = false;
   renderSortDropdown();
   updateLastSoldBanner();
+  // See the matching comment in startFloorPriceFetch — applies a sort left
+  // pending by a URL deep link once its unlock fetch just completed.
+  if (_sortOrder.startsWith('lastsold_')) await sortByLastSold(_sortOrder === 'lastsold_asc' ? 'asc' : 'desc');
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -3819,7 +4164,7 @@ async function _fetchOfferList(asset) {
   let offers = [];
   if (tid) {
     try {
-      const res  = await fetch(`${MARKET_API}/atomicmarket/v1/template_buyoffers?state=0&template_id=${tid}&sort=price&order=desc&limit=10&symbol=WAX`, { cache: 'no-store' });
+      const res  = await fetch(`${WaxApi.marketBase()}/template_buyoffers?state=0&template_id=${tid}&sort=price&order=desc&limit=10&symbol=WAX`, { cache: 'no-store' });
       const json = await res.json();
       if (json.success && json.data) {
         offers = json.data.map(o => ({
@@ -3897,7 +4242,7 @@ async function fetchCollectionFee(colName) {
   if (!colName) return 0;
   if (_collectionFeeCache[colName] !== undefined) return _collectionFeeCache[colName];
   try {
-    const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/collections/${encodeURIComponent(colName)}`);
+    const res  = await WaxApi.rawFetch(`${WaxApi.aaBase()}/collections/${encodeURIComponent(colName)}`);
     const json = await res.json();
     const fee  = Number(json.data?.market_fee ?? 0);
     _collectionFeeCache[colName] = fee;
@@ -4068,7 +4413,7 @@ async function handleAcceptOffer() {
     const tid = String(asset.template?.template_id || '');
     if (tid) {
       try {
-        const res  = await fetch(`${MARKET_API}/atomicmarket/v1/template_buyoffers?state=0&template_id=${tid}&sort=price&order=desc&limit=5&symbol=WAX`, { cache: 'no-store' });
+        const res  = await fetch(`${WaxApi.marketBase()}/template_buyoffers?state=0&template_id=${tid}&sort=price&order=desc&limit=5&symbol=WAX`, { cache: 'no-store' });
         const json = await res.json();
         // Filter out the just-accepted offer — indexer may still return it for a few seconds
         const remaining = (json.success ? json.data || [] : [])
@@ -4794,8 +5139,8 @@ async function fetchAllMatchingAssets(whitelist, onProgress) {
   const all = [];
   let page = 1;
   while (true) {
-    const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=1000&page=${page}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${matchParam}${whitelistParam}${backedParam}`;
-    const res  = await fetchWithRetry(url);
+    const url  = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&limit=1000&page=${page}&sort=${sortOpt.sort}&order=${sortOpt.order}${colParam}${schemaParam}${matchParam}${whitelistParam}${backedParam}`;
+    const res  = await WaxApi.rawFetch(url);
     const json = await res.json();
     if (!json.success) throw new Error('API error');
     const batch = json.data || [];
@@ -6086,9 +6431,9 @@ async function onWalletChange() {
     _assets = []; _listings.clear(); _collections.clear(); _collectionNames.clear(); _collectionCounts.clear(); _totalAssets = null; _page = 1;
     _filterCol = 'all'; _filterSchema = 'all'; _selectedCardIds.clear(); clearDynamicFieldGroups(); _filterMintMin = ''; _filterMintMax = ''; _listingsFilter = 'all'; _filterText = ''; _sortOrder = 'transferred_desc';
     _onlyBacked = false; document.getElementById('onlyBackedFilter').checked = false;
-    _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _soldAssets.clear(); _collectionsReady = false;
-    _floorOffers = {}; _floorOffersFetched = false; _floorOffersBusy = false;
-    _lastSold = {}; _lastSoldFetched = false; _lastSoldBusy = false;
+    _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _buyOffersByCol = {}; _buyOfferFetchSkipped = 0; _soldAssets.clear(); _collectionsReady = false;
+    _floorOffers = {}; _floorOffersFetched = false; _floorOffersBusy = false; _floorOffersByCol = {}; _floorFetchSkipped = 0;
+    _lastSold = {}; _lastSoldFetched = false; _lastSoldBusy = false; _lastSoldByCol = {}; _lastSoldFetchSkipped = 0;
     _selected.clear(); updateBulkChip();
     setDupesFiltersAvailability(false);
     renderSortDropdown();
@@ -6192,6 +6537,28 @@ async function onListingsFilterChange(val) {
   }
   loadAssets(true);
 }
+// Re-runs whichever sort is currently selected, including a premium
+// client-side sort (Buy Offer/Floor Price/Last Sold) — plain loadAssets(true)
+// only understands SORT_OPTIONS' real sort/order query params; the premium
+// ones are just placeholders there, and actually re-sorting means rebuilding
+// _floorBuffer/_buyOfferBuffer/_lastSoldBuffer from the already-fetched
+// _floorOffers/_buyOffers/_lastSold maps via sortByX(). Used both by the sort
+// dropdown itself and by any filter change that needs to keep an active
+// premium sort applied instead of silently reverting to the default order
+// (currently just the Collection filter — see its call site's comment for
+// why other filters aren't wired through this yet).
+async function applyCurrentSort() {
+  if (_sortOrder.startsWith('buyoffer_') && _buyOffersFetched) {
+    await sortByBuyOffer(_sortOrder === 'buyoffer_asc' ? 'asc' : 'desc');
+  } else if (_sortOrder.startsWith('floorprice_') && _floorOffersFetched) {
+    await sortByFloorPrice(_sortOrder === 'floorprice_asc' ? 'asc' : 'desc');
+  } else if (_sortOrder.startsWith('lastsold_') && _lastSoldFetched) {
+    await sortByLastSold(_sortOrder === 'lastsold_asc' ? 'asc' : 'desc');
+  } else {
+    loadAssets(true);
+  }
+}
+
 function renderSortDropdown() {
   const items = SORT_OPTIONS.map(o => ({
     value: o.value,
@@ -6203,15 +6570,7 @@ function renderSortDropdown() {
   buildSingleCbDropdown('sortDropdown', items, _sortOrder, async val => {
     _sortOrder = val;
     renderSortDropdown();
-    if (_sortOrder.startsWith('buyoffer_') && _buyOffersFetched) {
-      await sortByBuyOffer(_sortOrder === 'buyoffer_asc' ? 'asc' : 'desc');
-    } else if (_sortOrder.startsWith('floorprice_') && _floorOffersFetched) {
-      await sortByFloorPrice(_sortOrder === 'floorprice_asc' ? 'asc' : 'desc');
-    } else if (_sortOrder.startsWith('lastsold_') && _lastSoldFetched) {
-      await sortByLastSold(_sortOrder === 'lastsold_asc' ? 'asc' : 'desc');
-    } else {
-      loadAssets(true);
-    }
+    await applyCurrentSort();
   });
 }
 renderSortDropdown();

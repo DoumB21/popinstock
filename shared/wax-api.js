@@ -33,6 +33,134 @@
   const MAX_BLOCK_GAP  = 1000; // blocks — ~8 min on WAX; anything further is considered lagging
   const MARKET_RETRIES = 3; // same-endpoint retries for atomicmarket URLs, which never rotate
 
+  /* The official market node enforces a real 240-request/60-second budget —
+     confirmed repeatedly via `curl -sD -`, which shows genuine
+     ratelimit-limit/ratelimit-remaining/ratelimit-reset response headers
+     (IETF draft convention) on every response. An earlier version of this
+     module tried to read those same headers from `fetch()` in the browser
+     and track live remaining/reset state from them. That never actually
+     worked: confirmed live (2026-08-10) that `res.headers.get('ratelimit-
+     remaining')` is always `null` in a real browser response, because the
+     server never sends `Access-Control-Expose-Headers` for its custom
+     ratelimit-* headers — CORS only exposes a small safelisted set
+     (Cache-Control/Content-Type/Last-Modified/etc.) to page JS by default,
+     and curl isn't subject to CORS at all, which is exactly why curl saw
+     the headers and the running site never did. The only reason the
+     previous "verified live" test of that logic passed is that it
+     monkeypatched `window.fetch` to return a hand-built Response with fake
+     headers, which bypasses real CORS restrictions entirely — it proved the
+     gating math was correct, not that the browser could ever see the data
+     driving it. In production `_marketRemaining` stayed `null` forever, so
+     that "proactive" gate never actually fired; whatever improvement was
+     measured that session came from the flat per-request pacing that sat
+     alongside it, not from this header logic.
+
+     Replaced with a window we track ourselves, purely client-side — no
+     server cooperation needed. First built as a SLIDING window (each
+     request's own slot individually expiring 60s after it fired) — wrong
+     model, caught by direct experiment: fired 30 requests back-to-back via
+     `curl -sD -` and watched `ratelimit-reset` count straight down in
+     lockstep with wall-clock time regardless of request volume (60→59→58…),
+     with `remaining` dropping by exactly 1 per request and never partially
+     recovering mid-window. That's a FIXED window — the whole 240-request
+     budget refills at once, all at the same shared reset instant, not
+     continuously as individual old requests "age out." A sliding-window
+     client model on top of a fixed-window server produces exactly the
+     symptom reported live: waiting for just one tracked entry to expire
+     frees a slot that doesn't actually exist yet server-side (the real
+     budget hasn't refilled at all until the true reset instant), so
+     concurrent workers kept re-tripping the gate every few seconds instead
+     of the clean single burst-wait-burst this fix now produces.
+
+     Tracked as {windowStart, count} in localStorage (not an in-memory
+     object) so multiple tabs of this site share one window — a bulk fetch
+     running in one tab should back off if the user is also doing a normal
+     buy/accept-offer in another tab, not just track its own traffic in
+     isolation. This can't see traffic from other sites/users hitting the
+     same public node, which real server-side headers would have caught in
+     theory — the existing 429 retry/backoff in apiFetch/rawFetch remains
+     the real backstop for that blind spot.
+
+     An earlier version also hard-corrected this tracked state on a real 429
+     — pinning it to "fully exhausted, restart the 60s clock from right now,"
+     treating any 429 as proof the whole window was blown. That was built for
+     the PER-REQUEST-GATE design this module used to have, where drifted,
+     timer-delayed admissions really could burst into a window that hadn't
+     actually reset. It doesn't fit the current batch design: a batch is
+     already sized conservatively up front from this exact tracked count, so
+     a stray 429 slipping through is far more likely a brief blip from some
+     OTHER consumer of this shared public node (or a transient hiccup) than
+     proof our own 240-budget is really at 0. Confirmed live: this "hard
+     correction" outlived its own usefulness and started actively lying —
+     one run's stray 429 poisoned the shared tracked state for a full 60s,
+     and a LATER, unrelated run inherited "0 remaining" and sat waiting even
+     though the real server (checked directly in the browser's Network
+     panel, not subject to the CORS restriction that blocks page JS from
+     reading the same header) showed 183 of 240 still available the whole
+     time. Removed — `_recordMarketRequest` below, called on every real
+     attempt regardless of outcome, is accurate enough on its own now that
+     the timer-drift failure mode this correction existed for no longer
+     applies, and the existing per-request retry/backoff already absorbs an
+     occasional real 429 without needing to poison shared state over it.
+
+     This module deliberately does NOT gate individual requests anymore —
+     three straight rewrites of a per-request gate here (sliding-window,
+     then fixed-window-with-throttle-stage, then a paced-admission version)
+     each fixed one live-reproduced bug and introduced or left another
+     (a stutter, then a genuine deadlock, then an infinite loop that
+     silently stopped firing ANY requests while a "slowing down" label sat
+     there implying progress that wasn't happening). The actual insight that
+     ends this cycle, from the user directly: this doesn't need to be a
+     per-request decision at all. `getMarketBudget()` below is precise
+     (it's our own exact count, not an estimate that needs live headers),
+     so a CALLER that already knows how many requests it's about to make
+     (inventory.html's premium-unlock batch fetchers) can decide, per BATCH,
+     whether the whole batch fits under the remaining budget or not — and
+     if not, run only as many as safely fit, then stop cleanly and wait for
+     a real reset before continuing. That orchestration now lives in
+     inventory.html, not here — this module just tracks and exposes the
+     count. See inventory.html's runMarketBudgetedBatches(). */
+  const MARKET_WINDOW_MS = 60 * 1000;
+  const MARKET_LIMIT      = 240; // fixed constant, not read live — see above for why it can't be read live; re-verify with curl if the node's policy ever seems to have changed
+  const MARKET_STATE_KEY  = 'wax_market_window_v1';
+
+  function _readMarketWindow(now) {
+    let state;
+    try { state = JSON.parse(localStorage.getItem(MARKET_STATE_KEY) || 'null'); } catch { state = null; }
+    if (!state || typeof state.windowStart !== 'number' || typeof state.count !== 'number' || now - state.windowStart >= MARKET_WINDOW_MS) {
+      return { windowStart: now, count: 0 }; // no tracked window, or the tracked one has fully elapsed — start fresh
+    }
+    return state;
+  }
+
+  // Called once per actual market request attempt (including retries — each
+  // one really does spend budget on the server). Read-modify-write is not
+  // atomic across tabs, so two tabs can race and both increment from the
+  // same stale snapshot — acceptable, callers batching against this count
+  // (see inventory.html's runMarketBudgetedBatches) already leave their own
+  // stop-threshold slack for exactly this, not a guarantee of perfect
+  // cross-tab ordering.
+  function _recordMarketRequest() {
+    const now = Date.now();
+    const state = _readMarketWindow(now);
+    state.count++;
+    try { localStorage.setItem(MARKET_STATE_KEY, JSON.stringify(state)); } catch {}
+  }
+
+  /* Read-only snapshot of the tracked market budget, for a caller that wants
+     to make its own batching decisions (e.g. inventory.html's premium-unlock
+     fetchers — see runMarketBudgetedBatches there) or reflect state in its
+     own UI. Purely observational — reading this never affects the tracked
+     window itself. */
+  function getMarketBudget() {
+    const now = Date.now();
+    const state = _readMarketWindow(now);
+    return {
+      remaining: Math.max(0, MARKET_LIMIT - state.count),
+      resetAt:   state.windowStart + MARKET_WINDOW_MS,
+    };
+  }
+
   /* A node can pass /health (fast, not rate-limited) while its real
      /atomicassets/v1 queries 429 constantly (seen on wax.eosusa.io,
      2026-07) — the external health-check agent behind wax_endpoint_health
@@ -193,6 +321,7 @@
     const rotatable   = _canRotate(url);
     const maxAttempts = rotatable ? AA_ENDPOINTS.length : MARKET_RETRIES;
     for (let i = 0; i < maxAttempts; i++) {
+      if (!rotatable) _recordMarketRequest();
       let res;
       try {
         res = await _fetchWithTimeout(cur, rotatable ? TIMEOUT : (opts?.timeout || MARKET_TIMEOUT));
@@ -223,6 +352,7 @@
     const rotatable   = _canRotate(url);
     const maxAttempts = rotatable ? AA_ENDPOINTS.length : MARKET_RETRIES;
     for (let i = 0; i < maxAttempts; i++) {
+      if (!rotatable) _recordMarketRequest();
       let res;
       try {
         res = await _fetchWithTimeout(cur, rotatable ? TIMEOUT : MARKET_TIMEOUT);
@@ -306,5 +436,5 @@
   // supabase-config.js, regardless of tag order) has already run.
   if (typeof window !== 'undefined') setTimeout(_syncEndpointOrder, 0);
 
-  window.WaxApi = { apiFetch, rawFetch, aaBase, aaBases, marketBase, rotateAwayFrom };
+  window.WaxApi = { apiFetch, rawFetch, aaBase, aaBases, marketBase, rotateAwayFrom, getMarketBudget };
 })();
