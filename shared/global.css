@@ -1393,8 +1393,6 @@ body::before {
 .ao-btn--primary { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.4); color: #4ade80; }
 .ao-btn--primary:hover { background: rgba(74,222,128,0.22); border-color: #4ade80; }
 
-.ao-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; margin: 0; }
-
 
 /* ── Burned-asset overlay — instantly recognizable without opening the
    asset page. Add the `burned-thumb` class to any thumbnail wrapper

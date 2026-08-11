@@ -291,7 +291,6 @@ window.AcceptOfferModal = (function () {
             <button type="button" class="ao-btn ao-btn--cancel" id="aoCancel">Cancel</button>
             <button type="button" class="ao-btn ao-btn--primary" id="aoConfirm">Accept Offer</button>
           </div>
-          <p class="ao-note">Thank you for supporting Hoardio.</p>
         </div>`;
 
       panel.querySelector('#aoClose').addEventListener('click', guardedClose);

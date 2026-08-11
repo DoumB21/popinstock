@@ -381,8 +381,6 @@
     }
     .modal-btn--accept:not(:disabled):hover { background: rgba(34,197,94,0.22); border-color: rgba(34,197,94,0.65); }
 
-    .modal-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; }
-
     /* ── Fee breakdown (phase 2) ── */
     .fee-details {
       background: rgba(255,255,255,0.03); border: 1px solid var(--border);
@@ -738,7 +736,7 @@
 <main class="page-main">
   <div class="page-header">
     <h1 class="page-title" id="pageTitle">My <span class="accent">Inventory</span></h1>
-    <p class="page-desc" id="pageDesc">List your NFTs for sale through Hoardio and help support the site and its future development.</p>
+    <p class="page-desc" id="pageDesc">Browse and manage your NFTs — list for sale, transfer, gift, or accept offers.</p>
     <div class="buyoffer-banner is-hidden" id="buyofferBanner">
       <button type="button" class="buyoffer-banner-close" id="buyofferBannerClose" onclick="toggleBuyOfferBanner(false)" title="Hide">✕</button>
       <div class="buyoffer-banner-left">
@@ -4623,8 +4621,6 @@ function renderModal(asset, listing, floor, loadingFloor) {
           ${isBundle ? 'Update bundle' : isEdit ? 'Update listing' : 'List for sale'}
         </button>
       </div>
-
-      <p class="modal-note">Thank you for supporting Hoardio.</p>
     </div>
   `;
 
@@ -6435,7 +6431,7 @@ function updatePageHeading() {
     document.title     = `${_activeWallet}'s Inventory — Hoardio`;
   } else {
     titleEl.innerHTML  = 'My <span class="accent">Inventory</span>';
-    descEl.textContent = 'List your NFTs for sale through Hoardio and help support the site and its future development.';
+    descEl.textContent = 'Browse and manage your NFTs — list for sale, transfer, gift, or accept offers.';
     document.title     = 'Inventory — Hoardio';
   }
 }
