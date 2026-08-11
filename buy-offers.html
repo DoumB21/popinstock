@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buy Offers — Hoardio</title>
+  <meta name="description" content="Review, accept, and cancel WAX buy offers on your NFT cards — both received and sent." />
+  <link rel="canonical" href="https://www.hoardio.com/buy-offers" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/buy-offers" />
+  <meta property="og:title" content="Buy Offers — Hoardio" />
+  <meta property="og:description" content="Review, accept, and cancel WAX buy offers on your NFT cards — both received and sent." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Buy Offers — Hoardio" />
+  <meta name="twitter:description" content="Review, accept, and cancel WAX buy offers on your NFT cards — both received and sent." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    /* ── Page ── */
+    .page-main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem;
+      text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; }
+
+    /* ── Tab switcher — same visual language as trade-offers.html's own
+       (which itself follows inventory-activity.html's .act-tabs). ── */
+    .offer-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .offer-tab-btn {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
+      border-radius: 8px; padding: 0.55rem 1.1rem;
+      font-size: 0.85rem; font-weight: 700; color: var(--accent-light);
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .offer-tab-btn:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .offer-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+    .tab-count { font-variant-numeric: tabular-nums; opacity: 0.85; }
+    @media (max-width: 480px) {
+      .offer-tab-btn { padding: 0.55rem 0.5rem; gap: 0.3rem; }
+    }
+
+    #offersPageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .history-link {
+      display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.55rem 0.9rem;
+      color: var(--text-primary); font-size: 0.82rem; font-weight: 600;
+      text-decoration: none; transition: border-color 0.15s;
+    }
+    .history-link:hover { border-color: rgba(192,120,40,0.5); }
+
+    .balance-note {
+      display: none; align-items: center; justify-content: space-between; gap: 0.75rem;
+      background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3);
+      color: #4ade80; border-radius: 10px; padding: 0.75rem 1rem;
+      font-size: 0.85rem; margin-bottom: 1.25rem;
+    }
+    .balance-note a { color: inherit; font-weight: 700; text-decoration: underline; }
+    .balance-note-close {
+      flex-shrink: 0; background: none; border: none; color: inherit; cursor: pointer;
+      font-size: 1rem; line-height: 1; padding: 0.2rem;
+    }
+
+    .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
+    .empty-state a { color: var(--accent-light); text-decoration: underline; }
+    .empty-state a:hover { opacity: 0.8; }
+
+    .offers-list { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    /* ── Accordion item — same shell as trade-offers.html's own ── */
+    .offer-item {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; transition: border-color 0.2s;
+    }
+    .offer-item:hover { border-color: var(--border-hover); }
+    .offer-header {
+      display: flex; align-items: center;
+      padding: 1rem 1.25rem; cursor: pointer; user-select: none; gap: 1rem;
+    }
+    .offer-chevron { width: 18px; height: 18px; flex-shrink: 0; color: var(--text-secondary); transition: transform 0.2s; }
+    .offer-item.open .offer-chevron { transform: rotate(90deg); }
+    .offer-from { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .offer-from-wallet { color: var(--accent-light); }
+    .bo-type-badge {
+      display: inline-block; margin-left: 0.5rem; font-size: 0.64rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      border-radius: 999px; padding: 0.12rem 0.5rem; vertical-align: middle;
+    }
+    .bo-type-badge--asset    { color: var(--accent-light); background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.35); }
+    .bo-type-badge--template { color: #60a5fa; background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.35); }
+    .offer-meta { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+    .bo-header-price { font-size: 1rem; font-weight: 700; color: var(--accent-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .offer-age     { flex-shrink: 0; width: 5rem; font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; text-align: right; }
+    .offer-body    { display: none; border-top: 1px solid var(--border); }
+    .offer-item.open .offer-body { display: block; }
+
+    /* ── Single-item card body — a buy offer is one asset (or "any copy" of
+       one template) for WAX, not asset-for-asset like a trade offer, so this
+       is a single card instead of trade-offers.html's two-column sides. ── */
+    .bo-content { display: flex; gap: 1.1rem; padding: 1.1rem 1.25rem; }
+    .bo-media {
+      flex-shrink: 0; width: 90px; height: 90px; border-radius: 10px; overflow: hidden;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bo-media img, .bo-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .bo-media-ph { color: var(--text-secondary); font-size: 1.4rem; }
+    .bo-details { flex: 1; min-width: 0; }
+    .bo-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+    .bo-meta { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; margin-bottom: 0.6rem; }
+    .bo-meta .rarity-pill { font-size: 0.68rem; padding: 1px 8px; }
+    .bo-rows { display: flex; flex-direction: column; gap: 0.25rem; max-width: 360px; }
+    .bo-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; font-size: 0.85rem; }
+    .bo-row-label { color: var(--text-secondary); }
+    .bo-row-val { font-weight: 600; color: var(--text-primary); text-align: right; }
+    .bo-price { color: var(--accent-light); }
+    .bo-usd { color: var(--text-secondary); font-size: 0.78rem; font-weight: 400; }
+    .bo-memo { margin-top: 0.6rem; font-size: 0.78rem; color: var(--text-secondary); }
+    .bo-memo span { color: var(--text-primary); }
+
+    /* ── Sent tab — compact, checkbox-selectable rows instead of the
+       Received tab's expand/collapse accordion. A "Sent" list is often
+       many small, similar offers a collector wants to bulk-cancel, not
+       browse one at a time — no accordion body to open, everything that
+       matters (price, item, counterparty) is already on one line. ── */
+    .bo-type-filter { display: none; gap: 0.5rem; margin-bottom: 0.7rem; }
+    .bo-type-filter-btn {
+      font-size: 0.8rem; font-weight: 700; font-family: inherit;
+      padding: 0.4rem 1rem; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary);
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .bo-type-filter-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+    .bo-type-filter-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+
+    .bo-bulk-bar {
+      display: none; align-items: center; gap: 1rem;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.65rem 1rem; margin-bottom: 0.7rem;
+    }
+    .bo-bulk-selectall { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none; }
+    .bo-bulk-selectall input { width: 16px; height: 16px; accent-color: var(--accent-light); cursor: pointer; }
+    .bo-bulk-count { flex: 1; font-size: 0.8rem; color: var(--text-secondary); }
+
+    .bo-row-item {
+      display: flex; align-items: center; gap: 1.1rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 13px; padding: 0.9rem 1.35rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .bo-row-item:hover { border-color: var(--border-hover); }
+    .bo-row-item.bo-row-selected { border-color: rgba(240,168,64,0.5); background: rgba(240,168,64,0.06); }
+    .bo-row-cb { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--accent-light); cursor: pointer; }
+    .bo-row-media {
+      flex-shrink: 0; width: 70px; height: 70px; border-radius: 10px; overflow: hidden;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bo-row-media img, .bo-row-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .bo-row-media .bo-media-ph { font-size: 1.4rem; }
+    .bo-row-body { flex: 1; min-width: 0; }
+    .bo-row-title { display: flex; align-items: center; gap: 0.5rem; }
+    .bo-row-name { font-size: 1.08rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Wraps up to 2 lines instead of truncating to one — the whole point of
+       the bigger card is to actually see the collection/schema/counterparty/
+       memo instead of them being clipped. */
+    .bo-row-sub {
+      font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .bo-row-right { flex-shrink: 0; text-align: right; }
+    .bo-row-price { font-size: 1.1rem; font-weight: 700; color: var(--accent-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bo-row-price .bo-usd { font-size: 0.8rem; display: block; margin-top: 1px; }
+    .bo-row-age { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.25rem; }
+    .bo-row-cancel { flex-shrink: 0; padding: 0.55rem 1.1rem; font-size: 0.85rem; }
+    @media (max-width: 600px) {
+      .bo-row-sub { display: none; }
+    }
+
+    /* ── Offer actions — same classes as trade-offers.html ── */
+    .offer-actions {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 0.65rem; padding: 0 1.25rem 1.1rem;
+    }
+    .offer-btn {
+      font-size: 0.82rem; font-weight: 700; padding: 0.5rem 1.25rem;
+      border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s; white-space: nowrap;
+    }
+    .offer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .offer-btn--accept  { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.4); color: #4ade80; }
+    .offer-btn--accept:not(:disabled):hover { background: rgba(74,222,128,0.2); border-color: #4ade80; }
+    .offer-btn--decline { background: rgba(224,82,82,0.08); border-color: rgba(224,82,82,0.3); color: #e05252; }
+    .offer-btn--decline:not(:disabled):hover { background: rgba(224,82,82,0.18); border-color: #e05252; }
+    .offer-btn--done { background: rgba(100,100,100,0.1); border-color: rgba(255,255,255,0.12); color: var(--text-secondary); cursor: default !important; }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .page-main { padding: 1.25rem 0.75rem 3rem; }
+      .offer-header { flex-wrap: wrap; gap: 0.35rem 1rem; }
+      .offer-from  { flex-basis: calc(100% - 18px - 1rem); white-space: normal; }
+      .offer-meta  { flex-basis: 100%; justify-content: space-between; padding-left: calc(18px + 1rem); box-sizing: border-box; }
+      .bo-content { flex-direction: column; align-items: flex-start; }
+      .bo-rows { max-width: none; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+  <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
+  <script src="shared/accept-offer-modal.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header" id="offersPageHeader">
+    <div>
+      <h1 class="page-title">Buy <span class="accent">Offers</span></h1>
+      <p class="page-desc" id="pageDesc">Review and respond to buy offers made on the NFTs you own.</p>
+    </div>
+    <a href="buy-offers-history" class="history-link">🕘 Buy Offer History</a>
+  </div>
+
+  <div class="balance-note" id="balanceNote">
+    <span>Refunded/received WAX from these offers lands in your <a href="balances">AtomicMarket balance</a> — withdraw it any time.</span>
+    <button type="button" class="balance-note-close" id="balanceNoteClose" aria-label="Dismiss">✕</button>
+  </div>
+
+  <div class="offer-tabs" id="offerTabs">
+    <button type="button" class="offer-tab-btn active" data-tab="received">📥 Received<span class="tab-count" id="tabCountReceived"></span></button>
+    <button type="button" class="offer-tab-btn" data-tab="sent">📤 Sent<span class="tab-count" id="tabCountSent"></span></button>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your pending buy offers.</p>
+  </div>
+
+  <div id="loadWrap" class="status-wrap" style="display:none;">
+    <div class="spinner"></div>
+    <div>Loading buy offers…</div>
+  </div>
+
+  <div id="emptyWrap" class="empty-state" style="display:none;">
+    <strong>No pending offers</strong>
+  </div>
+
+  <div class="bo-type-filter" id="typeFilter">
+    <button type="button" class="bo-type-filter-btn active" data-filter="all">All</button>
+    <button type="button" class="bo-type-filter-btn" data-filter="template">Template</button>
+    <button type="button" class="bo-type-filter-btn" data-filter="asset">Specific Asset</button>
+  </div>
+
+  <div class="bo-bulk-bar" id="bulkBar">
+    <label class="bo-bulk-selectall"><input type="checkbox" id="selectAllCb" /> Select All</label>
+    <span class="bo-bulk-count" id="bulkCount"></span>
+    <button type="button" class="offer-btn offer-btn--decline" id="bulkCancelBtn" disabled>Cancel Selected</button>
+  </div>
+
+  <div id="offersList" class="offers-list" style="display:none;"></div>
+</main>
+
+<!-- Decline-with-memo popup — reuses the shared .mo-* modal classes
+     (shared/global.css) that shared/make-offer-modal.js already defined the
+     visual language for, even though this page doesn't load that module. -->
+<div class="mo-overlay" id="declineOverlay" style="display:none;">
+  <div class="mo-panel" role="dialog" aria-modal="true">
+    <div class="mo-header">
+      <span class="mo-title">Decline Offer</span>
+      <button type="button" class="mo-close" id="declineModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="mo-body">
+      <div class="mo-field">
+        <span class="mo-row-label">Memo (optional)</span>
+        <div class="mo-memo-box">
+          <input type="text" id="declineMemoInput" class="mo-input mo-input--text" maxlength="256" placeholder="Add a reason for declining…" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+      <div class="mo-actions">
+        <button type="button" class="mo-btn mo-btn--cancel" id="declineModalCancel">Cancel</button>
+        <button type="button" class="mo-btn mo-btn--primary" id="declineModalConfirm">Decline Offer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+function escHtml(s) { return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function rarityClass(r) { return 'rarity-' + (r || 'common').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function schemaLabel(sn) {
+  const b = (sn || '').replace('.drop', '');
+  const m = b.match(/^series(\d+)$/);
+  return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
+}
+function relativeTime(ms) {
+  const diff = Date.now() - Number(ms), s = Math.floor(diff / 1000);
+  if (s < 60)  return 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+// Best-effort live spot rate, fetched once at page load — same CoinGecko
+// source every other page on the site already uses for its "≈ $" tags.
+let _waxUsdRate = null;
+async function fetchWaxUsdRate() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    if (!r.ok) return;
+    const j = await r.json();
+    _waxUsdRate = j?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+/* ── Nav auth ──────────────────────────────────────────────────────────────── */
+const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: walletMenuItems(),
+});
+window.addEventListener('wax-auth-change', onWalletChange);
+
+const MAKER = 'hoardiostore'; // same account used site-wide for offer/listing attribution
+const mkt = () => WaxApi.marketBase();
+const _acceptModal = AcceptOfferModal.mount({ marketBase: mkt });
+
+/* ── Balance note — shown once per page visit after the first successful
+   cancel/decline/accept, since all three credit the buyer's or seller's
+   AtomicMarket internal balance rather than their wallet directly. ── */
+let _balanceNoteShown = false;
+function showBalanceNote() {
+  if (_balanceNoteShown) return;
+  _balanceNoteShown = true;
+  document.getElementById('balanceNote').style.display = 'flex';
+}
+document.getElementById('balanceNoteClose').addEventListener('click', () => {
+  document.getElementById('balanceNote').style.display = 'none';
+});
+
+/* ── Decline-with-memo popup (Received tab) ───────────────────────────────── */
+let _pendingDecline = null; // { offer, itemEl }
+
+function openDeclineModal(offer, itemEl) {
+  _pendingDecline = { offer, itemEl };
+  document.getElementById('declineMemoInput').value = '';
+  document.getElementById('declineOverlay').style.display = 'flex';
+}
+function closeDeclineModal() {
+  _pendingDecline = null;
+  document.getElementById('declineOverlay').style.display = 'none';
+}
+document.getElementById('declineModalClose').addEventListener('click', closeDeclineModal);
+document.getElementById('declineModalCancel').addEventListener('click', closeDeclineModal);
+document.getElementById('declineOverlay').addEventListener('click', e => {
+  if (e.target.id === 'declineOverlay') closeDeclineModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('declineOverlay').style.display !== 'none') closeDeclineModal();
+});
+document.getElementById('declineModalConfirm').addEventListener('click', () => {
+  if (!_pendingDecline) return;
+  const { offer, itemEl } = _pendingDecline;
+  const memo = document.getElementById('declineMemoInput').value.trim();
+  closeDeclineModal();
+  handleBuyOfferAction(offer, 'decline', itemEl, memo);
+});
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+let _tab = 'received';
+const TAB_DESC = {
+  received: 'Review and respond to buy offers made on the NFTs you own.',
+  sent:     "Review and cancel buy offers you've sent, still awaiting a response.",
+};
+function setActiveTab(tab) {
+  _tab = tab === 'sent' ? 'sent' : 'received';
+  document.querySelectorAll('.offer-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === _tab));
+  document.getElementById('pageDesc').textContent = TAB_DESC[_tab];
+  _selected = new Set(); // selection is Sent-tab-scoped — start clean on every switch
+  _typeFilter = 'all';
+  document.querySelectorAll('.bo-type-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === 'all'));
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) loadOffers();
+}
+document.querySelectorAll('.offer-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+});
+
+const TAB_COUNT_EL = { received: document.getElementById('tabCountReceived'), sent: document.getElementById('tabCountSent') };
+let _counts = { received: null, sent: null };
+function setTabCount(tab, n) {
+  _counts[tab] = n;
+  const el = TAB_COUNT_EL[tab];
+  if (!el) return;
+  el.textContent = n ? ` (${n >= OFFERS_LIMIT ? n + '+' : n})` : '';
+}
+
+/* ── Data fetch ────────────────────────────────────────────────────────────── */
+const OFFERS_LIMIT = 100;
+// Asset-specific offers: despite the on-chain field being named `recipient`,
+// the REST API's query param for it is `seller=` — confirmed live: `recipient=`
+// is silently ignored (returns the same unfiltered list regardless of value,
+// even for a wallet that doesn't exist), while `seller=` filters correctly.
+// The response object still calls that same field `seller`, so this lines up
+// with what's read as offer.seller below.
+function assetOffersUrl(direction, wallet, states) {
+  const filterKey = direction === 'sent' ? 'buyer' : 'seller';
+  return `${mkt()}/buyoffers?${filterKey}=${encodeURIComponent(wallet)}&state=${states}&symbol=WAX&limit=${OFFERS_LIMIT}&page=1`;
+}
+// Template offers have no recipient — they only ever show up on the Sent tab.
+function templateOffersUrl(wallet, states) {
+  return `${mkt()}/template_buyoffers?buyer=${encodeURIComponent(wallet)}&state=${states}&symbol=WAX&limit=${OFFERS_LIMIT}&page=1`;
+}
+
+async function fetchActiveOffers(direction, wallet) {
+  const reqs = [WaxApi.apiFetch(assetOffersUrl(direction, wallet, '0')).catch(() => [])];
+  if (direction === 'sent') reqs.push(WaxApi.apiFetch(templateOffersUrl(wallet, '0')).catch(() => []));
+  const [assetOffers, templateOffers] = await Promise.all(reqs);
+  const merged = [
+    ...(assetOffers || []).map(o => Object.assign({ _type: 'asset' }, o)),
+    ...(templateOffers || []).map(o => Object.assign({ _type: 'template' }, o)),
+  ];
+  merged.sort((a, b) => Number(b.created_at_time) - Number(a.created_at_time));
+  return merged;
+}
+
+// Lightweight count-only fetch for the tab NOT currently being viewed.
+async function refreshTabCountOnly(direction) {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) return;
+  try {
+    const offers = await fetchActiveOffers(direction, wallet);
+    setTabCount(direction, offers.length);
+  } catch { /* leave whatever count (or lack of one) was already showing */ }
+}
+function otherTab(tab) { return tab === 'sent' ? 'received' : 'sent'; }
+
+/* ── Card rendering ────────────────────────────────────────────────────────── */
+function mediaHtmlFor(dataObj) {
+  const video = dataObj.video, img = dataObj.img;
+  if (video) return { html: `<video autoplay loop muted playsinline><source src="${escHtml(toMediaUrl(video))}" type="video/mp4"></video>`, has: true, url: toMediaUrl(video), isVideo: true };
+  if (img)   return { html: `<img alt="" src="${escHtml(toMediaUrl(img))}">`, has: true, url: toMediaUrl(img), isVideo: false };
+  return { html: '<div class="bo-media-ph">?</div>', has: false, url: null, isVideo: false };
+}
+
+// Same trailing-zero trim as shared/asset-popup.js's fmtTok — always keeps
+// at least 2 decimals, but extends further whenever there are meaningful
+// nonzero digits beyond that, so a small offer (e.g. 0.0004 WAX) never
+// rounds down to a misleading "0 WAX" the way toLocaleString's
+// maximumFractionDigits:2 was doing.
+function fmtWaxTrim(n) {
+  return n.toFixed(8)
+    .replace(/(\.\d{2}.*[1-9])0+$/, '$1')
+    .replace(/(\.\d{2})0+$/, '$1');
+}
+function fmtPrice(priceObj) {
+  const wax    = Number(priceObj.amount) / (10 ** (priceObj.token_precision || 8));
+  const waxStr = fmtWaxTrim(wax);
+  const usd    = _waxUsdRate ? ` <span class="bo-usd">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>` : '';
+  return { wax, waxStr, html: `${waxStr} WAX${usd}` };
+}
+
+function buildBuyOfferItem(offer, direction) {
+  const offerId      = offer.buyoffer_id;
+  const isSent        = direction === 'sent';
+  const isTemplate    = offer._type === 'template';
+  const counterparty  = escHtml(isSent ? (offer.seller || 'Any holder') : offer.buyer);
+  const age           = relativeTime(offer.created_at_time);
+  const price         = fmtPrice(offer.price);
+
+  let name, collectionName, schemaName = '', rarity = '', media, extraRowsHtml, memo = '', mintLabel = null;
+  if (isTemplate) {
+    const tpl  = offer.template || {};
+    const data = tpl.immutable_data || {};
+    name           = data.name || `Template #${tpl.template_id}`;
+    collectionName = offer.collection?.name || offer.collection?.collection_name || '';
+    rarity         = data.rarity || '';
+    media          = mediaHtmlFor(data);
+    extraRowsHtml  = `<div class="bo-row"><span class="bo-row-label">Template ID</span><span class="bo-row-val">#${escHtml(tpl.template_id)}</span></div>`;
+  } else {
+    const asset  = (offer.assets || [])[0] || {};
+    const data   = asset.data || asset.template?.immutable_data || {};
+    name           = data.name || asset.name || `Asset #${asset.asset_id}`;
+    collectionName = asset.collection?.name || asset.collection?.collection_name || '';
+    schemaName     = asset.schema?.schema_name || '';
+    rarity         = data.rarity || '';
+    media          = mediaHtmlFor(data);
+    const issuedSupply = asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null;
+    mintLabel = asset.template_mint != null
+      ? (issuedSupply != null ? `#${asset.template_mint} of ${issuedSupply.toLocaleString()}` : `#${asset.template_mint}`)
+      : '—';
+    extraRowsHtml = `<div class="bo-row"><span class="bo-row-label">Mint</span><span class="bo-row-val">${mintLabel}</span></div>`;
+    memo = offer.memo || '';
+  }
+
+  const typeBadgeHtml = isTemplate
+    ? '<span class="bo-type-badge bo-type-badge--template">Template</span>'
+    : '<span class="bo-type-badge bo-type-badge--asset">Specific Asset</span>';
+
+  const actionsHtml = isSent
+    ? `<button class="offer-btn offer-btn--decline" data-action="cancel" data-offer="${offerId}">Cancel Offer</button>`
+    : `<button class="offer-btn offer-btn--decline" data-action="decline" data-offer="${offerId}">Decline</button>
+       <button class="offer-btn offer-btn--accept"  data-action="accept"  data-offer="${offerId}">Accept Offer</button>`;
+
+  const bodyHtml = `
+    <div class="bo-content">
+      <div class="bo-media">${media.html}</div>
+      <div class="bo-details">
+        <div class="bo-name">${escHtml(name)}</div>
+        <div class="bo-meta">${escHtml(collectionName)}${schemaName ? ' · ' + escHtml(schemaLabel(schemaName)) : ''}${rarity ? ` · <span class="rarity-pill ${rarityClass(rarity)}">${escHtml(rarity)}</span>` : ''}</div>
+        <div class="bo-rows">
+          ${extraRowsHtml}
+          <div class="bo-row"><span class="bo-row-label">Offered</span><span class="bo-row-val bo-price">${price.html}</span></div>
+        </div>
+        ${memo ? `<div class="bo-memo">Memo: <span>${escHtml(memo)}</span></div>` : ''}
+      </div>
+    </div>
+    <div class="offer-actions">${actionsHtml}</div>`;
+
+  const item = document.createElement('div');
+  item.className = 'offer-item';
+  item.dataset.offerId = offerId;
+  item.innerHTML = `
+    <div class="offer-header">
+      <svg class="offer-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="offer-from">Offer ${isSent ? 'to' : 'from'} <span class="offer-from-wallet">${counterparty}</span>${typeBadgeHtml}</span>
+      <div class="offer-meta">
+        <span class="bo-header-price">${price.waxStr} WAX</span>
+        <span class="offer-age">${age}</span>
+      </div>
+    </div>
+    <div class="offer-body">${bodyHtml}</div>
+  `;
+
+  item.querySelector('.offer-header').addEventListener('click', () => {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.offer-item.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+
+  if (isSent) {
+    item.querySelector('[data-action="cancel"]').addEventListener('click', e => { e.stopPropagation(); handleBuyOfferAction(offer, 'cancel', item); });
+  } else {
+    item.querySelector('[data-action="accept"]').addEventListener('click', e => {
+      e.stopPropagation();
+      // current_collection_fee is the royalty rate stored on the offer
+      // itself at creation time — the same value acceptbuyo's own
+      // internal_payout_sale call will actually charge, confirmed live
+      // against the atomicmarket contract source.
+      _acceptModal.open({
+        name, imageUrl: media.url, isVideo: media.isVideo, collectionName, mintLabel,
+        buyofferId: offer.buyoffer_id,
+        buyer: offer.buyer,
+        buyerHref: `inventory/${encodeURIComponent(offer.buyer)}`,
+        priceWax: price.wax,
+        collectionFeePct: Number(offer.current_collection_fee) || 0,
+        onConfirm: ctl => handleBuyOfferAction(offer, 'accept', item, undefined, ctl),
+      });
+    });
+    item.querySelector('[data-action="decline"]').addEventListener('click', e => { e.stopPropagation(); openDeclineModal(offer, item); });
+  }
+
+  return item;
+}
+
+/* ── Sent tab: compact rows + bulk select/cancel ──────────────────────────────
+   Sent offers are usually many similar small offers, not something worth
+   browsing one at a time — every field that matters fits on one line, and
+   selecting several for a single bulk Cancel avoids re-clicking (and
+   re-signing) per item. ── */
+let _selected   = new Set(); // buyoffer_id strings — Sent tab only, cleared on tab switch/reload
+let _typeFilter = 'all';     // 'all' | 'template' | 'asset' — Sent tab only, purely a client-side view filter over the already-fetched _lastOffers
+
+// Filters, never re-fetches — both offer types are already loaded together
+// (see fetchActiveOffers). Selection (_selected) is independent of this
+// filter on purpose: switching the filter never drops a selection made
+// under a different filter, it just changes what's currently visible.
+function visibleSentOffers() {
+  if (!_lastOffers) return [];
+  return _typeFilter === 'all' ? _lastOffers : _lastOffers.filter(o => o._type === _typeFilter);
+}
+
+function setTypeFilter(f) {
+  _typeFilter = f;
+  document.querySelectorAll('.bo-type-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === f));
+  renderOfferList();
+}
+document.querySelectorAll('.bo-type-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => setTypeFilter(btn.dataset.filter));
+});
+
+function buildSentRow(offer) {
+  const offerId      = offer.buyoffer_id;
+  const idStr         = String(offerId);
+  const isTemplate    = offer._type === 'template';
+  const counterparty  = escHtml(offer.seller || 'Any holder');
+  const age           = relativeTime(offer.created_at_time);
+  const price         = fmtPrice(offer.price);
+
+  let name, collectionName, media, subExtra, memo = '';
+  if (isTemplate) {
+    const tpl  = offer.template || {};
+    const data = tpl.immutable_data || {};
+    name           = data.name || `Template #${tpl.template_id}`;
+    collectionName = offer.collection?.name || offer.collection?.collection_name || '';
+    media          = mediaHtmlFor(data);
+    subExtra       = `#${escHtml(tpl.template_id)}`;
+  } else {
+    const asset = (offer.assets || [])[0] || {};
+    const data  = asset.data || asset.template?.immutable_data || {};
+    name           = data.name || asset.name || `Asset #${asset.asset_id}`;
+    collectionName = asset.collection?.name || asset.collection?.collection_name || '';
+    media          = mediaHtmlFor(data);
+    subExtra       = asset.template_mint != null ? `Mint #${asset.template_mint}` : null;
+    memo           = offer.memo || '';
+  }
+
+  const typeBadgeHtml = isTemplate
+    ? '<span class="bo-type-badge bo-type-badge--template">Template</span>'
+    : '<span class="bo-type-badge bo-type-badge--asset">Specific Asset</span>';
+
+  const subParts = [collectionName, subExtra, `to ${counterparty}`, memo ? `Memo: "${escHtml(memo)}"` : null].filter(Boolean);
+
+  const row = document.createElement('div');
+  row.className = 'bo-row-item' + (_selected.has(idStr) ? ' bo-row-selected' : '');
+  row.dataset.offerId = offerId;
+  row.innerHTML = `
+    <input type="checkbox" class="bo-row-cb" ${_selected.has(idStr) ? 'checked' : ''} aria-label="Select offer" />
+    <div class="bo-row-media">${media.html}</div>
+    <div class="bo-row-body">
+      <div class="bo-row-title"><span class="bo-row-name">${escHtml(name)}</span>${typeBadgeHtml}</div>
+      <div class="bo-row-sub">${subParts.join(' · ')}</div>
+    </div>
+    <div class="bo-row-right">
+      <div class="bo-row-price">${price.html}</div>
+      <div class="bo-row-age">${age}</div>
+    </div>
+    <button type="button" class="offer-btn offer-btn--decline bo-row-cancel" data-action="cancel" data-offer="${offerId}">Cancel</button>
+  `;
+
+  row.querySelector('.bo-row-cb').addEventListener('change', e => toggleSelect(offerId, e.target.checked));
+  row.querySelector('[data-action="cancel"]').addEventListener('click', () => handleBuyOfferAction(offer, 'cancel', row));
+  return row;
+}
+
+function toggleSelect(offerId, checked) {
+  const id = String(offerId);
+  if (checked) _selected.add(id); else _selected.delete(id);
+  const row = document.querySelector(`.bo-row-item[data-offer-id="${id}"]`);
+  if (row) row.classList.toggle('bo-row-selected', checked);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const hasSentList = _lastDirection === 'sent' && _lastOffers && _lastOffers.length > 0;
+  bar.style.display = hasSentList ? 'flex' : 'none';
+  document.getElementById('typeFilter').style.display = hasSentList ? 'flex' : 'none';
+  if (!hasSentList) return;
+
+  // Cancel Selected always reflects the TRUE selection count, regardless of
+  // the active type filter — switching the filter only changes what's
+  // visible, never what's selected, so a cancel still hits everything
+  // you'd picked under a different filter view too.
+  const n = _selected.size;
+  document.getElementById('bulkCount').textContent = n ? `${n} selected` : '';
+  const btn = document.getElementById('bulkCancelBtn');
+  btn.disabled = n === 0;
+  btn.textContent = n ? `Cancel Selected (${n})` : 'Cancel Selected';
+
+  // Select All's own checked/indeterminate state, though, is scoped to
+  // what's currently VISIBLE under the filter — it only ever toggles what
+  // you can see.
+  const visible = visibleSentOffers();
+  const allCb = document.getElementById('selectAllCb');
+  allCb.checked = visible.length > 0 && visible.every(o => _selected.has(String(o.buyoffer_id)));
+  allCb.indeterminate = n > 0 && !allCb.checked;
+}
+
+document.getElementById('selectAllCb').addEventListener('change', e => {
+  const checked = e.target.checked;
+  visibleSentOffers().forEach(o => { // only the currently-filtered/visible rows — see updateBulkBar
+    const id = String(o.buyoffer_id);
+    if (checked) _selected.add(id); else _selected.delete(id);
+  });
+  document.querySelectorAll('.bo-row-cb').forEach(cb => { cb.checked = checked; });
+  document.querySelectorAll('.bo-row-item').forEach(el => el.classList.toggle('bo-row-selected', checked));
+  updateBulkBar();
+});
+
+/* ── Actions ───────────────────────────────────────────────────────────────── */
+const OFFER_LABEL           = { accept: 'Accept Offer', decline: 'Decline',    cancel: 'Cancel Offer' };
+const OFFER_PROGRESS_LABEL  = { accept: 'Accepting…',   decline: 'Declining…', cancel: 'Cancelling…' };
+const OFFER_DONE_LABEL      = { accept: 'Accepted!',    decline: 'Declined',   cancel: 'Cancelled' };
+
+async function fetchMarketBalanceWax(myAccount) {
+  try {
+    const rpc = localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com';
+    const res = await fetch(`${rpc}/v1/chain/get_table_rows`, {
+      method: 'POST',
+      body: JSON.stringify({ json: true, code: 'atomicmarket', scope: 'atomicmarket', table: 'balances', lower_bound: myAccount, upper_bound: myAccount, limit: 1 }),
+    });
+    const data = await res.json();
+    const row = (data.rows || [])[0];
+    if (!row || row.owner !== myAccount) return 0;
+    return parseFloat((row.quantities || []).find(q => q.endsWith(' WAX')) || '0');
+  } catch (e) {
+    console.error('Could not read AtomicMarket balance:', e);
+    return 0;
+  }
+}
+
+// cancelbuyo/canceltbuyo only refund the price to the buyer's AtomicMarket
+// internal balance — AtomicHub bundles a withdraw for that same balance into
+// the SAME signed transaction (confirmed live: a single Cloud Wallet
+// "Authorize Transaction" popup listing both atomicmarket>>cancelbuyo and
+// atomicmarket>>withdraw together). Generalized here to any number of
+// offers cancelled together in one transaction (bulk Cancel Selected): each
+// cancel's refund is a known quantity up front (the offer's own price), so
+// every offer gets its own [cancel, withdraw] pair withdrawing exactly its
+// own refund — except the very first pair, which also picks up whatever was
+// already sitting in the balance beforehand (e.g. left over from an earlier
+// session), since every later pair's withdraw already zeroes the running
+// balance back out before the next cancel adds to it again.
+async function buildCancelActions(offers, myAccount) {
+  const existing = await fetchMarketBalanceWax(myAccount);
+  const actions = [];
+  offers.forEach((offer, i) => {
+    const isTemplate = offer._type === 'template';
+    actions.push({
+      account: 'atomicmarket', name: isTemplate ? 'canceltbuyo' : 'cancelbuyo',
+      authorization: [{ actor: myAccount, permission: 'active' }],
+      data: { buyoffer_id: offer.buyoffer_id },
+    });
+    const precision = offer.price.token_precision || 8;
+    const refund     = Number(offer.price.amount) / (10 ** precision);
+    const amount     = refund + (i === 0 ? existing : 0);
+    if (amount > 0) {
+      actions.push({
+        account: 'atomicmarket', name: 'withdraw',
+        authorization: [{ actor: myAccount, permission: 'active' }],
+        data: { owner: myAccount, token_to_withdraw: amount.toFixed(precision) + ' WAX' },
+      });
+    }
+  });
+  return actions;
+}
+
+// Accepting an asset-specific buy offer is a two-action bundle, confirmed
+// live against the acceptbuyo Ricardian contract text: the recipient must
+// first hand the offered asset(s) to atomicmarket via a zero-ask AtomicAssets
+// trade offer, then accept the buyoffer — both in the same signed
+// transaction. acceptbuyo's own on-chain assert on expected_asset_ids/
+// expected_price is the freshness guarantee (same role assertsale plays for
+// a regular purchase), so no separate re-fetch-and-compare is needed first.
+async function buildActionList(offer, action, myAccount, memo) {
+  if (action === 'cancel') return buildCancelActions([offer], myAccount);
+  if (action === 'decline') {
+    return [{
+      account: 'atomicmarket', name: 'declinebuyo',
+      authorization: [{ actor: myAccount, permission: 'active' }],
+      data: { buyoffer_id: offer.buyoffer_id, decline_memo: memo || '' },
+    }];
+  }
+  // accept — asset-specific only, template offers never appear on Received.
+  const assetIds   = (offer.assets || []).map(a => String(a.asset_id));
+  const p           = offer.price;
+  const priceAsset  = `${(Number(p.amount) / (10 ** (p.token_precision || 8))).toFixed(p.token_precision || 8)} ${p.token_symbol}`;
+  return [
+    // memo: 'buyoffer' is MANDATORY, not just a nice label — confirmed
+    // straight from the atomicmarket contract source (acceptbuyo in
+    // atomicmarket.cpp): it reads the single most-recently-created
+    // AtomicAssets offer table-wide (`--atomicassets::offers.end()`) and
+    // hard-asserts `last_offer_itr->memo == "buyoffer"`, failing the whole
+    // transaction otherwise. That "most recent offer" lookup is also why
+    // createoffer must be the action immediately before acceptbuyo in this
+    // same transaction — bundling them any other way (or with anything else
+    // creating an AtomicAssets offer in between) breaks the match.
+    { account: 'atomicassets', name: 'createoffer', authorization: [{ actor: myAccount, permission: 'active' }],
+      data: { sender: myAccount, recipient: 'atomicmarket', sender_asset_ids: assetIds, recipient_asset_ids: [], memo: 'buyoffer' } },
+    { account: 'atomicmarket', name: 'acceptbuyo', authorization: [{ actor: myAccount, permission: 'active' }],
+      data: { buyoffer_id: offer.buyoffer_id, expected_asset_ids: assetIds, expected_price: priceAsset, taker_marketplace: MAKER } },
+  ];
+}
+
+// modalCtl (accept only, passed by AcceptOfferModal's onConfirm) redirects
+// all busy/success/error presentation into the shared popup itself instead
+// of this row's own buttons — decline/cancel never pass it, so their
+// row-based UX (unchanged from before) is untouched by any of the branches
+// below.
+async function handleBuyOfferAction(offer, action, itemEl, memo, modalCtl) {
+  const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!myAccount) return;
+  const offerId = offer.buyoffer_id;
+  const acceptBtn  = itemEl.querySelector('[data-action="accept"]');
+  const declineBtn = itemEl.querySelector('[data-action="decline"]');
+  const cancelBtn  = itemEl.querySelector('[data-action="cancel"]');
+  const activeBtn  = itemEl.querySelector(`[data-action="${action}"]`);
+  if (modalCtl) {
+    modalCtl.setBusy(OFFER_PROGRESS_LABEL[action]);
+  } else {
+    [acceptBtn, declineBtn, cancelBtn].forEach(b => { if (b) b.disabled = true; });
+    activeBtn.textContent = OFFER_PROGRESS_LABEL[action];
+  }
+  try {
+    const actions = await buildActionList(offer, action, myAccount, memo);
+    const bundledWithdraw = action === 'cancel' && actions.length > 1;
+    await WaxAuth.transact(actions);
+    if (modalCtl) {
+      modalCtl.setSuccess(OFFER_DONE_LABEL[action]);
+    } else {
+      activeBtn.textContent = bundledWithdraw ? 'Cancelled & withdrawn' : OFFER_DONE_LABEL[action];
+      activeBtn.classList.add('offer-btn--done');
+    }
+    _wallet.refreshBalance();
+    // Only Cancel ever needs the manual /balances fallback. Confirmed live
+    // against the contract source (internal_payout_sale in atomicmarket.cpp):
+    // Accept credits the seller's balance and immediately auto-withdraws it
+    // in the same call, landing straight in the wallet — never sits in the
+    // AtomicMarket balance. Decline doesn't touch the decliner's own balance
+    // at all (it only refunds the buyer). So this only fires when Cancel's
+    // own bundled withdraw couldn't be computed up front (rare).
+    if (action === 'cancel' && !bundledWithdraw) showBalanceNote();
+    setTimeout(() => {
+      // Closes the modal at the same moment the row starts fading — the user
+      // gets a brief "Accepted!" flash first, then both disappear together.
+      if (modalCtl) modalCtl.close();
+      itemEl.style.transition = 'opacity 0.3s'; itemEl.style.opacity = '0';
+      setTimeout(() => {
+        itemEl.remove();
+        checkEmpty();
+        if (_lastOffers) _lastOffers = _lastOffers.filter(o => o.buyoffer_id !== offerId);
+        _selected.delete(String(offerId)); // no-op on Received, where nothing is ever selected
+        updateBulkBar();
+        const direction = action === 'cancel' ? 'sent' : 'received';
+        if (_counts[direction] != null) {
+          const n = Math.max(0, _counts[direction] - 1);
+          setTabCount(direction, n);
+          // Only Received affects the nav's pending-buy-offers badge — a Sent
+          // cancel doesn't change how many incoming offers need my attention.
+          if (direction === 'received') _wallet.setBuyOffersBadge(n);
+        }
+      }, 350);
+    }, 1200);
+  } catch (err) {
+    console.error(`${action} buy offer failed:`, err);
+    const info = describeTxError(err);
+    if (modalCtl) {
+      if (info.kind === 'cancelled') {
+        modalCtl.setError('Cancelled.');
+      } else {
+        modalCtl.setError(txErrorHtml(info, 'Accept failed — please try again.', ''), { html: true });
+      }
+    } else {
+      [acceptBtn, declineBtn, cancelBtn].forEach(b => { if (b) b.disabled = false; });
+      if (info.kind === 'cancelled') {
+        activeBtn.textContent = OFFER_LABEL[action];
+      } else if (info.kind === 'generic') {
+        activeBtn.textContent = 'Failed — try again';
+        setTimeout(() => { activeBtn.textContent = OFFER_LABEL[action]; }, 2500);
+      } else {
+        applyResourceErrorToBuyBtn(activeBtn, info, activeBtn.className, '');
+      }
+    }
+  }
+}
+
+/* ── Bulk cancel (Sent tab only) ───────────────────────────────────────────── */
+// 25 offers per signature — 2 actions each (cancel+withdraw), so up to 50
+// actions/transaction, the same order of magnitude as this site's other
+// batch conventions (explore.html's BATCH_SIZE_BUY=25 triplets, make-offer-
+// modal.js's own 50-offers-per-signature template-offer cap).
+const BULK_BATCH_SIZE = 25;
+
+async function handleBulkCancel() {
+  const myAccount = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!myAccount || _selected.size === 0 || !_lastOffers) return;
+
+  const offers = _lastOffers.filter(o => _selected.has(String(o.buyoffer_id)));
+  if (!offers.length) return;
+
+  const btn = document.getElementById('bulkCancelBtn');
+  const selectAllCb = document.getElementById('selectAllCb');
+  btn.disabled = true;
+  selectAllCb.disabled = true;
+  document.querySelectorAll('.bo-row-cb, .bo-row-cancel').forEach(el => { el.disabled = true; });
+
+  const batches = [];
+  for (let i = 0; i < offers.length; i += BULK_BATCH_SIZE) batches.push(offers.slice(i, i + BULK_BATCH_SIZE));
+
+  let cancelled = 0;
+  for (let b = 0; b < batches.length; b++) {
+    const batch = batches[b];
+    btn.textContent = batches.length > 1 ? `Signing ${b + 1} of ${batches.length}…` : `Cancelling ${batch.length}…`;
+    try {
+      const actions = await buildCancelActions(batch, myAccount);
+      await WaxAuth.transact(actions);
+      cancelled += batch.length;
+      batch.forEach(offer => {
+        const id = String(offer.buyoffer_id);
+        _selected.delete(id);
+        document.querySelector(`.bo-row-item[data-offer-id="${id}"]`)?.remove();
+        _lastOffers = _lastOffers.filter(o => String(o.buyoffer_id) !== id);
+      });
+      if (_counts.sent != null) setTabCount('sent', Math.max(0, _counts.sent - batch.length));
+      _wallet.refreshBalance();
+    } catch (err) {
+      console.error('Bulk cancel batch failed:', err);
+      break; // stop at the first failed/declined batch — whatever already succeeded stays cancelled
+    }
+  }
+
+  checkEmpty();
+  document.querySelectorAll('.bo-row-cb, .bo-row-cancel').forEach(el => { el.disabled = false; });
+  selectAllCb.disabled = false;
+  if (cancelled > 0) {
+    btn.textContent = `Cancelled ${cancelled}!`;
+    setTimeout(updateBulkBar, 1800);
+  } else {
+    updateBulkBar();
+  }
+}
+document.getElementById('bulkCancelBtn').addEventListener('click', handleBulkCancel);
+
+function checkEmpty() {
+  const list = document.getElementById('offersList');
+  if (list && list.children.length === 0) {
+    list.style.display = 'none';
+    document.getElementById('emptyWrap').style.display = 'block';
+  }
+}
+
+function showState(state) {
+  document.getElementById('authGate').style.display   = state === 'auth'    ? '' : 'none';
+  document.getElementById('loadWrap').style.display   = state === 'loading' ? '' : 'none';
+  document.getElementById('emptyWrap').style.display  = state === 'empty'   ? '' : 'none';
+  document.getElementById('offersList').style.display = state === 'list'    ? '' : 'none';
+}
+
+/* ── Load offers ───────────────────────────────────────────────────────────── */
+const EMPTY_MSG = {
+  received: '<strong>No pending offers</strong>',
+  sent:     '<strong>No pending sent offers</strong>You have no outgoing buy offers awaiting a response.',
+};
+
+let _lastOffers = null, _lastDirection = null, _loadGen = 0;
+
+function renderOfferList() {
+  if (!_lastOffers) return;
+  const list = document.getElementById('offersList');
+  if (_lastDirection === 'sent') {
+    list.innerHTML = '';
+    const visible = visibleSentOffers();
+    if (visible.length) {
+      visible.forEach(offer => list.appendChild(buildSentRow(offer)));
+    } else {
+      list.innerHTML = '<div class="empty-state" style="padding:2rem 1rem;">No offers match this filter.</div>';
+    }
+  } else {
+    const openIds = new Set([...list.querySelectorAll('.offer-item.open')].map(el => el.dataset.offerId));
+    list.innerHTML = '';
+    _lastOffers.forEach(offer => {
+      const item = buildBuyOfferItem(offer, _lastDirection);
+      if (openIds.has(String(offer.buyoffer_id))) item.classList.add('open');
+      list.appendChild(item);
+    });
+  }
+  updateBulkBar();
+}
+
+async function loadOffers() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showState('auth'); return; }
+
+  const myGen = ++_loadGen;
+  const direction = _tab; // snapshot — _tab can change again before this resolves
+  showState('loading');
+  try {
+    const offers = await fetchActiveOffers(direction, wallet);
+    if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
+    setTabCount(direction, offers.length);
+
+    if (offers.length === 0) {
+      _lastOffers = null;
+      _lastDirection = direction;
+      document.getElementById('offersList').innerHTML = '';
+      document.getElementById('emptyWrap').innerHTML = EMPTY_MSG[direction];
+      updateBulkBar();
+      showState('empty');
+      return;
+    }
+
+    _lastOffers = offers; _lastDirection = direction;
+    renderOfferList();
+    showState('list');
+  } catch (err) {
+    if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
+    console.error('Failed to load buy offers:', err);
+    showState('empty');
+    document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load offers</strong>Could not reach the WAX API. Please try again later.';
+  }
+}
+
+function onWalletChange() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) { loadOffers(); refreshTabCountOnly(otherTab(_tab)); }
+  else { showState('auth'); setTabCount('received', null); setTabCount('sent', null); }
+}
+
+/* ── Init ──────────────────────────────────────────────────────────────────── */
+function init() {
+  fetchWaxUsdRate(); // fire-and-forget — nice-to-have, shouldn't delay first paint
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) { loadOffers(); refreshTabCountOnly(otherTab(_tab)); }
+  else showState('auth');
+}
+
+init();
+</script>
+<script src="shared/moved.js"></script>
+</body>
+</html>

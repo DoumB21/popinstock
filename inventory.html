@@ -22,6 +22,8 @@
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/accept-offer-modal.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/make-offer-modal.js">\x3c/script>' +
       '<script src="' + _p + 'shared/gift-crypto.js">\x3c/script>' +
       '<script src="' + _p + 'shared/qrcode.js">\x3c/script>'
     );
@@ -232,13 +234,23 @@
       background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08);
       color: var(--text-secondary); opacity: 0.5; cursor: default; pointer-events: none;
     }
+    .inv-card-btn--offer {
+      background: rgba(240,168,64,0.1); border-color: rgba(240,168,64,0.35);
+      color: var(--accent-light);
+    }
+    .inv-card:hover .inv-card-btn--offer {
+      background: rgba(240,168,64,0.18); border-color: rgba(240,168,64,0.6);
+    }
 
     /* ── Read-only view (?wallet= pointing at a wallet other than the
-       connected one, or no wallet connected at all) — every action control
-       is useless here since none of it can act on someone else's assets. */
+       connected one, or no wallet connected at all) — the List/Edit-listing
+       controls and bulk-select are useless here since none of it can act on
+       someone else's assets, so those stay hidden. .inv-card-foot itself is
+       NOT hidden — cardHtml() renders a "Make Offer" button into that same
+       slot instead when read-only, since that's the one action that DOES
+       make sense on someone else's assets. */
     body.inv-readonly #bulkToolbar,
     body.inv-readonly .inv-card-check,
-    body.inv-readonly .inv-card-foot,
     body.inv-readonly .bulk-action-chip-wrap {
       display: none !important;
     }
@@ -395,11 +407,6 @@
     .fee-item-desc { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
 
     /* ── Buy offer list (phase 1) ── */
-    .modal-back {
-      background: none; border: none; color: var(--text-secondary); cursor: pointer;
-      font-size: 1rem; padding: 0.25rem 0.4rem; line-height: 1; border-radius: 4px;
-    }
-    .modal-back:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
     .offer-list { display: flex; flex-direction: column; gap: 0.45rem; }
     .offer-row {
       display: flex; align-items: center; gap: 0.6rem;
@@ -1033,6 +1040,9 @@ let _selectedListing = null;        // listing for that asset (null = not listed
 let _offerModalAsset  = null;        // asset open in buy offer modal
 let _offerModalOffers = null;        // cached top-10 list for phase 1 (null = not fetched)
 let _selectedOffer    = null;        // offer selected for phase 2
+let _acceptModal      = null;        // shared/accept-offer-modal.js instance — mounted on DOMContentLoaded
+let _makeOfferModal   = null;        // shared/make-offer-modal.js instance — mounted on DOMContentLoaded
+let _wallet           = null;        // WalletWidget.mount()'s return value — mounted on DOMContentLoaded
 let _collectionFeeCache = {};        // collection_name → royalty (0–1)
 let _soldAssets      = new Set();   // asset_ids accepted this session
 let _floorCache      = {};          // templateId → { price, loaded }
@@ -1077,8 +1087,42 @@ const _cancelledSaleIds = new Set();
 let _waxUsdRate         = null;
 let _collectionsReady   = false; // sale_ids cancelled this session — filtered out of stale API responses
 
-const MARKET_FEE    = 0.02;
-const ECOSYSTEM_FEE = 0.01;
+// Fallback defaults — exactly the values this page always used before live
+// fees were added below, so a failed/slow fetch never changes behavior.
+let MARKET_FEE    = 0.02;
+let ECOSYSTEM_FEE = 0.01;
+
+// Live AtomicMarket fee rates, fetched once at page load. Same three fee
+// categories buy-offers.html's shared/accept-offer-modal.js verified against
+// the atomicmarket contract source (internal_payout_sale): maker_market_fee
+// + taker_market_fee (from /config, grouped into "Market Fee" below, same as
+// that module) plus any active on-chain `bonusfee` — not exposed via REST,
+// chain-RPC only, currently a 1% "Ecosystem Fee". Unlike AcceptOfferModal
+// (which matches a real buyoffer_id against a bonus fee's [start_id,end_id)
+// range), every fee preview on this page is for a listing/offer that
+// doesn't exist yet, so there's no real ID to range-check — the actual
+// on-chain transaction always computes the true fee regardless of what this
+// preview shows, so summing any bonus fee whose ranges include the "sale"
+// counter (the common case here) is a fair estimate. Never throws — on any
+// failure MARKET_FEE/ECOSYSTEM_FEE just stay at the hardcoded defaults above.
+(async function initLiveFeeRates() {
+  try {
+    const [cfgRes, bonusRes] = await Promise.all([
+      fetch(`${WaxApi.marketBase()}/config`),
+      fetch(`${localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com'}/v1/chain/get_table_rows`, {
+        method: 'POST',
+        body: JSON.stringify({ json: true, code: 'atomicmarket', scope: 'atomicmarket', table: 'bonusfees', limit: 100 }),
+      }),
+    ]);
+    const cfgJson = await cfgRes.json();
+    if (cfgJson.success) MARKET_FEE = (Number(cfgJson.data.maker_market_fee) || 0) + (Number(cfgJson.data.taker_market_fee) || 0);
+    const bonusJson = await bonusRes.json();
+    const rows = (bonusJson.rows || []).filter(r => (r.counter_ranges || []).some(cr => cr.counter_name === 'sale'));
+    if (rows.length) ECOSYSTEM_FEE = rows.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+  } catch (e) {
+    console.error('Could not fetch live AtomicMarket fee rates, using defaults:', e);
+  }
+})();
 let _acceptBusy      = false;
 let _activeWallet    = null;    // tracks last connected wallet; null = fresh page load
 // ?wallet= lets any page link straight into someone's inventory (nav's own
@@ -1503,7 +1547,11 @@ function patchCard(assetId) {
     card.querySelector('.inv-card-listed-price')?.remove();
   }
 
-  const btn = card.querySelector('.inv-card-btn');
+  // Read-only mode's .inv-card-btn is the "Make Offer" button, not the
+  // List/Edit one this relabels — nothing here applies to it, and touching
+  // it would stomp its label/class with listing-state text that doesn't
+  // belong there.
+  const btn = _readOnly ? null : card.querySelector('.inv-card-btn');
   if (btn) {
     const listed  = !!listing;
     // See cardHtml's isPending comment — a listing with no sale_id yet is
@@ -1520,9 +1568,27 @@ function patchCard(assetId) {
 /* Card events                                                                */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+// Read-only wallet view's "Make Offer" card button — reuses the exact same
+// shared/make-offer-modal.js sale.html/asset.html/template.html already use,
+// just fed from this page's own asset shape instead of a fetched listing.
+function openMakeOfferForAsset(asset) {
+  const media   = assetMediaFor(asset);
+  const colName = asset.collection?.collection_name || '';
+  _makeOfferModal.open({
+    templateId: asset.template?.template_id,
+    collectionName: asset.collection?.name || _collectionNames.get(colName) || colName,
+    name: asset.name || 'Unknown',
+    imageUrl: media.url, isVideo: media.isVideo,
+    assetId: asset.asset_id,
+    owner: asset.owner,
+    mint: asset.template_mint,
+    issuedSupply: asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null,
+  });
+}
+
 function attachCardEvents(card, asset) {
   const btn = card.querySelector('.inv-card-btn');
-  if (btn) btn.addEventListener('click', e => { e.stopPropagation(); openModal(asset); });
+  if (btn) btn.addEventListener('click', e => { e.stopPropagation(); _readOnly ? openMakeOfferForAsset(asset) : openModal(asset); });
 
   const dotsBtn = card.querySelector('.inv-card-dots-btn');
   if (dotsBtn) dotsBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardActionMenu(dotsBtn, asset); });
@@ -2701,10 +2767,12 @@ function cardHtml(a) {
         ${isListed ? `<div class="inv-card-listed-price">Listed: ${listing.price_wax.toFixed(2)} WAX${usdTag(listing.price_wax)}</div>` : ''}
       </div>
       <div class="inv-card-foot">
-        <button class="inv-card-btn ${isPending ? 'inv-card-btn--pending' : isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}"${isPending ? ' disabled' : ''}>
-          ${isPending ? 'Listed' : isListed ? 'Edit listing' : 'List for sale'}
-        </button>
-        <button type="button" class="inv-card-dots-btn" title="More actions">⋮</button>
+        ${_readOnly
+          ? (a.template?.template_id ? `<button type="button" class="inv-card-btn inv-card-btn--offer">Make Offer</button>` : '')
+          : `<button class="inv-card-btn ${isPending ? 'inv-card-btn--pending' : isListed ? 'inv-card-btn--edit' : 'inv-card-btn--list'}"${isPending ? ' disabled' : ''}>
+              ${isPending ? 'Listed' : isListed ? 'Edit listing' : 'List for sale'}
+            </button>
+            <button type="button" class="inv-card-dots-btn" title="More actions">⋮</button>`}
       </div>
     </div>
   `;
@@ -3601,7 +3669,11 @@ function updateBuyOfferCards() {
     const tid   = el.dataset.buyofferTid;
     const offer = _buyOffers[tid];
     if (offer != null) {
-      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX${usdTag(offer.price)}</span><button class="buyoffer-accept-btn">View</button>`;
+      // "View" opens this page's own accept-offer flow (fulfilltbuyo), which
+      // only works for the asset's actual owner — someone else's wallet only
+      // gets the price, not a button that would fail for them on-chain.
+      const viewBtnHtml = _readOnly ? '' : `<button class="buyoffer-accept-btn">View</button>`;
+      el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX${usdTag(offer.price)}</span>${viewBtnHtml}`;
       el.style.display = 'flex';
       el.querySelector('.buyoffer-accept-btn')?.addEventListener('click', e => {
         e.stopPropagation();
@@ -4233,7 +4305,7 @@ function _renderOfferPhase1(asset, offers) {
   modal.querySelectorAll('.offer-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const offer = offers[parseInt(btn.dataset.idx)];
-      if (offer) _renderOfferPhase2(asset, offer);
+      if (offer) openAcceptConfirm(asset, offer);
     });
   });
 }
@@ -4253,114 +4325,73 @@ async function fetchCollectionFee(colName) {
   }
 }
 
-async function _renderOfferPhase2(asset, offer) {
+// Plain {url, isVideo} for shared/accept-offer-modal.js — same img/video
+// field lookup as assetMediaHtml above, just without the wrapping markup.
+function assetMediaFor(a) {
+  const d     = a.data || {};
+  const t     = a.template?.immutable_data || {};
+  const video = d.video || t.video || '';
+  const img   = d.img || d.image || t.img || t.image || '';
+  if (video) return { url: imgUrl(video), isVideo: true };
+  if (img)   return { url: imgUrl(img), isVideo: false };
+  return { url: null, isVideo: false };
+}
+
+// Phase 2 — hands off to the same shared/accept-offer-modal.js popup
+// buy-offers.html's Received tab uses (accepting an asset-specific offer as
+// its seller is the same underlying action as fulfilling a template offer
+// here as a holder), so both pages show the exact same layout/fee-breakdown/
+// busy-error-success flow for "accept a buy offer" instead of two different
+// ones. Phase 1 (pick which offer, when there's more than one) stays
+// inventory's own list UI — only the confirm screen is shared.
+async function openAcceptConfirm(asset, offer) {
   _selectedOffer = offer;
   _acceptBusy    = false;
 
-  const colName       = asset.collection?.collection_name;
-  const royaltyPct    = await fetchCollectionFee(colName);
-  const totalFeePct   = MARKET_FEE + ECOSYSTEM_FEE + royaltyPct;
-  const netAmt        = offer.price * (1 - totalFeePct);
-  const royaltyItem   = royaltyPct > 0
-    ? `<div class="fee-item">
-        <span class="fee-item-pct">${(royaltyPct * 100).toFixed(2)}%</span>
-        <div class="fee-item-info">
-          <span class="fee-item-name">Collection Fee</span>
-          <span class="fee-item-desc">A % set by the collection creator, received on every secondary market transaction.</span>
-        </div>
-       </div>`
-    : '';
+  const colName    = asset.collection?.collection_name || '';
+  const royaltyPct = await fetchCollectionFee(colName);
+  if (_selectedOffer !== offer) return; // backed out / closed while the fee fetch was in flight
 
-  document.getElementById('acceptOfferModal').innerHTML = `
-    <div class="modal-header">
-      <button class="modal-back" id="offerModalBack" aria-label="Back">←</button>
-      <span class="modal-title" style="flex:1;text-align:center">Accept Buy Offer</span>
-      <button class="modal-close" id="offerModalClose" aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body">
-      ${_offerAssetHeaderHtml(asset)}
+  document.getElementById('acceptOfferModal').style.display = 'none';
+  document.getElementById('panelOverlay').style.display = 'none';
 
-      <div class="modal-info-row">
-        <span class="modal-info-label">Buy offer</span>
-        <span class="modal-info-val" style="color:var(--accent-light)">${offer.price.toFixed(8)} WAX${usdTag(offer.price)}</span>
-      </div>
-      <div class="modal-info-row">
-        <span class="modal-info-label">You receive</span>
-        <span class="modal-info-val" style="color:#22c55e;font-size:1rem">${netAmt.toFixed(8)} WAX${usdTag(netAmt)}</span>
-      </div>
-      <div class="modal-info-row">
-        <span class="modal-info-label">Offer #</span>
-        <span class="modal-info-val">${offer.buyoffer_id}</span>
-      </div>
-      <div class="modal-info-row">
-        <span class="modal-info-label">Buyer</span>
-        <span class="modal-info-val" style="font-size:0.8rem;font-weight:500">${walletLinkHtml(offer.buyer)}</span>
-      </div>
+  const media     = assetMediaFor(asset);
+  const mint      = asset.template_mint;
+  const maxSupply = asset.template?.max_supply;
+  const mintLabel = mint ? `Mint #${mint}${maxSupply && maxSupply !== '0' ? ' of ' + Number(maxSupply).toLocaleString() : ''}` : '';
 
-      <details class="fee-details">
-        <summary>
-          <span>Total Fees: ${(totalFeePct * 100).toFixed(2)}%</span>
-          <span class="fee-arrow">▾</span>
-        </summary>
-        <div class="fee-items">
-          <div class="fee-item">
-            <span class="fee-item-pct">1.00%</span>
-            <div class="fee-item-info">
-              <span class="fee-item-name">Ecosystem Fee</span>
-              <span class="fee-item-desc">A blockchain-specific fee for processing the transaction.</span>
-            </div>
-          </div>
-          <div class="fee-item">
-            <span class="fee-item-pct">2.00%</span>
-            <div class="fee-item-info">
-              <span class="fee-item-name">Market Fee</span>
-              <span class="fee-item-desc">A flat fee to maintain &amp; improve marketplaces.</span>
-            </div>
-          </div>
-          ${royaltyItem}
-        </div>
-      </details>
-
-      <div id="acceptModalMsg" class="modal-msg" style="display:none;"></div>
-
-      <div class="modal-actions">
-        <button class="modal-btn modal-btn--cancel" id="acceptModalCancel">Cancel</button>
-        <button class="modal-btn modal-btn--accept" id="acceptModalAccept">Accept Offer</button>
-      </div>
-      <p class="modal-note">Thank you for supporting Hoardio.</p>
-    </div>`;
-
-  document.getElementById('offerModalClose').addEventListener('click', closeOfferModal);
-  document.getElementById('offerModalBack').addEventListener('click', () => {
-    _selectedOffer = null;
-    _acceptBusy    = false;
-    _renderOfferPhase1(asset, _offerModalOffers);
+  _acceptModal.open({
+    name: asset.name || 'Unknown',
+    imageUrl: media.url, isVideo: media.isVideo,
+    collectionName: colName, mintLabel,
+    buyofferId: offer.buyoffer_id,
+    buyer: offer.buyer,
+    buyerHref: `${_p}inventory/${encodeURIComponent(offer.buyer)}`,
+    priceWax: offer.price,
+    collectionFeePct: royaltyPct,
+    onBack: backToOfferList,
+    onClose: closeOfferModal,
+    onConfirm: ctl => handleAcceptOffer(asset, offer, ctl),
   });
-  document.getElementById('acceptModalCancel').addEventListener('click', closeOfferModal);
-  document.getElementById('acceptModalAccept').addEventListener('click', handleAcceptOffer);
 }
 
-function showAcceptMsg(text, type, html = false) {
-  const el = document.getElementById('acceptModalMsg');
-  if (!el) return;
-  el.className = `modal-msg modal-msg--${type}`;
-  if (html) el.innerHTML = text; else el.textContent = text;
-  el.style.display = 'block';
+function backToOfferList() {
+  document.getElementById('acceptOfferModal').style.display = '';
+  document.getElementById('panelOverlay').style.display = '';
+  _selectedOffer = null;
+  _acceptBusy    = false;
+  _renderOfferPhase1(_offerModalAsset, _offerModalOffers);
 }
 
-async function handleAcceptOffer() {
-  if (_acceptBusy || !_offerModalAsset || !_selectedOffer) return;
+// ctl comes from shared/accept-offer-modal.js's onConfirm — it already
+// called ctl.setBusy('Accepting…') for us before invoking this, so all this
+// needs to do is drive ctl.setSuccess/setError once the transaction settles.
+async function handleAcceptOffer(asset, offer, ctl) {
+  if (_acceptBusy) return;
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!wallet) { showAcceptMsg('No wallet connected.', 'error'); return; }
+  if (!wallet) { ctl.setError('No wallet connected.'); return; }
 
   _acceptBusy = true;
-  const acceptBtn = document.getElementById('acceptModalAccept');
-  const cancelBtn = document.getElementById('acceptModalCancel');
-  if (acceptBtn) { acceptBtn.disabled = true; acceptBtn.textContent = 'Accepting…'; }
-  if (cancelBtn) cancelBtn.disabled = true;
-
-  const asset = _offerModalAsset;
-  const offer = _selectedOffer;
 
   // EOSIO asset string format: 8 decimal places + " WAX"
   const waxPrice = (Number(offer.raw_amount) / Math.pow(10, offer.token_precision))
@@ -4394,11 +4425,7 @@ async function handleAcceptOffer() {
       },
     ]);
 
-    showAcceptMsg('Offer accepted! Transaction submitted successfully.', 'success');
-    if (acceptBtn) acceptBtn.textContent = 'Accepted!';
-    if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.textContent = 'Close'; }
-    const backBtn = document.getElementById('offerModalBack');
-    if (backBtn) backBtn.style.visibility = 'hidden';
+    ctl.setSuccess('Accepted!');
 
     // Dim only the specific sold card; leave other cards of the same template untouched
     _soldAssets.add(String(asset.asset_id));
@@ -4437,17 +4464,15 @@ async function handleAcceptOffer() {
     fetchListings(wallet);
   } catch (err) {
     console.error('Accept offer failed:', err);
+    _acceptBusy = false;
     const info = describeTxError(err);
     if (info.kind === 'cancelled') {
-      showAcceptMsg('Transaction cancelled.', 'error');
+      ctl.setError('Transaction cancelled.');
     } else if (info.kind !== 'generic') {
-      showAcceptMsg(txErrorHtml(info, '', _p), 'error', true);
+      ctl.setError(txErrorHtml(info, '', _p), { html: true });
     } else {
-      showAcceptMsg(err.message || 'Transaction failed.', 'error');
+      ctl.setError(err.message || 'Transaction failed.');
     }
-    _acceptBusy = false;
-    if (acceptBtn) { acceptBtn.disabled = false; acceptBtn.textContent = 'Accept Offer'; }
-    if (cancelBtn) cancelBtn.disabled = false;
   }
 }
 
@@ -4662,14 +4687,14 @@ function updateModalFees(royaltyPct) {
     : '';
   itemsEl.innerHTML = `
     <div class="fee-item">
-      <span class="fee-item-pct">1.00%</span>
+      <span class="fee-item-pct">${(ECOSYSTEM_FEE * 100).toFixed(2)}%</span>
       <div class="fee-item-info">
         <span class="fee-item-name">Ecosystem Fee</span>
         <span class="fee-item-desc">A blockchain-specific fee for processing the transaction.</span>
       </div>
     </div>
     <div class="fee-item">
-      <span class="fee-item-pct">2.00%</span>
+      <span class="fee-item-pct">${(MARKET_FEE * 100).toFixed(2)}%</span>
       <div class="fee-item-info">
         <span class="fee-item-name">Market Fee</span>
         <span class="fee-item-desc">A flat fee to maintain &amp; improve marketplaces.</span>
@@ -5433,6 +5458,17 @@ function openBulkActionModal(action) {
   _giftStep = 'confirm';
   _giftResult = null;
   _giftMemo = '';
+  // Transfer's recipient/memo — unlike every other action's state above,
+  // these two live in their own standalone variables (not _selected's
+  // per-item value), and were missing from this reset. The <input> itself
+  // always renders empty on a fresh open (renderBulkActionModal never sets
+  // a `value` attribute from these), so the bug was invisible in the field
+  // itself — only the button label ("Transfer 1 item to <stale wallet>")
+  // and the actual submitted memo/recipient gave it away. Confirmed live:
+  // opening Transfer for one card, closing, then opening it for a
+  // different card kept the previous recipient wired up under the hood.
+  _recipient = '';
+  _memo = '';
   if (action === 'backtokens') {
     const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
     loadWalletTokensIfNeeded(wallet); // fire-and-forget — re-renders itself once it resolves
@@ -5844,14 +5880,14 @@ function renderBulkBundleFeeItems() {
     : '';
   itemsEl.innerHTML = `
     <div class="fee-item">
-      <span class="fee-item-pct">1.00%</span>
+      <span class="fee-item-pct">${(ECOSYSTEM_FEE * 100).toFixed(2)}%</span>
       <div class="fee-item-info">
         <span class="fee-item-name">Ecosystem Fee</span>
         <span class="fee-item-desc">A blockchain-specific fee for processing the transaction.</span>
       </div>
     </div>
     <div class="fee-item">
-      <span class="fee-item-pct">2.00%</span>
+      <span class="fee-item-pct">${(MARKET_FEE * 100).toFixed(2)}%</span>
       <div class="fee-item-info">
         <span class="fee-item-name">Market Fee</span>
         <span class="fee-item-desc">A flat fee to maintain &amp; improve marketplaces.</span>
@@ -6697,11 +6733,21 @@ document.querySelectorAll('.cb-dropdown').forEach(container => {
 fetchWaxPrice();
 window.addEventListener('wax-auth-change', onWalletChange);
 document.addEventListener('DOMContentLoaded', () => {
-  WalletWidget.mount(document.querySelector('.nav-inner'), {
+  _acceptModal = AcceptOfferModal.mount({ marketBase: () => WaxApi.marketBase() });
+  _makeOfferModal = MakeOfferModal.mount({
+    apiFetch:       url => WaxApi.apiFetch(url),
+    marketBase:     () => WaxApi.marketBase(),
+    makerMarketplace: 'hoardiostore',
+    connectWallet:  () => _wallet.connect(),
+    refreshBalance: () => _wallet.refreshBalance(),
+    ramPrefix:      _p,
+  });
+  _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: _p + 'shared/wax-auth.js',
     apiScript: _p + 'shared/wax-api.js',
     exploreHref: _p + 'explore',
     offersHref: _p + 'trade-offers',
+    buyOffersHref: _p + 'buy-offers',
     profileHref: _p + 'profile',
     menuItems: walletMenuItems(_p),
   });

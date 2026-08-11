@@ -20,9 +20,11 @@
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
-      '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>'
+      '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/make-offer-modal.js">\x3c/script>'
     );
   </script>
   <title>Template — Hoardio</title>
@@ -85,6 +87,13 @@
     .tpl-listing-usd { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
     .tpl-market-link { color: var(--accent-light); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
     .tpl-market-link:hover { text-decoration: underline; }
+    .tpl-offer-btn {
+      padding: 0.5rem 0.9rem; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; font-family: inherit; box-sizing: border-box;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.35);
+      color: var(--accent-light); transition: background 0.15s, border-color 0.15s;
+    }
+    .tpl-offer-btn:hover { background: rgba(240,168,64,0.22); border-color: rgba(240,168,64,0.6); }
 
     /* ── Section titles / tables (same convention as collection.html) ── */
     .tpl-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
@@ -166,11 +175,12 @@
   }
 </script>
 <script>
-  WalletWidget.mount(document.querySelector('.nav-inner'), {
+  const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: _p + 'shared/wax-auth.js',
     apiScript: _p + 'shared/wax-api.js',
     exploreHref: _p + 'explore',
     offersHref: _p + 'trade-offers',
+    buyOffersHref: _p + 'buy-offers',
     profileHref: _p + 'profile',
     menuItems: walletMenuItems(_p),
   });
@@ -227,7 +237,10 @@
             <div class="tpl-listing-label">Lowest Active Listing</div>
             <div class="tpl-listing-val" id="tplLowestListing">—</div>
           </div>
-          <a class="tpl-market-link" id="tplMarketLink" href="#">View on Market</a>
+          <div style="display:flex; align-items:center; gap:1rem;">
+            <button type="button" class="tpl-offer-btn" id="tplOfferBtn">Make Offer</button>
+            <a class="tpl-market-link" id="tplMarketLink" href="#">View on Market</a>
+          </div>
         </div>
       </div>
     </div>
@@ -457,6 +470,18 @@ const templateId = getTemplateIdFromUrl();
 let _collectionName = null; // resolved from the template lookup itself — template_id is globally unique, confirmed live, so the URL never needs to carry the collection separately
 let tplIssuedSupply = null; // set in loadHeader — the "NFTs Using This Template" count shows this instead of how many rows happen to be loaded so far
 
+// No assetId is ever passed to open() here — template.html has no specific
+// asset/owner in context, so the popup locks to Template mode (no toggle).
+const MAKER = 'hoardiostore'; // same account used site-wide for listing/offer attribution
+const _offerModal = MakeOfferModal.mount({
+  apiFetch: WaxApi.apiFetch,
+  marketBase: WaxApi.marketBase,
+  makerMarketplace: MAKER,
+  connectWallet: () => _wallet.connect(),
+  refreshBalance: () => _wallet.refreshBalance(),
+  ramPrefix: _p,
+});
+
 // Live spot rate — same CoinGecko call inventory.html already uses — powers
 // every "≈ $" tag on this page (Lowest Listing, Top Active Offers, Highest
 // Sale); those all read window._waxUsdRate directly rather than threading
@@ -577,6 +602,17 @@ async function loadHeader() {
     document.getElementById('tplLowestListing').innerHTML = fmtWax(lowestListing.price.amount) + usd;
   }
   document.getElementById('tplMarketLink').href = `${_p}explore?template_id=${encodeURIComponent(templateId)}`;
+
+  // No assetId in the ctx — MakeOfferModal locks to Template mode (no
+  // toggle) since this page has no specific asset/owner in scope.
+  document.getElementById('tplOfferBtn').onclick = () => _offerModal.open({
+    templateId,
+    collectionName: _collectionName,
+    name: tpl.name || `Template #${templateId}`,
+    imageUrl: mediaItems[0] ? toMediaUrl(mediaItems[0].hash) : null,
+    isVideo: mediaItems[0]?.kind === 'video',
+    onSuccess: () => loadTemplateBuyOffers(),
+  });
 
   // Template Attributes — every immutable_data field, raw (this page's whole
   // purpose is showing everything, unlike collection.html's hover-tooltip

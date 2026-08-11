@@ -1170,6 +1170,232 @@ body::before {
 .img-lightbox-close:hover { background: rgba(255,255,255,0.2); }
 
 
+/* ── Make Offer popup (shared/make-offer-modal.js) — creates an
+   AtomicMarket buy offer, on a specific asset or a whole template. Used by
+   sale.html, asset.html, template.html. Namespaced under .mo- (not the
+   .modal- / .listing-modal names explore.html/inventory.html each already
+   define locally and independently for their own edit-listing modal) so
+   this can load on every page without any risk of colliding with those. ── */
+.mo-overlay {
+  position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.mo-panel {
+  width: 420px; max-width: 100%; max-height: 90vh; overflow-y: auto;
+  background: var(--bg-card); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.mo-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem 0;
+}
+.mo-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.mo-close {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 1.1rem; padding: 0.25rem; line-height: 1; border-radius: 4px;
+  transition: color 0.15s;
+}
+.mo-close:hover { color: var(--text-primary); }
+.mo-body { padding: 1.1rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.mo-toggle {
+  display: flex; border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; margin-bottom: 0.25rem;
+}
+.mo-toggle-btn {
+  flex: 1; padding: 0.5rem 0.5rem; background: none; border: none; cursor: pointer;
+  color: var(--text-secondary); font-size: 0.78rem; font-weight: 600; font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.mo-toggle-btn + .mo-toggle-btn { border-left: 1px solid var(--border); }
+.mo-toggle-btn.active { background: rgba(240,168,64,0.14); color: var(--accent-light); }
+.mo-toggle-btn:hover:not(.active) { color: var(--text-primary); }
+
+.mo-media {
+  width: 140px; height: 140px; margin: 0 auto;
+  border-radius: 12px; background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.mo-media img, .mo-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.mo-media-ph { color: var(--text-secondary); font-size: 1.5rem; }
+.mo-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); text-align: center; margin-top: 0.4rem; }
+.mo-meta { font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-bottom: 0.2rem; }
+
+.mo-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.35rem 0.15rem; font-size: 0.85rem;
+}
+.mo-row-label { color: var(--text-secondary); }
+.mo-row-val { font-weight: 600; color: var(--text-primary); text-align: right; }
+.mo-usd { color: var(--text-secondary); font-size: 0.78rem; font-weight: 400; }
+.mo-row--price { padding: 0.35rem 0.15rem; }
+.mo-row--price .mo-price-row { width: 180px; flex-shrink: 0; }
+.mo-price-row {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.35rem 0.6rem;
+}
+.mo-price-row:focus-within { border-color: rgba(240,168,64,0.5); }
+.mo-input {
+  flex: 1; min-width: 0; background: none; border: none; color: var(--text-primary);
+  font-size: 0.9rem; font-weight: 600; font-family: inherit; text-align: right;
+}
+.mo-input:focus { outline: none; }
+.mo-input::-webkit-outer-spin-button, .mo-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.mo-input[type=number] { -moz-appearance: textfield; }
+.mo-input--num { text-align: center; }
+.mo-input--text { text-align: left; font-weight: 400; width: 100%; }
+.mo-unit { font-size: 0.78rem; color: var(--text-secondary); flex-shrink: 0; }
+.mo-total { border-top: 1px solid var(--border); margin-top: 0.15rem; padding-top: 0.5rem; }
+.mo-total .mo-row-val { color: var(--accent-light); }
+.mo-hint { font-size: 0.72rem; color: var(--text-secondary); text-align: right; margin-top: -0.3rem; }
+/* Same signature-count transparency note as inventory.html's bulk-action
+   modal (.bulk-batch-note) — identical copy/format ("1 wallet signature
+   per N items"), same accent color, same right-aligned placement. */
+.mo-batch-note { font-size: 0.72rem; font-weight: 600; color: var(--accent-light); text-align: right; margin-top: 0.3rem; }
+
+.mo-field { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.35rem 0.15rem; }
+.mo-memo-box {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.5rem 0.7rem;
+}
+.mo-memo-box:focus-within { border-color: rgba(240,168,64,0.5); }
+
+.mo-msg { padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.82rem; line-height: 1.4; }
+.mo-msg--error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+.mo-msg--success { background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+.mo-msg .tx-err-link { color: inherit; font-weight: 600; text-decoration: underline; }
+
+/* Terminal outcome (#moResult) — same treatment as inventory.html's bulk-
+   action modal (.bl-progress-msg): the colored .mo-msg block above becomes
+   a left-aligned row with its own Close button, so the result reads as
+   "done" rather than blending into the rest of the modal. */
+.mo-result {
+  margin-top: 0.6rem; display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; text-align: left;
+}
+.mo-result-text { flex: 1; }
+.mo-result-close {
+  flex-shrink: 0; font-size: 0.78rem; font-weight: 700; padding: 0.35rem 0.9rem;
+  border-radius: 6px; border: 1px solid currentColor; background: transparent;
+  color: inherit; cursor: pointer; transition: background 0.15s; font-family: inherit;
+}
+.mo-result-close:hover { background: rgba(255,255,255,0.1); }
+
+.mo-actions { display: flex; gap: 0.65rem; margin-top: 0.5rem; }
+.mo-btn {
+  flex: 1; padding: 0.65rem; border-radius: 10px; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; font-family: inherit; box-sizing: border-box; border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.mo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.mo-btn--cancel {
+  background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--text-secondary);
+}
+.mo-btn--cancel:not(:disabled):hover { background: rgba(255,255,255,0.09); color: var(--text-primary); }
+.mo-btn--primary {
+  background: rgba(240,168,64,0.16); border-color: rgba(240,168,64,0.4); color: var(--accent-light);
+}
+.mo-btn--primary:not(:disabled):hover { background: rgba(240,168,64,0.26); border-color: rgba(240,168,64,0.65); }
+.mo-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; margin-top: 0.35rem; line-height: 1.4; }
+
+
+/* ── Accept Offer popup (shared/accept-offer-modal.js) — fee breakdown
+   confirmation shown before accepting an AtomicMarket buy offer. Same
+   overlay/panel/header/actions visual language as .mo- (make-offer-modal.js)
+   but its own namespace, same reasoning as .mo- itself: never risk
+   colliding with inventory.html's own page-local, differently-valued fee
+   breakdown styles (.fee-details etc, not shared). ── */
+.ao-overlay {
+  position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.ao-panel {
+  width: 420px; max-width: 100%; max-height: 90vh; overflow-y: auto;
+  background: var(--bg-card); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.ao-loading { padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
+.ao-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem 0;
+}
+.ao-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.ao-close {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 1.1rem; padding: 0.25rem; line-height: 1; border-radius: 4px;
+  transition: color 0.15s;
+}
+.ao-close:hover { color: var(--text-primary); }
+.ao-back {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 1rem; padding: 0.25rem 0.4rem; line-height: 1; border-radius: 4px;
+}
+.ao-back:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+.ao-back:disabled { opacity: 0.4; cursor: not-allowed; }
+.ao-body { padding: 1.1rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.ao-media {
+  width: 110px; height: 110px; margin: 0 auto;
+  border-radius: 12px; background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.ao-media img, .ao-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ao-media-ph { color: var(--text-secondary); font-size: 1.4rem; }
+.ao-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); text-align: center; margin-top: 0.3rem; }
+.ao-meta { font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-bottom: 0.2rem; }
+.ao-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.3rem 0.15rem; font-size: 0.85rem; }
+.ao-row-label { color: var(--text-secondary); }
+.ao-row-val { font-weight: 600; color: var(--text-primary); }
+/* Buyer row's wallet-link — scoped here rather than relying on the host
+   page's own .wallet-link rule, since buy-offers.html (unlike inventory.html
+   etc.) never defined one and the link fell back to the browser's default
+   purple/blue instead of the page's text color. */
+.ao-row-val a { color: inherit; text-decoration: none; }
+.ao-row-val a:hover { text-decoration: underline; }
+.ao-row--total { border-top: 1px solid var(--border); margin-top: 0.15rem; padding-top: 0.6rem; }
+.ao-receive { color: #4ade80; font-size: 1.05rem; font-weight: 700; }
+
+.ao-fee-details { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.ao-fee-details summary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0.85rem; cursor: pointer; list-style: none;
+  font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); user-select: none;
+}
+.ao-fee-details summary::-webkit-details-marker { display: none; }
+.ao-fee-details summary:hover { color: var(--text-primary); }
+.ao-fee-arrow { font-size: 1rem; transition: transform 0.2s; opacity: 0.6; }
+.ao-fee-details[open] .ao-fee-arrow { transform: rotate(180deg); }
+.ao-fee-items { padding: 0.6rem 0.85rem 0.65rem; display: flex; flex-direction: column; gap: 0.55rem; border-top: 1px solid var(--border); }
+.ao-fee-item { display: flex; gap: 0.65rem; align-items: flex-start; }
+.ao-fee-item-pct { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); min-width: 3.2rem; flex-shrink: 0; }
+.ao-fee-item-info { display: flex; flex-direction: column; gap: 0.1rem; }
+.ao-fee-item-name { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); }
+.ao-fee-item-desc { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.35; }
+.ao-fee-unavailable { font-size: 0.76rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; line-height: 1.4; }
+
+.ao-msg { font-size: 0.8rem; border-radius: 6px; padding: 0.55rem 0.8rem; text-align: center; }
+.ao-msg--error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+.ao-msg--success { background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+
+.ao-actions { display: flex; gap: 0.65rem; margin-top: 0.3rem; }
+.ao-btn {
+  flex: 1; padding: 0.65rem; border-radius: 10px; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; font-family: inherit; box-sizing: border-box; border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ao-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ao-btn--cancel { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--text-secondary); }
+.ao-btn--cancel:hover { background: rgba(255,255,255,0.09); color: var(--text-primary); }
+.ao-btn--primary { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.4); color: #4ade80; }
+.ao-btn--primary:hover { background: rgba(74,222,128,0.22); border-color: #4ade80; }
+
+.ao-note { font-size: 0.72rem; color: var(--text-secondary); text-align: center; opacity: 0.65; margin: 0; }
+
+
 /* ── Burned-asset overlay — instantly recognizable without opening the
    asset page. Add the `burned-thumb` class to any thumbnail wrapper
    that already holds an <img>/<video> — position:relative is set here,

@@ -19,7 +19,8 @@
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
-      '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>'
+      '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/make-offer-modal.js">\x3c/script>'
     );
   </script>
   <title>Sale — Hoardio</title>
@@ -78,6 +79,17 @@
     }
     .sale-cart-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: var(--text-primary); }
     .sale-cart-btn:disabled { opacity: 0.6; cursor: default; }
+    .sale-offer-btn {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.55rem 1.1rem; border-radius: 8px;
+      font-size: 0.88rem; font-weight: 700; text-align: center;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14);
+      color: var(--text-secondary);
+    }
+    .sale-offer-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+    .sale-offer-btn:disabled { opacity: 0.6; cursor: default; }
     .sale-info { flex: 1; min-width: 280px; }
     .sale-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
     .sale-info-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
@@ -224,6 +236,7 @@
     apiScript: _p + 'shared/wax-api.js',
     exploreHref: _p + 'explore',
     offersHref: _p + 'trade-offers',
+    buyOffersHref: _p + 'buy-offers',
     profileHref: _p + 'profile',
     menuItems: walletMenuItems(_p),
   });
@@ -246,6 +259,9 @@
         <div class="sale-buy-actions" id="saleBuyActions" style="display:none;">
           <button type="button" class="sale-buy-btn" id="saleBuyBtn">Buy</button>
           <button type="button" class="sale-cart-btn" id="saleCartBtn">🛒 Add to cart</button>
+        </div>
+        <div class="sale-buy-actions" id="saleOfferActions" style="display:none;">
+          <button type="button" class="sale-offer-btn" id="saleOfferBtn">Make Offer</button>
         </div>
       </div>
       <div class="sale-info">
@@ -527,6 +543,19 @@ const SALE_STATE = { 1: { label: 'Active', cls: 'active' }, 2: { label: 'Cancell
 const TAKER_MARKETPLACE = 'hoardiostore'; // same account as explore.html — 1% commission on purchases made through the site
 const CART_STORAGE_KEY  = 'explore_cart_v1'; // shared with explore.html's own cart — see addSaleToCart below
 
+// assetId is always present in _offerCtx here — MakeOfferModal defaults to
+// Asset mode with the Asset/Template toggle available (this page always
+// has a specific asset/seller in context for a single-asset listing).
+let _offerCtx = null; // set by renderSingleAsset(); stays null for a bundle listing or a listing with no template_id
+const _offerModal = MakeOfferModal.mount({
+  apiFetch: WaxApi.apiFetch,
+  marketBase: WaxApi.marketBase,
+  makerMarketplace: TAKER_MARKETPLACE,
+  connectWallet: () => _wallet.connect(),
+  refreshBalance: () => _wallet.refreshBalance(),
+  ramPrefix: _p,
+});
+
 function toWaxQty(amount) {
   return (parseInt(amount) / 1e8).toFixed(8) + ' WAX';
 }
@@ -671,6 +700,27 @@ function wireBuyActions(sale) {
   window.addEventListener('wax-auth-change', () => syncBuyActions(sale));
 }
 
+// Same active/not-your-own gating as syncBuyActions, plus _offerCtx must be
+// set (single-asset listing with a template_id — renderSingleAsset() is
+// what sets it, never called at all for a bundle).
+function syncOfferActions(sale) {
+  const wrap = document.getElementById('saleOfferActions');
+  if (!_offerCtx || sale.state !== 1) { wrap.style.display = 'none'; return; }
+  const acc = window.getWaxAccount();
+  if (acc && sale.seller === acc) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = '';
+  const offerBtn = document.getElementById('saleOfferBtn');
+  offerBtn.textContent = acc ? 'Make Offer' : 'Connect wallet to make an offer';
+  offerBtn.onclick = () => acc
+    ? _offerModal.open(Object.assign({}, _offerCtx, { onSuccess: () => loadTemplateOffers(_offerCtx.templateId) }))
+    : _wallet.connect();
+}
+function wireOfferActions(sale) {
+  syncOfferActions(sale);
+  window.addEventListener('wax-auth-change', () => syncOfferActions(sale));
+}
+
 async function loadSale() {
   const aa  = WaxApi.aaBase();
   const mkt = WaxApi.marketBase();
@@ -748,6 +798,10 @@ async function loadSale() {
     document.getElementById('singleAssetWrap').style.display = '';
     renderSingleAsset(first, singleCollectionName, singleTemplateId);
   }
+  // Make Offer only applies to a single-asset listing — a bundle's several
+  // asset_ids don't map onto the single-asset offer UI, and _offerCtx is
+  // only ever set by renderSingleAsset (never for a bundle).
+  wireOfferActions(sale);
 
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('saleWrap').style.display = '';
@@ -1053,6 +1107,20 @@ function renderSingleAsset(asset, collectionName, templateId) {
   document.getElementById('astMint').textContent = issuedSupply != null
     ? `${asset.template_mint} of ${issuedSupply.toLocaleString()}`
     : `#${asset.template_mint}`;
+
+  // Make Offer needs a template_id (createbuyo/createtbuyo both key off
+  // it) — syncOfferActions() (called from loadSale() once this returns)
+  // hides the button entirely when this stays null.
+  _offerCtx = templateId ? {
+    templateId, collectionName,
+    name: data.name || asset.name || `Asset #${asset.asset_id}`,
+    imageUrl: mediaItems[0] ? toMediaUrl(mediaItems[0].hash) : null,
+    isVideo: mediaItems[0]?.kind === 'video',
+    assetId: asset.asset_id,
+    owner: asset.owner,
+    mint: asset.template_mint,
+    issuedSupply,
+  } : null;
   document.getElementById('astFlags').innerHTML =
     `<span class="tpl-badge ${asset.is_burnable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_burnable ? 'Burnable' : 'Not burnable'}</span> ` +
     `<span class="tpl-badge ${asset.is_transferable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_transferable ? 'Transferable' : 'Not transferable'}</span>`;

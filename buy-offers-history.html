@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buy Offer History — Hoardio</title>
+  <meta name="description" content="Review the history of your resolved WAX buy offers — accepted, declined, cancelled, or fulfilled, both received and sent." />
+  <link rel="canonical" href="https://www.hoardio.com/buy-offers-history" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/buy-offers-history" />
+  <meta property="og:title" content="Buy Offer History — Hoardio" />
+  <meta property="og:description" content="Review the history of your resolved WAX buy offers — accepted, declined, cancelled, or fulfilled, both received and sent." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Buy Offer History — Hoardio" />
+  <meta name="twitter:description" content="Review the history of your resolved WAX buy offers — accepted, declined, cancelled, or fulfilled, both received and sent." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="shared/global.css" />
+  <style>
+    /* ── Page ── */
+    .page-main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem;
+      text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; }
+
+    .offer-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .offer-tab-btn {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
+      border-radius: 8px; padding: 0.55rem 1.1rem;
+      font-size: 0.85rem; font-weight: 700; color: var(--accent-light);
+      font-family: inherit; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .offer-tab-btn:hover { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .offer-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      border-color: transparent; color: #fff;
+    }
+    .tab-count { font-variant-numeric: tabular-nums; opacity: 0.85; }
+    @media (max-width: 480px) {
+      .offer-tab-btn { padding: 0.55rem 0.5rem; gap: 0.3rem; }
+    }
+
+    #offersPageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .offers-link {
+      display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.55rem 0.9rem;
+      color: var(--text-primary); font-size: 0.82rem; font-weight: 600;
+      text-decoration: none; transition: border-color 0.15s;
+    }
+    .offers-link:hover { border-color: rgba(192,120,40,0.5); }
+
+    .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
+    .empty-state a { color: var(--accent-light); text-decoration: underline; }
+    .empty-state a:hover { opacity: 0.8; }
+
+    .offers-list { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    /* ── Accordion item — same shell as buy-offers.html ── */
+    .offer-item {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; transition: border-color 0.2s;
+    }
+    .offer-item:hover { border-color: var(--border-hover); }
+    .offer-header {
+      display: flex; align-items: center;
+      padding: 1rem 1.25rem; cursor: pointer; user-select: none; gap: 1rem;
+    }
+    .offer-chevron { width: 18px; height: 18px; flex-shrink: 0; color: var(--text-secondary); transition: transform 0.2s; }
+    .offer-item.open .offer-chevron { transform: rotate(90deg); }
+    .offer-from { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .offer-from-wallet { color: var(--accent-light); }
+    .bo-type-badge {
+      display: inline-block; margin-left: 0.5rem; font-size: 0.64rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      border-radius: 999px; padding: 0.12rem 0.5rem; vertical-align: middle;
+    }
+    .bo-type-badge--asset    { color: var(--accent-light); background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.35); }
+    .bo-type-badge--template { color: #60a5fa; background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.35); }
+    .status-pill {
+      display: inline-block; margin-left: 0.5rem; font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      border-radius: 999px; padding: 0.12rem 0.5rem; vertical-align: middle;
+    }
+    .status-accepted  { color: #4ade80; background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.35); }
+    .status-fulfilled { color: #4ade80; background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.35); }
+    .status-declined  { color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
+    .status-cancelled { color: var(--text-secondary); background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+    .offer-meta { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+    .bo-header-price { font-size: 1rem; font-weight: 700; color: var(--accent-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .offer-age     { flex-shrink: 0; width: 5rem; font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; text-align: right; }
+    .offer-body    { display: none; border-top: 1px solid var(--border); }
+    .offer-item.open .offer-body { display: block; }
+
+    .bo-content { display: flex; gap: 1.1rem; padding: 1.1rem 1.25rem; }
+    .bo-media {
+      flex-shrink: 0; width: 90px; height: 90px; border-radius: 10px; overflow: hidden;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bo-media img, .bo-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .bo-media-ph { color: var(--text-secondary); font-size: 1.4rem; }
+    .bo-details { flex: 1; min-width: 0; }
+    .bo-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+    .bo-meta { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; margin-bottom: 0.6rem; }
+    .bo-meta .rarity-pill { font-size: 0.68rem; padding: 1px 8px; }
+    .bo-rows { display: flex; flex-direction: column; gap: 0.25rem; max-width: 360px; }
+    .bo-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; font-size: 0.85rem; }
+    .bo-row-label { color: var(--text-secondary); }
+    .bo-row-val { font-weight: 600; color: var(--text-primary); text-align: right; }
+    .bo-price { color: var(--accent-light); }
+    .bo-usd { color: var(--text-secondary); font-size: 0.78rem; font-weight: 400; }
+    .bo-memo { padding: 0 1.25rem 1.1rem; margin-top: -0.5rem; font-size: 0.78rem; color: var(--text-secondary); }
+    .bo-memo span { color: var(--text-primary); }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .page-main { padding: 1.25rem 0.75rem 3rem; }
+      .offer-header { flex-wrap: wrap; gap: 0.35rem 1rem; }
+      .offer-from  { flex-basis: calc(100% - 18px - 1rem); white-space: normal; }
+      .offer-meta  { flex-basis: 100%; justify-content: space-between; padding-left: calc(18px + 1rem); box-sizing: border-box; }
+      .bo-content { flex-direction: column; align-items: flex-start; }
+      .bo-rows { max-width: none; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script src="shared/wax-api.js"></script>
+  <script src="shared/wallet-widget.js"></script>
+  <script src="shared/wallet-menu.js"></script>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index" class="nav-home" title="Back to homepage">
+      <img src="images/Hoardio_fav.png" alt="Hoardio" />
+    </a>
+    <span class="nav-divider"></span>
+    <div class="nav-links"></div>
+  </div>
+</nav>
+<script src="shared/generic-nav.js"></script>
+
+<main class="page-main">
+  <div class="page-header" id="offersPageHeader">
+    <div>
+      <h1 class="page-title">Buy Offer <span class="accent">History</span></h1>
+      <p class="page-desc" id="pageDesc">Resolved buy offers made on your WAX wallet's NFTs — accepted, declined, or expired.</p>
+    </div>
+    <a href="buy-offers" class="offers-link">🏷️ Buy Offers</a>
+  </div>
+
+  <div class="offer-tabs" id="offerTabs">
+    <button type="button" class="offer-tab-btn active" data-tab="received">📥 Received<span class="tab-count" id="tabCountReceived"></span></button>
+    <button type="button" class="offer-tab-btn" data-tab="sent">📤 Sent<span class="tab-count" id="tabCountSent"></span></button>
+  </div>
+
+  <div id="authGate" class="auth-gate" style="display:none;">
+    <p class="auth-gate-title">Wallet not connected</p>
+    <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your buy offer history.</p>
+  </div>
+
+  <div id="loadWrap" class="status-wrap" style="display:none;">
+    <div class="spinner"></div>
+    <div>Loading buy offer history…</div>
+  </div>
+
+  <div id="emptyWrap" class="empty-state" style="display:none;">
+    <strong>No buy offer history</strong>
+  </div>
+
+  <div id="offersList" class="offers-list" style="display:none;"></div>
+  <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
+    <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+function escHtml(s) { return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function rarityClass(r) { return 'rarity-' + (r || 'common').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function schemaLabel(sn) {
+  const b = (sn || '').replace('.drop', '');
+  const m = b.match(/^series(\d+)$/);
+  return m ? 'Series ' + m[1] : b.charAt(0).toUpperCase() + b.slice(1);
+}
+function relativeTime(ms) {
+  const diff = Date.now() - Number(ms), s = Math.floor(diff / 1000);
+  if (s < 60)  return 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+let _waxUsdRate = null;
+async function fetchWaxUsdRate() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    if (!r.ok) return;
+    const j = await r.json();
+    _waxUsdRate = j?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+
+/* ── Nav auth ──────────────────────────────────────────────────────────────── */
+WalletWidget.mount(document.querySelector('.nav-inner'), {
+  authScript: 'shared/wax-auth.js',
+  menuItems: walletMenuItems(),
+});
+window.addEventListener('wax-auth-change', onWalletChange);
+
+const mkt = () => WaxApi.marketBase();
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+let _tab = 'received';
+const TAB_DESC = {
+  received: "Resolved buy offers made on your WAX wallet's NFTs — accepted, declined, or expired.",
+  sent:     'Resolved buy offers you sent — accepted, declined, cancelled, or fulfilled.',
+};
+function setActiveTab(tab) {
+  _tab = tab === 'sent' ? 'sent' : 'received';
+  document.querySelectorAll('.offer-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === _tab));
+  document.getElementById('pageDesc').textContent = TAB_DESC[_tab];
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) loadOffers(true);
+}
+document.querySelectorAll('.offer-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+});
+
+const TAB_COUNT_EL = { received: document.getElementById('tabCountReceived'), sent: document.getElementById('tabCountSent') };
+let _counts = { received: null, sent: null };
+function setTabCount(tab, n) {
+  _counts[tab] = n;
+  const el = TAB_COUNT_EL[tab];
+  if (!el) return;
+  el.textContent = n ? ` (${n >= COUNT_LIMIT ? n + '+' : n})` : '';
+}
+
+/* ── Offer state — from the AtomicMarket indexer, confirmed live by
+   cross-referencing real buyoffer_ids against AtomicHub's own buy-offers
+   history UI (state values aren't documented anywhere in the API/ABI
+   itself). The two tables use different enums — template offers have no
+   "declined" state since there's no recipient to decline them. ── */
+const BUYOFFER_STATUS  = { 1: { label: 'Declined',  cls: 'status-declined' }, 2: { label: 'Cancelled', cls: 'status-cancelled' }, 3: { label: 'Accepted', cls: 'status-accepted' } };
+const TBUYOFFER_STATUS = { 1: { label: 'Cancelled', cls: 'status-cancelled' }, 2: { label: 'Fulfilled', cls: 'status-fulfilled' } };
+
+/* ── Card rendering (shared with buy-offers.html's own approach, read-only
+   here — no action buttons, memo sits directly under the card instead of
+   in an actions row). ── */
+function mediaHtmlFor(dataObj) {
+  const video = dataObj.video, img = dataObj.img;
+  if (video) return `<video autoplay loop muted playsinline><source src="${escHtml(toMediaUrl(video))}" type="video/mp4"></video>`;
+  if (img)   return `<img alt="" src="${escHtml(toMediaUrl(img))}">`;
+  return '<div class="bo-media-ph">?</div>';
+}
+// Same trailing-zero trim as shared/asset-popup.js's fmtTok / buy-offers.html's
+// own copy — always keeps at least 2 decimals, extends further only when
+// there are meaningful nonzero digits beyond that, so a small offer (e.g.
+// 0.0004 WAX) never rounds down to a misleading "0 WAX".
+function fmtWaxTrim(n) {
+  return n.toFixed(8)
+    .replace(/(\.\d{2}.*[1-9])0+$/, '$1')
+    .replace(/(\.\d{2})0+$/, '$1');
+}
+function fmtPrice(priceObj) {
+  const wax    = Number(priceObj.amount) / (10 ** (priceObj.token_precision || 8));
+  const waxStr = fmtWaxTrim(wax);
+  const usd    = _waxUsdRate ? ` <span class="bo-usd">≈ $${(wax * _waxUsdRate).toFixed(2)}</span>` : '';
+  return { wax, waxStr, html: `${waxStr} WAX${usd}` };
+}
+
+function buildBuyOfferItem(offer, direction) {
+  const offerId     = offer.buyoffer_id;
+  const isSent       = direction === 'sent';
+  const isTemplate   = offer._type === 'template';
+  const counterparty = escHtml(isSent ? (offer.seller || 'Any holder') : offer.buyer);
+  const age          = relativeTime(offer.updated_at_time || offer.created_at_time); // when resolved, not created
+  const price        = fmtPrice(offer.price);
+  const statusMeta   = (isTemplate ? TBUYOFFER_STATUS : BUYOFFER_STATUS)[offer.state] || { label: 'Unknown', cls: 'status-cancelled' };
+
+  let name, collectionName, schemaName = '', rarity = '', mediaHtml, extraRowsHtml, memo = '';
+  if (isTemplate) {
+    const tpl  = offer.template || {};
+    const data = tpl.immutable_data || {};
+    name           = data.name || `Template #${tpl.template_id}`;
+    collectionName = offer.collection?.name || offer.collection?.collection_name || '';
+    rarity         = data.rarity || '';
+    mediaHtml      = mediaHtmlFor(data);
+    extraRowsHtml  = `<div class="bo-row"><span class="bo-row-label">Template ID</span><span class="bo-row-val">#${escHtml(tpl.template_id)}</span></div>`;
+  } else {
+    const asset  = (offer.assets || [])[0] || {};
+    const data   = asset.data || asset.template?.immutable_data || {};
+    name           = data.name || asset.name || `Asset #${asset.asset_id}`;
+    collectionName = asset.collection?.name || asset.collection?.collection_name || '';
+    schemaName     = asset.schema?.schema_name || '';
+    rarity         = data.rarity || '';
+    mediaHtml      = mediaHtmlFor(data);
+    const issuedSupply = asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null;
+    const mintLabel = asset.template_mint != null
+      ? (issuedSupply != null ? `#${asset.template_mint} of ${issuedSupply.toLocaleString()}` : `#${asset.template_mint}`)
+      : '—';
+    extraRowsHtml = `<div class="bo-row"><span class="bo-row-label">Mint</span><span class="bo-row-val">${mintLabel}</span></div>`;
+    memo = offer.memo || '';
+  }
+
+  const typeBadgeHtml = isTemplate
+    ? '<span class="bo-type-badge bo-type-badge--template">Template</span>'
+    : '<span class="bo-type-badge bo-type-badge--asset">Specific Asset</span>';
+
+  const bodyHtml = `
+    <div class="bo-content">
+      <div class="bo-media">${mediaHtml}</div>
+      <div class="bo-details">
+        <div class="bo-name">${escHtml(name)}</div>
+        <div class="bo-meta">${escHtml(collectionName)}${schemaName ? ' · ' + escHtml(schemaLabel(schemaName)) : ''}${rarity ? ` · <span class="rarity-pill ${rarityClass(rarity)}">${escHtml(rarity)}</span>` : ''}</div>
+        <div class="bo-rows">
+          ${extraRowsHtml}
+          <div class="bo-row"><span class="bo-row-label">Offered</span><span class="bo-row-val bo-price">${price.html}</span></div>
+        </div>
+      </div>
+    </div>
+    ${memo ? `<div class="bo-memo">Memo: <span>${escHtml(memo)}</span></div>` : ''}`;
+
+  const item = document.createElement('div');
+  item.className = 'offer-item';
+  item.dataset.offerId = offerId;
+  item.innerHTML = `
+    <div class="offer-header">
+      <svg class="offer-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="offer-from">Offer ${isSent ? 'to' : 'from'} <span class="offer-from-wallet">${counterparty}</span>${typeBadgeHtml}<span class="status-pill ${statusMeta.cls}">${statusMeta.label}</span></span>
+      <div class="offer-meta">
+        <span class="bo-header-price">${price.waxStr} WAX</span>
+        <span class="offer-age" title="Resolved">${age}</span>
+      </div>
+    </div>
+    <div class="offer-body">${bodyHtml}</div>
+  `;
+
+  item.querySelector('.offer-header').addEventListener('click', () => {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.offer-item.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+
+  return item;
+}
+
+function showState(state) {
+  document.getElementById('authGate').style.display   = state === 'auth'    ? '' : 'none';
+  document.getElementById('loadWrap').style.display   = state === 'loading' ? '' : 'none';
+  document.getElementById('emptyWrap').style.display  = state === 'empty'   ? '' : 'none';
+  document.getElementById('offersList').style.display = state === 'list'    ? '' : 'none';
+}
+
+/* ── Load offers ───────────────────────────────────────────────────────────── */
+const PAGE_SIZE   = 10;
+const COUNT_LIMIT = 100;
+const EMPTY_MSG = {
+  received: '<strong>No buy offer history</strong>No one has sent a resolved buy offer on your NFTs yet.',
+  sent:     '<strong>No sent buy offer history</strong>You have no resolved outgoing buy offers yet.',
+};
+
+// Despite the on-chain field being named `recipient`, the REST API's query
+// param for it is `seller=` — `recipient=` is silently ignored (confirmed
+// live). See the identical note in buy-offers.html's assetOffersUrl().
+function assetOffersUrl(direction, wallet, limit, page) {
+  const filterKey = direction === 'sent' ? 'buyer' : 'seller';
+  return `${mkt()}/buyoffers?${filterKey}=${encodeURIComponent(wallet)}&state=1,2,3&symbol=WAX&sort=updated&order=desc&limit=${limit}&page=${page}`;
+}
+// Template offers only ever show up on the Sent tab (no recipient concept).
+// Fetched once, up to COUNT_LIMIT, rather than paginated alongside asset
+// offers — a simplification kept intentionally basic for now (see plan).
+function templateOffersUrl(wallet, limit) {
+  return `${mkt()}/template_buyoffers?buyer=${encodeURIComponent(wallet)}&state=1,2&symbol=WAX&sort=updated&order=desc&limit=${limit}&page=1`;
+}
+
+async function refreshTabCount(direction) {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) return;
+  try {
+    const reqs = [WaxApi.apiFetch(assetOffersUrl(direction, wallet, COUNT_LIMIT, 1)).catch(() => [])];
+    if (direction === 'sent') reqs.push(WaxApi.apiFetch(templateOffersUrl(wallet, COUNT_LIMIT)).catch(() => []));
+    const results = await Promise.all(reqs);
+    setTabCount(direction, results.reduce((sum, r) => sum + (r ? r.length : 0), 0));
+  } catch { /* leave whatever count (or lack of one) was already showing */ }
+}
+function refreshBothTabCounts() { refreshTabCount('received'); refreshTabCount('sent'); }
+
+let _page          = 1;   // asset-offer page cursor — the only one that advances via "Load more"
+let _hasMore       = false;
+let _autoLoadArmed = false;
+let _loadGen       = 0;
+let _templateLoadedForSent = false; // template offers are fetched once per Sent-tab reset, not paginated
+
+async function loadOffers(reset) {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) { showState('auth'); return; }
+
+  const myGen = reset ? ++_loadGen : _loadGen;
+  const direction = _tab; // snapshot — _tab can change again before this resolves
+  if (reset) {
+    _page = 1; _hasMore = false; _autoLoadArmed = false; _templateLoadedForSent = false;
+    document.getElementById('offersList').innerHTML = '';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    showState('loading');
+  }
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (!reset && loadMoreBtn) { loadMoreBtn.disabled = true; loadMoreBtn.textContent = 'Loading…'; }
+
+  try {
+    const reqs = [WaxApi.apiFetch(assetOffersUrl(direction, wallet, PAGE_SIZE, _page)).catch(() => [])];
+    const needsTemplate = direction === 'sent' && !_templateLoadedForSent;
+    if (needsTemplate) reqs.push(WaxApi.apiFetch(templateOffersUrl(wallet, COUNT_LIMIT)).catch(() => []));
+    const [assetOffers, templateOffers] = await Promise.all(reqs);
+    if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
+
+    _hasMore = assetOffers.length === PAGE_SIZE;
+    if (needsTemplate) _templateLoadedForSent = true;
+
+    const batch = [
+      ...(assetOffers || []).map(o => Object.assign({ _type: 'asset' }, o)),
+      ...(needsTemplate ? (templateOffers || []).map(o => Object.assign({ _type: 'template' }, o)) : []),
+    ];
+    batch.sort((a, b) => Number(b.updated_at_time || b.created_at_time) - Number(a.updated_at_time || a.created_at_time));
+
+    if (reset && batch.length === 0) {
+      document.getElementById('emptyWrap').innerHTML = EMPTY_MSG[direction];
+      showState('empty');
+      return;
+    }
+
+    if (batch.length) {
+      const list = document.getElementById('offersList');
+      batch.forEach(offer => list.appendChild(buildBuyOfferItem(offer, direction)));
+    }
+    showState('list');
+    document.getElementById('loadMoreWrap').style.display = _hasMore ? '' : 'none';
+    _page++;
+  } catch (err) {
+    if (myGen !== _loadGen) return; // stale — a newer tab switch superseded this
+    console.error('Failed to load buy offer history:', err);
+    if (reset) {
+      showState('empty');
+      document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load buy offer history</strong>Could not reach the WAX API. Please try again later.';
+    }
+  } finally {
+    if (myGen === _loadGen && loadMoreBtn) { loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'Load more'; }
+  }
+  checkAutoLoad();
+}
+
+function onLoadMoreClick() {
+  _autoLoadArmed = true;
+  loadOffers(false);
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+// Scroll-driven auto-load — same reasoning as trade-history.html's own
+// (10-row batches often don't grow the page enough to trigger an
+// IntersectionObserver's enter/exit transition, so this re-checks on every
+// scroll tick instead of waiting for one).
+function isLoadMoreNearViewport() {
+  const wrap = document.getElementById('loadMoreWrap');
+  if (wrap.style.display === 'none') return false;
+  const rect = wrap.getBoundingClientRect();
+  const LOOKAHEAD = 600;
+  return rect.top < window.innerHeight + LOOKAHEAD && rect.bottom > -LOOKAHEAD;
+}
+let _autoLoadCheckQueued = false;
+function checkAutoLoad() {
+  if (_autoLoadCheckQueued) return;
+  _autoLoadCheckQueued = true;
+  requestAnimationFrame(() => {
+    _autoLoadCheckQueued = false;
+    if (!_autoLoadArmed || !_hasMore) return;
+    const btn = document.getElementById('loadMoreBtn');
+    if (btn.disabled) return; // a load is already in flight
+    if (isLoadMoreNearViewport()) loadOffers(false);
+  });
+}
+window.addEventListener('scroll', checkAutoLoad, { passive: true });
+
+function onWalletChange() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) { loadOffers(true); refreshBothTabCounts(); }
+  else { showState('auth'); setTabCount('received', null); setTabCount('sent', null); }
+}
+
+/* ── Init ──────────────────────────────────────────────────────────────────── */
+function init() {
+  fetchWaxUsdRate();
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) { loadOffers(true); refreshBothTabCounts(); }
+  else showState('auth');
+}
+
+init();
+</script>
+<script src="shared/moved.js"></script>
+</body>
+</html>

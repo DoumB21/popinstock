@@ -20,7 +20,15 @@ window.ImageLightbox = (function () {
       '<button class="img-lightbox-close" aria-label="Close">✕</button>' +
       '<div class="img-lightbox-body"></div>';
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    // See shared/make-offer-modal.js's identical comment — a plain
+    // e.target===overlay click check also fires on a drag that starts
+    // inside the body and releases on the backdrop (e.g. an image
+    // drag-select), not just a genuine backdrop click. No text inputs live
+    // here, but the media itself is draggable in most browsers, so the same
+    // mousedown-tracking fix applies.
+    let _downOnOverlay = false;
+    overlay.addEventListener('mousedown', e => { _downOnOverlay = (e.target === overlay); });
+    overlay.addEventListener('click', e => { if (_downOnOverlay && e.target === overlay) close(); });
     overlay.querySelector('.img-lightbox-close').addEventListener('click', close);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
     return overlay;
