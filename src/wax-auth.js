@@ -106,6 +106,54 @@ export function getAccount() {
   return localStorage.getItem('wax_account') || null;
 }
 
+export async function getLinkedAccounts() {
+  const sessions = await sessionKit.getSessions(); // SerializedSession[]
+  const activeActor = session ? String(session.actor) : null;
+  const activePermission = session ? String(session.permission) : null;
+  return sessions.map(s => ({
+    actor: String(s.actor),
+    permission: String(s.permission),
+    isActive: String(s.actor) === activeActor && String(s.permission) === activePermission,
+  }));
+}
+
+export async function switchTo(actor, permission) {
+  const restored = await sessionKit.restore(
+    { chain: WAX_CHAIN.id, actor, permission },
+    { setAsDefault: true }
+  );
+  if (!restored) throw new Error('Wallet not found — it may have been unlinked.');
+  session = restored;
+  _dispatch(String(session.actor));
+  return String(session.actor);
+}
+
+export async function unlink(actor, permission) {
+  const activeActor = session ? String(session.actor) : null;
+  const activePermission = session ? String(session.permission) : null;
+  if (actor === activeActor && permission === activePermission) {
+    throw new Error('Cannot unlink the active wallet — switch to another one first.');
+  }
+
+  const sessions = await sessionKit.getSessions();
+  const target = sessions.find(s => String(s.actor) === actor && String(s.permission) === permission);
+  if (!target) return; // already gone
+
+  // sessionKit.logout(session) unconditionally clears the singular 'session'
+  // storage pointer first, regardless of which session is targeted, even
+  // though the still-active session is otherwise untouched — repair it below.
+  await sessionKit.logout(target);
+
+  if (session) {
+    const restored = await sessionKit.restore(
+      { chain: WAX_CHAIN.id, actor: String(session.actor), permission: String(session.permission) },
+      { setAsDefault: true }
+    );
+    if (restored) session = restored;
+  }
+  // No _dispatch() here — the active account didn't change.
+}
+
 export async function transact(actions) {
   if (!session) throw new Error('Not logged in');
   return session.transact({ actions });

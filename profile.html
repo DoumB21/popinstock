@@ -72,11 +72,58 @@
       .settings-row--network { flex-direction: column; align-items: stretch; }
       .settings-row--network #rpcDropdown { width: 100%; }
     }
+
+    /* Linked Wallets list */
+    .lw-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+    .lw-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 0.85rem; background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border); border-radius: 10px;
+      flex-wrap: wrap;
+    }
+    .lw-row-main { display: flex; align-items: center; gap: 0.55rem; flex: 1 1 auto; min-width: 0; }
+    .lw-row-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text-secondary); opacity: 0.5;
+    }
+    .lw-row-dot--active { background: var(--accent-light); opacity: 1; }
+    .lw-row-name {
+      font-size: 0.9rem; font-weight: 600; color: var(--text-primary);
+      overflow-wrap: anywhere;
+    }
+    .lw-row-badge {
+      font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--accent-light);
+      background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.3);
+      border-radius: 999px; padding: 0.15rem 0.5rem; flex-shrink: 0;
+    }
+    .lw-row-balance {
+      font-size: 0.82rem; color: var(--text-secondary);
+      flex: 0 0 auto; white-space: nowrap;
+    }
+    .lw-row-actions { display: flex; gap: 0.5rem; flex-shrink: 0; margin-left: auto; }
+    .lw-switch-btn, .lw-unlink-btn {
+      font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.7rem;
+      border-radius: 7px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-primary); cursor: pointer;
+    }
+    .lw-switch-btn:hover:not(:disabled), .lw-unlink-btn:hover:not(:disabled) {
+      border-color: var(--accent-light); color: var(--accent-light);
+    }
+    .lw-switch-btn:disabled, .lw-unlink-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .lw-link-btn {
+      font-size: 0.85rem; font-weight: 700; padding: 0.55rem 1rem;
+      border-radius: 8px; border: 1px solid var(--accent-light);
+      background: rgba(240,168,64,0.12); color: var(--accent-light); cursor: pointer;
+    }
+    .lw-link-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); }
+    .lw-link-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/settings.js"></script>
   <script src="shared/wax-api.js"></script>
+  <script src="shared/wax-balance.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
 </head>
@@ -96,7 +143,7 @@
 <main class="page-main">
   <div class="page-header">
     <div class="page-title">Pro<span class="accent">file</span></div>
-    <div class="page-subtitle">Preferences that apply across every Hoardio page — saved to this browser, no wallet required.</div>
+    <div class="page-subtitle">Preferences that apply across every Hoardio page — saved to this browser. Most settings need no wallet; Linked Wallets does.</div>
   </div>
 
   <div class="settings-card">
@@ -131,6 +178,19 @@
     </div>
     <div class="settings-saved-note" id="rpcSavedNote">Saved — you now use the selected RPC.</div>
   </div>
+
+  <div class="settings-card" id="linkedWalletsCard" style="margin-top:1.25rem;">
+    <div class="settings-section-title">Linked Wallets</div>
+    <div class="settings-row-hint" style="margin-bottom:1rem;">
+      Link up to 10 WAX wallets and switch between them instantly, without reconnecting. Linking a new wallet also makes it your active one.
+    </div>
+    <div id="linkedWalletsList" class="lw-list"></div>
+    <div id="linkedWalletsEmpty" class="settings-row-hint" style="display:none;">No wallets linked yet.</div>
+    <button id="linkWalletBtn" type="button" class="lw-link-btn">+ Link a Wallet</button>
+    <div id="linkedWalletsCapNote" class="settings-row-hint" style="display:none; margin-top:0.6rem;">
+      You've reached the 10-wallet limit. Unlink one to link another.
+    </div>
+  </div>
 </main>
 
 <footer>
@@ -144,6 +204,94 @@
 WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
   menuItems: walletMenuItems(),
+  onUpdate: () => renderLinkedWallets(),
+});
+
+// ── Linked Wallets ──
+function escHtmlLw(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function lwRowHtml(w, balanceHtml) {
+  const actor = escHtmlLw(w.actor);
+  const permission = escHtmlLw(w.permission);
+  return `
+    <div class="lw-row" data-actor="${actor}" data-permission="${permission}">
+      <div class="lw-row-main">
+        <span class="lw-row-dot${w.isActive ? ' lw-row-dot--active' : ''}"></span>
+        <span class="lw-row-name">${actor}</span>
+        ${w.isActive ? '<span class="lw-row-badge">Active</span>' : ''}
+      </div>
+      <div class="lw-row-balance">${balanceHtml || '…'}</div>
+      <div class="lw-row-actions">
+        <button type="button" class="lw-switch-btn" data-actor="${actor}" data-permission="${permission}"${w.isActive ? ' disabled' : ''}>Switch</button>
+        <button type="button" class="lw-unlink-btn" data-actor="${actor}" data-permission="${permission}"${w.isActive ? ' disabled title="Switch to another wallet before unlinking this one"' : ''}>Unlink</button>
+      </div>
+    </div>`;
+}
+
+// actor -> formatted balance HTML, populated once per actor for this page
+// load (not refetched on every re-render — switching/unlinking shouldn't
+// re-hit the chain RPC / CoinGecko for wallets we already fetched).
+const _linkedBalances = {};
+
+async function renderLinkedWallets() {
+  if (!window.WaxAuth) return; // onUpdate also fires on the pre-WaxAuth-load synchronous paint
+  const wallets = await WaxAuth.getLinkedAccounts();
+  const listEl = document.getElementById('linkedWalletsList');
+  document.getElementById('linkedWalletsEmpty').style.display = wallets.length ? 'none' : '';
+  listEl.innerHTML = wallets.map(w => lwRowHtml(w, _linkedBalances[w.actor])).join('');
+
+  const atCap = wallets.length >= 10;
+  document.getElementById('linkWalletBtn').disabled = atCap;
+  document.getElementById('linkedWalletsCapNote').style.display = atCap ? '' : 'none';
+
+  const unfetched = wallets.filter(w => !(w.actor in _linkedBalances));
+  if (!unfetched.length) return; // nothing new — switch/unlink re-renders land here, no network calls
+
+  const rate = await WaxBalance.fetchUsdRate();
+  await Promise.all(unfetched.map(async w => {
+    const wax = await WaxBalance.fetchBalance(w.actor);
+    _linkedBalances[w.actor] = wax == null ? '—' : WaxBalance.format(wax, rate);
+    const el = listEl.querySelector(`.lw-row[data-actor="${CSS.escape(w.actor)}"] .lw-row-balance`);
+    if (el) el.innerHTML = _linkedBalances[w.actor];
+  }));
+}
+
+document.getElementById('linkWalletBtn').addEventListener('click', async e => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
+  try { await WaxAuth.login(); } catch { /* cancelled */ }
+  finally {
+    btn.textContent = '+ Link a Wallet';
+    renderLinkedWallets();
+  }
+});
+
+document.getElementById('linkedWalletsList').addEventListener('click', async e => {
+  const switchBtn = e.target.closest('.lw-switch-btn');
+  const unlinkBtn = e.target.closest('.lw-unlink-btn');
+  if (switchBtn && !switchBtn.disabled) {
+    switchBtn.disabled = true;
+    switchBtn.textContent = 'Switching…';
+    try {
+      await WaxAuth.switchTo(switchBtn.dataset.actor, switchBtn.dataset.permission);
+    } catch (err) {
+      alert(err.message || 'Could not switch wallets.');
+      renderLinkedWallets();
+    }
+  } else if (unlinkBtn && !unlinkBtn.disabled) {
+    if (!confirm(`Unlink ${unlinkBtn.dataset.actor}?`)) return;
+    unlinkBtn.disabled = true;
+    unlinkBtn.textContent = 'Unlinking…';
+    try {
+      await WaxAuth.unlink(unlinkBtn.dataset.actor, unlinkBtn.dataset.permission);
+    } catch (err) {
+      alert(err.message || 'Could not unlink wallet.');
+    }
+    renderLinkedWallets();
+  }
 });
 
 const $chk  = document.getElementById('reduceMotionChk');
