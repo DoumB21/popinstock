@@ -258,6 +258,15 @@ body::before {
   flex-shrink: 0;
   color: var(--text-secondary);
   transition: color 0.15s, background 0.15s;
+  /* Only ever applied to <a> tags before (cart/offers/profile icons), which
+     carry no default browser chrome — shared/global-search.js's nav icon is
+     a <button>, which does, so this class needs its own explicit reset now
+     that it's used on both. */
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
 }
 
 .nav-cart-btn:hover {
@@ -1392,6 +1401,162 @@ body::before {
 .ao-btn--cancel:hover { background: rgba(255,255,255,0.09); color: var(--text-primary); }
 .ao-btn--primary { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.4); color: #4ade80; }
 .ao-btn--primary:hover { background: rgba(74,222,128,0.22); border-color: #4ade80; }
+
+
+/* ── Global Search popup (shared/global-search.js) — sitewide magnifying-
+   glass icon in the nav that opens a quick Collection/Wallet lookup, so
+   getting to a collection or wallet page doesn't require knowing the URL
+   scheme (a real pain point on mobile). Own gs- namespace, same overlay/
+   panel visual language as .mo-/.ao- but wider to fit a results list. ── */
+.gs-overlay {
+  position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: flex-start; justify-content: center; padding: 1rem;
+}
+.gs-panel {
+  width: 480px; max-width: 100%; max-height: 85vh; margin-top: 8vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-card); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.gs-header { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1rem 0.75rem; }
+.gs-input-wrap {
+  flex: 1; display: flex; align-items: center; gap: 0.5rem;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.55rem 0.75rem;
+}
+.gs-input-wrap:focus-within { border-color: rgba(240,168,64,0.5); }
+.gs-input-icon { color: var(--text-secondary); flex-shrink: 0; }
+.gs-input {
+  flex: 1; min-width: 0; background: none; border: none; color: var(--text-primary);
+  font-size: 0.92rem; font-family: inherit;
+}
+.gs-input:focus { outline: none; }
+.gs-input::placeholder { color: var(--text-secondary); opacity: 1; }
+.gs-clear {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0.1rem; flex-shrink: 0;
+}
+.gs-clear:hover { color: var(--text-primary); }
+.gs-close {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 1.1rem; padding: 0.25rem; line-height: 1; border-radius: 4px; flex-shrink: 0;
+  transition: color 0.15s;
+}
+.gs-close:hover { color: var(--text-primary); }
+
+.gs-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 1rem; gap: 1.25rem; }
+.gs-tab {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  color: var(--text-secondary); font-size: 0.82rem; font-weight: 700;
+  padding: 0.6rem 0.1rem 0.65rem; border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.gs-tab:hover { color: var(--text-primary); }
+.gs-tab.active { color: var(--accent-light); border-color: var(--accent-light); }
+
+.gs-body { padding: 0.75rem 1rem 1.1rem; overflow-y: auto; min-height: 180px; }
+.gs-hint { color: var(--text-secondary); font-size: 0.85rem; padding: 1.5rem 0.5rem; text-align: center; }
+
+/* .gs-result rows come in two shapes: a plain single-link row (recent
+   wallets — the whole row is one destination) and a split row (collection
+   results/recents — the row itself goes to the collection page, but a
+   separate .gs-result-action icon goes to the marketplace instead). Hover
+   feedback lives on .gs-result-main (present in both shapes), never on
+   .gs-result itself — CSS :hover fires for an ancestor whenever ANY
+   descendant is hovered, so a hover style on .gs-result would highlight
+   the whole row even while hovering .gs-result-action, making the icon
+   read as part of the same single link instead of its own separate one. */
+.gs-result { display: flex; align-items: center; padding: 0.15rem 0.4rem 0.15rem 0.15rem; border-radius: 10px; }
+.gs-result-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.35rem; border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.gs-result-main:hover { background: rgba(255,255,255,0.05); }
+/* Fixed width, shared with .gs-col-head-action below, so the "Explore"
+   button it wraps sits centered at the exact same x-position as the
+   "Marketplace" header label above it — a column sized just to fit a 30px
+   icon would land under the middle of that (much wider) word instead of
+   staying centered under it, since the two columns would otherwise be
+   different widths. */
+.gs-result-action-col {
+  width: 96px; flex-shrink: 0; align-self: stretch;
+  display: flex; align-items: center; justify-content: center;
+}
+/* Own fixed-width column (always reserved — see .gs-col-head-remove-spacer
+   and collectionRowHtml's always-present wrapper div — even when it's
+   empty for live results) so this never eats into .gs-result-action-col's
+   width and pulls "Explore" off-center under the Marketplace header. */
+.gs-result-remove-col { width: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.gs-result-remove {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0.25rem;
+  border-radius: 4px; flex-shrink: 0; transition: color 0.15s, background 0.15s;
+}
+.gs-result-remove:hover { color: #f87171; background: rgba(224,82,82,0.1); }
+.gs-result-img, .gs-result-ph {
+  width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  object-fit: cover;
+}
+.gs-result-ph--wallet { display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+.gs-recent-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.3rem 0.4rem 0.5rem; font-size: 0.7rem; font-weight: 700;
+  color: var(--text-secondary); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.gs-recent-clear {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  color: var(--text-secondary); font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: none; padding: 0.1rem 0.3rem;
+  transition: color 0.15s;
+}
+.gs-recent-clear:hover { color: var(--accent-light); }
+.gs-col-head {
+  display: flex; align-items: center;
+  padding: 0.1rem 0.4rem 0.35rem 0.15rem;
+  font-size: 0.64rem; font-weight: 700; color: var(--text-secondary);
+  letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.65;
+}
+.gs-col-head-main { flex: 1; }
+.gs-col-head-action { width: 96px; flex-shrink: 0; text-align: center; }
+.gs-col-head-remove-spacer { width: 32px; flex-shrink: 0; }
+.gs-result-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.gs-result-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-result-slug { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-result-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.3rem 0.85rem; border-radius: 999px; flex-shrink: 0;
+  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--text-secondary); border: 1px solid var(--border);
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.gs-result-action:hover { color: var(--accent-light); background: rgba(240,168,64,0.12); border-color: rgba(240,168,64,0.4); }
+
+.gs-wallet-status { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 1.75rem 0.5rem; text-align: center; }
+.gs-wallet-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.gs-wallet-icon--ok   { background: rgba(74,222,128,0.14); color: #4ade80; }
+.gs-wallet-icon--err  { background: rgba(224,82,82,0.12); color: #f87171; }
+.gs-wallet-msg { font-size: 0.85rem; color: var(--text-primary); }
+.gs-wallet-msg b { color: var(--accent-light); }
+.gs-wallet-sub { font-size: 0.76rem; color: var(--text-secondary); }
+.gs-wallet-go {
+  display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem;
+  padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700;
+  background: rgba(240,168,64,0.16); border: 1px solid rgba(240,168,64,0.4); color: var(--accent-light);
+  cursor: pointer; text-decoration: none; transition: background 0.15s, border-color 0.15s;
+}
+.gs-wallet-go:hover { background: rgba(240,168,64,0.26); border-color: rgba(240,168,64,0.65); }
+.gs-spin {
+  width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--border);
+  border-top-color: var(--accent-light); animation: spin 0.8s linear infinite;
+}
+
+@media (max-width: 540px) {
+  .gs-overlay { padding: 0.5rem; align-items: flex-start; }
+  .gs-panel { margin-top: 4vh; max-height: 90vh; }
+}
 
 
 /* ── Burned-asset overlay — instantly recognizable without opening the

@@ -55,6 +55,51 @@ const GENERIC_NAV_LINKS = [
   });
 })();
 
+// Sitewide quick-search icon (Collection/Wallet lookup) — shared/global-
+// search.js isn't preloaded by any of these pages (unlike wallet-widget.js,
+// which every page already tags in its own <head>), so it's fetched lazily
+// here, once, the same way the project-specific nav.js files lazy-load
+// WalletWidget.
+//
+// Most pages loading this file live at the site root, but several
+// (collection.html, template.html, schema.html, asset.html, sale.html,
+// inventory.html) can also be reached one or two directories "deeper" via
+// their own pretty path-segment URL (e.g. /collection/alien.worlds) — each
+// of those computes a global `_p` prefix ('../' or '../../') for exactly
+// this reason before this file even loads, the same value they hand
+// WalletWidget.mount's apiScript/exploreHref/etc. This reads that same `_p`
+// (defaulting to '' for every page that never defines it, i.e. everywhere
+// this ambiguity doesn't exist). inventory.html additionally *becomes*
+// nested after the fact by pinning the connected wallet into the address
+// bar post-load — its own _reprefixRelativeLinksForPin() calls
+// GlobalSearch.reprefix() for that, same as it already does for
+// WalletWidget.reprefix().
+(function initGlobalSearch() {
+  const navInner = document.querySelector('.site-nav .nav-inner');
+  if (!navInner) return;
+  // Captured now for the script's own src — this IIFE runs synchronously
+  // at page-parse time, always well before inventory.html's async wallet
+  // restore could possibly have pinned the URL and changed `_p`.
+  const s = document.createElement('script');
+  s.src = (window._p || '') + 'shared/global-search.js';
+  s.onload = () => {
+    // Read `_p` again here, NOT the value captured above — this onload is
+    // a real network fetch, so it can easily resolve *after* inventory.html's
+    // wallet-pin has already mutated `_p`, in which case mount() must start
+    // from the corrected prefix directly rather than mounting stale and
+    // relying on a reprefix() call that may have already fired (and no-oped,
+    // since GlobalSearch.reprefix didn't exist yet) before this ever ran.
+    const p = window._p || '';
+    GlobalSearch.mount(navInner, {
+      apiScript:      p + 'shared/wax-api.js',
+      collectionHref: p + 'collection',
+      exploreHref:    p + 'explore',
+      walletHref:     p + 'inventory',
+    });
+  };
+  document.head.appendChild(s);
+})();
+
 // Same "back to top" widget the project-specific nav.js files (funko/topps/
 // wombat/twitch) build — ported here so every page loading generic-nav.js
 // (Explore, Inventory, Trade Analyzer) gets it too.

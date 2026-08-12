@@ -167,6 +167,16 @@ function _loadWalletWidget() {
   return Promise.all(need);
 }
 
+async function _initGlobalSearch() {
+  if (!window.GlobalSearch) await _loadScriptOnce('../shared/global-search.js');
+  GlobalSearch.mount(document.querySelector('.nav-inner'), {
+    apiScript:      '../shared/wax-api.js',
+    collectionHref: '../collection',
+    exploreHref:    '../explore',
+    walletHref:     '../inventory',
+  });
+}
+
 async function _initWallet() {
   await _loadWalletWidget();
   // Exposed so pages that update localStorage.wax_funko_tier themselves
@@ -209,4 +219,4 @@ function _showMovedOverlay() {
   document.body.appendChild(el);
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildSiteBanner(); buildBackToTop(); buildFooter(); _initWallet(); _showMovedOverlay(); });
+document.addEventListener('DOMContentLoaded', () => { buildNav(); buildSiteBanner(); buildBackToTop(); buildFooter(); _initWallet(); _initGlobalSearch(); _showMovedOverlay(); });

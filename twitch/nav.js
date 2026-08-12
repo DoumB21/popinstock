@@ -129,6 +129,16 @@ function _loadWalletWidget() {
   return Promise.all(need);
 }
 
+async function _initGlobalSearch() {
+  if (!window.GlobalSearch) await _loadScriptOnce('../shared/global-search.js');
+  GlobalSearch.mount(document.querySelector('.nav-inner'), {
+    apiScript:      '../shared/wax-api.js',
+    collectionHref: '../collection',
+    exploreHref:    '../explore',
+    walletHref:     '../inventory',
+  });
+}
+
 async function _initWallet() {
   await _loadWalletWidget();
   WalletWidget.mount(document.querySelector('.nav-inner'), {
@@ -158,4 +168,4 @@ function _showMovedOverlay() {
   document.body.appendChild(el);
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); _initWallet(); _showMovedOverlay(); });
+document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); _initWallet(); _initGlobalSearch(); _showMovedOverlay(); });

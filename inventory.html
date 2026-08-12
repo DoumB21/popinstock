@@ -1192,6 +1192,12 @@ function _reprefixRelativeLinksForPin() {
   // this works even though inventory.html never captured mount()'s return
   // value).
   WalletWidget.reprefix?.(_p);
+  // Same fix for the sitewide search popup's own hrefs (shared/global-
+  // search.js) — optional-chained twice: GlobalSearch may not have
+  // finished its own lazy script load yet by the time this pin fires, in
+  // which case its own mount() picks up the already-updated `_p` directly
+  // (see shared/generic-nav.js) and this call is a harmless no-op.
+  window.GlobalSearch?.reprefix?.(_p);
 }
 function _pinWalletToUrl(wallet) {
   if (_urlWallet || !wallet) return;
