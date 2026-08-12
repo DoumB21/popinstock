@@ -105,10 +105,18 @@
     .coll-header--with-banner { padding-left: 1.5rem; }
     .coll-header--with-banner .coll-logo { box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
     .coll-logo {
-      width: 84px; height: 84px; border-radius: 14px; object-fit: cover;
+      width: 124px; height: 124px; border-radius: 14px; object-fit: cover;
       background: var(--bg-card); border: 1px solid var(--border); flex-shrink: 0;
     }
     .coll-header-info { min-width: 0; flex: 1; }
+    .coll-title-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+    .coll-royalty-pill {
+      display: inline-flex; align-items: center; flex-shrink: 0;
+      padding: 0.2rem 0.7rem; border-radius: 999px;
+      background: rgba(240,168,64,0.14); border: 1px solid rgba(240,168,64,0.4);
+      color: var(--accent-light); font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.01em; white-space: nowrap;
+    }
     .coll-sub { color: var(--text-secondary); font-size: 0.92rem; margin: 0.15rem 0 0.6rem; }
     .coll-sub a { color: var(--accent-light); text-decoration: none; }
     .coll-sub a:hover { text-decoration: underline; }
@@ -273,7 +281,10 @@
     <div id="collHeader" class="coll-header">
       <img id="collLogo" class="coll-logo" alt="" />
       <div class="coll-header-info">
-        <h1 class="page-title" id="collTitle">Collection</h1>
+        <div class="coll-title-row">
+          <h1 class="page-title" id="collTitle">Collection</h1>
+          <span class="coll-royalty-pill" id="collRoyaltyPill" style="display:none;"></span>
+        </div>
         <div class="coll-sub" id="collSub"></div>
         <p class="coll-desc" id="collDesc"></p>
         <div class="coll-links" id="collLinks"></div>
@@ -562,8 +573,11 @@ async function loadHeader() {
   const created = fmtDate(info.created_at_time);
   document.getElementById('collSub').innerHTML =
     `${escHtml(collectionName)} &middot; by ${walletLinkHtml(info.author)}` +
-    (created ? ` &middot; created ${created}` : '') +
-    ` &middot; ${(info.market_fee * 100).toFixed(2)}% royalty`;
+    (created ? ` &middot; created ${created}` : '');
+
+  const royaltyPill = document.getElementById('collRoyaltyPill');
+  royaltyPill.textContent = `${(info.market_fee * 100).toFixed(2)}% Royalty`;
+  royaltyPill.style.display = '';
 
   document.getElementById('collDesc').innerHTML = renderDescription(info.data?.description);
 
