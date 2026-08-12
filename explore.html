@@ -210,7 +210,7 @@
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 14px; padding: 1rem 1.25rem;
       display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
-      transition: border-color 0.2s; cursor: pointer;
+      transition: border-color 0.2s;
     }
     .act-card:hover { border-color: var(--border-hover); }
     .act-card-thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex-shrink: 0; }
@@ -218,7 +218,7 @@
       width: 120px; height: 120px; flex-shrink: 0; border-radius: 10px;
       background: rgba(255,255,255,0.03); overflow: hidden;
       display: flex; align-items: center; justify-content: center;
-      position: relative;
+      position: relative; cursor: pointer;
     }
     .act-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .act-card-thumb-ph { color: var(--text-secondary); font-size: 2rem; opacity: 0.3; }
@@ -3030,6 +3030,10 @@ function assetPopupData(asset) {
     name:           asset.name || data.name || '',
     owner:          asset.owner || '',
     backedTokens:   asset.backed_tokens || [],
+    // Ground truth for the popup's Supply section — see shared/asset-popup.js's
+    // trustworthyStats(), which uses this to detect a /health-passing node
+    // silently serving a broken 0-assets /stats response.
+    issuedSupply:   asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null,
   };
 }
 
@@ -3208,18 +3212,24 @@ function wireHistoryBundleNav(card, sale, popupData) {
   });
 }
 
-// Card body click navigates to the sale page, hover shows the info popup —
-// same split as the Listings tab's attachCardEvents/onCardClick. Every real
-// link on the card (View transaction, Listing ID, Name, Collection, Seller/
-// Buyer, and the bundle-nav arrows) is its own <a>/<button>, which
-// AssetPopup.wire()'s click handler already excludes from the card-wide
-// navigate — so those keep working untouched.
+// Only the thumbnail image and the Listing ID link (its own <a href>,
+// untouched here) navigate to the sale page — the rest of the card body is
+// inert on click. Previously the whole card navigated on any click that
+// didn't land on a real <a>/<button>, which made it impossible to click
+// into e.g. the Buyer/Seller text to select and copy an address without
+// immediately leaving for the sale page. Hover still shows the info popup
+// on the thumbnail; onCardClick is a no-op so the rest of the card body
+// (price, mint, labels, whitespace) does nothing on click, and every real
+// link (Name, Collection, Seller/Buyer, View transaction, bundle-nav
+// arrows) keeps navigating to its own separate target as before.
 function attachHistoryCardEvents(card, sale) {
   const popupData = assetPopupData(sale.assets?.[0] || {});
+  const thumb = card.querySelector('.act-card-thumb');
   _assetPopup.wire(card, popupData, {
-    hoverEl: card.querySelector('.act-card-thumb'),
-    onCardClick: () => { location.href = `sale/${encodeURIComponent(sale.sale_id)}`; },
+    hoverEl: thumb,
+    onCardClick: () => {},
   });
+  thumb.addEventListener('click', () => { location.href = `sale/${encodeURIComponent(sale.sale_id)}`; });
   wireHistoryBundleNav(card, sale, popupData);
 }
 

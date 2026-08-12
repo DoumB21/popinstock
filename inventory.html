@@ -1661,6 +1661,10 @@ function assetPopupData(asset) {
     name: asset.name || 'Unknown',
     owner: asset.owner || '',
     backedTokens: asset.backed_tokens || [],
+    // Ground truth for the popup's Supply section — see shared/asset-popup.js's
+    // trustworthyStats(), which uses this to detect a /health-passing node
+    // silently serving a broken 0-assets /stats response.
+    issuedSupply: asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null,
   };
 }
 

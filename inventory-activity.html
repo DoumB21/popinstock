@@ -188,6 +188,10 @@
       display: flex; align-items: center; justify-content: center;
       position: relative;
     }
+    /* Purchases/Sales cards only (the outer .act-card carries data-sale-id
+       there, see saleCardHtml/saleBundleCardHtml) — Transfers' thumbnails
+       aren't a link to anything, so they stay the default cursor. */
+    [data-sale-id] .act-card-thumb { cursor: pointer; }
     /* Bundle-transfer sub-rows stay at the old compact size — several can
        be stacked in one card, unlike the single thumb everywhere else. */
     .act-card-asset .act-card-thumb { width: 72px; height: 72px; }
@@ -310,6 +314,7 @@
   <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/asset-popup.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 </head>
 <body>
@@ -991,6 +996,55 @@ function debounceLoad() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
+/* Info popup / hover tooltip — shared/asset-popup.js. Hovering a card's own  */
+/* thumbnail shows the Attributes/Supply/Backed-tokens popup, same as        */
+/* explore.html's Sales History tab — click still navigates to the sale page */
+/* (see the #actList delegated click handler), never toggles this popup.     */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+const _assetPopup = AssetPopup.mount({
+  aaBase: () => WaxApi.aaBase(),
+  apiFetch: url => WaxApi.apiFetch(url),
+});
+
+// This page never dealt with rarity before (no filter/badge used it) — same
+// lowercase-keyed map + normalizer explore.html's own assetPopupData uses,
+// since collections vary in how they capitalize the rarity field.
+const RARITY_CSS = {
+  'common':'r-common','uncommon':'r-uncommon','rare':'r-rare',
+  'epic':'r-epic','legendary':'r-legendary','grail':'r-grail',
+  'mythic':'r-mythic','royalty':'r-royalty','1 of 1':'r-1of1',
+  'ultra rare':'r-ultra','super rare':'r-super-rare',
+};
+function rcls(r) { return RARITY_CSS[(r || '').toLowerCase()] || ''; }
+
+// Maps this page's raw AtomicAssets asset object onto AssetPopup's
+// page-agnostic data contract — same field set assetThumbHtml/assetFields
+// above already read from, just gathered in one place for the popup.
+function assetPopupData(asset) {
+  const d = asset.data || {};
+  const t = asset.template?.immutable_data || {};
+  const rarity = d.rarity || t.rarity || '';
+  return {
+    assetId: asset.asset_id || '',
+    templateId: asset.template?.template_id || '',
+    collection: asset.collection?.collection_name || '',
+    collectionName: asset.collection?.name || asset.collection?.collection_name || '',
+    schema: asset.schema?.schema_name || '',
+    rarity,
+    rarityClass: rcls(rarity),
+    cardid: d.cardid || t.cardid || '',
+    name: asset.name || d.name || '',
+    owner: asset.owner || '',
+    backedTokens: asset.backed_tokens || [],
+    // Ground truth for the popup's Supply section — see shared/asset-popup.js's
+    // trustworthyStats(), which uses this to detect a /health-passing node
+    // silently serving a broken 0-assets /stats response.
+    issuedSupply: asset.template?.issued_supply != null ? Number(asset.template.issued_supply) : null,
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
 /* Rendering                                                                  */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
@@ -999,10 +1053,15 @@ function debounceLoad() {
 // Sales History cards) whenever the asset's own burned_at_time is set.
 // Every endpoint that nests a full asset object here (sales, transfers)
 // carries this field — confirmed live against real transfer/sale records.
+// Also carries the popup data (data-popup, read by wireAssetPopups below) so
+// every thumbnail — single-asset cards and each grouped row inside a bundle
+// alike — gets its own hover popup without duplicating the bundle template-
+// grouping logic that only bundleAssetsHtml/groupAssetsByTemplate know.
 function thumbWrapHtml(asset, opts) {
   const isBurned = !!asset.burned_at_time;
   const title = isBurned ? ` title="${escHtml(asset.burned_by_account ? 'Burned by ' + asset.burned_by_account : 'Burned')}"` : '';
-  return `<div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${title}>${assetThumbHtml(asset, opts)}</div>`;
+  const popupAttr = ` data-popup="${escHtml(JSON.stringify(assetPopupData(asset)))}"`;
+  return `<div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${title}${popupAttr}>${assetThumbHtml(asset, opts)}</div>`;
 }
 
 function assetThumbHtml(asset, opts) {
@@ -1067,7 +1126,13 @@ function saleCardHtml(item, asset) {
   const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
   const { mint, nameHtml, collHtml } = assetFields(asset);
 
-  return `<div class="act-card">
+  // data-sale-id on the outer card, not just the tx-link, is what lets the
+  // delegated #actList click handler below make just the thumbnail (not
+  // the whole card) a second way to reach the sale page — Listing ID
+  // already links there directly. Transfer cards never carry this
+  // attribute, so their thumbnails stay inert (Transfers tab was
+  // deliberately left untouched here).
+  return `<div class="act-card" data-sale-id="${item.sale_id}">
     <div class="act-card-thumb-wrap">
       ${thumbWrapHtml(asset)}
       <a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a>
@@ -1098,7 +1163,9 @@ function saleBundleCardHtml(item, assets) {
   const precision = item.price?.token_precision ?? 8;
   const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
   const { assetsHtml, topToggleHtml } = bundleAssetsHtml(assets);
-  return `<div class="act-card act-card--bundle">
+  // Same data-sale-id-on-the-outer-card trick as saleCardHtml — every
+  // asset's thumbnail in the bundle points at this one shared listing.
+  return `<div class="act-card act-card--bundle" data-sale-id="${item.sale_id}">
     <div class="act-card-assets">${assetsHtml}<a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a></div>
     <div class="act-card-meta">
       <div class="act-card-meta-top"><span class="act-card-count">${assets.length} items</span>${topToggleHtml}</div>
@@ -1287,6 +1354,20 @@ async function appendRows(items) {
     : items.map(renderSaleItem).join('');
   document.getElementById('actList').insertAdjacentHTML('beforeend', html);
   initLazyVideos();
+  wireAssetPopups();
+}
+
+// One hover-popup wire-up per thumbnail (data-popup, embedded by
+// thumbWrapHtml) — :not([data-popup-wired]) so re-running this after every
+// appendRows batch (infinite scroll) only touches thumbnails just inserted,
+// never re-wires ones already hooked up.
+function wireAssetPopups() {
+  document.querySelectorAll('#actList .act-card-thumb[data-popup]:not([data-popup-wired])').forEach(thumb => {
+    thumb.setAttribute('data-popup-wired', '1');
+    let data;
+    try { data = JSON.parse(thumb.dataset.popup); } catch { return; }
+    _assetPopup.wire(thumb, data, { hoverEl: thumb, onCardClick: () => {} });
+  });
 }
 
 /* Same lazy-load/unload pattern as inventory.html's initLazyVideos() —
@@ -1378,6 +1459,18 @@ async function onSaleTxLinkClick(link) {
 }
 
 document.getElementById('actList').addEventListener('click', e => {
+  // Thumbnail click → sale page, Purchases/Sales tabs only (the outer card
+  // only carries data-sale-id there — see saleCardHtml/saleBundleCardHtml).
+  // The rest of the card body does nothing on click, same as Transfers
+  // already did — deliberately NOT the whole-card-is-a-link pattern
+  // explore.html's Sales History had, which made it impossible to click
+  // into e.g. the Buyer/Seller text to select and copy an address.
+  const thumb = e.target.closest('.act-card-thumb');
+  if (thumb) {
+    const saleCard = thumb.closest('[data-sale-id]');
+    if (saleCard) { location.href = `sale/${encodeURIComponent(saleCard.dataset.saleId)}`; }
+    return;
+  }
   // Two toggle buttons per bundle (bottom of the row list + up top next to
   // the item count, see bundleAssetsHtml) drive the same .is-expanded state
   // — clicking either one flips both so their labels never disagree.

@@ -24,10 +24,17 @@
    click instead) — hover still works as usual either way.
    `data` — plain object each page builds from its own asset representation:
    { assetId, templateId, collection, collectionName, schema, rarity,
-     rarityClass, cardid, name, owner, backedTokens }
+     rarityClass, cardid, name, owner, backedTokens, issuedSupply }
    `backedTokens` is the raw AtomicAssets `backed_tokens` array (or absent);
    `rarityClass` is the page's own rarity->CSS-class lookup result (pages
    use different rarity taxonomies, so this module never guesses one).
+   `issuedSupply` (optional) is the asset's own `asset.template.issued_supply`
+   — already on hand from whatever fetch produced this card, no extra
+   network call — used as ground truth against the Supply section's own
+   /templates/:col/:id/stats fetch, since that endpoint can come back from a
+   /health-passing-but-quietly-broken node reporting {assets:0,burned:0} for
+   a real, populated template (see trustworthyStats() below). Omitting it
+   just means that specific safety net doesn't apply for that card.
 
    Lower-level controls (`schedule`/`cancel`/`open`/`close`) are also
    returned for pages that need custom hover suppression around a card's own
@@ -138,12 +145,35 @@ window.AssetPopup = (function () {
     const _supplyCache = {};
     const _ownedCache = {};
 
+    // A node can pass /health (fast, not rate-limited) while one specific
+    // aggregate endpoint on it silently serves a broken/empty secondary
+    // index — confirmed live against atomic.sentnl.io, which confidently
+    // returns {assets:"0", burned:"0"} on /templates/:col/:id/stats for
+    // real, populated templates (captainshelm, planetdefnft, rustveil all
+    // reproduced) while every other pooled node returns the correct
+    // numbers for the same template. Since this is a "successful" 200, not
+    // an HTTP failure, apiFetch's own retry/rotation never catches it — it
+    // has no HTTP-level signal to react to, only wrong content. `knownIssued`
+    // (asset.template.issued_supply, already on hand from the very asset
+    // being hovered — no extra fetch) is ground truth here: a stats
+    // response reporting 0 assets while we already know better means the
+    // WHOLE response is untrustworthy, not just the assets figure — showing
+    // a confidently-wrong "Burned: 0" would be worse than showing nothing.
+    function trustworthyStats(s, knownIssued) {
+      if (!s) return false;
+      const statsAssets = s.assets != null ? Number(s.assets) : null;
+      return !(statsAssets === 0 && knownIssued > 0);
+    }
+
     // Droppp-locked supply (if any) via the shared module-level lookup —
     // see fetchDropppLocked() above. issued/burned always come straight
     // from AtomicAssets (not a Supabase column) specifically so "In
     // circulation" can subtract locked without double-counting. Falls back
     // to the generic on-chain /stats-only path for any non-Funko collection.
-    function fetchSupply(templateId, collectionName) {
+    // `issuedSupplyHint` — the caller's own asset.template.issued_supply,
+    // when it has one — is preferred over the /stats endpoint's own assets
+    // count for exactly the reason in trustworthyStats() above.
+    function fetchSupply(templateId, collectionName, issuedSupplyHint) {
       if (_supplyCache[templateId]) return _supplyCache[templateId];
       _supplyCache[templateId] = (async () => {
         try {
@@ -155,21 +185,23 @@ window.AssetPopup = (function () {
                 ? apiFetch(`${aaBase()}/templates/${encodeURIComponent(collectionName)}/${templateId}/stats`)
                 : Promise.resolve(null),
             ]);
-            const issued = tplRows?.[0]?.issued_supply != null ? Number(tplRows[0].issued_supply) : null;
-            const burned = stats?.burned != null ? Number(stats.burned) : 0;
+            const issued = tplRows?.[0]?.issued_supply != null ? Number(tplRows[0].issued_supply) : issuedSupplyHint ?? null;
+            const trust  = trustworthyStats(stats, issued);
+            const burned = trust ? (stats?.burned != null ? Number(stats.burned) : 0) : null;
             const locked = funko.dpLocked;
-            const circ   = issued != null ? Math.max(0, issued - burned - locked) : null;
+            const circ   = issued != null && burned != null ? Math.max(0, issued - burned - locked) : null;
             return { issued, circ, locked, burned, funko: true };
           }
         } catch { /* fall through */ }
         try {
-          if (!collectionName) return null;
+          if (!collectionName) return issuedSupplyHint != null ? { issued: issuedSupplyHint, circ: null, burned: null, locked: 0, showBurned: false } : null;
           const s = await apiFetch(`${aaBase()}/templates/${encodeURIComponent(collectionName)}/${templateId}/stats`);
-          const issued = s?.assets != null ? Number(s.assets) : null;
-          const burned = s?.burned != null ? Number(s.burned) : 0;
-          const circ   = issued != null ? issued - burned : null;
-          return issued != null ? { issued, circ, burned, locked: 0, showBurned: true } : null;
-        } catch { return null; }
+          const issued = issuedSupplyHint ?? (s?.assets != null ? Number(s.assets) : null);
+          const trust  = trustworthyStats(s, issued);
+          const burned = trust ? (s?.burned != null ? Number(s.burned) : 0) : null;
+          const circ   = issued != null && burned != null ? issued - burned : null;
+          return issued != null ? { issued, circ, burned, locked: 0, showBurned: burned != null } : null;
+        } catch { return issuedSupplyHint != null ? { issued: issuedSupplyHint, circ: null, burned: null, locked: 0, showBurned: false } : null; }
       })();
       return _supplyCache[templateId];
     }
@@ -283,7 +315,7 @@ window.AssetPopup = (function () {
       positionNear(cardEl, hover);
 
       const [supply, owned] = await Promise.all([
-        d.templateId ? fetchSupply(d.templateId, d.collection) : Promise.resolve(null),
+        d.templateId ? fetchSupply(d.templateId, d.collection, d.issuedSupply) : Promise.resolve(null),
         d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
       ]);
       if (_hoverAssetId !== d.assetId) return; // moved on to a different card (or dismissed) since this fetch started
@@ -311,7 +343,7 @@ window.AssetPopup = (function () {
       positionNear(cardEl, info);
 
       const [supply, owned] = await Promise.all([
-        d.templateId ? fetchSupply(d.templateId, d.collection) : Promise.resolve(null),
+        d.templateId ? fetchSupply(d.templateId, d.collection, d.issuedSupply) : Promise.resolve(null),
         d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
       ]);
       if (_infoAssetId !== d.assetId) return;
