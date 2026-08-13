@@ -6553,6 +6553,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
 });
 
 function clearFilters() {
+  _filterCol = 'all';
   _filterSchema = 'all';
   _filterTemplate = 'all';
   _selectedCardIds.clear();
@@ -6563,18 +6564,22 @@ function clearFilters() {
   _excludeLowestMint = false;
   _onlyHighestMint   = false;
   _onlyBacked        = false;
-  buildCbCombo('schemaCombo', _schemaItemsCache, 'all', onSchemaFilterChange);
-  updateTemplateFilter(_templateCache[_filterCol] || []);
+  buildCbCombo('colCombo', _colItemsCache, _filterCol, onColFilterChange);
+  setSchemaFilterAvailability(false);
+  setTemplateFilterAvailability(false);
+  setDupesFiltersAvailability(false);
+  document.getElementById('cardIdGroup').style.display = 'none';
+  const selAllBtn = document.getElementById('selectAllMatchBtn');
+  if (selAllBtn) selAllBtn.style.display = 'none';
   document.getElementById('mintMin').value = '';
   document.getElementById('mintMax').value = '';
-  document.getElementById('excludeLowestMint').checked = false;
-  document.getElementById('onlyHighestMint').checked   = false;
   document.getElementById('onlyBackedFilter').checked  = false;
   buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
   document.querySelectorAll('#cardIdDropdown input[type=checkbox]').forEach(cb => { cb.checked = false; });
   refreshCbLabel(document.getElementById('cardIdDropdown'), _selectedCardIds, 'Card ID');
+  refreshDynamicFilterRowVisibility();
   refreshDynamicAttributeFilters();
-  loadAssets(true);
+  applyCurrentSort(); // not loadAssets(true) directly — re-scopes a premium sort now that Collection is 'all' too, same reasoning as onColFilterChange
 }
 
 function debounceLoad() {
