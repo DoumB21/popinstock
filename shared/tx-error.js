@@ -21,10 +21,12 @@
        statusEl.className = '...is-error';
        statusEl.style.display = 'block';
      }
-   ramPrefix — relative path prefix to the root-level ram.html, same
-   convention as walletMenuItems()'s prefix param: '' for root pages,
-   '../' for a section page (funko/topps/wombat/twitch), or a page's own
-   computed `_p` for the clean-URL wallet-segment pages. */
+   ramPrefix — relative path prefix to reach the root (where profile.html's
+   RAM tab lives), same convention as walletMenuItems()'s prefix param: ''
+   for root pages, '../' for a section page (funko/topps/wombat/twitch) —
+   including profile.html's OWN RAM tab calling this about itself, since its
+   URL always shows a tab segment (/profile/<tab>), one directory deeper
+   than its real flat location, same as any other one-level-nested page. */
 (function () {
   window.describeTxError = function (err) {
     const msg = String((err && err.message) || err || '');
@@ -51,7 +53,7 @@
     return { kind: 'generic' };
   };
 
-  const RAM_CTA      = p => `<a href="${p}ram" class="tx-err-link">Buy RAM →</a>`;
+  const RAM_CTA      = p => `<a href="${p}profile/ram" class="tx-err-link">Buy RAM →</a>`;
   const RESOURCES_CTA = `<a href="https://waxblock.io/wallet/resources" target="_blank" rel="noopener" class="tx-err-link">Manage resources ↗</a>`;
 
   window.txErrorHtml = function (info, genericMessage, ramPrefix) {
@@ -94,7 +96,7 @@
     fresh.onclick = function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
-      if (isRam) window.location.href = p + 'ram';
+      if (isRam) window.location.href = p + 'profile/ram';
       else window.open('https://waxblock.io/wallet/resources', '_blank', 'noopener');
     };
     btn.replaceWith(fresh);

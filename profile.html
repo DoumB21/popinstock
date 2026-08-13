@@ -19,7 +19,7 @@
   <link rel="icon" href="images/Hoardio_fav.png" type="image/png" />
   <link rel="stylesheet" href="shared/global.css" />
   <style>
-    .page-main { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .page-main { max-width: 960px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
 
     .settings-card {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -118,7 +118,163 @@
     }
     .lw-link-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); }
     .lw-link-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Claimable Balances (merged from balances.html) ── */
+    .auth-gate {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem; text-align: center; color: var(--text-secondary);
+    }
+    .auth-gate-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .auth-gate-hint  { font-size: 0.88rem; }
+
+    .bal-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .bal-card + .bal-card { margin-top: 1.25rem; }
+    .bal-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.3rem; }
+    .bal-card-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+    .bal-card-hint  { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1.1rem; max-width: 480px; }
+
+    .claim-all-btn {
+      flex-shrink: 0; font-size: 0.76rem; font-weight: 700; padding: 0.4rem 0.85rem;
+      border-radius: 8px; border: 1px solid rgba(74,222,128,0.4);
+      background: rgba(74,222,128,0.1); color: #4ade80; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s; white-space: nowrap;
+    }
+    .claim-all-btn:hover:not(:disabled) { background: rgba(74,222,128,0.2); border-color: #4ade80; }
+    .claim-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .bal-rows { display: flex; flex-direction: column; gap: 0.6rem; }
+    .bal-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.7rem 0.9rem;
+    }
+    .bal-row-amount { font-size: 0.92rem; font-weight: 700; color: var(--text-primary); }
+    .bal-row-symbol { font-size: 0.78rem; color: var(--text-secondary); margin-left: 0.35rem; font-weight: 600; }
+
+    .claim-btn {
+      flex-shrink: 0; font-size: 0.8rem; font-weight: 700; padding: 0.45rem 1rem;
+      border-radius: 8px; border: 1px solid rgba(74,222,128,0.4);
+      background: rgba(74,222,128,0.1); color: #4ade80; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s; white-space: nowrap;
+    }
+    .claim-btn:hover:not(:disabled) { background: rgba(74,222,128,0.2); border-color: #4ade80; }
+    .claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .claim-btn.is-error { border-color: rgba(224,82,82,0.4); background: rgba(224,82,82,0.08); color: #e05252; }
+
+    .bal-empty { font-size: 0.85rem; color: var(--text-secondary); padding: 0.4rem 0; }
+    .bal-error { font-size: 0.85rem; color: #e05252; padding: 0.4rem 0; }
+
+    .bal-section-spinner { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.85rem; }
+    .bal-section-spinner .spinner { width: 16px; height: 16px; border-width: 2px; margin: 0; }
+
+    /* ── RAM (merged from ram.html) ── */
+    #ramContent { display: flex; flex-direction: column; gap: 1.25rem; }
+    .ram-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .ram-card-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1.1rem; }
+
+    .ram-ring-row { display: flex; align-items: center; gap: 1.75rem; flex-wrap: wrap; }
+    .ram-ring-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+    .ram-ring { width: 140px; height: 140px; transform: rotate(-90deg); }
+    .ram-ring-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 10; }
+    .ram-ring-fill {
+      fill: none; stroke: var(--accent-light); stroke-width: 10; stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease;
+    }
+    .ram-ring-fill.is-warn { stroke: #e0a828; }
+    .ram-ring-fill.is-crit { stroke: #e05252; }
+    .ram-ring-center {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .ram-ring-pct { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+    .ram-ring-label { font-size: 0.68rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+
+    .ram-stats { display: flex; flex-direction: column; gap: 0.65rem; flex: 1; min-width: 160px; }
+    .ram-stat { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
+    .ram-stat:last-child { border-bottom: none; padding-bottom: 0; }
+    .ram-stat-label { color: var(--text-secondary); }
+    .ram-stat-val { color: var(--text-primary); font-weight: 700; }
+
+    .ram-price-line {
+      margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .ram-price-val { color: var(--accent-light); font-weight: 700; }
+
+    .ram-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .ram-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .ram-amount-row { display: flex; gap: 0.6rem; }
+    .ram-amount-row .control-input { flex: 1; min-width: 0; }
+    .ram-max-btn {
+      flex-shrink: 0; font-size: 0.78rem; font-weight: 700; padding: 0 0.9rem;
+      border-radius: 8px; border: 1px solid rgba(240,168,64,0.35);
+      background: rgba(240,168,64,0.1); color: var(--accent-light); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .ram-max-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.6); }
+    .ram-max-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .ram-hint { font-size: 0.78rem; color: var(--text-secondary); min-height: 1.1em; margin-bottom: 0.3rem; }
+    .ram-hint--error { color: #e05252; }
+    .ram-hint--ok    { color: #4ade80; }
+
+    .ram-action-btn {
+      width: 100%; margin-top: 1.2rem; padding: 0.85rem 1.5rem;
+      border: none; border-radius: 10px; color: #fff;
+      font-size: 0.95rem; font-weight: 700; font-family: inherit; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .ram-action-btn:hover:not(:disabled) { opacity: 0.9; }
+    .ram-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ram-action-btn--buy  { background: linear-gradient(135deg, var(--accent-light), var(--accent)); }
+    .ram-action-btn--sell { background: linear-gradient(135deg, #f87171, #dc2626); }
+
+    .ram-status {
+      font-size: 0.82rem; border-radius: 6px; padding: 0.55rem 0.8rem;
+      text-align: center; margin-top: 1rem;
+    }
+    .ram-status.is-error   { background: rgba(224,82,82,0.12); color: #f87171; border: 1px solid rgba(224,82,82,0.25); }
+    .ram-status.is-success { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+
+    .ram-disclaimer { font-size: 0.72rem; color: var(--text-secondary); opacity: 0.75; line-height: 1.5; margin-top: 0.9rem; }
+
+    /* ── Tab shell ── */
+    .profile-shell { display: flex; gap: 2rem; align-items: flex-start; }
+    .profile-tabs { display: flex; flex-direction: column; gap: 0.25rem; width: 200px; flex-shrink: 0; }
+    .profile-tab-btn {
+      text-align: left; padding: 0.65rem 0.9rem; border-radius: 8px;
+      border: 1px solid transparent; background: transparent;
+      color: var(--text-secondary); font-size: 0.88rem; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+    }
+    .profile-tab-btn:hover { color: var(--text-primary); }
+    .profile-tab-btn.active { background: var(--bg-card); border-color: var(--border); color: var(--accent-light); }
+    .profile-panels { flex: 1; min-width: 0; }
+    .profile-panel { display: none; }
+    .profile-panel.active { display: block; }
+    .profile-breadcrumb { display: none; align-items: center; gap: 0.4rem; font-size: 0.82rem; margin-bottom: 1rem; }
+    .profile-breadcrumb-root { background: none; border: none; padding: 0; color: var(--accent-light); font: inherit; cursor: pointer; }
+    .profile-breadcrumb-sep, .profile-breadcrumb-current { color: var(--text-secondary); }
+
+    @media (max-width: 900px) {
+      .profile-shell { flex-direction: column; }
+      .profile-tabs { width: 100%; flex-direction: row; flex-wrap: wrap; }
+      .profile-shell.profile-shell--panel .profile-tabs { display: none; }
+      .profile-shell:not(.profile-shell--panel) .profile-panels { display: none; }
+      .profile-shell.profile-shell--panel .profile-breadcrumb { display: flex; }
+    }
   </style>
+  <script>
+    // This page's own URL always shows a tab segment (/profile/<tab>), one
+    // directory "deeper" than profile.html's real flat location, so every
+    // relative link/lazy-load on the page needs this prefix — same _p
+    // convention collection.html/template.html/etc. use for their own
+    // pretty-URL depth, read by shared/generic-nav.js's search icon and
+    // nav-links, and passed explicitly to WalletWidget.mount() below.
+    window._p = '../';
+  </script>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/settings.js"></script>
@@ -126,12 +282,13 @@
   <script src="shared/wax-balance.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
+  <script src="shared/tx-error.js"></script>
 </head>
 <body>
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="index" class="nav-home" title="Back to homepage">
+    <a href="../index" class="nav-home" title="Back to homepage">
       <img src="images/Hoardio_fav.png" alt="Hoardio" />
     </a>
     <span class="nav-divider"></span>
@@ -146,49 +303,168 @@
     <div class="page-subtitle">Preferences that apply across every Hoardio page — saved to this browser. Most settings need no wallet; Linked Wallets does.</div>
   </div>
 
-  <div class="settings-card">
-    <div class="settings-section-title">Display</div>
-    <div class="settings-row">
-      <div class="settings-row-text">
-        <div class="settings-row-label">Pause NFT video previews</div>
-        <div class="settings-row-hint">Card art shows as a still frame instead of autoplaying. Lowers CPU and memory use while browsing — helpful on an older or slower computer.</div>
-      </div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="reduceMotionChk" />
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-    <div class="settings-saved-note" id="savedNote">Saved — applies on pages you load from now on.</div>
-  </div>
+  <div class="profile-shell" id="profileShell">
+    <nav class="profile-tabs" id="profileTabs" aria-label="Profile sections">
+      <button type="button" class="profile-tab-btn" data-tab="preferences">Preferences</button>
+      <button type="button" class="profile-tab-btn" data-tab="network">Network</button>
+      <button type="button" class="profile-tab-btn" data-tab="linked-wallets">Linked Wallets</button>
+      <button type="button" class="profile-tab-btn" data-tab="balances">Claimable Balances</button>
+      <button type="button" class="profile-tab-btn" data-tab="ram">RAM</button>
+    </nav>
 
-  <div class="settings-card" style="margin-top:1.25rem;">
-    <div class="settings-section-title">Network</div>
-    <div class="settings-row settings-row--network">
-      <div class="settings-row-text">
-        <div class="settings-row-label">Wallet RPC endpoint</div>
-        <div class="settings-row-hint">Which node your wallet uses to sign and broadcast transactions (Buy, List, Transfer, etc.). Greymass works for most people — if wallet actions fail to complete on your network, try switching nodes.</div>
+    <div class="profile-panels" id="profilePanels">
+      <div class="profile-breadcrumb" id="profileBreadcrumb">
+        <button type="button" class="profile-breadcrumb-root" id="profileBreadcrumbRoot">Profile</button>
+        <span class="profile-breadcrumb-sep">›</span>
+        <span class="profile-breadcrumb-current" id="profileBreadcrumbCurrent"></span>
       </div>
-      <div class="cb-dropdown" id="rpcDropdown" style="flex-shrink:0;">
-        <button class="cb-dropdown-btn" type="button">
-          <span class="cb-label"></span>
-          <span class="cb-arrow">▾</span>
-        </button>
-        <div class="cb-panel"></div>
-      </div>
-    </div>
-    <div class="settings-saved-note" id="rpcSavedNote">Saved — you now use the selected RPC.</div>
-  </div>
 
-  <div class="settings-card" id="linkedWalletsCard" style="margin-top:1.25rem;">
-    <div class="settings-section-title">Linked Wallets</div>
-    <div class="settings-row-hint" style="margin-bottom:1rem;">
-      Link up to 10 WAX wallets and switch between them instantly, without reconnecting. Linking a new wallet also makes it your active one.
-    </div>
-    <div id="linkedWalletsList" class="lw-list"></div>
-    <div id="linkedWalletsEmpty" class="settings-row-hint" style="display:none;">No wallets linked yet.</div>
-    <button id="linkWalletBtn" type="button" class="lw-link-btn">+ Link a Wallet</button>
-    <div id="linkedWalletsCapNote" class="settings-row-hint" style="display:none; margin-top:0.6rem;">
-      You've reached the 10-wallet limit. Unlink one to link another.
+      <div class="settings-card profile-panel" data-panel="preferences">
+        <div class="settings-section-title">Display</div>
+        <div class="settings-row">
+          <div class="settings-row-text">
+            <div class="settings-row-label">Pause NFT video previews</div>
+            <div class="settings-row-hint">Card art shows as a still frame instead of autoplaying. Lowers CPU and memory use while browsing — helpful on an older or slower computer.</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="reduceMotionChk" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-saved-note" id="savedNote">Saved — applies on pages you load from now on.</div>
+      </div>
+
+      <div class="settings-card profile-panel" data-panel="network">
+        <div class="settings-section-title">Network</div>
+        <div class="settings-row settings-row--network">
+          <div class="settings-row-text">
+            <div class="settings-row-label">Wallet RPC endpoint</div>
+            <div class="settings-row-hint">Which node your wallet uses to sign and broadcast transactions (Buy, List, Transfer, etc.). Greymass works for most people — if wallet actions fail to complete on your network, try switching nodes.</div>
+          </div>
+          <div class="cb-dropdown" id="rpcDropdown" style="flex-shrink:0;">
+            <button class="cb-dropdown-btn" type="button">
+              <span class="cb-label"></span>
+              <span class="cb-arrow">▾</span>
+            </button>
+            <div class="cb-panel"></div>
+          </div>
+        </div>
+        <div class="settings-saved-note" id="rpcSavedNote">Saved — you now use the selected RPC.</div>
+      </div>
+
+      <div class="settings-card profile-panel" data-panel="linked-wallets" id="linkedWalletsCard">
+        <div class="settings-section-title">Linked Wallets</div>
+        <div class="settings-row-hint" style="margin-bottom:1rem;">
+          Link up to 10 WAX wallets and switch between them instantly, without reconnecting. Linking a new wallet also makes it your active one.
+        </div>
+        <div id="linkedWalletsList" class="lw-list"></div>
+        <div id="linkedWalletsEmpty" class="settings-row-hint" style="display:none;">No wallets linked yet.</div>
+        <button id="linkWalletBtn" type="button" class="lw-link-btn">+ Link a Wallet</button>
+        <div id="linkedWalletsCapNote" class="settings-row-hint" style="display:none; margin-top:0.6rem;">
+          You've reached the 10-wallet limit. Unlink one to link another.
+        </div>
+      </div>
+
+      <div class="profile-panel" data-panel="balances">
+        <div class="settings-section-title">Claimable Balances</div>
+        <div class="settings-row-hint" style="margin-bottom:1rem;">WAX held by the AtomicMarket and AtomicAssets smart contracts on your behalf — claim it back to your wallet.</div>
+
+        <div id="balancesAuthGate" class="auth-gate" style="display:none;">
+          <p class="auth-gate-title">Wallet not connected</p>
+          <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your contract balances.</p>
+        </div>
+
+        <div id="balancesContent" style="display:none;">
+          <div class="bal-card">
+            <div class="bal-card-head">
+              <div class="bal-card-title">Marketplace balance</div>
+              <div id="marketClaimAllWrap"></div>
+            </div>
+            <div class="bal-card-hint">Sale proceeds and leftover purchase deposits held by AtomicMarket until you claim them.</div>
+            <div id="marketBody"></div>
+          </div>
+
+          <div class="bal-card">
+            <div class="bal-card-head">
+              <div class="bal-card-title">Backing deposit balance</div>
+              <div id="assetsClaimAllWrap"></div>
+            </div>
+            <div class="bal-card-hint">Leftover token balance from backing NFTs with fungible tokens (Inventory → Back with tokens), held by AtomicAssets until you claim it.</div>
+            <div id="assetsBody"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-panel" data-panel="ram">
+        <div class="settings-section-title">RAM</div>
+        <div class="settings-row-hint" style="margin-bottom:1rem;">Buy or sell WAX RAM — every WAX account needs RAM to hold NFTs, tokens, and other on-chain data. Buying can send the RAM to another wallet; selling always sells your own.</div>
+
+        <div id="ramAuthGate" class="auth-gate" style="display:none;">
+          <p class="auth-gate-title">Wallet not connected</p>
+          <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to manage your RAM.</p>
+        </div>
+
+        <div id="ramContent" style="display:none;">
+          <div class="ram-card">
+            <div class="ram-card-title">Your RAM usage</div>
+            <div class="ram-ring-row">
+              <div class="ram-ring-wrap">
+                <svg viewBox="0 0 140 140" class="ram-ring">
+                  <circle class="ram-ring-track" cx="70" cy="70" r="60" />
+                  <circle class="ram-ring-fill" id="ramRingFill" cx="70" cy="70" r="60" />
+                </svg>
+                <div class="ram-ring-center">
+                  <div class="ram-ring-pct" id="ramRingPct">—</div>
+                  <div class="ram-ring-label">used</div>
+                </div>
+              </div>
+              <div class="ram-stats">
+                <div class="ram-stat"><span class="ram-stat-label">Used</span><span class="ram-stat-val" id="ramUsedVal">—</span></div>
+                <div class="ram-stat"><span class="ram-stat-label">Free</span><span class="ram-stat-val" id="ramFreeVal">—</span></div>
+                <div class="ram-stat"><span class="ram-stat-label">Quota</span><span class="ram-stat-val" id="ramQuotaVal">—</span></div>
+              </div>
+            </div>
+            <div class="ram-price-line">
+              <span>Current market price</span>
+              <span class="ram-price-val" id="ramPriceVal">Loading…</span>
+            </div>
+          </div>
+
+          <div class="ram-card">
+            <div class="ram-card-title">Buy RAM</div>
+            <div class="ram-group">
+              <label class="ram-label" for="buyReceiver">Receiver of RAM</label>
+              <input class="control-input" id="buyReceiver" type="text" placeholder="e.g. player1.wam" autocomplete="off" spellcheck="false" />
+              <div class="ram-hint" id="receiverHint"></div>
+            </div>
+            <div class="ram-group">
+              <label class="ram-label" for="buyAmount">WAX to spend</label>
+              <div class="ram-amount-row">
+                <input class="control-input" id="buyAmount" type="number" min="0" step="any" placeholder="0.00000000" />
+                <button type="button" class="ram-max-btn" id="buyMaxBtn" disabled>Max</button>
+              </div>
+              <div class="ram-hint" id="buyHint"></div>
+            </div>
+            <button type="button" class="ram-action-btn ram-action-btn--buy" id="buySubmitBtn" disabled>Buy RAM</button>
+            <div class="ram-status" id="buyStatus" style="display:none;"></div>
+          </div>
+
+          <div class="ram-card">
+            <div class="ram-card-title">Sell RAM</div>
+            <div class="ram-group">
+              <label class="ram-label" for="sellAmount">Bytes to sell</label>
+              <div class="ram-amount-row">
+                <input class="control-input" id="sellAmount" type="number" min="0" step="1" placeholder="0" />
+                <button type="button" class="ram-max-btn" id="sellMaxBtn" disabled>Max</button>
+              </div>
+              <div class="ram-hint" id="sellHint"></div>
+            </div>
+            <button type="button" class="ram-action-btn ram-action-btn--sell" id="sellSubmitBtn" disabled>Sell RAM</button>
+            <div class="ram-status" id="sellStatus" style="display:none;"></div>
+            <div class="ram-disclaimer">You can only sell RAM you're not currently using. Estimates use the live bancor market price and a 0.5% network fee — the exact amount may shift slightly if the market moves before your transaction confirms.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -201,9 +477,13 @@
 <script>
 'use strict';
 
-WalletWidget.mount(document.querySelector('.nav-inner'), {
+const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
   authScript: 'shared/wax-auth.js',
-  menuItems: walletMenuItems(),
+  exploreHref: '../explore',
+  offersHref: '../trade-offers',
+  buyOffersHref: '../buy-offers',
+  profileHref: '../profile',
+  menuItems: walletMenuItems('../'),
   onUpdate: () => renderLinkedWallets(),
 });
 
@@ -368,6 +648,726 @@ document.getElementById('rpcDropdown').querySelector('.cb-dropdown-btn').addEven
 document.addEventListener('click', e => {
   if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
 });
+
+// ── Claimable Balances tab (merged from balances.html) ──
+const BalancesTab = (function () {
+  // Same convention as gift-claim.html/inventory.html — respects the wallet
+  // RPC endpoint set on the Network tab, falling back to Greymass.
+  const CHAIN_RPC = localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com';
+
+  // Both AtomicMarket and AtomicAssets hold a generic `balances` table, scoped
+  // to the contract itself, keyed by owner (name) → quantities (asset[]).
+  // AtomicMarket: sale proceeds + any leftover purchase deposit that wasn't
+  // spent (see explore.html's buy flow, which deposits an exact quantity, so
+  // this is normally empty for buyers but always holds a seller's proceeds
+  // until withdrawn). AtomicAssets: leftover fungible-token deposit from
+  // "Back with tokens" (see inventory.html) that wasn't fully consumed by a
+  // backasset call. Read-only, no wallet signature needed.
+  async function fetchContractBalance(contract, owner) {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_table_rows`, {
+      method: 'POST',
+      body: JSON.stringify({
+        code: contract, scope: contract, table: 'balances',
+        lower_bound: owner, upper_bound: owner, key_type: 'name', limit: 1, json: true,
+      }),
+    });
+    if (!res.ok) throw new Error('Chain RPC error ' + res.status);
+    const { rows } = await res.json();
+    return (rows && rows[0] && rows[0].quantities) || [];
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // "1.99118086 WAX" -> { amount: "1.99118086", symbol: "WAX" }. The full
+  // string (unmodified) is what withdraw's token_to_withdraw expects — this
+  // split is for display only.
+  function splitQuantity(q) {
+    const i = q.indexOf(' ');
+    return { amount: q.slice(0, i), symbol: q.slice(i + 1) };
+  }
+
+  function withdrawAction(contract, owner, quantity) {
+    return {
+      account: contract, name: 'withdraw',
+      authorization: [{ actor: owner, permission: 'active' }],
+      data: { owner, token_to_withdraw: quantity },
+    };
+  }
+
+  function rowHtml(quantity) {
+    const { amount, symbol } = splitQuantity(quantity);
+    return `<div class="bal-row" data-quantity="${escHtml(quantity)}">
+      <div><span class="bal-row-amount">${escHtml(amount)}</span><span class="bal-row-symbol">${escHtml(symbol)}</span></div>
+      <button type="button" class="claim-btn" data-action="claim" data-quantity="${escHtml(quantity)}">Claim</button>
+    </div>`;
+  }
+
+  function renderSection(contract, bodyId, claimAllWrapId, quantities) {
+    const body = document.getElementById(bodyId);
+    const claimAllWrap = document.getElementById(claimAllWrapId);
+    body.dataset.contract = contract;
+
+    if (!quantities.length) {
+      body.innerHTML = '<div class="bal-empty">Nothing to claim right now.</div>';
+      claimAllWrap.innerHTML = '';
+      return;
+    }
+
+    body.innerHTML = `<div class="bal-rows">${quantities.map(rowHtml).join('')}</div>`;
+    claimAllWrap.innerHTML = quantities.length > 1
+      ? `<button type="button" class="claim-all-btn" data-action="claim-all">Claim all</button>`
+      : '';
+  }
+
+  function renderSectionError(bodyId, claimAllWrapId) {
+    document.getElementById(bodyId).innerHTML = '<div class="bal-error">Couldn\'t load this balance — try refreshing the page.</div>';
+    document.getElementById(claimAllWrapId).innerHTML = '';
+  }
+
+  function renderSectionLoading(bodyId, claimAllWrapId) {
+    document.getElementById(bodyId).innerHTML = '<div class="bal-section-spinner"><div class="spinner"></div>Loading…</div>';
+    document.getElementById(claimAllWrapId).innerHTML = '';
+  }
+
+  async function loadBalances() {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!wallet) return;
+
+    renderSectionLoading('marketBody', 'marketClaimAllWrap');
+    renderSectionLoading('assetsBody', 'assetsClaimAllWrap');
+
+    const [market, assets] = await Promise.all([
+      fetchContractBalance('atomicmarket', wallet).catch(() => null),
+      fetchContractBalance('atomicassets', wallet).catch(() => null),
+    ]);
+
+    if (market === null) renderSectionError('marketBody', 'marketClaimAllWrap');
+    else renderSection('atomicmarket', 'marketBody', 'marketClaimAllWrap', market);
+
+    if (assets === null) renderSectionError('assetsBody', 'assetsClaimAllWrap');
+    else renderSection('atomicassets', 'assetsBody', 'assetsClaimAllWrap', assets);
+  }
+
+  async function claimOne(btn) {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!wallet) return;
+    const body = btn.closest('[data-contract]');
+    const contract = body.dataset.contract;
+    const quantity = btn.dataset.quantity;
+
+    btn.disabled = true;
+    btn.classList.remove('is-error');
+    btn.textContent = 'Claiming…';
+
+    try {
+      await WaxAuth.transact([withdrawAction(contract, wallet, quantity)]);
+      _wallet.refreshBalance();
+      const row = btn.closest('.bal-row');
+      row.remove();
+      const remaining = body.querySelectorAll('.bal-row').length;
+      if (!remaining) {
+        const claimAllWrap = document.getElementById(contract === 'atomicmarket' ? 'marketClaimAllWrap' : 'assetsClaimAllWrap');
+        body.innerHTML = '<div class="bal-empty">Nothing to claim right now.</div>';
+        claimAllWrap.innerHTML = '';
+      } else if (remaining === 1) {
+        const claimAllWrap = document.getElementById(contract === 'atomicmarket' ? 'marketClaimAllWrap' : 'assetsClaimAllWrap');
+        claimAllWrap.innerHTML = '';
+      }
+    } catch (err) {
+      const info = describeTxError(err);
+      btn.disabled = false;
+      if (info.kind === 'cancelled') {
+        btn.textContent = 'Claim';
+      } else if (info.kind === 'generic') {
+        btn.textContent = 'Failed — retry';
+        btn.classList.add('is-error');
+      } else {
+        applyResourceErrorToBuyBtn(btn, info, 'claim-btn is-error', '../');
+      }
+    }
+  }
+
+  async function claimAll(btn) {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!wallet) return;
+    const bodyId = btn.parentElement.id === 'marketClaimAllWrap' ? 'marketBody' : 'assetsBody';
+    const body = document.getElementById(bodyId);
+    const contract = body.dataset.contract;
+    const rows = Array.from(body.querySelectorAll('.bal-row'));
+    const quantities = rows.map(r => r.dataset.quantity);
+
+    btn.disabled = true;
+    btn.textContent = 'Claiming…';
+    rows.forEach(r => { const b = r.querySelector('.claim-btn'); if (b) b.disabled = true; });
+
+    try {
+      await WaxAuth.transact(quantities.map(q => withdrawAction(contract, wallet, q)));
+      _wallet.refreshBalance();
+      body.innerHTML = '<div class="bal-empty">Nothing to claim right now.</div>';
+      btn.parentElement.innerHTML = '';
+    } catch (err) {
+      rows.forEach(r => { const b = r.querySelector('.claim-btn'); if (b) b.disabled = false; });
+      btn.disabled = false;
+      const info = describeTxError(err);
+      if (info.kind === 'generic' || info.kind === 'cancelled') {
+        btn.textContent = 'Claim all';
+      } else {
+        applyResourceErrorToBuyBtn(btn, info, 'claim-all-btn is-error', '../');
+      }
+    }
+  }
+
+  document.getElementById('balancesContent').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'claim') claimOne(btn);
+    else if (btn.dataset.action === 'claim-all') claimAll(btn);
+  });
+
+  function onWalletChange() {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!wallet) {
+      document.getElementById('balancesAuthGate').style.display = '';
+      document.getElementById('balancesContent').style.display = 'none';
+      return;
+    }
+    document.getElementById('balancesAuthGate').style.display = 'none';
+    document.getElementById('balancesContent').style.display = '';
+    loadBalances();
+  }
+
+  let inited = false;
+  function init() {
+    if (inited) return;
+    inited = true;
+    window.addEventListener('wax-auth-change', onWalletChange);
+    onWalletChange();
+  }
+  return { init };
+})();
+
+// ── RAM tab (merged from ram.html) ──
+const RamTab = (function () {
+  // Same convention as balances.html/token-transfer.html/gift-claim.html —
+  // respects the wallet RPC endpoint set on the Network tab, falling back to Greymass.
+  const CHAIN_RPC = localStorage.getItem('hoardio_rpc_endpoint') || 'https://wax.greymass.com';
+
+  const RAM_FEE = 0.005; // eosio system contract's ram_fee (0.5%), same on WAX
+
+  /* ── State ── */
+  let _account    = null;
+  let _ramQuota   = null;  // bytes
+  let _ramUsage   = null;  // bytes
+  let _liquidWax  = null;  // float WAX
+  let _ramReserve = null;  // float bytes in the rammarket pool
+  let _waxReserve = null;  // float WAX in the rammarket pool
+
+  // WAX/EOSIO account names: lowercase a-z, 1-5, '.', max 12 chars. Same
+  // convention as token-transfer.html's recipient field.
+  const NAME_RE = /^[a-z1-5.]{1,12}$/;
+  let _receiverTimer     = null;
+  let _receiverFormatOk  = false;
+  let _receiverBlocked   = false; // true only once get_account has come back with a definite "no such account"
+
+  function fmtBytes(n) {
+    if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + ' MB';
+    if (n >= 1024) return (n / 1024).toFixed(2) + ' KB';
+    return Math.max(0, Math.round(n)) + ' B';
+  }
+
+  function fmtWax(n) {
+    return n.toFixed(8) + ' WAX';
+  }
+
+  /* ── Chain reads ── */
+  async function fetchAccount(wallet) {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_account`, {
+      method: 'POST',
+      body: JSON.stringify({ account_name: wallet }),
+    });
+    if (!res.ok) throw new Error('Chain RPC error ' + res.status);
+    return res.json();
+  }
+
+  // The `rammarket` table (code=eosio, scope=eosio) holds the bancor pool
+  // backing every buyram/sellram on the chain — base = RAM bytes reserve,
+  // quote = WAX reserve. Both connectors carry a 0.5 weight, which collapses
+  // the usual two-hop bancor math into a plain constant-product curve; that's
+  // the formula bancorBuyBytes/bancorSellWax below implement.
+  async function fetchRamMarket() {
+    const res = await fetch(`${CHAIN_RPC}/v1/chain/get_table_rows`, {
+      method: 'POST',
+      body: JSON.stringify({ code: 'eosio', scope: 'eosio', table: 'rammarket', json: true, limit: 1 }),
+    });
+    if (!res.ok) throw new Error('Chain RPC error ' + res.status);
+    const { rows } = await res.json();
+    const row = rows && rows[0];
+    if (!row) throw new Error('Empty rammarket table');
+    return {
+      ramReserve: parseFloat(row.base.balance),
+      waxReserve: parseFloat(row.quote.balance),
+    };
+  }
+
+  /* ── Bancor estimate helpers (display only — the contract computes the
+     real amount at execution time) ── */
+  function bancorBuyBytes(ramReserve, waxReserve, waxIn) {
+    if (!(waxIn > 0)) return 0;
+    const net = waxIn * (1 - RAM_FEE);
+    return Math.floor(ramReserve * net / (waxReserve + net));
+  }
+  function bancorSellWax(ramReserve, waxReserve, bytesIn) {
+    if (!(bytesIn > 0)) return 0;
+    const gross = waxReserve * bytesIn / (ramReserve + bytesIn);
+    return gross * (1 - RAM_FEE);
+  }
+
+  /* ── Actions ── */
+  function buyRamAction(payer, receiver, quant) {
+    return {
+      account: 'eosio', name: 'buyram',
+      authorization: [{ actor: payer, permission: 'active' }],
+      data: { payer, receiver, quant },
+    };
+  }
+  function sellRamAction(account, bytes) {
+    return {
+      account: 'eosio', name: 'sellram',
+      authorization: [{ actor: account, permission: 'active' }],
+      data: { account, bytes },
+    };
+  }
+
+  /* ── Usage ring ── */
+  const RING_R = 60;
+  const RING_CIRC = 2 * Math.PI * RING_R;
+
+  function renderRing() {
+    const fill = document.getElementById('ramRingFill');
+    fill.style.strokeDasharray = `${RING_CIRC}`;
+    if (_ramQuota == null || _ramUsage == null || _ramQuota <= 0) {
+      fill.style.strokeDashoffset = `${RING_CIRC}`;
+      document.getElementById('ramRingPct').textContent = '—';
+      return;
+    }
+    const pct = Math.min(1, _ramUsage / _ramQuota);
+    fill.style.strokeDashoffset = `${RING_CIRC * (1 - pct)}`;
+    fill.classList.remove('is-warn', 'is-crit');
+    if (pct >= 0.9) fill.classList.add('is-crit');
+    else if (pct >= 0.7) fill.classList.add('is-warn');
+    document.getElementById('ramRingPct').textContent = Math.round(pct * 100) + '%';
+
+    document.getElementById('ramUsedVal').textContent = fmtBytes(_ramUsage);
+    document.getElementById('ramFreeVal').textContent = fmtBytes(Math.max(0, _ramQuota - _ramUsage));
+    document.getElementById('ramQuotaVal').textContent = fmtBytes(_ramQuota);
+  }
+
+  function renderMarketPrice() {
+    const el = document.getElementById('ramPriceVal');
+    if (_ramReserve == null || _waxReserve == null) { el.textContent = 'Unavailable'; return; }
+    const pricePerKb = (_waxReserve / _ramReserve) * 1024;
+    el.textContent = `≈ ${pricePerKb.toFixed(6)} WAX / KB`;
+  }
+
+  /* ── Buy form ── */
+
+  /* Receiver of RAM — defaults to the connected wallet, but buyram lets the
+     payer fund RAM for any other account (same use case as waxblock.io's RAM
+     page). Validation mirrors token-transfer.html's recipient field. */
+  function onReceiverInput() {
+    const el = document.getElementById('buyReceiver');
+    const { selectionStart, selectionEnd } = el;
+    el.value = el.value.toLowerCase();
+    el.setSelectionRange(selectionStart, selectionEnd);
+    _receiverBlocked = false;
+    const hint = document.getElementById('receiverHint');
+    hint.className = 'ram-hint';
+    const val = el.value.trim();
+    _receiverFormatOk = NAME_RE.test(val);
+    if (!val || !_receiverFormatOk) { hint.textContent = ''; }
+    else { hint.textContent = val === _account ? '' : 'Buying for another wallet — they receive the RAM, you pay the WAX.'; }
+    updateBuyHint();
+    updateBuyBtn();
+    clearTimeout(_receiverTimer);
+    if (_receiverFormatOk) _receiverTimer = setTimeout(checkReceiverNow, 500);
+  }
+
+  async function checkReceiverNow() {
+    clearTimeout(_receiverTimer);
+    const val = document.getElementById('buyReceiver').value.trim();
+    if (!_receiverFormatOk || !val) return;
+    const hint = document.getElementById('receiverHint');
+    if (val === _account) { hint.textContent = ''; hint.className = 'ram-hint'; return; }
+    try {
+      const res = await fetch(`${CHAIN_RPC}/v1/chain/get_account`, {
+        method: 'POST',
+        body: JSON.stringify({ account_name: val }),
+      });
+      if (document.getElementById('buyReceiver').value.trim() !== val) return; // stale — user kept typing
+      if (res.ok) {
+        _receiverBlocked = false;
+        hint.textContent = 'Buying for another wallet — they receive the RAM, you pay the WAX.';
+        hint.className = 'ram-hint';
+      } else {
+        _receiverBlocked = true;
+        hint.textContent = "This account doesn't exist on the WAX chain.";
+        hint.className = 'ram-hint ram-hint--error';
+      }
+    } catch {
+      // unreachable — leave unblocked, the real buy will fail on-chain if it's genuinely bad
+    }
+    updateBuyBtn();
+  }
+
+  function onBuyInput() { updateBuyHint(); updateBuyBtn(); }
+
+  function updateBuyHint() {
+    const hint = document.getElementById('buyHint');
+    const raw = document.getElementById('buyAmount').value.trim();
+    if (!raw) { hint.textContent = ''; hint.className = 'ram-hint'; return; }
+    const amt = parseFloat(raw);
+    if (!isFinite(amt) || amt <= 0) { hint.textContent = 'Enter an amount greater than 0.'; hint.className = 'ram-hint ram-hint--error'; return; }
+    if (_liquidWax != null && amt > _liquidWax) {
+      hint.textContent = `Exceeds your available balance of ${fmtWax(_liquidWax)}.`;
+      hint.className = 'ram-hint ram-hint--error';
+      return;
+    }
+    if (_ramReserve != null && _waxReserve != null) {
+      const bytes = bancorBuyBytes(_ramReserve, _waxReserve, amt);
+      hint.textContent = `≈ ${fmtBytes(bytes)} of RAM`;
+      hint.className = 'ram-hint ram-hint--ok';
+    } else {
+      hint.textContent = '';
+      hint.className = 'ram-hint';
+    }
+  }
+
+  function updateBuyBtn() {
+    const btn = document.getElementById('buySubmitBtn');
+    const amt = parseFloat(document.getElementById('buyAmount').value);
+    const receiver = document.getElementById('buyReceiver').value.trim();
+    btn.disabled = !(
+      _account && receiver && _receiverFormatOk && !_receiverBlocked &&
+      isFinite(amt) && amt > 0 && (_liquidWax == null || amt <= _liquidWax)
+    );
+  }
+
+  document.getElementById('buyMaxBtn').addEventListener('click', () => {
+    if (_liquidWax == null || _liquidWax <= 0) return;
+    document.getElementById('buyAmount').value = _liquidWax.toFixed(8);
+    onBuyInput();
+  });
+
+  async function buyRam() {
+    const wallet = _account;
+    if (!wallet) return;
+    const amt = parseFloat(document.getElementById('buyAmount').value);
+    if (!isFinite(amt) || amt <= 0) return;
+    const receiver = document.getElementById('buyReceiver').value.trim();
+    if (!receiver || !_receiverFormatOk || _receiverBlocked) return;
+    const quant = fmtWax(amt);
+    const prevQuota = _ramQuota;
+    const prevLiquidWax = _liquidWax;
+
+    const btn = document.getElementById('buySubmitBtn');
+    const status = document.getElementById('buyStatus');
+    btn.disabled = true;
+    btn.textContent = 'Buying…';
+    status.style.display = 'none';
+    document.getElementById('sellStatus').style.display = 'none'; // a new action supersedes the other form's leftover confirmation
+
+    try {
+      await WaxAuth.transact([buyRamAction(wallet, receiver, quant)]);
+      status.textContent = receiver === wallet
+        ? `Bought RAM for ${quant}.`
+        : `Bought RAM for ${quant}, sent to ${receiver}.`;
+      status.className = 'ram-status is-success';
+      status.style.display = 'block';
+      document.getElementById('buyAmount').value = '';
+      document.getElementById('buyHint').textContent = '';
+      _wallet.refreshBalance();
+      reloadRamStateAfterAction(wallet, prevQuota, prevLiquidWax);
+    } catch (err) {
+      const info = describeTxError(err);
+      if (info.kind !== 'cancelled') {
+        status.innerHTML = info.kind === 'net' || info.kind === 'cpu'
+          ? txErrorHtml(info, '', '../')
+          : 'Purchase failed — please try again.';
+        status.className = 'ram-status is-error';
+        status.style.display = 'block';
+      }
+    } finally {
+      btn.textContent = 'Buy RAM';
+      updateBuyBtn();
+    }
+  }
+  document.getElementById('buySubmitBtn').addEventListener('click', buyRam);
+
+  /* ── Sell form ── */
+  function sellableBytes() {
+    if (_ramQuota == null || _ramUsage == null) return null;
+    return Math.max(0, _ramQuota - _ramUsage);
+  }
+
+  function onSellInput() { updateSellHint(); updateSellBtn(); }
+
+  function updateSellHint() {
+    const hint = document.getElementById('sellHint');
+    const raw = document.getElementById('sellAmount').value.trim();
+    if (!raw) { hint.textContent = ''; hint.className = 'ram-hint'; return; }
+    const bytes = Math.floor(parseFloat(raw));
+    if (!isFinite(bytes) || bytes <= 0) { hint.textContent = 'Enter a whole number of bytes greater than 0.'; hint.className = 'ram-hint ram-hint--error'; return; }
+    const max = sellableBytes();
+    if (max != null && bytes > max) {
+      hint.textContent = `Exceeds the RAM you're not using (${fmtBytes(max)} sellable).`;
+      hint.className = 'ram-hint ram-hint--error';
+      return;
+    }
+    if (_ramReserve != null && _waxReserve != null) {
+      const wax = bancorSellWax(_ramReserve, _waxReserve, bytes);
+      hint.textContent = `≈ ${fmtWax(wax)} (${fmtBytes(bytes)})`;
+      hint.className = 'ram-hint ram-hint--ok';
+    } else {
+      hint.textContent = '';
+      hint.className = 'ram-hint';
+    }
+  }
+
+  function updateSellBtn() {
+    const btn = document.getElementById('sellSubmitBtn');
+    const bytes = Math.floor(parseFloat(document.getElementById('sellAmount').value));
+    const max = sellableBytes();
+    btn.disabled = !(_account && isFinite(bytes) && bytes > 0 && (max == null || bytes <= max));
+  }
+
+  document.getElementById('sellMaxBtn').addEventListener('click', () => {
+    const max = sellableBytes();
+    if (!max) return;
+    document.getElementById('sellAmount').value = max;
+    onSellInput();
+  });
+
+  async function sellRam() {
+    const wallet = _account;
+    if (!wallet) return;
+    const bytes = Math.floor(parseFloat(document.getElementById('sellAmount').value));
+    if (!isFinite(bytes) || bytes <= 0) return;
+    const prevQuota = _ramQuota;
+    const prevLiquidWax = _liquidWax;
+
+    const btn = document.getElementById('sellSubmitBtn');
+    const status = document.getElementById('sellStatus');
+    btn.disabled = true;
+    btn.textContent = 'Selling…';
+    status.style.display = 'none';
+    document.getElementById('buyStatus').style.display = 'none'; // a new action supersedes the other form's leftover confirmation
+
+    try {
+      await WaxAuth.transact([sellRamAction(wallet, bytes)]);
+      status.textContent = `Sold ${fmtBytes(bytes)} of RAM.`;
+      status.className = 'ram-status is-success';
+      status.style.display = 'block';
+      document.getElementById('sellAmount').value = '';
+      document.getElementById('sellHint').textContent = '';
+      _wallet.refreshBalance();
+      reloadRamStateAfterAction(wallet, prevQuota, prevLiquidWax);
+    } catch (err) {
+      const info = describeTxError(err);
+      if (info.kind !== 'cancelled') {
+        status.innerHTML = info.kind === 'net' || info.kind === 'cpu'
+          ? txErrorHtml(info, '', '../')
+          : 'Sale failed — please try again.';
+        status.className = 'ram-status is-error';
+        status.style.display = 'block';
+      }
+    } finally {
+      btn.textContent = 'Sell RAM';
+      updateSellBtn();
+    }
+  }
+  document.getElementById('sellSubmitBtn').addEventListener('click', sellRam);
+
+  document.getElementById('buyReceiver').addEventListener('input', onReceiverInput);
+  document.getElementById('buyReceiver').addEventListener('blur', checkReceiverNow);
+  document.getElementById('buyAmount').addEventListener('input', onBuyInput);
+  document.getElementById('sellAmount').addEventListener('input', onSellInput);
+
+  /* ── Load ── */
+  function renderAll() {
+    renderRing();
+    renderMarketPrice();
+    document.getElementById('buyMaxBtn').disabled = !(_liquidWax > 0);
+    document.getElementById('sellMaxBtn').disabled = !(sellableBytes() > 0);
+    updateBuyHint();
+    updateSellHint();
+    updateBuyBtn();
+    updateSellBtn();
+  }
+
+  async function loadRamState() {
+    const wallet = _account;
+    if (!wallet) return;
+
+    const [accountRes, marketRes] = await Promise.allSettled([fetchAccount(wallet), fetchRamMarket()]);
+
+    if (_account !== wallet) return; // wallet switched mid-flight
+
+    if (accountRes.status === 'fulfilled') {
+      const a = accountRes.value;
+      _ramQuota = a.ram_quota;
+      _ramUsage = a.ram_usage;
+      _liquidWax = a.core_liquid_balance ? parseFloat(a.core_liquid_balance) : 0;
+    } else {
+      _ramQuota = _ramUsage = _liquidWax = null;
+    }
+
+    if (marketRes.status === 'fulfilled') {
+      _ramReserve = marketRes.value.ramReserve;
+      _waxReserve = marketRes.value.waxReserve;
+    } else {
+      _ramReserve = _waxReserve = null;
+    }
+    renderAll();
+  }
+
+  // Public RPC nodes can lag a block or two behind whichever node the wallet
+  // used to broadcast the transaction, so a get_account read taken right after
+  // WaxAuth.transact resolves can still show pre-transaction numbers (this is
+  // what made "Max" show stale values right after a sell). Re-poll a few times
+  // until either the quota or the liquid WAX balance actually moves — buying
+  // for someone else only changes your balance, selling always changes your
+  // own quota — before settling on whatever the last read said.
+  async function reloadRamStateAfterAction(wallet, prevQuota, prevLiquidWax) {
+    await loadRamState();
+    for (let i = 0; i < 6 && _account === wallet; i++) {
+      const quotaChanged = _ramQuota !== prevQuota;
+      const balanceChanged = _liquidWax == null || prevLiquidWax == null || Math.abs(_liquidWax - prevLiquidWax) > 1e-6;
+      if (quotaChanged || balanceChanged) return;
+      await new Promise(r => setTimeout(r, 700));
+      if (_account !== wallet) return;
+      try {
+        const a = await fetchAccount(wallet);
+        if (_account !== wallet) return;
+        _ramQuota = a.ram_quota;
+        _ramUsage = a.ram_usage;
+        _liquidWax = a.core_liquid_balance ? parseFloat(a.core_liquid_balance) : 0;
+        renderAll();
+      } catch { /* keep polling */ }
+    }
+  }
+
+  function onWalletChange() {
+    _account = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (!_account) {
+      document.getElementById('ramAuthGate').style.display = '';
+      document.getElementById('ramContent').style.display = 'none';
+      return;
+    }
+    document.getElementById('ramAuthGate').style.display = 'none';
+    document.getElementById('ramContent').style.display = '';
+    document.getElementById('buyReceiver').value = _account;
+    document.getElementById('receiverHint').textContent = '';
+    _receiverFormatOk = true;
+    _receiverBlocked = false;
+    document.getElementById('buyAmount').value = '';
+    document.getElementById('sellAmount').value = '';
+    document.getElementById('buyHint').textContent = '';
+    document.getElementById('sellHint').textContent = '';
+    document.getElementById('buyStatus').style.display = 'none';
+    document.getElementById('sellStatus').style.display = 'none';
+    renderRing();
+    loadRamState();
+  }
+
+  let inited = false;
+  function init() {
+    if (inited) return;
+    inited = true;
+    window.addEventListener('wax-auth-change', onWalletChange);
+    onWalletChange();
+  }
+  return { init };
+})();
+
+// ── Tab switching ──
+// 'general' (display name/bio/socials) is temporarily hidden — it needs a
+// real database-backed profile (shown on Inventory when viewing someone
+// else's wallet), not just a localStorage stub. Re-add once that's built.
+const TAB_SLUGS = ['preferences', 'network', 'linked-wallets', 'balances', 'ram'];
+const TAB_LABELS = {
+  preferences: 'Preferences', network: 'Network',
+  'linked-wallets': 'Linked Wallets', balances: 'Claimable Balances', ram: 'RAM',
+};
+const DEFAULT_TAB = 'preferences';
+
+const shellEl = document.getElementById('profileShell');
+let _activeTab = DEFAULT_TAB;
+let _mobileShowingPanel = false;
+
+function isMobile() { return window.matchMedia('(max-width: 900px)').matches; }
+
+// Relative pushState/replaceState target, recomputed from the CURRENT
+// address bar every time — never a fixed absolute path. This site may be
+// served under an arbitrary subpath in local dev (e.g. /PopInStock/), and
+// an absolute '/profile/<slug>' target silently drops that prefix. Once the
+// URL already ends in /profile/<something> (true after the very first
+// normalization below), the target is just the bare slug, relative to the
+// /profile/ "directory" the browser now shows; before that (a fresh bare
+// /profile load), it's 'profile/<slug>', relative to wherever profile
+// itself sits.
+function tabPath(slug) {
+  return /\/profile\/[a-z-]+\/?$/.test(location.pathname) ? slug : `profile/${slug}`;
+}
+
+function maybeLazyInit(slug) {
+  if (slug === 'balances') BalancesTab.init();
+  if (slug === 'ram') RamTab.init();
+}
+
+function renderActiveTab() {
+  document.querySelectorAll('.profile-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === _activeTab));
+  document.querySelectorAll('.profile-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === _activeTab));
+  document.getElementById('profileBreadcrumbCurrent').textContent = TAB_LABELS[_activeTab];
+  shellEl.classList.toggle('profile-shell--panel', isMobile() && _mobileShowingPanel);
+  maybeLazyInit(_activeTab);
+}
+
+function goToTab(slug, push) {
+  if (!TAB_SLUGS.includes(slug)) slug = DEFAULT_TAB;
+  _activeTab = slug;
+  if (isMobile()) _mobileShowingPanel = true;
+  if (push) history.pushState({ tab: slug }, '', tabPath(slug));
+  renderActiveTab();
+}
+
+document.getElementById('profileTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.profile-tab-btn');
+  if (btn) goToTab(btn.dataset.tab, true);
+});
+
+document.getElementById('profileBreadcrumbRoot').addEventListener('click', () => {
+  _mobileShowingPanel = false; // pure view-state toggle, no URL/history change
+  shellEl.classList.remove('profile-shell--panel');
+});
+
+window.addEventListener('popstate', () => {
+  const m = location.pathname.match(/\/profile\/([a-z-]+)\/?$/);
+  const slug = (m && m[1]) || DEFAULT_TAB;
+  _activeTab = TAB_SLUGS.includes(slug) ? slug : DEFAULT_TAB;
+  _mobileShowingPanel = !!m;
+  renderActiveTab();
+});
+
+(function initTab() {
+  const requested = new URLSearchParams(location.search).get('tab');
+  const valid = TAB_SLUGS.includes(requested);
+  _activeTab = valid ? requested : DEFAULT_TAB;
+  _mobileShowingPanel = valid; // a deep link opens straight into content, even on mobile
+  history.replaceState({ tab: _activeTab }, '', tabPath(_activeTab)); // normalize bare /profile to /profile/general
+  renderActiveTab();
+})();
 </script>
 <script src="shared/moved.js"></script>
 </body>

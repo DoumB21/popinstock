@@ -19,9 +19,15 @@ const GENERIC_NAV_LINKS = [
   const linksContainer = navInner && navInner.querySelector('.nav-links');
   if (!nav || !navInner || !linksContainer) return;
 
+  // window._p — same convention as this file's own GlobalSearch mount below
+  // (collection.html/template.html/etc.'s pretty-URL prefix, defaulting to
+  // '' for every page that never defines it). profile.html defines it since
+  // its own URL always shows a tab segment, one directory deeper than its
+  // real flat location.
+  const p = window._p || '';
   const currentPage = location.pathname.split('/').pop() || 'index';
   const linksHtml = GENERIC_NAV_LINKS.map(({ label, href }) => `
-    <a href="${href}" class="nav-link${currentPage === href ? ' nav-link--active' : ''}">${label}</a>
+    <a href="${p}${href}" class="nav-link${currentPage === href ? ' nav-link--active' : ''}">${label}</a>
   `).join('');
 
   linksContainer.innerHTML = linksHtml;

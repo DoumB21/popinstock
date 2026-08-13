@@ -22,8 +22,6 @@
     { href: 'buy-offers', label: 'Buy Offers', icon: '🏷️' },
     { href: 'gift-links', label: 'Gift Links', icon: '🎁' },
     { href: 'token-transfer', label: 'Token Transfer', icon: '💸' },
-    { href: 'balances', label: 'Contract Balances', icon: '💰' },
-    { href: 'ram', label: 'Manage RAM', icon: '🧠' },
   ];
 
   window.walletMenuItems = function (prefix, extraItems) {
