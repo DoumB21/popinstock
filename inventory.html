@@ -1213,6 +1213,15 @@ function _pinWalletToUrl(wallet) {
 
 // ── Bulk selection (merged in from inventory-bulk.html, 2026-07-21) ──
 let _selected = new Map();          // asset_id → price string (Sell) | '' (other actions, unused)
+// Selection is designed to survive filter changes (see the note above
+// assetsIndex()), but _assets is wholesale-replaced on every filter/sort
+// change — so a card selected under a previous filter can vanish from
+// _assets entirely while staying in _selected. Snapshot the asset object at
+// the moment it's selected so assetsIndex() can still resolve it later; without
+// this, the bulk-action chip count and the modal's actual item list silently
+// diverge (chip counts everything in _selected, modal drops anything missing
+// from current _assets).
+const _selectedAssetSnapshot = new Map(); // asset_id → asset object
 // Sell-only: 'individual' lists each selected asset as its own sale (price
 // lives per-item in _selected, as above); 'bundle' lists the whole selection
 // as one atomicmarket sale at a single price (_bundlePrice). Reset to
@@ -4926,7 +4935,9 @@ async function handleList() {
 // time it's needed — an _assets.find() per selected item inside a loop is an
 // O(n²) scan at a few hundred selected (see bulkList/applyBulkBelowFloor).
 function assetsIndex() {
-  return new Map(_assets.map(a => [String(a.asset_id), a]));
+  const idx = new Map(_selectedAssetSnapshot);
+  for (const a of _assets) idx.set(String(a.asset_id), a); // live data wins over a stale snapshot
+  return idx;
 }
 
 // A listing with no sale_id yet (optimistic, unconfirmed by the indexer —
@@ -4974,12 +4985,15 @@ function toggleSelect(assetId, cardEl) {
   const id = String(assetId);
   if (_selected.has(id)) {
     _selected.delete(id);
+    _selectedAssetSnapshot.delete(id);
     cardEl.classList.remove('selected');
     const chk = cardEl.querySelector('.inv-card-check');
     if (chk) chk.textContent = '';
   } else {
     if (_selected.size >= MAX_SELECTED) return;
     _selected.set(id, '');
+    const idx = _assets.find(a => String(a.asset_id) === id);
+    if (idx) _selectedAssetSnapshot.set(id, idx);
     cardEl.classList.add('selected');
     const chk = cardEl.querySelector('.inv-card-check');
     if (chk) chk.textContent = '✓';
@@ -4989,6 +5003,7 @@ function toggleSelect(assetId, cardEl) {
 
 function clearAllSelection() {
   _selected.clear();
+  _selectedAssetSnapshot.clear();
   document.querySelectorAll('.inv-card.selected').forEach(card => {
     card.classList.remove('selected');
     const chk = card.querySelector('.inv-card-check');
@@ -4999,6 +5014,7 @@ function clearAllSelection() {
 
 function removeFromBulkSelection(id) {
   _selected.delete(id);
+  _selectedAssetSnapshot.delete(id);
   const card = document.querySelector(`.inv-card[data-id="${id}"]`);
   if (card) {
     card.classList.remove('selected');
@@ -5043,11 +5059,14 @@ async function selectFirstN() {
   if (btn) { btn.disabled = false; updateSelectFirstLabel(); }
 
   clearAllSelection();
+  const assetsById = assetsIndex();
   let count = 0;
   document.querySelectorAll('.inv-card').forEach(card => {
     if (count >= n || _selected.size >= MAX_SELECTED) return;
     const id = card.dataset.id;
     _selected.set(id, '');
+    const a = assetsById.get(id);
+    if (a) _selectedAssetSnapshot.set(id, a);
     card.classList.add('selected');
     const chk = card.querySelector('.inv-card-check');
     if (chk) chk.textContent = '✓';
@@ -5087,10 +5106,13 @@ async function selectAllMatchingFilters() {
     loadFloorPricesForCards(_assets);
   }
 
+  const assetsById = assetsIndex();
   document.querySelectorAll('.inv-card').forEach(card => {
     const id = card.dataset.id;
     if (_selected.has(id) || _selected.size >= MAX_SELECTED) return;
     _selected.set(id, '');
+    const a = assetsById.get(id);
+    if (a) _selectedAssetSnapshot.set(id, a);
     card.classList.add('selected');
     const chk = card.querySelector('.inv-card-check');
     if (chk) chk.textContent = '✓';
@@ -6136,7 +6158,7 @@ async function bulkList() {
   }, (chunk) => {
     for (const assetId of chunk) {
       const priceWax = Math.round(parseFloat(_selected.get(assetId)) * 100) / 100;
-      _selected.delete(assetId);
+      _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId);
       _listings.set(assetId, { sale_id: null, price_wax: priceWax });
       patchCard(assetId);
       clearBulkCardSelectedVisual(assetId);
@@ -6172,7 +6194,7 @@ async function bulkListBundle() {
     // sale_id (see the Edit Listing modal's isBundle handling).
     const bundleAssetIds = chunk.length > 1 ? chunk.slice() : null;
     for (const assetId of chunk) {
-      _selected.delete(assetId);
+      _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId);
       _listings.set(assetId, { sale_id: null, price_wax: priceWax, bundleAssetIds });
       patchCard(assetId);
       clearBulkCardSelectedVisual(assetId);
@@ -6196,7 +6218,7 @@ async function bulkCancel() {
       const listing = snapshot.get(assetId);
       if (listing) _cancelledSaleIds.add(String(listing.sale_id));
       _listings.delete(assetId);
-      _selected.delete(assetId);
+      _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId);
       patchCard(assetId);
       clearBulkCardSelectedVisual(assetId);
     }
@@ -6223,7 +6245,7 @@ async function bulkTransfer() {
   }], (chunk) => {
     const removed = new Set(chunk);
     for (const assetId of chunk) {
-      _selected.delete(assetId);
+      _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId);
       document.querySelector(`.inv-card[data-id="${assetId}"]`)?.remove();
     }
     _assets = _assets.filter(a => !removed.has(String(a.asset_id)));
@@ -6247,7 +6269,7 @@ async function bulkBurn() {
   })), (chunk) => {
     const removed = new Set(chunk);
     for (const assetId of chunk) {
-      _selected.delete(assetId);
+      _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId);
       _listings.delete(assetId);
       document.querySelector(`.inv-card[data-id="${assetId}"]`)?.remove();
     }
@@ -6297,7 +6319,7 @@ async function bulkBackTokens() {
     });
     return actions;
   }, (chunk) => {
-    for (const assetId of chunk) { _selected.delete(assetId); clearBulkCardSelectedVisual(assetId); }
+    for (const assetId of chunk) { _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId); clearBulkCardSelectedVisual(assetId); }
     renderBulkActionModal();
   });
 
@@ -6387,7 +6409,7 @@ async function bulkGift() {
 
   const removed = new Set(ids);
   for (const assetId of ids) {
-    _selected.delete(assetId);
+    _selected.delete(assetId); _selectedAssetSnapshot.delete(assetId);
     document.querySelector(`.inv-card[data-id="${assetId}"]`)?.remove();
   }
   _assets = _assets.filter(a => !removed.has(String(a.asset_id)));
@@ -6476,7 +6498,7 @@ async function onWalletChange() {
     _buyOffers = {}; _buyOffersFetched = false; _buyOffersBusy = false; _buyOffersByCol = {}; _buyOfferFetchSkipped = 0; _soldAssets.clear(); _collectionsReady = false;
     _floorOffers = {}; _floorOffersFetched = false; _floorOffersBusy = false; _floorOffersByCol = {}; _floorFetchSkipped = 0;
     _lastSold = {}; _lastSoldFetched = false; _lastSoldBusy = false; _lastSoldByCol = {}; _lastSoldFetchSkipped = 0;
-    _selected.clear(); updateBulkChip();
+    _selected.clear(); _selectedAssetSnapshot.clear(); updateBulkChip();
     setDupesFiltersAvailability(false);
     renderSortDropdown();
     updateBuyOfferBanner();
@@ -6510,7 +6532,7 @@ async function onWalletChange() {
     buildSingleCbDropdown('listingsFilterDropdown', LISTINGS_FILTER_OPTIONS, _listingsFilter, onListingsFilterChange);
     _sortOrder = SORT_OPTIONS[0].value;
     renderSortDropdown();
-    _selected.clear(); updateBulkChip();
+    _selected.clear(); _selectedAssetSnapshot.clear(); updateBulkChip();
     closeBulkActionModal();
   } else {
     await readUrlParams(target);
