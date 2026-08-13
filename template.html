@@ -163,18 +163,7 @@
   document.getElementById('navHomeLink').href = _p + 'index';
   document.getElementById('navHomeImg').src = _p + 'images/Hoardio_fav.png';
   document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
-</script>
-<script>
-  // See the identical comment in collection.html — generic-nav.js builds
-  // its own links with plain relative hrefs, unaware of the extra path
-  // depth, so they need the same fixup here once it's finished building them.
-  if (_p) {
-    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
-      a.setAttribute('href', _p + a.getAttribute('href'));
-    });
-  }
-</script>
-<script>
+</script><script>
   const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: _p + 'shared/wax-auth.js',
     apiScript: _p + 'shared/wax-api.js',

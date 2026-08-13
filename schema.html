@@ -138,13 +138,6 @@
   document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
 </script>
 <script>
-  if (_p) {
-    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
-      a.setAttribute('href', _p + a.getAttribute('href'));
-    });
-  }
-</script>
-<script>
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: _p + 'shared/wax-auth.js',
     apiScript: _p + 'shared/wax-api.js',

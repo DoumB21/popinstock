@@ -240,20 +240,6 @@
   document.write('<script src="' + _p + 'shared/generic-nav.js">\x3c/script>');
 </script>
 <script>
-  // generic-nav.js itself builds .nav-links/.nav-mobile with plain relative
-  // hrefs ("explore", "trade-analyzer") — it has no idea this page can sit
-  // one directory level deeper than every other page it's shared with, so
-  // those need the same _p prefix as everything else here. This script tag
-  // runs after the one above (script execution order — including whatever
-  // it document.write'd — is document order), i.e. after generic-nav.js has
-  // already built those links, so there's something to fix up yet.
-  if (_p) {
-    document.querySelectorAll('.nav-links a, .nav-mobile a').forEach(a => {
-      a.setAttribute('href', _p + a.getAttribute('href'));
-    });
-  }
-</script>
-<script>
   WalletWidget.mount(document.querySelector('.nav-inner'), {
     authScript: _p + 'shared/wax-auth.js',
     apiScript: _p + 'shared/wax-api.js',
