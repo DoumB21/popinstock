@@ -148,15 +148,29 @@
     .explore-ctrl-group .cb-dropdown-btn { width: auto; }
     .explore-ctrl-group .cb-panel { min-width: 170px; }
 
-    /* Empty state, with an ad slot centered below it (only shown pre-selection
-       — see shared/ad-slot.js, which injects the actual promo content/styling
-       into .ad-slot so this page never needs to change to swap it out). */
+    /* Empty state, with a Trending Collections leaderboard centered below it
+       (only shown pre-selection — populated by renderTrendingCollections()). */
     .empty-state-row { display: flex; flex-direction: column; align-items: center; }
-    .empty-state { text-align: center; padding: 5rem 2rem 0.5rem; color: var(--text-secondary); }
+    .empty-state { text-align: center; padding: 2rem 2rem 0.5rem; color: var(--text-secondary); }
     .empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
     .empty-state h2 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.4rem; }
     .empty-state p { font-size: 0.88rem; margin: 0; }
-    .ad-slot { width: 520px; max-width: 100%; margin: 2rem 0 5rem; }
+    .trending-collections { width: 640px; max-width: 100%; margin: 2rem 0 5rem; }
+    .trending-collections-card { border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem 1.5rem; background: var(--bg-card); }
+    .trending-collections-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.9rem; display: flex; align-items: baseline; gap: 0.5rem; }
+    .trending-collections-title span { margin-left: auto; font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); }
+    .trending-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0.25rem; text-decoration: none; border-radius: 8px; transition: background 0.1s; }
+    .trending-row:hover { background: rgba(255,255,255,0.05); }
+    .trending-row + .trending-row { border-top: 1px solid rgba(255,255,255,0.05); }
+    .trending-row-rank { width: 1.4rem; flex-shrink: 0; text-align: center; font-size: 0.86rem; font-weight: 700; color: var(--text-secondary); }
+    .trending-row img, .trending-row-ph { width: 40px; height: 40px; border-radius: 7px; object-fit: cover; flex-shrink: 0; }
+    .trending-row-ph { background: rgba(255,255,255,0.07); }
+    .trending-row-info { min-width: 0; flex: 1; }
+    .trending-row-name { display: block; font-size: 0.94rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trending-row-slug { display: block; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trending-row-vol { text-align: right; flex-shrink: 0; margin-left: 0.5rem; }
+    .trending-row-wax { display: block; font-size: 0.94rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+    .trending-row-usd { display: block; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; }
     .results-status { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; min-height: 1.2em; }
     /* grid-column spans #cardsGrid's columns so these render centered across
        the full grid width instead of being squeezed into a single grid-item
@@ -642,7 +656,6 @@
   <script src="shared/wallet-menu.js"></script>
   <script src="shared/tx-error.js"></script>
   <script src="shared/asset-popup.js"></script>
-  <script src="shared/ad-slot.js"></script>
 </head>
 <body>
 
@@ -876,7 +889,7 @@
         <h2>Search for a collection</h2>
         <p>Type a collection name in the sidebar to start browsing listings — buy instantly, or add them to your cart.</p>
       </div>
-      <div class="ad-slot"></div>
+      <div class="trending-collections" id="trendingCollections"></div>
     </div>
 
     <div class="bl-toolbar" id="blToolbar" style="display:none">
@@ -1424,6 +1437,60 @@ async function renderPopular() {
       .map((c, i) => `<div class="col-sug" data-src="popular" data-i="${i}">${quickRowHtml(c)}</div>`).join('');
     $group.style.display = 'block';
   } catch { $group.style.display = 'none'; } // API hiccup — quietly stay hidden rather than show a broken block
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Trending Collections (24h volume) — replaces the old ad-slot promo card in  */
+/* the empty-state area below the search prompt.                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+const TRENDING_SHOW      = 7;
+const TRENDING_WINDOW_MS = 24 * 60 * 60 * 1000;
+const TRENDING_CACHE_KEY = 'explore_trending_collections_cache';
+const TRENDING_CACHE_TTL = 10 * 60 * 1000; // 24h window moves faster than Popular's 7d one — refetch more often
+
+async function fetchTrendingCollections() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(TRENDING_CACHE_KEY) || 'null');
+    if (cached && cached.limit === TRENDING_SHOW && Date.now() - cached.ts < TRENDING_CACHE_TTL) return cached.data;
+  } catch {}
+  const after = Date.now() - TRENDING_WINDOW_MS;
+  const data = await WaxApi.apiFetch(`${WaxApi.marketBase()}/stats/collections?symbol=WAX&sort=volume&order=desc&limit=${TRENDING_SHOW}&after=${after}`);
+  const precision = data?.symbol?.token_precision ?? 8;
+  const results = (data?.results || [])
+    .map(r => ({ collection_name: r.collection_name, name: r.name || r.collection_name, img: r.img || '', volume: Number(r.volume || 0) / (10 ** precision) }))
+    .filter(r => r.volume > 0);
+  try { sessionStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ ts: Date.now(), limit: TRENDING_SHOW, data: results })); } catch {}
+  return results;
+}
+
+function trendingRowHtml(c, i) {
+  const img = c.img
+    ? `<img src="${IPFS_GW}${escHtml(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'trending-row-ph'}))">`
+    : '<div class="trending-row-ph"></div>';
+  const usd = _waxUsd ? `<span class="trending-row-usd">≈ $${(c.volume * _waxUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>` : '';
+  return `<a class="trending-row" href="collection/${encodeURIComponent(c.collection_name)}">
+    <span class="trending-row-rank">${i + 1}</span>
+    ${img}
+    <div class="trending-row-info">
+      <span class="trending-row-name">${escHtml(c.name)}</span>
+      <span class="trending-row-slug">${escHtml(c.collection_name)}</span>
+    </div>
+    <div class="trending-row-vol">
+      <span class="trending-row-wax">${c.volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} WAX</span>
+      ${usd}
+    </div>
+  </a>`;
+}
+
+async function renderTrendingCollections() {
+  const $el = document.getElementById('trendingCollections');
+  try {
+    const [rows] = await Promise.all([fetchTrendingCollections(), fetchWaxUsd()]);
+    $el.innerHTML = rows.length ? `<div class="trending-collections-card">
+      <div class="trending-collections-title">Trending Collections on WAX <span>Last 24h volume</span></div>
+      ${rows.map(trendingRowHtml).join('')}
+    </div>` : '';
+  } catch { $el.innerHTML = ''; } // API hiccup — quietly stay empty rather than show a broken block
 }
 
 function renderQuickAccess() {
@@ -4384,6 +4451,7 @@ loadCartFromStorage();
 renderTray();
 updateSelCount();
 renderQuickAccess();
+renderTrendingCollections();
 restoreFromUrl();
 
 // Browser Back/Forward restoring this page from bfcache resumes this exact

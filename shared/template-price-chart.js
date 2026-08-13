@@ -9,8 +9,7 @@
    with just a different templateId/collectionName and their own empty
    container div. Injects its own markup into that one container; CSS lives
    in shared/global.css under the .tpc- prefix (not page-local <style>,
-   since this is now a real shared component — same convention as
-   shared/ad-slot.js).
+   since this is now a real shared component).
 
    Usage: TemplatePriceChart.mount({ containerId, templateId, collectionName })
 */
