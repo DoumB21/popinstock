@@ -491,9 +491,37 @@
       }));
     }
 
+    // inventory.html (path segment OR ?wallet=) and inventory-activity.html
+    // (?wallet= only) pin whichever wallet is being viewed into the URL, so a
+    // read-only view of someone ELSE's inventory survives a wallet switch
+    // elsewhere on the page (both pages give the URL wallet priority over
+    // the connected one for exactly that reason). But when the pinned
+    // wallet is the one we're switching AWAY from — i.e. this was "my own"
+    // inventory, just cosmetically pinned, not an intentional stranger-view
+    // — a plain reload would land back in a stale read-only view of the old
+    // wallet instead of the new one. Detected generically by URL shape
+    // rather than checking for these two filenames, so any future page
+    // adopting the same ?wallet= convention gets this for free. Returns
+    // null when nothing needs adjusting, i.e. a plain reload is correct.
+    function _walletSwitchUrl(prevAcc, newAcc) {
+      if (!prevAcc) return null;
+      const prev = prevAcc.toLowerCase();
+      const pathMatch = location.pathname.match(/^(.*\/inventory)\/([^/]+)\/?$/i);
+      if (pathMatch && decodeURIComponent(pathMatch[2]).toLowerCase() === prev) {
+        return pathMatch[1] + '/' + encodeURIComponent(newAcc) + location.search;
+      }
+      const qs = new URLSearchParams(location.search);
+      if ((qs.get('wallet') || '').toLowerCase() === prev) {
+        qs.set('wallet', newAcc);
+        return location.pathname + '?' + qs.toString();
+      }
+      return null;
+    }
+
     linkedWalletsEl.addEventListener('click', async e => {
       const btn = e.target.closest('.nav-wax-wallet-item[data-actor]');
       if (!btn || btn.disabled) return;
+      const prevAcc = window.getWaxAccount();
       btn.disabled = true;
       try {
         await _loadWaxAuth(authScript);
@@ -501,10 +529,14 @@
       } catch (err) {
         alert(err && err.message ? err.message : 'Could not switch wallet.');
         btn.disabled = false;
+        return;
       }
-      // wax-auth-change fires from switchTo() on success and re-renders this
-      // widget (balance/badges/this list included), so no manual re-render
-      // here — only the failure path needs to re-enable the button itself.
+      // Reload so the current page's data (inventory, mint rankings, trade
+      // analyzer, etc.) reflects the newly active wallet instead of stale
+      // data fetched for the previous one.
+      const redirectUrl = _walletSwitchUrl(prevAcc, btn.dataset.actor);
+      if (redirectUrl) location.href = redirectUrl;
+      else location.reload();
     });
 
     // A host page that cosmetically rewrites its own URL to look one
