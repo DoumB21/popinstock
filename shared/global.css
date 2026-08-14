@@ -1721,6 +1721,29 @@ footer {
   border-top: 1px solid var(--border);
 }
 
+.footer-socials {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.footer-socials a {
+  display: inline-flex;
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.footer-socials a:hover {
+  color: var(--accent-light);
+}
+
+.footer-socials svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 
 /* ── Responsive ── */
 @media (max-width: 540px) {

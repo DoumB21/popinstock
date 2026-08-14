@@ -149,3 +149,13 @@ const GENERIC_NAV_LINKS = [
     document.body.scrollTop = 0;
   });
 })();
+
+// Canonical site footer (shared/footer.js) — every link inside it is an
+// absolute URL, so unlike shared/global-search.js above this needs no `_p`
+// prefix handling for the mount call itself, only for locating the script.
+(function buildFooter() {
+  const s = document.createElement('script');
+  s.src = (window._p || '') + 'shared/footer.js';
+  s.onload = () => buildSharedFooter();
+  document.head.appendChild(s);
+})();

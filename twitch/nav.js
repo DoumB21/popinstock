@@ -97,13 +97,9 @@ function buildBackToTop() {
   });
 }
 
-function buildFooter() {
-  const footer = document.createElement('footer');
-  footer.innerHTML = `
-    &copy; 2026 Hoardio &mdash; All rights reserved.
-    <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
-  `;
-  document.body.appendChild(footer);
+async function buildFooter() {
+  if (!window.buildSharedFooter) await _loadScriptOnce('../shared/footer.js');
+  buildSharedFooter();
 }
 
 /* ── WAX Auth ─────────────────────────────────────────────────────────────── */
