@@ -21,6 +21,7 @@
   <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
   <link rel="stylesheet" href="shared/global.css" />
   <script src="shared/supabase-config.js"></script>
+  <script src="shared/wax-api.js"></script>
   <script src="shared/settings.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
@@ -255,26 +256,6 @@
 // were copied from a page that needed it live.
 const _p = '';
 
-// Asset inventory queries — official endpoint times out on sort=transferred from JS, use alternates first
-const ATOMIC_ENDPOINTS = [
-  'https://wax.eosusa.io',
-  'https://atomic.wax.detroitledger.tech',
-  'https://atomic.hivebp.io',
-  'https://atomic.sentnl.io',
-  'https://atomic-api.wax.cryptolions.io',
-  'https://wax-atomic.alcor.exchange',
-  'https://atomic.wax.eosrio.io',
-  'https://api.waxsweden.org',
-  'https://wax-aa.eu.eosamsterdam.net',
-  'https://wax.api.atomicassets.io',
-  'https://wax-atomic-api.eosphere.io',
-];
-let _endpointIdx = 0;
-function atomicApi() { return ATOMIC_ENDPOINTS[_endpointIdx % ATOMIC_ENDPOINTS.length]; }
-
-// Market/sales queries — official endpoint has the freshest index; no CORS timeout here
-const MARKET_API = 'https://wax.api.atomicassets.io';
-
 const PAGE_SIZE  = 18;
 
 // Hardcoded — this page only ever shows one wallet's inventory, read-only.
@@ -325,23 +306,6 @@ const RARITY_CLASS = {
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Helpers                                                                    */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
-async function fetchWithRetry(url, retries = 2) {
-  let currentUrl = url;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch(currentUrl);
-      if ((res.status !== 408 && res.status !== 429 && res.status !== 503) || attempt === retries) return res;
-    } catch (err) {
-      if (attempt === retries) throw err;
-    }
-    // rotate to next provider and patch the URL
-    const oldBase = ATOMIC_ENDPOINTS.find(ep => currentUrl.startsWith(ep)) || ATOMIC_ENDPOINTS[0];
-    _endpointIdx++;
-    currentUrl = currentUrl.replace(oldBase, atomicApi());
-    await new Promise(r => setTimeout(r, 400));
-  }
-}
 
 function imgUrl(hash) {
   if (!hash) return '';
@@ -455,8 +419,8 @@ function attachCardEvents(card, asset) {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 const _assetPopup = AssetPopup.mount({
-  aaBase: () => atomicApi() + '/atomicassets/v1',
-  apiFetch: url => fetchWithRetry(url).then(r => r.json()).then(j => j.data),
+  aaBase: WaxApi.aaBase,
+  apiFetch: WaxApi.apiFetch,
   // Defaults are root-relative — need the _p prefix here since this page
   // itself can be loaded one level deep via /inventory/:wallet.
   collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
@@ -497,12 +461,11 @@ function assetPopupData(asset) {
 async function fetchSchemasForCollection(collection) {
   if (_schemaCache[collection]) return _schemaCache[collection];
   try {
-    const url  = `${atomicApi()}/atomicassets/v1/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
-    const res  = await fetchWithRetry(url);
-    const json = await res.json();
+    const url  = `${WaxApi.aaBase()}/schemas?collection_name=${encodeURIComponent(collection)}&limit=100`;
+    const data = await WaxApi.apiFetch(url);
     const formats = {};
     const assetCounts = {};
-    for (const s of (json.data || [])) {
+    for (const s of (data || [])) {
       // Lowercased for the same reason field data is normalized in
       // fetchTemplatesForCollection — a declared type must be looked up by
       // the same canonical key candidateNames uses, or a schema declaring
@@ -512,7 +475,7 @@ async function fetchSchemasForCollection(collection) {
     }
     _schemaFormatCache[collection] = formats;
     _schemaAssetCountCache[collection] = assetCounts;
-    const schemas = (json.data || []).map(s => s.schema_name).sort();
+    const schemas = (data || []).map(s => s.schema_name).sort();
     _schemaCache[collection] = schemas;
     return schemas;
   } catch {
@@ -528,11 +491,10 @@ async function fetchWalletSchemaCounts(wallet, collection) {
   const key = `${wallet}|${collection}`;
   if (_walletSchemaCountCache[key]) return _walletSchemaCountCache[key];
   try {
-    const url  = `${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(collection)}`;
-    const res  = await fetchWithRetry(url);
-    const json = await res.json();
+    const url  = `${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}/${encodeURIComponent(collection)}`;
+    const data = await WaxApi.apiFetch(url);
     const counts = {};
-    for (const s of (json.data?.schemas || [])) counts[s.schema_name] = Number(s.assets) || 0;
+    for (const s of (data?.schemas || [])) counts[s.schema_name] = Number(s.assets) || 0;
     _walletSchemaCountCache[key] = counts;
     return counts;
   } catch {
@@ -552,15 +514,14 @@ async function fetchWalletTemplateCounts(collection) {
   try {
     let page = 1;
     while (true) {
-      const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(PRIZE_WALLET)}&collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
-      const res  = await fetchWithRetry(url);
-      const json = await res.json();
-      if (!json.success || !json.data.length) break;
-      for (const a of json.data) {
+      const url  = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(PRIZE_WALLET)}&collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
+      const data = await WaxApi.apiFetch(url);
+      if (!data || !data.length) break;
+      for (const a of data) {
         const tid = a.template?.template_id;
         if (tid) counts[tid] = (counts[tid] || 0) + 1;
       }
-      if (json.data.length < 1000) break;
+      if (data.length < 1000) break;
       page++;
     }
   } catch { /* fall through with whatever was collected — updateTemplateFilter's hasCounts check handles an empty result */ }
@@ -697,11 +658,10 @@ async function fetchTemplatesForCollection(collection) {
   let page = 1;
   while (true) {
     try {
-      const url  = `${atomicApi()}/atomicassets/v1/templates?collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
-      const res  = await fetchWithRetry(url);
-      const json = await res.json();
-      if (!json.success || !json.data.length) break;
-      for (const t of json.data) {
+      const url  = `${WaxApi.aaBase()}/templates?collection_name=${encodeURIComponent(collection)}&limit=1000&page=${page}`;
+      const data = await WaxApi.apiFetch(url);
+      if (!data || !data.length) break;
+      for (const t of data) {
         all.push({
           template_id: t.template_id,
           schema_name: t.schema?.schema_name || '',
@@ -709,7 +669,7 @@ async function fetchTemplatesForCollection(collection) {
           data:        normalizeFieldData(t.immutable_data),
         });
       }
-      if (json.data.length < 1000) break;
+      if (data.length < 1000) break;
       page++;
     } catch { break; }
   }
@@ -1165,8 +1125,8 @@ function collectionHasAssetLevelSchema(collection) {
 // the AtomicAssets API's own pre-merged view (template immutable_data +
 // asset immutable_data + asset mutable_data, asset-level wins), confirmed
 // live to be present on the bulk /assets endpoint, not just single-asset
-// lookups. Pages fetched in parallel batches, each request seeded to a
-// different node from ATOMIC_ENDPOINTS, so a scan is a handful of
+// lookups. Pages fetched in parallel batches, each request fanned out to a
+// different node via WaxApi.aaBases(), so a scan is a handful of
 // round-trips instead of dozens of sequential ones. Capped at
 // ASSET_SCAN_MAX_PAGES (20,000 assets) — comfortably above a typical 10k
 // PFP drop; beyond that this is a representative sample, not exhaustive,
@@ -1189,15 +1149,15 @@ function fetchAssetDataForSchema(collection, schema) {
     while (!done && page <= ASSET_SCAN_MAX_PAGES) {
       const batchPages = [];
       for (let i = 0; i < ASSET_SCAN_BATCH_SIZE && page + i <= ASSET_SCAN_MAX_PAGES; i++) batchPages.push(page + i);
+      const bases = WaxApi.aaBases(batchPages.length);
       const results = await Promise.all(batchPages.map((p, i) => {
-        const base = ATOMIC_ENDPOINTS[i % ATOMIC_ENDPOINTS.length];
-        const url  = `${base}/atomicassets/v1/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`;
-        return fetchWithRetry(url).then(res => res.json()).catch(() => ({ success: false, data: [] }));
+        const url = `${bases[i % bases.length]}/assets?collection_name=${encodeURIComponent(collection)}&schema_name=${encodeURIComponent(schema)}&sort=asset_id&order=asc&limit=${ASSET_SCAN_PAGE_LIMIT}&page=${p}`;
+        return WaxApi.apiFetch(url).catch(() => []);
       }));
-      for (const json of results) {
-        if (!json.success || !json.data || !json.data.length) { done = true; continue; }
-        for (const a of json.data) all.push(a.data || {});
-        if (json.data.length < ASSET_SCAN_PAGE_LIMIT) done = true;
+      for (const data of results) {
+        if (!data || !data.length) { done = true; continue; }
+        for (const a of data) all.push(a.data || {});
+        if (data.length < ASSET_SCAN_PAGE_LIMIT) done = true;
       }
       page += ASSET_SCAN_BATCH_SIZE;
     }
@@ -1557,11 +1517,8 @@ async function fetchAllMatchingAssets(whitelist, onProgress) {
   const all = [];
   let page = 1;
   while (true) {
-    const url  = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(PRIZE_WALLET)}&limit=1000&page=${page}&sort=transferred&order=desc${colParam}${schemaParam}${matchParam}${whitelistParam}`;
-    const res  = await fetchWithRetry(url);
-    const json = await res.json();
-    if (!json.success) throw new Error('API error');
-    const batch = json.data || [];
+    const url  = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(PRIZE_WALLET)}&limit=1000&page=${page}&sort=transferred&order=desc${colParam}${schemaParam}${matchParam}${whitelistParam}`;
+    const batch = (await WaxApi.apiFetch(url)) || [];
     all.push(...batch);
     if (onProgress) onProgress(all.length);
     if (batch.length < 1000) break;
@@ -1754,11 +1711,9 @@ function onColFilterChange(val) {
 
 async function fetchAllCollections(wallet) {
   try {
-    const res  = await fetchWithRetry(`${atomicApi()}/atomicassets/v1/accounts/${encodeURIComponent(wallet)}`);
-    const json = await res.json();
-    if (!json.success) return;
-    if (json.data?.assets != null) _totalAssets = json.data.assets;
-    for (const entry of (json.data?.collections || [])) {
+    const data = await WaxApi.apiFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`);
+    if (data?.assets != null) _totalAssets = data.assets;
+    for (const entry of (data?.collections || [])) {
       const col = entry.collection;
       if (!col?.collection_name) continue;
       _collections.add(col.collection_name);
@@ -1900,25 +1855,16 @@ async function loadAssets(reset = false) {
     const mintMinParam   = _filterMintMin ? `&min_template_mint=${_filterMintMin}` : '';
     const mintMaxParam   = _filterMintMax ? `&max_template_mint=${_filterMintMax}` : '';
     const matchParam     = _filterText    ? `&match=${encodeURIComponent(_filterText)}` : '';
-    const baseUrl        = `${atomicApi()}/atomicassets/v1/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=transferred&order=desc${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}`;
+    const baseUrl        = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&limit=${PAGE_SIZE}&sort=transferred&order=desc${colParam}${schemaParam}${whitelistParam}${mintMinParam}${mintMaxParam}${matchParam}`;
 
     let batch = [];
 
     if (reset) {
-      const r1 = await fetchWithRetry(`${baseUrl}&page=1`);
-      if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
-      const j1 = await r1.json();
-      if (!j1.success) throw new Error(j1.message || 'API error');
-
-      batch    = j1.data || [];
+      batch    = (await WaxApi.apiFetch(`${baseUrl}&page=1`)) || [];
       _hasMore = batch.length === PAGE_SIZE;
       _page    = 2;
     } else {
-      const res = await fetchWithRetry(`${baseUrl}&page=${_page}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message || 'API error');
-      batch    = json.data || [];
+      batch    = (await WaxApi.apiFetch(`${baseUrl}&page=${_page}`)) || [];
       _hasMore = batch.length === PAGE_SIZE;
       _page++;
     }

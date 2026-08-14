@@ -18,11 +18,8 @@
     'https://api.waxsweden.org',
     'https://wax-aa.eu.eosamsterdam.net',
     'https://atomic.wax.eosrio.io',
-    'https://atomic.sentnl.io',
     'https://wax-atomic-api.eosphere.io',
-    'https://atomic.hivebp.io',
     'https://wax.eosusa.io',              // fast /health, but real queries 429 heavily — see note above
-    'https://atomic-api.wax.cryptolions.io',
   ];
 
   const RETRY          = new Set([429, 503, 408]);
