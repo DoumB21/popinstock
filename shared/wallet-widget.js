@@ -260,6 +260,7 @@
         <button id="navWaxName" class="nav-wax-name" type="button"></button>
         <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
           <div id="navWaxMenuBalance" class="nav-wax-menu-balance"></div>
+          <div id="navWaxLinkedWallets" class="nav-wax-linked-wallets" style="display:none;"></div>
           ${menuHtml}
           <div class="nav-wax-menu-divider"></div>
           <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button"><span class="nav-wax-menu-icon">↪</span>Logout</button>
@@ -279,6 +280,7 @@
     const offersBadge = wrap.querySelector('#navOffersBadge');
     const buyOffersBtn   = wrap.querySelector('#navBuyOffersBtn');
     const buyOffersBadge = wrap.querySelector('#navBuyOffersBadge');
+    const linkedWalletsEl = wrap.querySelector('#navWaxLinkedWallets');
     // Captured now, from two separate scopes — `wrap` is still a detached
     // node at this point (the move-into-navInner loop below hasn't run
     // yet), so `document.querySelectorAll` on its own cannot see the
@@ -442,6 +444,50 @@
       _writeCachedBuyOffersCount(acc, n);
     }
 
+    // Only appears with 2+ linked wallets — nothing to switch to with just
+    // the one that's already active. Reads WaxAuth.getLinkedAccounts(), the
+    // same WharfKit multi-session list profile.html's Linked Wallets tab
+    // manages (link/unlink stay there — this is just a quick-switch shortcut).
+    function _escWax(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    async function _renderLinkedWallets() {
+      if (!window.WaxAuth) return;
+      let wallets;
+      try { wallets = await WaxAuth.getLinkedAccounts(); } catch { wallets = []; }
+      if (wallets.length < 2) {
+        linkedWalletsEl.style.display = 'none';
+        linkedWalletsEl.innerHTML = '';
+        return;
+      }
+      linkedWalletsEl.innerHTML = '<div class="nav-wax-menu-label">Linked Wallets</div>' +
+        wallets.map(w => {
+          const actor = _escWax(w.actor);
+          const short = _waxShort(w.actor);
+          if (w.isActive) {
+            return `<div class="nav-wax-menu-item nav-wax-wallet-item nav-wax-wallet-item--active"><span class="nav-wax-menu-icon">✓</span>${short}</div>`;
+          }
+          return `<button type="button" class="nav-wax-menu-item nav-wax-wallet-item" data-actor="${actor}" data-permission="${_escWax(w.permission)}"><span class="nav-wax-menu-icon">◦</span>${short}</button>`;
+        }).join('') +
+        '<div class="nav-wax-menu-divider"></div>';
+      linkedWalletsEl.style.display = '';
+    }
+
+    linkedWalletsEl.addEventListener('click', async e => {
+      const btn = e.target.closest('.nav-wax-wallet-item[data-actor]');
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      try {
+        await _loadWaxAuth(authScript);
+        await WaxAuth.switchTo(btn.dataset.actor, btn.dataset.permission);
+      } catch (err) {
+        alert(err && err.message ? err.message : 'Could not switch wallet.');
+        btn.disabled = false;
+      }
+      // wax-auth-change fires from switchTo() on success and re-renders this
+      // widget (balance/badges/this list included), so no manual re-render
+      // here — only the failure path needs to re-enable the button itself.
+    });
+
     // A host page that cosmetically rewrites its own URL to look one
     // directory level deeper after the fact (history.replaceState, no real
     // navigation — inventory.html does this once it pins the connected
@@ -505,6 +551,7 @@
         _refreshOffersCount(acc, false).catch(() => {});
         _paintCachedBuyOffersCount(acc);
         _refreshBuyOffersCount(acc, false).catch(() => {});
+        _renderLinkedWallets().catch(() => {});
         if (!_balancePoll) {
           _balancePoll = setInterval(() => {
             const cur = window.getWaxAccount();
@@ -529,6 +576,8 @@
         _lastBuyOffersAcc = undefined;
         _haveLiveBuyOffersCount = false;
         buyOffersBadge.style.display = 'none';
+        linkedWalletsEl.style.display = 'none';
+        linkedWalletsEl.innerHTML = '';
         clearInterval(_balancePoll);
         _balancePoll = null;
       }

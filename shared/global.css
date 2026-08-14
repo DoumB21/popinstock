@@ -443,6 +443,17 @@ body::before {
 .nav-wax-menu-logout { color: rgba(224, 82, 82, 0.8); }
 .nav-wax-menu-logout:hover { background: rgba(224, 82, 82, 0.12); color: #e05252; }
 
+.nav-wax-menu-label {
+  padding: 0.5rem 0.8rem 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.nav-wax-wallet-item--active { color: var(--accent-light); cursor: default; }
+.nav-wax-wallet-item--active:hover { background: none; color: var(--accent-light); }
+
 
 /* ── Page layout ── */
 .page {
