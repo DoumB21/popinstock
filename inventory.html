@@ -5342,6 +5342,25 @@ function closeBulkMenu() {
   document.getElementById('bulkActionChip')?.classList.remove('open');
 }
 
+// Pack collections don't agree on how they name this custom attribute, OR
+// whether the value includes a URL scheme — confirmed live: mlb.topps/packs
+// uses key "unpack_url" with value "toppsmlb.com/unpack" (no scheme, which
+// window.open() would otherwise resolve relative to the CURRENT page
+// instead of navigating away), while tmnt.funko/packs.drop uses key
+// "unpack url" (a literal space) with a full https:// URL already. Matches
+// the key by normalized shape rather than one fixed name, and always forces
+// a scheme onto the value.
+function resolveUnpackUrl(data) {
+  if (!data) return null;
+  for (const k in data) {
+    if (!/^unpack[\s_-]*url$/i.test(k)) continue;
+    const v = String(data[k] || '').trim();
+    if (!v) continue;
+    return /^https?:\/\//i.test(v) ? v : 'https://' + v;
+  }
+  return null;
+}
+
 /* ── Per-card "⋮" quick-action menu ──
    Only Transfer/Gift link/Burn/Back with tokens live here — List/Edit and
    Cancel already have their own dedicated button per card (openModal). ── */
@@ -5360,13 +5379,20 @@ function toggleCardActionMenu(btnEl, asset) {
   closeCardActionMenu();
   if (wasOpenForThis) return;
   _cardMenuAssetId = String(asset.asset_id);
-  menu.innerHTML = CARD_MENU_ACTIONS.map(a =>
+  // Unpack only shows for assets carrying an unpack-url-shaped attribute
+  // (some pack collections put this directly in the asset's merged data) —
+  // there's no universal on-chain unpack action, so this just opens
+  // whatever off-chain flow that collection points to, in a new tab.
+  const unpackUrl = resolveUnpackUrl(asset.data);
+  const actions = unpackUrl ? [{ key: 'unpack', label: 'Unpack' }, ...CARD_MENU_ACTIONS] : CARD_MENU_ACTIONS;
+  menu.innerHTML = actions.map(a =>
     `<div class="bulk-action-item" data-action="${a.key}"><span>${a.label}</span></div>`
   ).join('');
   menu.querySelectorAll('.bulk-action-item').forEach(item => {
     item.addEventListener('click', () => {
       const action = item.dataset.action;
       closeCardActionMenu();
+      if (action === 'unpack') { window.open(unpackUrl, '_blank', 'noopener'); return; }
       openSingleItemModal(asset.asset_id, action);
     });
   });

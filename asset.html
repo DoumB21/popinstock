@@ -226,6 +226,7 @@
             <div class="tpl-listing-val" id="astLowestListing">—</div>
           </div>
           <div style="display:flex; align-items:center; gap:1rem;">
+            <button type="button" class="tpl-offer-btn" id="astUnpackBtn" style="display:none;">Unpack</button>
             <button type="button" class="tpl-offer-btn" id="astOfferBtn" style="display:none;">Make Offer</button>
             <a class="tpl-market-link" id="astMarketLink" href="#">View on Market</a>
           </div>
@@ -269,6 +270,25 @@ function walletLinkHtml(account) {
   return `<a href="${_p}inventory/${encodeURIComponent(account)}" class="wallet-link">${escHtml(account)}</a>`;
 }
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+
+// Pack collections don't agree on how they name this custom attribute, OR
+// whether the value includes a URL scheme — confirmed live: mlb.topps/packs
+// uses key "unpack_url" with value "toppsmlb.com/unpack" (no scheme, which
+// window.open() would otherwise resolve relative to the CURRENT page
+// instead of navigating away), while tmnt.funko/packs.drop uses key
+// "unpack url" (a literal space) with a full https:// URL already. Matches
+// the key by normalized shape rather than one fixed name, and always forces
+// a scheme onto the value.
+function resolveUnpackUrl(data) {
+  if (!data) return null;
+  for (const k in data) {
+    if (!/^unpack[\s_-]*url$/i.test(k)) continue;
+    const v = String(data[k] || '').trim();
+    if (!v) continue;
+    return /^https?:\/\//i.test(v) ? v : 'https://' + v;
+  }
+  return null;
+}
 
 // Same markdown-link / bare-URL scan as template.html's own copy — Template
 // Attributes values often carry a URL (markdown-style [label](url) or a
@@ -472,6 +492,24 @@ async function loadHeader() {
   }
   syncOfferBtn();
   window.addEventListener('wax-auth-change', syncOfferBtn);
+
+  // Unpack — some pack collections carry an unpack-url-shaped attribute
+  // (in the same merged `data` view as everything else below) pointing to
+  // whatever off-chain unpacking flow that collection uses; there's no
+  // universal on-chain unpack action. Owner-gated the same way as
+  // syncOfferBtn, just the opposite condition — only the actual owner can
+  // do anything useful by unpacking it.
+  const unpackUrl = resolveUnpackUrl(data);
+  function syncUnpackBtn() {
+    const btn = document.getElementById('astUnpackBtn');
+    if (!unpackUrl || isBurned) { btn.style.display = 'none'; return; }
+    const acc = window.getWaxAccount ? window.getWaxAccount() : null;
+    btn.style.display = (acc && acc === asset.owner) ? '' : 'none';
+  }
+  syncUnpackBtn();
+  window.addEventListener('wax-auth-change', syncUnpackBtn);
+  document.getElementById('astUnpackBtn').onclick = () => window.open(unpackUrl, '_blank', 'noopener');
+
   document.getElementById('astOfferBtn').onclick = () => _offerModal.open({
     templateId: _templateId,
     collectionName: _collectionName,
