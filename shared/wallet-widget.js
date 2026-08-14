@@ -260,9 +260,9 @@
         <button id="navWaxName" class="nav-wax-name" type="button"></button>
         <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
           <div id="navWaxMenuBalance" class="nav-wax-menu-balance"></div>
-          <div id="navWaxLinkedWallets" class="nav-wax-linked-wallets" style="display:none;"></div>
           ${menuHtml}
           <div class="nav-wax-menu-divider"></div>
+          <div id="navWaxLinkedWallets" class="nav-wax-linked-wallets" style="display:none;"></div>
           <button id="navWaxLogout" class="nav-wax-menu-item nav-wax-menu-logout" type="button"><span class="nav-wax-menu-icon">↪</span>Logout</button>
         </div>
       </div>
@@ -444,32 +444,51 @@
       _writeCachedBuyOffersCount(acc, n);
     }
 
-    // Only appears with 2+ linked wallets — nothing to switch to with just
-    // the one that's already active. Reads WaxAuth.getLinkedAccounts(), the
-    // same WharfKit multi-session list profile.html's Linked Wallets tab
-    // manages (link/unlink stay there — this is just a quick-switch shortcut).
+    // Only the OTHER linked wallets are listed — the active one is already
+    // shown as the connected account, so listing it again would be dead
+    // weight. That means this only ever appears once there's something to
+    // switch to (2+ total sessions), and stays invisible for the common
+    // single-wallet visitor until they link a second one on profile.html.
     function _escWax(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    // actor -> formatted balance HTML, fetched once per actor per page load
+    // (not refetched on every re-render — switching shouldn't re-hit the
+    // chain RPC/CoinGecko for a wallet already fetched). Mirrors
+    // profile.html's _linkedBalances cache for its own Linked Wallets tab.
+    const _linkedBalancesCache = {};
 
     async function _renderLinkedWallets() {
       if (!window.WaxAuth) return;
       let wallets;
       try { wallets = await WaxAuth.getLinkedAccounts(); } catch { wallets = []; }
-      if (wallets.length < 2) {
+      const others = wallets.filter(w => !w.isActive);
+      if (!others.length) {
         linkedWalletsEl.style.display = 'none';
         linkedWalletsEl.innerHTML = '';
         return;
       }
       linkedWalletsEl.innerHTML = '<div class="nav-wax-menu-label">Linked Wallets</div>' +
-        wallets.map(w => {
+        others.map(w => {
           const actor = _escWax(w.actor);
           const short = _waxShort(w.actor);
-          if (w.isActive) {
-            return `<div class="nav-wax-menu-item nav-wax-wallet-item nav-wax-wallet-item--active"><span class="nav-wax-menu-icon">✓</span>${short}</div>`;
-          }
-          return `<button type="button" class="nav-wax-menu-item nav-wax-wallet-item" data-actor="${actor}" data-permission="${_escWax(w.permission)}"><span class="nav-wax-menu-icon">◦</span>${short}</button>`;
+          const bal = _linkedBalancesCache[w.actor] || '';
+          return `<button type="button" class="nav-wax-menu-item nav-wax-wallet-item" data-actor="${actor}" data-permission="${_escWax(w.permission)}">` +
+            `<span class="nav-wax-menu-icon">${_WALLET_ICON}</span>` +
+            `<span class="nav-wax-wallet-info"><span class="nav-wax-wallet-name">${short}</span><span class="nav-wax-wallet-balance" data-actor="${actor}">${bal}</span></span>` +
+            `</button>`;
         }).join('') +
         '<div class="nav-wax-menu-divider"></div>';
       linkedWalletsEl.style.display = '';
+
+      const unfetched = others.filter(w => !(w.actor in _linkedBalancesCache));
+      if (!unfetched.length) return;
+      const rate = await _fetchWaxUsdRate();
+      await Promise.all(unfetched.map(async w => {
+        const wax = await _fetchWaxBalance(w.actor);
+        _linkedBalancesCache[w.actor] = wax == null ? '' : _fmtBalance(wax, rate);
+        const el = linkedWalletsEl.querySelector(`.nav-wax-wallet-balance[data-actor="${CSS.escape(w.actor)}"]`);
+        if (el) el.innerHTML = _linkedBalancesCache[w.actor];
+      }));
     }
 
     linkedWalletsEl.addEventListener('click', async e => {
