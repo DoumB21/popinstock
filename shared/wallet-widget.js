@@ -492,26 +492,23 @@
     }
 
     // inventory.html (path segment OR ?wallet=) and inventory-activity.html
-    // (?wallet= only) pin whichever wallet is being viewed into the URL, so a
-    // read-only view of someone ELSE's inventory survives a wallet switch
-    // elsewhere on the page (both pages give the URL wallet priority over
-    // the connected one for exactly that reason). But when the pinned
-    // wallet is the one we're switching AWAY from — i.e. this was "my own"
-    // inventory, just cosmetically pinned, not an intentional stranger-view
-    // — a plain reload would land back in a stale read-only view of the old
-    // wallet instead of the new one. Detected generically by URL shape
-    // rather than checking for these two filenames, so any future page
-    // adopting the same ?wallet= convention gets this for free. Returns
-    // null when nothing needs adjusting, i.e. a plain reload is correct.
-    function _walletSwitchUrl(prevAcc, newAcc) {
-      if (!prevAcc) return null;
-      const prev = prevAcc.toLowerCase();
+    // (?wallet= only) pin whichever wallet is being viewed into the URL —
+    // that's what makes those pages browsable for ANY wallet (e.g. arriving
+    // via the sitewide search on someone else's account), and it takes
+    // priority over the connected wallet by design. Picking a wallet from
+    // this quick-switch list means "take me to that wallet's own page" no
+    // matter whose page we're currently on, so the pin is unconditionally
+    // replaced with the newly active wallet — not just when it happened to
+    // match whichever wallet was previously connected. Detected generically
+    // by URL shape rather than checking for these two filenames, so any
+    // future page adopting the same ?wallet= convention gets this for free.
+    // Returns null when the current URL has no wallet in it at all, i.e. a
+    // plain reload is correct (the page will pick up the new wallet itself).
+    function _walletSwitchUrl(newAcc) {
       const pathMatch = location.pathname.match(/^(.*\/inventory)\/([^/]+)\/?$/i);
-      if (pathMatch && decodeURIComponent(pathMatch[2]).toLowerCase() === prev) {
-        return pathMatch[1] + '/' + encodeURIComponent(newAcc) + location.search;
-      }
+      if (pathMatch) return pathMatch[1] + '/' + encodeURIComponent(newAcc) + location.search;
       const qs = new URLSearchParams(location.search);
-      if ((qs.get('wallet') || '').toLowerCase() === prev) {
+      if (qs.has('wallet')) {
         qs.set('wallet', newAcc);
         return location.pathname + '?' + qs.toString();
       }
@@ -521,7 +518,6 @@
     linkedWalletsEl.addEventListener('click', async e => {
       const btn = e.target.closest('.nav-wax-wallet-item[data-actor]');
       if (!btn || btn.disabled) return;
-      const prevAcc = window.getWaxAccount();
       btn.disabled = true;
       try {
         await _loadWaxAuth(authScript);
@@ -534,7 +530,7 @@
       // Reload so the current page's data (inventory, mint rankings, trade
       // analyzer, etc.) reflects the newly active wallet instead of stale
       // data fetched for the previous one.
-      const redirectUrl = _walletSwitchUrl(prevAcc, btn.dataset.actor);
+      const redirectUrl = _walletSwitchUrl(btn.dataset.actor);
       if (redirectUrl) location.href = redirectUrl;
       else location.reload();
     });
