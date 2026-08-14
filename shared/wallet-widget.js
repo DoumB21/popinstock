@@ -444,11 +444,12 @@
       _writeCachedBuyOffersCount(acc, n);
     }
 
-    // Only the OTHER linked wallets are listed — the active one is already
-    // shown as the connected account, so listing it again would be dead
-    // weight. That means this only ever appears once there's something to
-    // switch to (2+ total sessions), and stays invisible for the common
-    // single-wallet visitor until they link a second one on profile.html.
+    // Only the OTHER linked wallets are listed below the header — the active
+    // one is already shown as the connected account, so listing it again
+    // would be dead weight. The header itself (label + "+" to link another)
+    // always shows once connected, even with zero others, so a single-wallet
+    // visitor can discover the feature instead of it staying fully invisible
+    // until they've already found profile.html's Linked Wallets tab.
     function _escWax(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
     // actor -> formatted balance HTML, fetched once per actor per page load
@@ -458,16 +459,20 @@
     const _linkedBalancesCache = {};
 
     async function _renderLinkedWallets() {
-      if (!window.WaxAuth) return;
-      let wallets;
-      try { wallets = await WaxAuth.getLinkedAccounts(); } catch { wallets = []; }
-      const others = wallets.filter(w => !w.isActive);
-      if (!others.length) {
+      if (!window.WaxAuth) {
         linkedWalletsEl.style.display = 'none';
         linkedWalletsEl.innerHTML = '';
         return;
       }
-      linkedWalletsEl.innerHTML = '<div class="nav-wax-menu-label">Linked Wallets</div>' +
+      let wallets;
+      try { wallets = await WaxAuth.getLinkedAccounts(); } catch { wallets = []; }
+      const others = wallets.filter(w => !w.isActive);
+      // 10-wallet cap matches profile.html's Linked Wallets tab (WharfKit
+      // multi-session storage isn't validated to scale past that there).
+      const atCap = wallets.length >= 10;
+      const linkBtnHtml = `<button type="button" class="nav-wax-link-btn"${atCap ? ' disabled title="Wallet link limit reached (10)"' : ' title="Link another wallet"'}>+</button>`;
+      linkedWalletsEl.innerHTML =
+        `<div class="nav-wax-linked-header"><span class="nav-wax-menu-label">Linked Wallets</span>${linkBtnHtml}</div>` +
         others.map(w => {
           const actor = _escWax(w.actor);
           const short = _waxShort(w.actor);
@@ -516,6 +521,26 @@
     }
 
     linkedWalletsEl.addEventListener('click', async e => {
+      const linkBtn = e.target.closest('.nav-wax-link-btn');
+      if (linkBtn) {
+        if (linkBtn.disabled) return;
+        linkBtn.disabled = true;
+        try {
+          await _loadWaxAuth(authScript);
+          const newAcc = await WaxAuth.login();
+          // Linking makes the new wallet active immediately (same as
+          // switchTo), so it gets the same reload/URL-follow treatment.
+          const redirectUrl = _walletSwitchUrl(newAcc);
+          if (redirectUrl) location.href = redirectUrl;
+          else location.reload();
+        } catch {
+          // Cancelled or failed — same silent handling as the main Connect
+          // Wallet button's own login() call, no alert for a closed modal.
+          linkBtn.disabled = false;
+        }
+        return;
+      }
+
       const btn = e.target.closest('.nav-wax-wallet-item[data-actor]');
       if (!btn || btn.disabled) return;
       btn.disabled = true;
