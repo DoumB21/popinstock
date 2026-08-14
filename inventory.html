@@ -6499,6 +6499,13 @@ async function onWalletChange() {
   }
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('toolbar').style.display  = '';
+  // fetchAllCollections() below is a background fetch — on a slow connection
+  // the Collection combo would otherwise sit there with no placeholder and
+  // no listeners wired (buildCbCombo has never run yet) until it resolves,
+  // which reads as broken rather than loading. This wires it up immediately
+  // with a "loading" sentinel; updateColFilter() overwrites it with the real
+  // list once fetchAllCollections resolves.
+  buildCbCombo('colCombo', [{ value: 'all', label: 'Loading collections…' }], 'all', () => {});
   document.getElementById('bulkToolbar').style.display = _readOnly ? 'none' : '';
   document.getElementById('activityTabs').style.display = '';
   document.body.classList.toggle('inv-readonly', _readOnly);
