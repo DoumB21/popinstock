@@ -331,6 +331,15 @@
     tabs.forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
 
     input.addEventListener('input', () => {
+      // Lowercase in place (same convention as every other wallet-input
+      // field site-wide, e.g. funko/wallet.html's walletInput) — mobile
+      // keyboards auto-capitalize the first character, and WAX account
+      // names are case-sensitive, so an uncorrected capital silently
+      // breaks the Wallets tab's exact-match lookup. Harmless for the
+      // Collections tab too since that search is already case-insensitive.
+      const { selectionStart, selectionEnd } = input;
+      input.value = input.value.toLowerCase();
+      input.setSelectionRange(selectionStart, selectionEnd);
       clearBtn.style.display = input.value ? '' : 'none';
       clearTimeout(_debT);
       _debT = setTimeout(runActiveTabSearch, DEBOUNCE_MS);
