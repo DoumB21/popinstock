@@ -171,6 +171,8 @@
     .trending-row-vol { text-align: right; flex-shrink: 0; margin-left: 0.5rem; }
     .trending-row-wax { display: block; font-size: 0.94rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
     .trending-row-usd { display: block; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; }
+    .trending-promo { display: block; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .trending-promo img { display: block; width: 100%; height: auto; }
     .results-status { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; min-height: 1.2em; }
     /* grid-column spans #cardsGrid's columns so these render centered across
        the full grid width instead of being squeezed into a single grid-item
@@ -1440,9 +1442,13 @@ async function renderPopular() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/* Trending Collections (24h volume) — replaces the old ad-slot promo card in  */
-/* the empty-state area below the search prompt.                              */
+/* Trending Collections (24h volume) vs. a sponsor promo — whichever fills the */
+/* empty-state area below the search prompt. Set PROMO below to switch to a   */
+/* clickable sponsor image; leave it null to show the Trending list.          */
 /* ─────────────────────────────────────────────────────────────────────────── */
+const PROMO = null;
+// const PROMO = { href: 'https://example.com', img: 'https://…' };
+
 const TRENDING_SHOW      = 7;
 const TRENDING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const TRENDING_CACHE_KEY = 'explore_trending_collections_cache';
@@ -1484,6 +1490,10 @@ function trendingRowHtml(c, i) {
 
 async function renderTrendingCollections() {
   const $el = document.getElementById('trendingCollections');
+  if (PROMO) {
+    $el.innerHTML = `<a class="trending-promo" href="${escHtml(PROMO.href)}" target="_blank" rel="noopener"><img src="${escHtml(PROMO.img)}" alt=""></a>`;
+    return;
+  }
   try {
     const [rows] = await Promise.all([fetchTrendingCollections(), fetchWaxUsd()]);
     $el.innerHTML = rows.length ? `<div class="trending-collections-card">
