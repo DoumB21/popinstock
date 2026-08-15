@@ -154,6 +154,7 @@
   <script src="shared/wallet-menu.js"></script>
   <script src="shared/tx-error.js"></script>
   <script src="shared/atomic-packs.js"></script>
+  <script src="shared/nefty-packs.js"></script>
   <script src="shared/asset-popup.js"></script>
 </head>
 <body>
@@ -586,8 +587,7 @@ async function runReveal(ctx) {
   _popupLocked = true;
   updatePopupLockUi();
   try {
-    const result = await ctx.claim(msg => { if (_reveal === ctx) packPopupLoadingText.textContent = msg; });
-    const minted = AtomicPacks.extractMintedAssets(result);
+    const { minted } = await ctx.claim(msg => { if (_reveal === ctx) packPopupLoadingText.textContent = msg; });
     ctx.done = true;
     ctx.onClaimed(minted);
     if (_reveal === ctx) {
@@ -631,7 +631,10 @@ packPopupRetryBtn.addEventListener('click', () => {
 // retrying every 2s up to 30s, THEN signs+broadcasts the actual claim. Used
 // by both entry points — the Unclaimed section's packs aren't guaranteed
 // ready either, they just don't get the "intro" framing since they weren't
-// unboxed in this same page visit.
+// unboxed in this same page visit. Returns { result, minted } — every
+// provider's claim function shares this same return contract (see
+// claimWithRevealNefty below) so runReveal doesn't need to know which
+// provider it's dealing with at all.
 async function claimWithReveal(wallet, assetId, onProgress) {
   const POLL_MS = 2000, TIMEOUT_MS = 30000;
   const start = Date.now();
@@ -654,7 +657,53 @@ async function claimWithReveal(wallet, assetId, onProgress) {
     }
   }
   onProgress('Confirm in your wallet…');
-  return WaxAuth.transact([claimAction]);
+  const result = await WaxAuth.transact([claimAction]);
+  return { result, minted: AtomicPacks.extractMintedAssets(result) };
+}
+
+// NeftyBlocks companion to claimWithReveal above — same poll/sign shape,
+// but a NeftyBlocks claim's resolved payload (shared/nefty-packs.js's
+// fetchClaimRow) already tells us exactly what we're receiving BEFORE we
+// even claim: POOL_NFT_CLAIM entries transfer an already-existing asset (no
+// mint trace to read — its asset_id is already known, so its display data
+// is fetched directly, no indexing-lag risk since it isn't new), while
+// ON_DEMAND_NFT_CLAIM entries mint fresh at claim time exactly like every
+// AtomicPacks card, so the SAME AtomicPacks.extractMintedAssets trace-
+// reader is reused as-is for that half — it only looks for atomicassets::
+// logmint traces and doesn't care which contract triggered them. FT_CLAIM
+// (a fungible-token reward) and EMPTY_CLAIM (a real possible outcome —
+// confirmed live via a real pack's own description warning openers it may
+// contain nothing) aren't NFT cards, so they're simply not added to the
+// results grid; a pack that rolled only those still correctly falls back to
+// renderResultsGrid's own "Claimed — check your inventory" empty state.
+async function claimWithRevealNefty(wallet, assetId, onProgress) {
+  const POLL_MS = 2000, TIMEOUT_MS = 30000;
+  const start = Date.now();
+  let claimRow = null;
+  onProgress('Waiting for reveal…');
+  for (;;) {
+    claimRow = await NeftyPacks.fetchClaimRow(assetId);
+    if (claimRow) break;
+    if (Date.now() - start >= TIMEOUT_MS) {
+      const e = new Error('Still revealing — this is taking longer than usual. Try again in a bit, or check Unclaimed Packs after reloading.');
+      e.code = 'NOT_READY_TIMEOUT';
+      throw e;
+    }
+    await new Promise(r => setTimeout(r, POLL_MS));
+    if ((window.getWaxAccount ? window.getWaxAccount() : null) !== wallet) {
+      const e = new Error('Wallet changed — try again.');
+      e.code = 'NOT_READY_TIMEOUT';
+      throw e;
+    }
+  }
+  const claimAction = await NeftyPacks.buildClaimAction(wallet, assetId);
+  onProgress('Confirm in your wallet…');
+  const result = await WaxAuth.transact([claimAction]);
+  onProgress('Finalizing…');
+  const mintedFromTrace = AtomicPacks.extractMintedAssets(result);
+  const poolAssetIds = claimRow.claims.filter(c => c.kind === 'POOL_NFT_CLAIM' && !c.isClaimed).map(c => c.asset_id);
+  const poolAssets = (await Promise.all(poolAssetIds.map(fetchAssetBrief))).filter(Boolean).map(leanAsset);
+  return { result, minted: [...mintedFromTrace, ...poolAssets] };
 }
 
 /* ── Unclaimed Packs — unscoped (every collection at once), loaded once
@@ -666,18 +715,27 @@ async function claimWithReveal(wallet, assetId, onProgress) {
    load; a pack abandoned mid-flow (tab closed between Unbox and Claim)
    surfaces here the next time the page is actually loaded. ── */
 async function loadUnclaimed(wallet) {
-  const rows = await AtomicPacks.fetchUnclaimedPacks(wallet);
+  const [atomicRows, neftyEntries] = await Promise.all([
+    AtomicPacks.fetchUnclaimedPacks(wallet),
+    NeftyPacks.fetchUnclaimedEntries(wallet),
+  ]);
   const entries = [];
-  for (const row of rows) {
+  for (const row of atomicRows) {
     const pack = await AtomicPacks.lookupPackByPackId(row.pack_id);
     if (!pack) continue; // shouldn't happen, but don't let one bad row break the section
-    entries.push({ row, pack });
+    entries.push({ row: { pack_asset_id: row.pack_asset_id }, pack, provider: 'atomicpacks' });
+  }
+  for (const ne of neftyEntries) {
+    // No registry lookup needed here — fetchUnclaimedEntries already carries
+    // collection_name straight off the orngjobs/claimassets row itself, and
+    // that's the only field buildUnclaimedCard actually reads off `pack`.
+    entries.push({ row: { pack_asset_id: ne.pack_asset_id }, pack: { collection_name: ne.collection_name }, provider: 'neftyblocks' });
   }
   return entries;
 }
 
 function buildUnclaimedCard(entry) {
-  const { row, pack } = entry;
+  const { row, pack, provider } = entry;
   const card = document.createElement('div');
   card.className = 'pack-card';
   card.dataset.packAssetId = row.pack_asset_id;
@@ -694,13 +752,14 @@ function buildUnclaimedCard(entry) {
     </div>
   `;
   const btn = card.querySelector('[data-claim]');
-  btn.addEventListener('click', () => claimPack(row.pack_asset_id, pack, card, btn));
+  btn.addEventListener('click', () => claimPack(row.pack_asset_id, pack, card, btn, provider));
 
   // Best-effort enrich with the asset's own name/image/mint — it's
-  // currently owned by atomicpacksx, not this wallet, but AtomicAssets
-  // still tracks its data. Not blocking the card's initial render. Mint
-  // badge, floor price, and the hover popup all need the real resolved
-  // data, so they're wired here too rather than up front.
+  // currently owned by the pack contract (atomicpacksx or neftyblocksp,
+  // depending on provider), not this wallet, but AtomicAssets still tracks
+  // its data regardless of current owner. Not blocking the card's initial
+  // render. Mint badge, floor price, and the hover popup all need the real
+  // resolved data, so they're wired here too rather than up front.
   fetchAssetBrief(row.pack_asset_id).then(asset => {
     if (!asset) return;
     const lean = leanAsset(asset);
@@ -737,16 +796,17 @@ function checkUnclaimedEmpty() {
 // to announce (unlike the inline Packs-section flow, see
 // openCardRevealPopup). Resets its own button on cancel/early-dismiss since
 // the popup only owns the shared overlay UI, not this card's state.
-function claimPack(packAssetId, pack, cardEl, btn) {
+function claimPack(packAssetId, pack, cardEl, btn, provider) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) return;
   btn.disabled = true;
   btn.textContent = 'Claiming…';
   const resetBtn = () => { btn.disabled = false; btn.textContent = 'Claim'; };
+  const claimFn = provider === 'neftyblocks' ? claimWithRevealNefty : claimWithReveal;
   openRevealPopup({
     assetId: packAssetId,
     startStage: 'loading',
-    claim: onProgress => claimWithReveal(wallet, packAssetId, onProgress),
+    claim: onProgress => claimFn(wallet, packAssetId, onProgress),
     onClaimed: () => { cardEl.remove(); checkUnclaimedEmpty(); },
     onCancelReset: resetBtn,
     onDismissReset: resetBtn,
@@ -790,11 +850,12 @@ let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
 
 async function loadPackCollectionsList(wallet) {
-  const [ownedRes, packCollectionNames] = await Promise.all([
+  const [ownedRes, atomicCollectionNames, neftyCollectionNames] = await Promise.all([
     WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
     AtomicPacks.getPackCollections(),
+    NeftyPacks.getPackCollections(),
   ]);
-  const packSet = new Set(packCollectionNames);
+  const packSet = new Set([...atomicCollectionNames, ...neftyCollectionNames]);
   const candidates = (ownedRes?.data?.collections || [])
     .filter(e => e.collection?.collection_name && packSet.has(e.collection.collection_name))
     .map(e => ({
@@ -817,13 +878,23 @@ async function loadPackCollectionsList(wallet) {
   // flag isn't safe there; the dedicated sub-route is) — so an exact count
   // is actually cheaper here than the old capped approximation was. Bounded
   // concurrency since this can be dozens of collections' worth of requests.
+  //
+  // Both providers' template ids are merged into ONE combined whitelist —
+  // the picker's "(N)" count is meant to read as "how many packs do I own
+  // in this collection", not scoped to a particular pack contract, so a
+  // wallet with both an AtomicPacks pack and a NeftyBlocks pack in the same
+  // collection sees one honest total rather than two separate numbers.
   const CONCURRENCY = 10;
   const owns = new Array(candidates.length).fill(false);
   let idx = 0;
   async function worker() {
     while (idx < candidates.length) {
       const i = idx++;
-      const templateIds = await AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name);
+      const [atomicIds, neftyIds] = await Promise.all([
+        AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
+        NeftyPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
+      ]);
+      const templateIds = [...new Set([...atomicIds, ...neftyIds])];
       if (!templateIds.length) continue;
       try {
         const count = await WaxApi.apiFetch(
@@ -963,8 +1034,9 @@ function renderCollectionPicker(currentValue) {
 // Unbox — no network call, no re-running loadPackCollectionsList's whole
 // discovery+ownership-check pass (that's the "full refetch" this exists to
 // avoid). The unboxed pack asset genuinely leaves the wallet the moment the
-// unbox transfer confirms (goes to atomicpacksx), regardless of whether it's
-// claimed yet, so decrementing right there keeps the picker honest without
+// unbox transfer confirms (goes to whichever pack contract is handling it —
+// atomicpacksx or neftyblocksp), regardless of whether it's claimed yet, so
+// decrementing right there keeps the picker honest without
 // waiting for a claim or a reload. Once a collection's count reaches 0 it's
 // dropped from the list entirely — same "only show collections you still
 // own a pack in" rule loadPackCollectionsList itself applies at discovery
@@ -1013,16 +1085,25 @@ async function loadPacksForCollection(wallet, collectionName) {
   // Resolve pack-ness per DISTINCT template only — a collector owning many
   // copies of the same pack template only costs one lookup, not one per
   // asset. lookupPackByTemplateId shares one registry fetch across every
-  // call (see shared/atomic-packs.js), so firing them all at once is free —
-  // no manual concurrency limiting needed.
+  // call (see shared/atomic-packs.js / shared/nefty-packs.js), so firing
+  // them all at once is free — no manual concurrency limiting needed. Tries
+  // AtomicPacks first, then NeftyBlocks — a template_id can only ever be a
+  // real registered template under one collection on one contract, so the
+  // two never genuinely compete for the same id in practice.
   const distinctIds = [...byTemplate.keys()];
-  const packRows = await Promise.all(distinctIds.map(tid => AtomicPacks.lookupPackByTemplateId(tid)));
+  const [atomicRows, neftyRows] = await Promise.all([
+    Promise.all(distinctIds.map(tid => AtomicPacks.lookupPackByTemplateId(tid))),
+    Promise.all(distinctIds.map(tid => NeftyPacks.lookupPackByTemplateId(tid))),
+  ]);
 
   const entries = [];
   distinctIds.forEach((tid, i) => {
-    const pack = packRows[i];
+    const atomicPack = atomicRows[i];
+    const neftyPack = neftyRows[i];
+    const pack = atomicPack || neftyPack;
     if (!pack) return;
-    for (const asset of byTemplate.get(tid)) entries.push({ asset, pack });
+    const provider = atomicPack ? 'atomicpacks' : 'neftyblocks';
+    for (const asset of byTemplate.get(tid)) entries.push({ asset, pack, provider });
   });
   return entries;
 }
@@ -1178,12 +1259,14 @@ function checkPacksEmpty() {
 }
 
 // The actual on-chain action is still "unbox" (atomicassets::transfer with
-// memo "unbox", see shared/atomic-packs.js) — only the user-facing label
-// changed to "Unpack" to match the rest of this page's wording. As soon as
-// that signature lands, the card flips to "Show Cards" and the reveal
-// popup opens on its own — per explicit request, the actual claim (the
-// oracle wait + the second signature) only ever runs from that popup's own
-// "Show Cards" click, never automatically.
+// memo "unbox" to whichever pack contract owns this template — atomicpacksx
+// or neftyblocksp, both use the identical transfer-with-memo mechanism, see
+// shared/atomic-packs.js / shared/nefty-packs.js) — only the user-facing
+// label changed to "Unpack" to match the rest of this page's wording. As
+// soon as that signature lands, the card flips to "Show Cards" and the
+// reveal popup opens on its own — per explicit request, the actual claim
+// (the oracle wait + the second signature) only ever runs from that
+// popup's own "Show Cards" click, never automatically.
 async function unboxPackFromCard(entry, card, btn, statusEl) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) return;
@@ -1193,13 +1276,17 @@ async function unboxPackFromCard(entry, card, btn, statusEl) {
   statusEl.textContent = '';
   statusEl.className = 'pack-card-status';
   try {
-    await WaxAuth.transact([AtomicPacks.buildUnboxAction(wallet, assetId)]);
+    const unboxAction = entry.provider === 'neftyblocks'
+      ? NeftyPacks.buildUnboxAction(wallet, assetId)
+      : AtomicPacks.buildUnboxAction(wallet, assetId);
+    await WaxAuth.transact([unboxAction]);
     card.dataset.stage = 'claimable';
     btn.textContent = 'Show Cards';
     btn.disabled = false;
     // The pack asset itself already left the wallet at this point (transferred
-    // to atomicpacksx by the unbox action above) — correct the picker's own
-    // count right away rather than waiting for a claim or a reload.
+    // to whichever pack contract handled the unbox action above) — correct
+    // the picker's own count right away rather than waiting for a claim or a
+    // reload.
     decrementPackCollectionCount(_selectedCollection);
     openCardRevealPopup(entry, card, btn);
   } catch (err) {
@@ -1226,10 +1313,11 @@ function openCardRevealPopup(entry, card, btn) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) return;
   const assetId = entry.asset.asset_id;
+  const claimFn = entry.provider === 'neftyblocks' ? claimWithRevealNefty : claimWithReveal;
   openRevealPopup({
     assetId,
     startStage: 'intro',
-    claim: onProgress => claimWithReveal(wallet, assetId, onProgress),
+    claim: onProgress => claimFn(wallet, assetId, onProgress),
     onClaimed: () => removeClaimedPackCard(entry, card),
   });
 }
