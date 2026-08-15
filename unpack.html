@@ -343,7 +343,8 @@ async function claimPack(packAssetId, pack, cardEl, btn, statusEl) {
   statusEl.textContent = '';
   statusEl.className = 'pack-card-status';
   try {
-    const result = await WaxAuth.transact([AtomicPacks.buildClaimAction(wallet, packAssetId, pack.roll_counter)]);
+    const claimAction = await AtomicPacks.buildClaimAction(wallet, packAssetId);
+    const result = await WaxAuth.transact([claimAction]);
     cardEl.remove();
     checkUnclaimedEmpty();
     showPackResultsPopup(AtomicPacks.extractMintedAssets(result));
@@ -759,8 +760,8 @@ async function unboxPackFromCard(entry, card, btn, statusEl) {
     await WaxAuth.transact([AtomicPacks.buildUnboxAction(wallet, assetId)]);
     btn.textContent = 'Waiting…';
     statusEl.textContent = 'Waiting for reveal…';
-    const row = await pollForCardUnclaimed(wallet, assetId);
-    if (!row) {
+    const ready = await pollForClaimReady(wallet, assetId);
+    if (!ready) {
       // Degrades gracefully: the pack asset already left the wallet (it
       // was transferred to atomicpacksx), so this exact button can't be
       // used again — but the Unclaimed Packs section above will still pick
@@ -770,7 +771,6 @@ async function unboxPackFromCard(entry, card, btn, statusEl) {
       btn.textContent = 'Unboxed';
       return;
     }
-    entry.unclaimedRow = row; // { pack_asset_id, pack_id, unboxer } — needed by claimPackFromCard
     card.dataset.stage = 'claimable';
     statusEl.textContent = '';
     btn.textContent = 'Claim';
@@ -791,30 +791,34 @@ async function unboxPackFromCard(entry, card, btn, statusEl) {
 
 // Bounded poll after Unpack — the oracle callback usually resolves in
 // 2-5s, but isn't always reliable (a real pack sat unresolved for 3+
-// months in earlier testing). Scoped to one asset_id rather than the whole
-// Unclaimed Packs section (see that section's own comment for why).
-async function pollForCardUnclaimed(wallet, assetId) {
+// months in earlier testing). Polls AtomicPacks.fetchOriginRollIds (the
+// `unboxassets` table, scoped by this exact asset_id) rather than
+// fetchUnclaimedPacks/`unboxpacks` — confirmed live that `unboxpacks` is
+// written at Unbox time, BEFORE the oracle resolves, so its existence
+// alone isn't proof a claim would actually succeed yet; `unboxassets`
+// populated (non-empty) is the real "ready to claim" signal.
+async function pollForClaimReady(wallet, assetId) {
   const POLL_MS = 2000, TIMEOUT_MS = 30000;
   const start = Date.now();
   while (Date.now() - start < TIMEOUT_MS) {
     await new Promise(r => setTimeout(r, POLL_MS));
-    if ((window.getWaxAccount ? window.getWaxAccount() : null) !== wallet) return null; // wallet changed mid-poll
-    const rows = await AtomicPacks.fetchUnclaimedPacks(wallet);
-    const row = rows.find(r => String(r.pack_asset_id) === String(assetId));
-    if (row) return row;
+    if ((window.getWaxAccount ? window.getWaxAccount() : null) !== wallet) return false; // wallet changed mid-poll
+    const ids = await AtomicPacks.fetchOriginRollIds(assetId);
+    if (ids.length) return true;
   }
-  return null;
+  return false;
 }
 
 async function claimPackFromCard(entry, card, btn, statusEl) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (!wallet || !entry.unclaimedRow) return;
+  if (!wallet) return;
   btn.disabled = true;
   btn.textContent = 'Claiming…';
   statusEl.textContent = '';
   statusEl.className = 'pack-card-status';
   try {
-    const result = await WaxAuth.transact([AtomicPacks.buildClaimAction(wallet, entry.unclaimedRow.pack_asset_id, entry.pack.roll_counter)]);
+    const claimAction = await AtomicPacks.buildClaimAction(wallet, entry.asset.asset_id);
+    const result = await WaxAuth.transact([claimAction]);
     const idx = _packEntries.indexOf(entry);
     if (idx !== -1) { _packEntries.splice(idx, 1); _packVisible--; }
     card.remove();

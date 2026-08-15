@@ -19,11 +19,23 @@
                     to request randomness from orng.wax.
         b. Wait:   usually 2-5s for the oracle callback, not always reliable
                     (a real pack sat unboxed 3+ months without resolving).
+                    Once resolved, the oracle callback populates a row per
+                    roll in the `unboxassets` table, SCOPED BY the pack's own
+                    asset_id — {origin_roll_id, template_id} per row. This is
+                    the actual claim payload; see (c).
         c. Claim:  atomicpacksx::claimunboxed(pack_asset_id, origin_roll_ids).
-                    origin_roll_ids is NOT looked up anywhere — it's just
-                    [0..roll_counter-1], built from the pack's own
-                    definition (confirmed: a roll_counter:1 pack's claim
-                    used origin_roll_ids:[0]).
+                    origin_roll_ids is READ from `unboxassets` (scope =
+                    pack_asset_id), NOT synthesized — confirmed live this
+                    was a real bug: `packs.roll_counter` is NOT a reliable
+                    roll count (a real pack showed roll_counter:9 while its
+                    actual `packrolls` definition — and its real, AtomicHub-
+                    confirmed working claim — only had 8 rolls, ids 1-8, not
+                    0-8). roll_id is a globally-incrementing id (see the
+                    `identifier` table) assigned across the whole contract's
+                    history, not reset to 0 per pack, which is also why an
+                    early pack's single roll can legitimately be id 0 while
+                    a later pack's rolls start well above 0 — there is no
+                    general 0-indexed pattern to synthesize at all.
 
    unboxpacks (one row per unboxed-but-unclaimed pack) has a secondary index
    on unboxer, confirmed working live — that's what fetchUnclaimedPacks uses,
@@ -107,6 +119,10 @@
       pack_id: Number(r.pack_id),
       pack_template_id: Number(r.pack_template_id),
       collection_name: r.collection_name,
+      // NOT used for claimunboxed's origin_roll_ids — confirmed live this
+      // field can't be trusted as an actual roll count (see the big
+      // comment at the top of this file). Kept only as loose display
+      // metadata.
       roll_counter: Number(r.roll_counter) || 1,
       unlock_time: Number(r.unlock_time) || 0,
     };
@@ -225,9 +241,26 @@
     };
   }
 
-  function buildClaimAction(walletAccount, packAssetId, rollCounter) {
-    const n = Math.max(1, Number(rollCounter) || 1);
-    const originRollIds = Array.from({ length: n }, (_, i) => i);
+  // The oracle callback (after Unbox) writes one row per rolled slot into
+  // `unboxassets`, scoped by the pack's own asset_id — {origin_roll_id,
+  // template_id}. That's the actual claim payload; an empty result means
+  // the oracle hasn't resolved yet (claimunboxed would have nothing to
+  // consume), which the caller should treat as "not ready", not "no
+  // rolls". Exported on its own (not just used internally by
+  // buildClaimAction) since it's also the correct thing to poll after
+  // Unbox — `unboxpacks` (what fetchUnclaimedPacks reads) is written at
+  // unbox time, BEFORE the oracle resolves, so its mere existence isn't
+  // proof a claim would actually succeed yet.
+  async function fetchOriginRollIds(packAssetId) {
+    const json = await _getTableRows({
+      code: 'atomicpacksx', scope: String(packAssetId), table: 'unboxassets', limit: 1000,
+    });
+    return (json.rows || []).map(r => Number(r.origin_roll_id));
+  }
+
+  async function buildClaimAction(walletAccount, packAssetId) {
+    const originRollIds = await fetchOriginRollIds(packAssetId);
+    if (!originRollIds.length) throw new Error('Not ready to claim yet — the reveal hasn’t finished. Try again in a moment.');
     return {
       account: 'atomicpacksx', name: 'claimunboxed',
       authorization: [{ actor: walletAccount, permission: 'active' }],
@@ -343,6 +376,7 @@
     lookupPackByTemplateId,
     lookupPackByPackId,
     fetchUnclaimedPacks,
+    fetchOriginRollIds,
     getPackCollections,
     getPackTemplateIdsByCollection,
     buildUnboxAction,
