@@ -306,11 +306,20 @@
   // actually own a PACK in this collection" (via an AtomicAssets
   // template_whitelist filter) rather than assuming ownership of anything
   // in a pack-bearing collection means owning a pack specifically.
+  //
+  // pack_template_id: -1 is a real, fairly common sentinel in the live
+  // packs table (confirmed live — 183+ rows in the first 1000 checked) used
+  // by pack configs with no actual mintable template representing the
+  // unopened pack itself (old/test/broken setups, mostly). No real
+  // AtomicAssets template can ever be -1, so a wallet can never own one —
+  // filtered out here so callers never build a guaranteed-zero-result
+  // template_whitelist=-1 query against a collection whose only registered
+  // "packs" are all sentinel rows.
   async function getPackTemplateIdsByCollection(collectionName) {
     try {
       const reg = await _getRegistry();
       return Object.values(reg.byPackId)
-        .filter(r => r.collection_name === collectionName)
+        .filter(r => r.collection_name === collectionName && r.pack_template_id > 0)
         .map(r => r.pack_template_id);
     } catch { return []; }
   }
