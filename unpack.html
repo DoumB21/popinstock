@@ -485,7 +485,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && packResult
 function renderResultsGrid(minted) {
   packResultGrid.innerHTML = minted.length
     ? minted.map(a => `
-        <a class="pr-card" href="/asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener">
+        <a class="pr-card" href="asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener">
           <div class="pr-card-media">${packMediaHtml(a)}</div>
           <div class="pr-card-name" title="${escHtml(a.name || 'Card')}">${escHtml(a.name || 'Card')}</div>
         </a>
