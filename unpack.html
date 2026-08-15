@@ -716,6 +716,13 @@ let _packCollections = [];
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
 
+// Display cap for a collection's pack count in the picker — shared between
+// the initial discovery fetch and decrementPackCollectionCount (below),
+// which needs the exact same capping rule to keep counting down through
+// "100+" consistently rather than just freezing at the capped label.
+const PACK_COUNT_CAP = 100;
+function formatOwnedCount(n) { return n > PACK_COUNT_CAP ? `${PACK_COUNT_CAP}+` : n; }
+
 async function loadPackCollectionsList(wallet) {
   const [ownedRes, packCollectionNames] = await Promise.all([
     WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
@@ -741,7 +748,6 @@ async function loadPackCollectionsList(wallet) {
   // something that needs to be exact past that point. Bounded concurrency
   // since this can be dozens of collections' worth of individual requests.
   const CONCURRENCY = 10;
-  const COUNT_CAP = 100;
   const owns = new Array(candidates.length).fill(false);
   let idx = 0;
   async function worker() {
@@ -751,12 +757,12 @@ async function loadPackCollectionsList(wallet) {
       if (!templateIds.length) continue;
       try {
         const rows = await WaxApi.apiFetch(
-          `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}&limit=${COUNT_CAP + 1}`
+          `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}&limit=${PACK_COUNT_CAP + 1}`
         );
         const n = rows ? rows.length : 0;
         owns[i] = n > 0;
         candidates[i]._rawCount = n; // kept numeric for sorting — ownedCount below may become a capped display string
-        candidates[i].ownedCount = n > COUNT_CAP ? `${COUNT_CAP}+` : n;
+        candidates[i].ownedCount = formatOwnedCount(n);
       } catch { /* couldn't confirm — leave it out rather than risk showing an empty collection */ }
     }
   }
@@ -881,6 +887,34 @@ function renderCollectionPicker(currentValue) {
     const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
     if (wallet) selectPackCollection(wallet, val);
   });
+}
+
+// Cheap, local correction for the picker's "(N)" count right after a real
+// Unbox — no network call, no re-running loadPackCollectionsList's whole
+// discovery+ownership-check pass (that's the "full refetch" this exists to
+// avoid). The unboxed pack asset genuinely leaves the wallet the moment the
+// unbox transfer confirms (goes to atomicpacksx), regardless of whether it's
+// claimed yet, so decrementing right there keeps the picker honest without
+// waiting for a claim or a reload. Once a collection's count reaches 0 it's
+// dropped from the list entirely — same "only show collections you still
+// own a pack in" rule loadPackCollectionsList itself applies at discovery
+// time (see 4bff7c2). The Packs grid below is untouched by this — a card
+// mid-flow (Unpacked, not yet claimed) stays visible until actually
+// claimed, per the existing in-place-card behavior; this only corrects the
+// picker's own count/list.
+function decrementPackCollectionCount(collectionName) {
+  const idx = _packCollections.findIndex(c => c.collection_name === collectionName);
+  if (idx === -1) return;
+  const col = _packCollections[idx];
+  const rawCount = (typeof col._rawCount === 'number' ? col._rawCount : Number(col.ownedCount)) || 0;
+  const nextCount = Math.max(0, rawCount - 1);
+  if (nextCount === 0) {
+    _packCollections.splice(idx, 1);
+  } else {
+    col._rawCount = nextCount;
+    col.ownedCount = formatOwnedCount(nextCount);
+  }
+  renderCollectionPicker(_selectedCollection);
 }
 
 // Groups by template_id AND reduces to leanAsset() in the same pass over
@@ -1093,6 +1127,10 @@ async function unboxPackFromCard(entry, card, btn, statusEl) {
     card.dataset.stage = 'claimable';
     btn.textContent = 'Show Cards';
     btn.disabled = false;
+    // The pack asset itself already left the wallet at this point (transferred
+    // to atomicpacksx by the unbox action above) — correct the picker's own
+    // count right away rather than waiting for a claim or a reload.
+    decrementPackCollectionCount(_selectedCollection);
     openCardRevealPopup(entry, card, btn);
   } catch (err) {
     const info = describeTxError(err);
