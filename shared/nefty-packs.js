@@ -95,7 +95,18 @@
      pack concepts per its createvoidpp/createproxyp actions), and no real
      AtomicAssets template can ever be <= 0, so keeping such rows would only
      ever produce guaranteed-zero template_whitelist queries downstream. */
-  const REGISTRY_CACHE_KEY = 'hoardio_neftyblocks_registry_v1';
+  // v2: bumped to force-invalidate any cache written before this fix — a
+  // real user hit a live case (confirmed via their own browser console)
+  // where their cached registry was missing a genuine on-chain pack
+  // (digitalducks template 544047, pack_id 912) despite it being present in
+  // both the raw chain data AND a completely fresh fetch — the exact same
+  // class of bug atomic-packs.js's own v1->v2 bump addressed. Root cause
+  // not conclusively pinned down (a transient partial-page fetch SHOULD
+  // have been caught by the `complete` guard below and never written to
+  // localStorage at all, yet their cache clearly lacked this entry) — the
+  // version bump sidesteps needing to know exactly how, by guaranteeing
+  // every existing cache gets one guaranteed-fresh refetch regardless.
+  const REGISTRY_CACHE_KEY = 'hoardio_neftyblocks_registry_v2';
   const REGISTRY_TTL_MS = 30 * 60 * 1000;
   const REGISTRY_PAGE = 1000;
 
