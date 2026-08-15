@@ -126,7 +126,7 @@
       transition: border-color 0.15s;
     }
     .pr-card:hover { border-color: var(--border-hover); }
-    .pr-card-media { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); }
+    .pr-card-media { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); position: relative; }
     .pr-card-media img, .pr-card-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .pr-card-name {
       font-size: 0.82rem; font-weight: 600; padding: 0.5rem 0.6rem; text-align: center;
@@ -521,12 +521,49 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && packResult
 function renderResultsGrid(minted) {
   packResultGrid.innerHTML = minted.length
     ? minted.map(a => `
-        <a class="pr-card" href="asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener">
+        <a class="pr-card" href="asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener" data-asset-id="${escHtml(a.asset_id)}">
           <div class="pr-card-media">${packMediaHtml(a)}</div>
           <div class="pr-card-name" title="${escHtml(a.name || 'Card')}">${escHtml(a.name || 'Card')}</div>
         </a>
       `).join('')
     : '<div class="pr-empty">Claimed — check your inventory for the new cards.</div>';
+  if (minted.length) loadResultMintNumbers(minted);
+}
+
+// The claim transaction's own trace (see AtomicPacks.extractMintedAssets)
+// carries everything logmint's action data actually has — name/img/etc —
+// but NOT a mint number: template_mint isn't part of that on-chain action
+// at all, it's a value the AtomicAssets indexer computes by counting mints
+// of a template, so it can only ever come from a follow-up API call, not
+// the broadcast itself (this is exactly the indexing-lag window the trace-
+// reading approach was originally chosen to avoid for name/img — mint
+// number has no such shortcut). Best-effort backfill after the instant
+// render: the asset was JUST minted in this exact transaction, so the
+// indexer may not have it yet — retries a few times with a short delay
+// (same shape as this page's own oracle-wait polling) rather than giving
+// up after one immediate miss. Silently leaves the badge off if it never
+// resolves — a missing mint number here is cosmetic, not worth an error UI.
+async function fetchMintNumberWithRetry(assetId) {
+  const ATTEMPTS = 5, DELAY_MS = 1500;
+  for (let i = 0; i < ATTEMPTS; i++) {
+    const asset = await fetchAssetBrief(assetId);
+    if (asset?.template_mint) return asset.template_mint;
+    if (i < ATTEMPTS - 1) await new Promise(r => setTimeout(r, DELAY_MS));
+  }
+  return null;
+}
+function loadResultMintNumbers(minted) {
+  minted.forEach(a => {
+    fetchMintNumberWithRetry(a.asset_id).then(mint => {
+      if (!mint) return;
+      const mediaEl = packResultGrid.querySelector(`[data-asset-id="${CSS.escape(String(a.asset_id))}"] .pr-card-media`);
+      if (!mediaEl) return; // popup closed/re-rendered since — nothing to update
+      const badge = document.createElement('span');
+      badge.className = 'pack-card-mint';
+      badge.textContent = '#' + mint;
+      mediaEl.appendChild(badge);
+    });
+  });
 }
 
 // ctx: { assetId, startStage: 'intro'|'loading', claim(onProgress) -> Promise<transactResult>,
@@ -752,13 +789,6 @@ let _packCollections = [];
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
 
-// Display cap for a collection's pack count in the picker — shared between
-// the initial discovery fetch and decrementPackCollectionCount (below),
-// which needs the exact same capping rule to keep counting down through
-// "100+" consistently rather than just freezing at the capped label.
-const PACK_COUNT_CAP = 100;
-function formatOwnedCount(n) { return n > PACK_COUNT_CAP ? `${PACK_COUNT_CAP}+` : n; }
-
 async function loadPackCollectionsList(wallet) {
   const [ownedRes, packCollectionNames] = await Promise.all([
     WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
@@ -774,15 +804,19 @@ async function loadPackCollectionsList(wallet) {
     }));
 
   // Owning SOMETHING in a pack-bearing collection doesn't mean owning a
-  // PACK specifically (could just own regular cards from it) — confirm
-  // each candidate with a cheap existence check (template_whitelist,
-  // a single small response) rather than showing a collection that would
-  // just turn out empty once picked. The same response also gives an
-  // accurate pack count for the picker label (was previously the
+  // PACK specifically (could just own regular cards from it) — confirm each
+  // candidate with a cheap existence check rather than showing a collection
+  // that would just turn out empty once picked. The same response also
+  // gives an EXACT pack count for the picker label (was previously the
   // collection's total owned-card count from /accounts, not packs
-  // specifically) — capped at 100 since this is a display count, not
-  // something that needs to be exact past that point. Bounded concurrency
-  // since this can be dozens of collections' worth of individual requests.
+  // specifically). Uses the dedicated /assets/_count sub-route rather than
+  // /assets?limit=N+1 (the original approach, capped display at "100+" to
+  // avoid an unbounded full-row fetch) — confirmed live /assets/_count
+  // returns just a number with none of the per-row payload weight, AND
+  // sidesteps the documented count=true-500s-on-/assets gotcha (the inline
+  // flag isn't safe there; the dedicated sub-route is) — so an exact count
+  // is actually cheaper here than the old capped approximation was. Bounded
+  // concurrency since this can be dozens of collections' worth of requests.
   const CONCURRENCY = 10;
   const owns = new Array(candidates.length).fill(false);
   let idx = 0;
@@ -792,13 +826,13 @@ async function loadPackCollectionsList(wallet) {
       const templateIds = await AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name);
       if (!templateIds.length) continue;
       try {
-        const rows = await WaxApi.apiFetch(
-          `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}&limit=${PACK_COUNT_CAP + 1}`
+        const count = await WaxApi.apiFetch(
+          `${WaxApi.aaBase()}/assets/_count?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}`
         );
-        const n = rows ? rows.length : 0;
+        const n = Number(count) || 0;
         owns[i] = n > 0;
-        candidates[i]._rawCount = n; // kept numeric for sorting — ownedCount below may become a capped display string
-        candidates[i].ownedCount = formatOwnedCount(n);
+        candidates[i]._rawCount = n;
+        candidates[i].ownedCount = n;
       } catch { /* couldn't confirm — leave it out rather than risk showing an empty collection */ }
     }
   }
@@ -948,7 +982,7 @@ function decrementPackCollectionCount(collectionName) {
     _packCollections.splice(idx, 1);
   } else {
     col._rawCount = nextCount;
-    col.ownedCount = formatOwnedCount(nextCount);
+    col.ownedCount = nextCount;
   }
   renderCollectionPicker(_selectedCollection);
 }
