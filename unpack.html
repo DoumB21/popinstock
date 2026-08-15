@@ -1748,9 +1748,83 @@ function maybeHighlightDeepLink(list) {
 
 let _loadGen = 0;
 
+// Resolves ONE specific asset directly — one asset fetch plus the same two
+// registry lookups buildPackCard/loadPacksForCollection already use, no
+// wallet-wide candidate-collection scan at all. Returns null if it isn't a
+// recognized pack (any mechanism) currently owned by this wallet, so the
+// caller can fall back to the normal full discovery flow.
+async function tryFastDeepLink(wallet, assetId) {
+  const asset = await fetchAssetBrief(assetId);
+  if (!asset || String(asset.owner) !== wallet) return null;
+  const lean = leanAsset(asset);
+  const unpackUrl = AtomicPacks.resolveUnpackUrl(asset.data);
+  const tid = lean.template_id;
+  if (tid) {
+    const [atomicPack, neftyPack] = await Promise.all([
+      AtomicPacks.lookupPackByTemplateId(tid),
+      NeftyPacks.lookupPackByTemplateId(tid),
+    ]);
+    if (atomicPack || neftyPack) {
+      return { asset: lean, pack: atomicPack || neftyPack, provider: atomicPack ? 'atomicpacks' : 'neftyblocks' };
+    }
+  }
+  if (unpackUrl) {
+    return { asset: lean, pack: { collection_name: lean.collection_name, unlock_time: 0 }, provider: 'urlpack', unpackUrl };
+  }
+  return null;
+}
+
 async function loadPacksSection(wallet) {
   const myGen = ++_loadGen;
-  showState('loading');
+  const targetAssetId = deepLinkAssetId();
+
+  // Fast path — the visitor already knows exactly which pack they want
+  // (came straight from inventory.html/asset.html's own Unpack button), so
+  // making them wait through the full wallet-wide discovery scan first
+  // (confirmed live: 200+ candidate collections for a real whale wallet)
+  // just to see the one card they already picked is real, avoidable delay.
+  // Resolves that one asset directly and shows it immediately, then still
+  // runs the normal full discovery below in the background so the picker
+  // gets populated for browsing everything else — if that background pass
+  // confirms the same collection as a real candidate, the existing
+  // "revisiting" branch further down naturally upgrades the view to the
+  // full collection list (same highlight/scroll behavior as before), since
+  // _selectedCollection is already set by the time it runs. Only attempted
+  // once per page load, and only on the very first load (a manually picked
+  // collection already means _selectedCollection is set, so this is
+  // correctly skipped on any subsequent call).
+  let fastPathRendered = false;
+  if (targetAssetId && !_deepLinkResolveAttempted && _selectedCollection == null) {
+    _deepLinkResolveAttempted = true;
+    showState('loading');
+    try {
+      const entry = await tryFastDeepLink(wallet, targetAssetId);
+      if (myGen !== _loadGen) return;
+      if (entry) {
+        // entry.asset.collection is the real slug (e.g. "waxapes") — NOT
+        // .collection_name, which despite the name is the DISPLAY name
+        // (e.g. "WAX Ape Rave Club"); every other _selectedCollection use
+        // site-wide expects the real slug, matching _packCollections'
+        // own c.collection_name field (a different object's naming, same
+        // gotcha risk — see leanAsset's own comment on this distinction).
+        _selectedCollection = entry.asset.collection || entry.pack.collection_name;
+        renderPackEntries([entry]);
+        fastPathRendered = true;
+      }
+    } catch (err) {
+      if (myGen !== _loadGen) return;
+      console.error('Fast deep-link resolve failed, falling back to full scan:', err);
+    }
+  }
+
+  // Only switch to the loading spinner here if the fast path above didn't
+  // already put something real on screen — otherwise this would immediately
+  // hide the just-rendered card behind a spinner while the background
+  // discovery pass runs, a jarring flash for no reason (the card stays
+  // correct and up to date either way; discovery below is purely additive
+  // — populating the picker, and upgrading to the full collection list once
+  // it confirms this one as a real candidate — never a step backward).
+  if (!fastPathRendered) showState('loading');
   try {
     // Re-discovered fresh every time, not cached per session — someone who
     // just bought a pack (very common: buy it, go straight here to open
@@ -1762,36 +1836,58 @@ async function loadPacksSection(wallet) {
     if (myGen !== _loadGen) return;
     _packCollections = collections;
     if (!_packCollections.length) {
+      // The fast path above may have already resolved and rendered a
+      // single pack even though full discovery found no OTHER candidates
+      // (a wallet whose only openable pack is this one url-only card, say)
+      // — don't clobber that with the generic empty state.
+      if (_selectedCollection != null && _packEntries.length) return;
       document.getElementById('emptyWrap').innerHTML = '<strong>No packs found</strong>Nothing in your inventory is openable right now.';
       showState('empty');
       return;
     }
     let initial = 'all';
     if (_selectedCollection != null) {
-      // Revisiting — keep whatever was picked (its pack list gets
-      // re-fetched fresh below regardless of whether it's still in the
-      // candidate list, since that list is just for browsing; the fetch
-      // itself is always the live truth).
+      // Revisiting (or the fast path above already picked one) — keep
+      // whatever was picked (its pack list gets re-fetched fresh below
+      // regardless of whether it's still in the candidate list, since that
+      // list is just for browsing; the fetch itself is always the live
+      // truth).
       initial = _selectedCollection;
     } else {
-      // First load — default "All collections" (a prompt, not a fetch —
-      // see selectPackCollection) unless a deep link from asset.html/
-      // inventory.html resolves to one of the candidate collections, in
-      // which case that one loads immediately.
-      const targetAssetId = deepLinkAssetId();
-      if (targetAssetId && !_deepLinkResolveAttempted) {
-        _deepLinkResolveAttempted = true;
-        const brief = await fetchAssetBrief(targetAssetId);
+      // First load, fast path didn't apply/resolve — default "All
+      // collections" (a prompt, not a fetch — see selectPackCollection)
+      // unless a deep link from asset.html/inventory.html resolves to one
+      // of the candidate collections, in which case that one loads
+      // immediately.
+      const targetId = deepLinkAssetId();
+      if (targetId) {
+        const brief = await fetchAssetBrief(targetId);
         if (myGen !== _loadGen) return;
         const col = brief?.collection?.collection_name;
         if (col && _packCollections.some(c => c.collection_name === col)) initial = col;
       }
     }
     renderCollectionPicker(initial);
+    // If the fast path already rendered the target card, leave the GRID
+    // exactly as-is here rather than following up with a full
+    // selectPackCollection reload — the visitor may already be mid-Unpack
+    // on that exact card by the time this background discovery finishes,
+    // and reloading the grid would wipe that card's DOM (dataset.stage, its
+    // wired click handler, an in-progress "Unpacking…" button) out from
+    // under them. showState('list') here is still needed and safe though —
+    // it only toggles style.display on the picker/scan-link wrappers (never
+    // touches packsList's actual contents), and is exactly what reveals
+    // them now that discovery has something to show; skipping it entirely
+    // would leave the now-populated picker invisible forever. Browsing the
+    // rest of this collection (or anything else) is one click away via that
+    // picker if they want it — just never forced on them automatically.
+    if (fastPathRendered) { showState('list'); return; }
     await selectPackCollection(wallet, initial);
   } catch (err) {
     if (myGen !== _loadGen) return;
     console.error('Failed to load packs:', err);
+    // Same "don't clobber a successfully fast-resolved pack" guard as above.
+    if (_selectedCollection != null && _packEntries.length) return;
     document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load</strong>Could not reach the WAX API. Please try again later.';
     showState('empty');
   }
