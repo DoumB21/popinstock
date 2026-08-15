@@ -967,31 +967,31 @@ async function getUrlPackTemplateIdsByCollection(collectionName) {
   return ids;
 }
 
-// Only checks collections with ZERO on-chain pack presence — per explicit
-// request, a collection that already has an AtomicPacks/NeftyPacks pack is
-// skipped here entirely, even if it ALSO happens to own other, purely
-// url-only templates (confirmed live: bcbrawlers has 7 on-chain-registered
-// templates and 11 more that are url-only). That specific case is instead
-// covered for free, no scan needed, by loadPacksForCollection's own
-// per-owned-asset resolveUnpackUrl fallback below — this scan exists only
-// to find collections that never become a candidate any other way.
+// Skips only collections already confirmed as real candidates in
+// _packCollections (i.e. THIS wallet actually owns an on-chain pack there)
+// — those are covered for free, no scan needed, by loadPacksForCollection's
+// own per-owned-asset resolveUnpackUrl fallback once selected. Everything
+// else owned gets checked, even a collection that has SOME on-chain pack
+// registered somewhere in the world (confirmed live, a real bug caught by
+// the user: bcbrawlers has 7 real neftyblocksp-registered templates, but a
+// wallet that owns none of those specific 7 — only its 11 pure-url-only
+// ones — never gets bcbrawlers into _packCollections at all, so excluding
+// by "collection has ANY on-chain pack globally" incorrectly skipped it
+// here too, leaving it invisible to BOTH mechanisms). Ownership is
+// per-wallet; a collection's on-chain registration is global — those are
+// not the same fact, and only the former is safe to skip on.
 async function scanForUrlPacks(wallet) {
   const btn = document.getElementById('scanUrlPacksBtn');
   const statusEl = document.getElementById('urlPackScanStatus');
   btn.disabled = true;
   statusEl.textContent = '';
   try {
-    const [ownedRes, atomicCollectionNames, neftyCollectionNames] = await Promise.all([
-      WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
-      AtomicPacks.getPackCollections(),
-      NeftyPacks.getPackCollections(),
-    ]);
-    const onChainSet = new Set([...atomicCollectionNames, ...neftyCollectionNames]);
+    const ownedRes = await WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json());
     const alreadyKnown = new Set(_packCollections.map(c => c.collection_name));
     const ownedCollections = ownedRes?.data?.collections || [];
     const candidates = ownedCollections
       .map(e => e.collection)
-      .filter(c => c?.collection_name && !alreadyKnown.has(c.collection_name) && !onChainSet.has(c.collection_name));
+      .filter(c => c?.collection_name && !alreadyKnown.has(c.collection_name));
 
     if (!candidates.length) {
       statusEl.textContent = 'No additional collections to check.';
