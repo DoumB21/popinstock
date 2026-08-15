@@ -232,11 +232,25 @@
     return null;
   }
 
+  // Distinct collection_names with at least one registered pack, derived
+  // from the same cached registry the two lookups above already share — no
+  // extra network call beyond whatever first populated it. Lets a page
+  // scope its own owned-asset queries to just these collections instead of
+  // scanning a wallet's entire inventory (confirmed live: scanning a large
+  // wallet's full inventory to find its packs ran the tab out of memory).
+  async function getPackCollections() {
+    try {
+      const reg = await _getRegistry();
+      return [...new Set(Object.values(reg.byPackId).map(r => r.collection_name))];
+    } catch { return []; }
+  }
+
   window.AtomicPacks = {
     resolveUnpackUrl,
     lookupPackByTemplateId,
     lookupPackByPackId,
     fetchUnclaimedPacks,
+    getPackCollections,
     buildUnboxAction,
     buildClaimAction,
   };

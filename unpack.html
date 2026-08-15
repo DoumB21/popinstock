@@ -168,6 +168,11 @@
 
   <div id="emptyWrap" class="empty-state" style="display:none;"></div>
 
+  <div id="packsCollectionPicker" style="display:none; margin-bottom:1.25rem;">
+    <label for="packsCollectionSelect" style="display:block; font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.4rem;">Collection</label>
+    <select id="packsCollectionSelect" class="control-select"></select>
+  </div>
+
   <div id="packsList" class="pack-grid" style="display:none;"></div>
   <div id="packsLoadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
     <button id="packsLoadMoreBtn" class="load-more-btn">Load more</button>
@@ -187,13 +192,29 @@ function escHtml(s) { return (s || '').toString().replace(/&/g,'&amp;').replace(
 // entirely via a real IntersectionObserver lazy-loader) crashed the tab in
 // testing. Preferring the static image and never autoplaying avoids the
 // whole class of problem without needing that same lazy-load machinery here.
+//
+// Full AtomicAssets asset objects are heavy (nested collection/schema/
+// template/mutable_data/backed_tokens) — confirmed live that scanning a
+// large wallet's full inventory (owner=, paginated) and holding all of it
+// as raw objects genuinely ran the tab out of memory (~10,674 assets).
+// Every asset gets reduced to this lean shape immediately, right where it's
+// fetched, so nothing ever holds the full raw object beyond one page at a
+// time. Used uniformly everywhere a card/row needs to show name+media,
+// whether the asset came from the bulk owner= scan or a single /assets/{id}
+// fetch (see fetchAssetBrief) — one shape, one packMediaHtml.
+function leanAsset(a) {
+  return {
+    asset_id: a.asset_id,
+    name: a.data?.name || a.name || '',
+    img: a.data?.img || a.data?.image || a.template?.immutable_data?.img || a.template?.immutable_data?.image || '',
+    video: a.data?.video || a.template?.immutable_data?.video || '',
+    collection_name: a.collection?.name || '',
+  };
+}
+
 function packMediaHtml(asset) {
-  const d = asset.data || {};
-  const t = asset.template?.immutable_data || {};
-  const img   = d.img || d.image || t.img || t.image || '';
-  if (img) return `<img src="${escHtml(toMediaUrl(img))}" alt="" loading="lazy">`;
-  const video = d.video || t.video || '';
-  if (video) return `<video src="${escHtml(toMediaUrl(video))}" muted playsinline loop preload="none"></video>`;
+  if (asset.img) return `<img src="${escHtml(toMediaUrl(asset.img))}" alt="" loading="lazy">`;
+  if (asset.video) return `<video src="${escHtml(toMediaUrl(asset.video))}" muted playsinline loop preload="none"></video>`;
   return '<div class="pack-media-ph">📦</div>';
 }
 
@@ -231,9 +252,14 @@ function setTabCount(tab, n) {
 
 function showState(state) {
   const packsListState = state === 'list' && _tab === 'packs';
+  // The collection picker stays visible across loading/list/empty within the
+  // Packs tab (switching collections re-loads what's below it, not itself) —
+  // only hidden while logged out or before collections have been discovered.
+  const showPicker = _tab === 'packs' && state !== 'auth' && _packCollections.length > 0;
   document.getElementById('authGate').style.display  = state === 'auth'    ? '' : 'none';
   document.getElementById('loadWrap').style.display  = state === 'loading' ? '' : 'none';
   document.getElementById('emptyWrap').style.display = state === 'empty'   ? '' : 'none';
+  document.getElementById('packsCollectionPicker').style.display = showPicker ? '' : 'none';
   document.getElementById('packsList').style.display     = packsListState ? '' : 'none';
   document.getElementById('packsLoadMoreWrap').style.display = (packsListState && _packVisible < _packEntries.length) ? '' : 'none';
   document.getElementById('unclaimedList').style.display = (state === 'list' && _tab === 'unclaimed') ? '' : 'none';
@@ -253,29 +279,69 @@ function setUnboxNote(msg) {
   el.style.display = '';
 }
 
-/* ── Packs tab ── */
-async function scanOwnedAssets(wallet) {
-  const assets = [];
-  let page = 1;
-  for (;;) {
-    const url = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&limit=1000&page=${page}`;
-    const rows = await WaxApi.apiFetch(url);
-    if (!rows || !rows.length) break;
-    assets.push(...rows);
-    if (rows.length < 1000) break;
-    page++;
-  }
-  return assets;
+/* ── Packs tab ──
+   Scanning a wallet's ENTIRE inventory to find its packs (the original
+   approach) ran a real whale wallet's tab out of memory in testing — a
+   collector's inventory is dominated by everything that ISN'T a pack.
+   Instead: find which collections the wallet owns anything in AND that have
+   at least one registered pack (both cheap: one /accounts summary call for
+   owned collections+counts, plus AtomicPacks.getPackCollections(), which
+   reads the same registry the lookups below already share — no full
+   inventory scan at all), show those as a picker, and only ever fetch
+   owner=+collection_name= scoped assets for whichever one is selected. */
+let _packCollections = [];
+let _packCollectionsLoaded = false;
+let _selectedCollection = null;
+let _deepLinkResolveAttempted = false;
+
+async function loadPackCollectionsList(wallet) {
+  const [ownedRes, packCollectionNames] = await Promise.all([
+    WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
+    AtomicPacks.getPackCollections(),
+  ]);
+  const packSet = new Set(packCollectionNames);
+  const owned = (ownedRes?.data?.collections || []).filter(e => e.collection?.collection_name && packSet.has(e.collection.collection_name));
+  return owned
+    .map(e => ({
+      collection_name: e.collection.collection_name,
+      name: e.collection.name || e.collection.collection_name,
+      ownedCount: e.assets != null ? Number(e.assets) : null,
+    }))
+    .sort((a, b) => (b.ownedCount || 0) - (a.ownedCount || 0));
 }
 
-async function loadPacks(wallet) {
-  const assets = await scanOwnedAssets(wallet);
-  const byTemplate = new Map(); // template_id -> assets[]
-  for (const a of assets) {
-    const tid = a.template?.template_id;
-    if (!tid) continue;
-    if (!byTemplate.has(tid)) byTemplate.set(tid, []);
-    byTemplate.get(tid).push(a);
+function renderCollectionPicker() {
+  const sel = document.getElementById('packsCollectionSelect');
+  sel.innerHTML = _packCollections.map(c =>
+    `<option value="${escHtml(c.collection_name)}">${escHtml(c.name)}${c.ownedCount != null ? ' (' + c.ownedCount + ')' : ''}</option>`
+  ).join('');
+}
+document.getElementById('packsCollectionSelect').addEventListener('change', e => {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) selectPackCollection(wallet, e.target.value);
+});
+
+// Groups by template_id AND reduces to leanAsset() in the same pass over
+// each fetched page, rather than collecting the full raw scan into one
+// array first and grouping afterward — confirmed live that holding both
+// the full raw array AND the grouped copy at once was part of what drove
+// the OOM crash above. Scoped to one collection now, so this rarely
+// exceeds a single page even for a large collector.
+async function loadPacksForCollection(wallet, collectionName) {
+  const byTemplate = new Map(); // template_id -> leanAsset[]
+  let page = 1;
+  for (;;) {
+    const url = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(collectionName)}&limit=1000&page=${page}`;
+    const rows = await WaxApi.apiFetch(url);
+    if (!rows || !rows.length) break;
+    for (const a of rows) {
+      const tid = a.template?.template_id;
+      if (!tid) continue;
+      if (!byTemplate.has(tid)) byTemplate.set(tid, []);
+      byTemplate.get(tid).push(leanAsset(a));
+    }
+    if (rows.length < 1000) break;
+    page++;
   }
 
   // Resolve pack-ness per DISTINCT template only — a collector owning many
@@ -293,6 +359,34 @@ async function loadPacks(wallet) {
     for (const asset of byTemplate.get(tid)) entries.push({ asset, pack });
   });
   return entries;
+}
+
+async function selectPackCollection(wallet, collectionName) {
+  _selectedCollection = collectionName;
+  const myGen = ++_loadGen;
+  showState('loading');
+  try {
+    const entries = await loadPacksForCollection(wallet, collectionName);
+    if (myGen !== _loadGen) return;
+    _packEntries = entries;
+    _packVisible = 0;
+    setTabCount('packs', entries.length);
+    const list = document.getElementById('packsList');
+    list.innerHTML = '';
+    if (!entries.length) {
+      document.getElementById('emptyWrap').innerHTML = '<strong>No packs in this collection</strong>Pick another collection above.';
+      showState('empty');
+      return;
+    }
+    renderPackBatch();
+    showState('list');
+    maybeHighlightDeepLink(list);
+  } catch (err) {
+    if (myGen !== _loadGen) return;
+    console.error('Failed to load packs for ' + collectionName + ':', err);
+    document.getElementById('emptyWrap').innerHTML = '<strong>Failed to load</strong>Could not reach the WAX API. Please try again later.';
+    showState('empty');
+  }
 }
 
 // A large collector can own 1000+ packs (confirmed live) — mounting that
@@ -317,8 +411,8 @@ function buildPackCard(entry) {
   const card = document.createElement('div');
   card.className = 'pack-card';
   card.dataset.assetId = asset.asset_id;
-  const name = asset.data?.name || asset.name || 'Pack';
-  const collection = asset.collection?.name || pack.collection_name || '';
+  const name = asset.name || 'Pack';
+  const collection = asset.collection_name || pack.collection_name || '';
   const locked = pack.unlock_time && pack.unlock_time * 1000 > Date.now();
   card.innerHTML = `
     <div class="pack-card-media">${packMediaHtml(asset)}</div>
@@ -339,7 +433,7 @@ function checkPacksEmpty() {
   if (_packEntries.length === 0) {
     document.getElementById('packsList').style.display = 'none';
     document.getElementById('packsLoadMoreWrap').style.display = 'none';
-    document.getElementById('emptyWrap').innerHTML = '<strong>No packs found</strong>Nothing in your inventory is openable right now.';
+    document.getElementById('emptyWrap').innerHTML = '<strong>No packs left in this collection</strong>Pick another collection above.';
     document.getElementById('emptyWrap').style.display = '';
   }
 }
@@ -437,10 +531,11 @@ function buildUnclaimedRow(entry) {
   // its data. Not blocking the row's initial render.
   fetchAssetBrief(row.pack_asset_id).then(asset => {
     if (!asset) return;
+    const lean = leanAsset(asset);
     const nameEl = el.querySelector('[data-name]');
-    if (nameEl) nameEl.textContent = asset.data?.name || asset.name || ('Pack #' + row.pack_asset_id);
+    if (nameEl) nameEl.textContent = lean.name || ('Pack #' + row.pack_asset_id);
     const mediaEl = el.querySelector('[data-media]');
-    if (mediaEl) mediaEl.innerHTML = packMediaHtml(asset);
+    if (mediaEl) mediaEl.innerHTML = packMediaHtml(lean);
   }).catch(() => {});
 
   return el;
@@ -513,21 +608,32 @@ async function loadTab() {
   showState('loading');
   try {
     if (tab === 'packs') {
-      const entries = await loadPacks(wallet);
-      if (myGen !== _loadGen) return;
-      _packEntries = entries;
-      _packVisible = 0;
-      setTabCount('packs', entries.length);
-      const list = document.getElementById('packsList');
-      list.innerHTML = '';
-      if (!entries.length) {
+      if (!_packCollectionsLoaded) {
+        const collections = await loadPackCollectionsList(wallet);
+        if (myGen !== _loadGen) return;
+        _packCollections = collections;
+        _packCollectionsLoaded = true;
+        renderCollectionPicker();
+      }
+      if (!_packCollections.length) {
         document.getElementById('emptyWrap').innerHTML = '<strong>No packs found</strong>Nothing in your inventory is openable right now.';
         showState('empty');
         return;
       }
-      renderPackBatch();
-      showState('list');
-      maybeHighlightDeepLink(list);
+      // Deep link from asset.html/inventory.html — resolve its collection
+      // (one lookup, tried once) and pre-select it if it's a candidate;
+      // otherwise fall back to the collection with the most owned assets.
+      let initial = _packCollections[0].collection_name;
+      const targetAssetId = deepLinkAssetId();
+      if (targetAssetId && !_deepLinkResolveAttempted) {
+        _deepLinkResolveAttempted = true;
+        const brief = await fetchAssetBrief(targetAssetId);
+        if (myGen !== _loadGen) return;
+        const col = brief?.collection?.collection_name;
+        if (col && _packCollections.some(c => c.collection_name === col)) initial = col;
+      }
+      document.getElementById('packsCollectionSelect').value = initial;
+      await selectPackCollection(wallet, initial);
     } else {
       const entries = await loadUnclaimed(wallet);
       if (myGen !== _loadGen) return;
@@ -551,14 +657,26 @@ async function loadTab() {
 }
 
 /* ── Init ── */
+let _lastWallet = null;
+
 function onWalletChange() {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  // A different wallet (including a straight switch via the nav's Linked
+  // Wallets menu — no page reload in between) invalidates the previous
+  // wallet's discovered collections entirely, not just its pack list.
+  if (wallet !== _lastWallet) {
+    _packCollections = [];
+    _packCollectionsLoaded = false;
+    _selectedCollection = null;
+    _deepLinkResolveAttempted = false;
+  }
+  _lastWallet = wallet;
   if (wallet) loadTab();
   else { showState('auth'); setTabCount('packs', null); setTabCount('unclaimed', null); }
 }
 function init() {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (wallet) loadTab();
+  _lastWallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (_lastWallet) loadTab();
   else showState('auth');
 }
 init();
