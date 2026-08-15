@@ -1323,6 +1323,12 @@ function packCollectionComboItems() {
 }
 function renderCollectionPicker(currentValue) {
   buildCbCombo('packsCollectionCombo', packCollectionComboItems(), currentValue || 'all', val => {
+    // A manual pick means the visitor has moved on from whatever card they
+    // may have originally deep-linked in on — the URL shouldn't keep
+    // pointing at it. Not called from loadPacksSection's own initial
+    // deep-link auto-select (that one's a real, still-accurate reflection
+    // of the URL), only from an actual user interaction with the picker.
+    clearDeepLinkAssetId();
     const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
     if (wallet) selectPackCollection(wallet, val);
   });
@@ -1712,6 +1718,19 @@ function removeClaimedPackCard(entry, card) {
    before searching — otherwise it would silently never be found. */
 function deepLinkAssetId() {
   return new URLSearchParams(location.search).get('asset_id');
+}
+
+// Drops a stale ?asset_id= once the visitor manually picks a different
+// collection — otherwise the URL keeps pointing at whatever card they
+// originally deep-linked in on, even after they've navigated away from it
+// entirely. Relative path only, recomputed from the live location (never a
+// hardcoded absolute one — see feedback_pushstate_must_stay_relative) —
+// safe to drop the whole query string since asset_id is the only param
+// this page ever reads.
+function clearDeepLinkAssetId() {
+  if (!deepLinkAssetId()) return;
+  const relativePath = location.pathname.replace(/^\//, '') || 'unpack';
+  history.replaceState({}, '', relativePath);
 }
 
 function maybeHighlightDeepLink(list) {
