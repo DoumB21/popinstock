@@ -333,7 +333,20 @@
      them — no follow-up indexer query, so no indexing-lag window (this is
      what made "show claimed contents inline" unreliable via AtomicAssets'
      own REST indexer in earlier design discussion; reading the broadcast's
-     own trace sidesteps that entirely). */
+     own trace sidesteps that entirely).
+
+     CONFIRMED LIVE BUG (via a raw v1/history/get_transaction trace, which
+     preserves what push_transaction/send_transaction actually produces):
+     logmint calls require_recipient() to notify several parties (the new
+     owner, the collection's blend/market accounts, atomicassets itself,
+     etc.) — EOSIO gives each notified receiver its OWN action_trace entry,
+     all carrying the exact same act.data. A single real mint can show up
+     as 4, 9, or more identical trace entries depending on the collection's
+     setup (confirmed: a 3-roll claim produced 12 logmint traces — 3 mints
+     × 4 receivers each). Naively counting every trace occurrence
+     multiplies the displayed results well past what was actually claimed
+     — deduped below by asset_id, the one thing guaranteed unique per real
+     mint regardless of how many receivers got notified about it. */
   function _flattenTraces(traces) {
     const out = [];
     for (const t of traces || []) {
@@ -350,15 +363,16 @@
   function extractMintedAssets(transactResult) {
     const traces = transactResult?.response?.processed?.action_traces;
     if (!traces) return [];
-    const minted = [];
+    const byAssetId = new Map();
     for (const t of _flattenTraces(traces)) {
       const act = t.act;
       if (!act || act.account !== 'atomicassets' || act.name !== 'logmint') continue;
       const d = act.data || {};
+      if (byAssetId.has(d.asset_id)) continue; // same mint, a different notified receiver's copy of the same trace
       const fields = {};
       for (const entry of d.immutable_template_data || []) fields[entry.key] = _traceDataValue(entry);
       for (const entry of d.immutable_data || []) if (!(entry.key in fields)) fields[entry.key] = _traceDataValue(entry);
-      minted.push({
+      byAssetId.set(d.asset_id, {
         asset_id: d.asset_id,
         collection_name: d.collection_name,
         schema_name: d.schema_name,
@@ -368,7 +382,7 @@
         video: fields.video || '',
       });
     }
-    return minted;
+    return [...byAssetId.values()];
   }
 
   window.AtomicPacks = {
