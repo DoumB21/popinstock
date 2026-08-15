@@ -304,13 +304,40 @@ async function loadPackCollectionsList(wallet) {
     AtomicPacks.getPackCollections(),
   ]);
   const packSet = new Set(packCollectionNames);
-  const owned = (ownedRes?.data?.collections || []).filter(e => e.collection?.collection_name && packSet.has(e.collection.collection_name));
-  return owned
+  const candidates = (ownedRes?.data?.collections || [])
+    .filter(e => e.collection?.collection_name && packSet.has(e.collection.collection_name))
     .map(e => ({
       collection_name: e.collection.collection_name,
       name: e.collection.name || e.collection.collection_name,
       ownedCount: e.assets != null ? Number(e.assets) : null,
-    }))
+    }));
+
+  // Owning SOMETHING in a pack-bearing collection doesn't mean owning a
+  // PACK specifically (could just own regular cards from it) — confirm
+  // each candidate with a cheap existence check (template_whitelist +
+  // limit=1, a single small response) rather than showing a collection
+  // that would just turn out empty once picked. Bounded concurrency since
+  // this can be dozens of collections' worth of individual requests.
+  const CONCURRENCY = 10;
+  const owns = new Array(candidates.length).fill(false);
+  let idx = 0;
+  async function worker() {
+    while (idx < candidates.length) {
+      const i = idx++;
+      const templateIds = await AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name);
+      if (!templateIds.length) continue;
+      try {
+        const rows = await WaxApi.apiFetch(
+          `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}&limit=1`
+        );
+        owns[i] = !!(rows && rows.length);
+      } catch { /* couldn't confirm — leave it out rather than risk showing an empty collection */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, candidates.length) }, worker));
+
+  return candidates
+    .filter((c, i) => owns[i])
     .sort((a, b) => (b.ownedCount || 0) - (a.ownedCount || 0));
 }
 

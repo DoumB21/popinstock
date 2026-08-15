@@ -245,12 +245,27 @@
     } catch { return []; }
   }
 
+  // Distinct pack_template_ids for one collection, derived from the same
+  // cached registry — lets a caller cheaply confirm "does this wallet
+  // actually own a PACK in this collection" (via an AtomicAssets
+  // template_whitelist filter) rather than assuming ownership of anything
+  // in a pack-bearing collection means owning a pack specifically.
+  async function getPackTemplateIdsByCollection(collectionName) {
+    try {
+      const reg = await _getRegistry();
+      return Object.values(reg.byPackId)
+        .filter(r => r.collection_name === collectionName)
+        .map(r => r.pack_template_id);
+    } catch { return []; }
+  }
+
   window.AtomicPacks = {
     resolveUnpackUrl,
     lookupPackByTemplateId,
     lookupPackByPackId,
     fetchUnclaimedPacks,
     getPackCollections,
+    getPackTemplateIdsByCollection,
     buildUnboxAction,
     buildClaimAction,
   };
