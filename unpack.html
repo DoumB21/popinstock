@@ -996,6 +996,18 @@ async function loadUnclaimedSection(wallet) {
 let _packCollections = [];
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
+// Remembers the fast deep-link path's original target across the whole
+// unbox->claim flow, since the URL's own ?asset_id= gets cleared the
+// moment it's opened (see loadPacksSection/removeClaimedPackCard below) —
+// null once that flow finishes (claimed) or is abandoned (manual
+// navigation elsewhere).
+let _deepLinkTargetAssetId = null;
+// True once the first FULL loadPackCollectionsList pass has actually
+// resolved this page load, regardless of whether it found anything —
+// drives the "External Packs" link's visibility (see showState) so it
+// doesn't show up alone, without the collection list it refers to,
+// during the fast deep-link path's brief window before discovery finishes.
+let _discoveryComplete = false;
 
 /* ── URL-attribute pack detection (opt-in, see scanForUrlPacks below) ──
    Unlike AtomicPacks/NeftyPacks, there's no on-chain registry for the
@@ -1325,10 +1337,14 @@ function renderCollectionPicker(currentValue) {
   buildCbCombo('packsCollectionCombo', packCollectionComboItems(), currentValue || 'all', val => {
     // A manual pick means the visitor has moved on from whatever card they
     // may have originally deep-linked in on — the URL shouldn't keep
-    // pointing at it. Not called from loadPacksSection's own initial
-    // deep-link auto-select (that one's a real, still-accurate reflection
-    // of the URL), only from an actual user interaction with the picker.
+    // pointing at it, and removeClaimedPackCard's own "auto-load the rest
+    // of this collection once the deep-linked pack is claimed" behavior
+    // shouldn't fire for a pack that isn't even part of the current view
+    // anymore. Not called from loadPacksSection's own initial deep-link
+    // auto-select (that one's a real, still-accurate reflection of the
+    // URL), only from an actual user interaction with the picker.
     clearDeepLinkAssetId();
+    _deepLinkTargetAssetId = null;
     const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
     if (wallet) selectPackCollection(wallet, val);
   });
@@ -1467,11 +1483,16 @@ function showState(state) {
   // a different collection re-loads what's below it, not itself — only
   // hidden while logged out or before collections have been discovered.
   document.getElementById('packsCollectionPicker').style.display = (state !== 'auth' && _packCollections.length > 0) ? '' : 'none';
-  // Shown once the first discovery pass has actually finished (list/empty),
-  // regardless of whether any on-chain-registered packs were found — a
+  // Shown once the first FULL discovery pass has actually finished
+  // (_discoveryComplete, not just "state is list/empty" — the fast deep-
+  // link path below can reach 'list' well before discovery has even
+  // started, and the link reads as out of place without the collection
+  // list it's meant to sit next to, per explicit request), regardless of
+  // whether any on-chain-registered packs were found once it does — a
   // wallet could own packs ONLY via the url-attribute mechanism, in which
-  // case _packCollections stays empty and the picker above never shows.
-  document.getElementById('urlPackScanContainer').style.display = (state === 'list' || state === 'empty') ? '' : 'none';
+  // case _packCollections stays empty and the picker above never shows,
+  // but the link (the only way to find those) still should.
+  document.getElementById('urlPackScanContainer').style.display = ((state === 'list' || state === 'empty') && _discoveryComplete) ? '' : 'none';
   document.getElementById('packsList').style.display = state === 'list' ? '' : 'none';
   document.getElementById('packsLoadMoreWrap').style.display = (state === 'list' && _packVisible < _packEntries.length) ? '' : 'none';
 }
@@ -1705,10 +1726,55 @@ function openCardRevealPopup(entry, card, btn) {
   });
 }
 
+// Called specifically when the ORIGINAL fast-deep-link target itself gets
+// claimed (see removeClaimedPackCard below) — per explicit request,
+// immediately shows whatever else is left to open in that same collection
+// (fast to keep opening more without a manual re-pick), or resets cleanly
+// back to the "pick a collection" prompt if there's nothing left, rather
+// than leaving the now-empty single-card grid sitting there. The pack
+// asset itself already left the wallet back at Unbox time (transferred to
+// whichever pack contract handled it), not just now at Claim, so this
+// fresh fetch can never race the just-claimed pack still appearing —
+// ownership already changed before this function ever runs.
+async function onDeepLinkPackClaimed(wallet) {
+  const collectionName = _selectedCollection;
+  if (!collectionName) { checkPacksEmpty(); return; }
+  const myGen = ++_loadGen;
+  showState('loading');
+  try {
+    const entries = await loadPacksForCollection(wallet, collectionName);
+    if (myGen !== _loadGen) return;
+    _packCollectionCache.set(collectionName, entries);
+    if (entries.length) {
+      renderPackEntries(entries);
+    } else {
+      _selectedCollection = null;
+      renderCollectionPicker('all');
+      document.getElementById('emptyWrap').innerHTML = '<strong>Pick a collection</strong>Select one above to see your packs.';
+      showState('empty');
+    }
+  } catch (err) {
+    if (myGen !== _loadGen) return;
+    console.error('Failed to reload collection after claiming a deep-linked pack:', err);
+    checkPacksEmpty();
+  }
+}
+
 function removeClaimedPackCard(entry, card) {
   const idx = _packEntries.indexOf(entry);
   if (idx !== -1) { _packEntries.splice(idx, 1); _packVisible--; }
   card.remove();
+  // The deep-linked pack itself just got claimed — clear the now-stale
+  // ?asset_id= and immediately show what else is left in this collection
+  // (or reset to the picker prompt), per explicit request. Every OTHER
+  // claim (browsing an already-fully-loaded collection normally, or from
+  // the Unclaimed Packs section) keeps the existing, unchanged behavior.
+  if (_deepLinkTargetAssetId && String(entry.asset.asset_id) === String(_deepLinkTargetAssetId)) {
+    _deepLinkTargetAssetId = null;
+    clearDeepLinkAssetId();
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (wallet) { onDeepLinkPackClaimed(wallet); return; }
+  }
   checkPacksEmpty();
 }
 
@@ -1808,6 +1874,7 @@ async function loadPacksSection(wallet) {
         // own c.collection_name field (a different object's naming, same
         // gotcha risk — see leanAsset's own comment on this distinction).
         _selectedCollection = entry.asset.collection || entry.pack.collection_name;
+        _deepLinkTargetAssetId = entry.asset.asset_id;
         renderPackEntries([entry]);
         fastPathRendered = true;
       }
@@ -1835,6 +1902,7 @@ async function loadPacksSection(wallet) {
     });
     if (myGen !== _loadGen) return;
     _packCollections = collections;
+    _discoveryComplete = true;
     if (!_packCollections.length) {
       // The fast path above may have already resolved and rendered a
       // single pack even though full discovery found no OTHER candidates
@@ -1906,6 +1974,8 @@ function onWalletChange() {
     _packCollections = [];
     _selectedCollection = null;
     _deepLinkResolveAttempted = false;
+    _deepLinkTargetAssetId = null;
+    _discoveryComplete = false;
     _packCollectionCache.clear();
   }
   _lastWallet = wallet;
