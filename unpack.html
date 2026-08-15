@@ -161,17 +161,21 @@
     <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your packs.</p>
   </div>
 
+  <div id="packsCollectionPicker" style="display:none; margin-bottom:1.25rem; max-width:360px;">
+    <label for="packsCollectionComboInput" style="display:block; font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.4rem;">Collection</label>
+    <div class="cb-combo" id="packsCollectionCombo">
+      <input type="text" class="cb-combo-input" id="packsCollectionComboInput" autocomplete="off" spellcheck="false">
+      <button type="button" class="cb-combo-clear" id="packsCollectionComboClear" style="display:none" title="Clear">✕</button>
+      <div class="cb-panel"></div>
+    </div>
+  </div>
+
   <div id="loadWrap" class="status-wrap" style="display:none;">
     <div class="spinner"></div>
     <div id="loadWrapText">Scanning your inventory for packs…</div>
   </div>
 
   <div id="emptyWrap" class="empty-state" style="display:none;"></div>
-
-  <div id="packsCollectionPicker" style="display:none; margin-bottom:1.25rem;">
-    <label for="packsCollectionSelect" style="display:block; font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.4rem;">Collection</label>
-    <select id="packsCollectionSelect" class="control-select"></select>
-  </div>
 
   <div id="packsList" class="pack-grid" style="display:none;"></div>
   <div id="packsLoadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
@@ -310,16 +314,121 @@ async function loadPackCollectionsList(wallet) {
     .sort((a, b) => (b.ownedCount || 0) - (a.ownedCount || 0));
 }
 
-function renderCollectionPicker() {
-  const sel = document.getElementById('packsCollectionSelect');
-  sel.innerHTML = _packCollections.map(c =>
-    `<option value="${escHtml(c.collection_name)}">${escHtml(c.name)}${c.ownedCount != null ? ' (' + c.ownedCount + ')' : ''}</option>`
-  ).join('');
+// Same type-to-search combo widget as inventory.html's own Collection
+// filter (identical markup/behavior: cb-combo/cb-panel/cb-item, all styled
+// globally in shared/global.css already) — duplicated here rather than
+// extracted into a shared module, matching this codebase's existing
+// convention of small per-page UI helpers (escHtml, toMediaUrl, etc.)
+// staying local until a THIRD page needs the same thing.
+function cbItemHtml(i, currentValue) {
+  return `<div class="cb-item${i.value === currentValue ? ' active' : ''}" data-val="${escHtml(i.value)}"><span>${escHtml(i.label)}</span></div>`;
 }
-document.getElementById('packsCollectionSelect').addEventListener('change', e => {
-  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
-  if (wallet) selectPackCollection(wallet, e.target.value);
+function renderCbItemsInto(listEl, items, currentValue, onSelect) {
+  listEl.innerHTML = items.length
+    ? items.map(i => cbItemHtml(i, currentValue)).join('')
+    : `<div class="cb-empty">No matches</div>`;
+  listEl.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbCombos();
+      onSelect(item.dataset.val);
+    });
+  });
+}
+function syncCbComboDisplay(combo) {
+  const input   = combo.querySelector('.cb-combo-input');
+  const clear   = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._cbItems[0];
+  const active  = combo._cbItems.find(i => i.value === combo._cbCurrentValue) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  input.title = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+function closeAllCbCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    combo.classList.remove('open');
+    if (combo._cbItems) syncCbComboDisplay(combo);
+  });
+}
+function buildCbCombo(comboId, items, currentValue, onSelect) {
+  const combo = document.getElementById(comboId);
+  combo._cbItems        = items;
+  combo._cbCurrentValue = currentValue;
+  combo._cbOnSelect     = onSelect;
+  syncCbComboDisplay(combo);
+  if (combo._cbWired) return;
+  combo._cbWired = true;
+
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._cbItems.slice(1); // exclude the "All ..." sentinel — it's the placeholder/clear, not a row
+    const filtered = q
+      ? options.filter(i => i.label.toLowerCase().includes(q) || i.value.toLowerCase().includes(q))
+      : options;
+    renderCbItemsInto(panel, filtered, combo._cbCurrentValue, val => {
+      combo._cbCurrentValue = val;
+      closeAllCbCombos();
+      combo._cbOnSelect(val);
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCbCombos();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      input.blur();
+      closeAllCbCombos();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      panel.querySelector('.cb-item')?.click();
+    }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllCbCombos(); }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => {
+    combo._cbCurrentValue = combo._cbItems[0].value;
+    syncCbComboDisplay(combo);
+    combo._cbOnSelect(combo._cbCurrentValue);
+    input.blur();
+  });
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cb-combo')) closeAllCbCombos();
 });
+
+// item[0] is always the "All collections" sentinel — selecting it means
+// "nothing picked yet" (per explicit request: default to All, prompt the
+// visitor to pick one, never auto-load the top collection).
+function packCollectionComboItems() {
+  return [{ value: 'all', label: 'All collections' }].concat(
+    _packCollections.map(c => ({
+      value: c.collection_name,
+      label: c.name + (c.ownedCount != null ? ` (${c.ownedCount})` : ''),
+    }))
+  );
+}
+function renderCollectionPicker(currentValue) {
+  buildCbCombo('packsCollectionCombo', packCollectionComboItems(), currentValue || 'all', val => {
+    const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+    if (wallet) selectPackCollection(wallet, val);
+  });
+}
 
 // Groups by template_id AND reduces to leanAsset() in the same pass over
 // each fetched page, rather than collecting the full raw scan into one
@@ -364,6 +473,19 @@ async function loadPacksForCollection(wallet, collectionName) {
 async function selectPackCollection(wallet, collectionName) {
   _selectedCollection = collectionName;
   const myGen = ++_loadGen;
+  // "All collections" is the default/prompt state, not something to fetch —
+  // per explicit request, nothing loads until a specific collection is
+  // picked (this is also what avoids re-introducing the whole-inventory
+  // scan the picker exists to prevent in the first place).
+  if (collectionName === 'all') {
+    _packEntries = [];
+    _packVisible = 0;
+    setTabCount('packs', null);
+    document.getElementById('packsList').innerHTML = '';
+    document.getElementById('emptyWrap').innerHTML = '<strong>Pick a collection</strong>Select one above to see your packs.';
+    showState('empty');
+    return;
+  }
   showState('loading');
   try {
     const entries = await loadPacksForCollection(wallet, collectionName);
@@ -613,27 +735,35 @@ async function loadTab() {
         if (myGen !== _loadGen) return;
         _packCollections = collections;
         _packCollectionsLoaded = true;
-        renderCollectionPicker();
       }
       if (!_packCollections.length) {
         document.getElementById('emptyWrap').innerHTML = '<strong>No packs found</strong>Nothing in your inventory is openable right now.';
         showState('empty');
         return;
       }
-      // Deep link from asset.html/inventory.html — resolve its collection
-      // (one lookup, tried once) and pre-select it if it's a candidate;
-      // otherwise fall back to the collection with the most owned assets.
-      let initial = _packCollections[0].collection_name;
-      const targetAssetId = deepLinkAssetId();
-      if (targetAssetId && !_deepLinkResolveAttempted) {
-        _deepLinkResolveAttempted = true;
-        const brief = await fetchAssetBrief(targetAssetId);
-        if (myGen !== _loadGen) return;
-        const col = brief?.collection?.collection_name;
-        if (col && _packCollections.some(c => c.collection_name === col)) initial = col;
+      if (_selectedCollection == null) {
+        // First time on this tab this session — resolve the initial value.
+        // Default is "All collections" (a prompt, not a fetch — see
+        // selectPackCollection) unless a deep link from asset.html/
+        // inventory.html resolves to one of the candidate collections, in
+        // which case that one loads immediately instead of waiting for a pick.
+        let initial = 'all';
+        const targetAssetId = deepLinkAssetId();
+        if (targetAssetId && !_deepLinkResolveAttempted) {
+          _deepLinkResolveAttempted = true;
+          const brief = await fetchAssetBrief(targetAssetId);
+          if (myGen !== _loadGen) return;
+          const col = brief?.collection?.collection_name;
+          if (col && _packCollections.some(c => c.collection_name === col)) initial = col;
+        }
+        renderCollectionPicker(initial);
+        await selectPackCollection(wallet, initial);
+      } else {
+        // Revisiting the tab (switched to Unclaimed and back) — the
+        // previously selected collection and its loaded packs are still
+        // good, just restore visibility rather than re-fetching/resetting.
+        showState(_packEntries.length ? 'list' : 'empty');
       }
-      document.getElementById('packsCollectionSelect').value = initial;
-      await selectPackCollection(wallet, initial);
     } else {
       const entries = await loadUnclaimed(wallet);
       if (myGen !== _loadGen) return;
