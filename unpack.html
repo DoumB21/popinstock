@@ -213,6 +213,18 @@
     </div>
   </div>
 
+  <!-- Collections whose packs use the older unpack_url attribute (no on-chain
+       registry, unlike AtomicPacks/NeftyPacks — see getUrlPackTemplateIdsByCollection)
+       never become picker candidates on their own, since there's no cheap way
+       to know about them ahead of time short of scanning every owned
+       collection's full template catalog. Deliberately opt-in rather than
+       automatic, per explicit request — most wallets own dozens to hundreds
+       of collections and the vast majority have no external packs at all. -->
+  <div id="urlPackScanWrap" style="display:none; margin-bottom:1.5rem;">
+    <button type="button" id="scanUrlPacksBtn" class="load-more-btn">Scan inventory for packs using external links</button>
+    <div id="urlPackScanStatus" style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.5rem;"></div>
+  </div>
+
   <div id="loadWrap" class="status-wrap" style="display:none;">
     <div class="spinner"></div>
     <div id="loadWrapText">Scanning your inventory for packs…</div>
@@ -908,6 +920,129 @@ let _packCollections = [];
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
 
+/* ── URL-attribute pack detection (opt-in, see scanForUrlPacks below) ──
+   Unlike AtomicPacks/NeftyPacks, there's no on-chain registry for the
+   unpack_url mechanism — every collection just puts an arbitrary attribute
+   in their own schema, with no shared contract to query. The only way to
+   know a collection uses it is to fetch and inspect its FULL template
+   catalog (confirmed live: bcbrawlers needed 3 paginated /templates calls,
+   ~2627 templates, to find all 17 real matches — a naive `limit=200` check
+   would have missed most of them). Doing that for every candidate
+   collection on every page load would mean scanning potentially hundreds of
+   collections just to find the rare few using this mechanism, so it's
+   deliberately NOT part of the normal discovery pass — only the explicit
+   "Scan inventory for packs using external links" button below triggers it,
+   per user request. Cached per-collection, long TTL (24h) since a
+   template's immutable_data can never change once set — a collection
+   checked once essentially never needs rechecking, the TTL only guards
+   against a collection registering brand new templates later. */
+const URLPACK_CACHE_KEY = 'hoardio_urlpack_registry_v1';
+const URLPACK_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function _readUrlPackCache() {
+  try { return JSON.parse(localStorage.getItem(URLPACK_CACHE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function _writeUrlPackCache(cache) {
+  try { localStorage.setItem(URLPACK_CACHE_KEY, JSON.stringify(cache)); } catch { /* storage full/unavailable — just won't persist */ }
+}
+
+async function getUrlPackTemplateIdsByCollection(collectionName) {
+  const cache = _readUrlPackCache();
+  const cached = cache[collectionName];
+  if (cached && Date.now() - cached.checkedAt < URLPACK_CACHE_TTL_MS) return cached.templateIds;
+  const ids = [];
+  let page = 1;
+  for (;;) {
+    const rows = await WaxApi.apiFetch(`${WaxApi.aaBase()}/templates?collection_name=${encodeURIComponent(collectionName)}&limit=1000&page=${page}`);
+    if (!rows || !rows.length) break;
+    for (const t of rows) {
+      if (AtomicPacks.resolveUnpackUrl(t.immutable_data)) ids.push(Number(t.template_id));
+    }
+    if (rows.length < 1000) break;
+    page++;
+  }
+  cache[collectionName] = { templateIds: ids, checkedAt: Date.now() };
+  _writeUrlPackCache(cache);
+  return ids;
+}
+
+// Only checks collections with ZERO on-chain pack presence — per explicit
+// request, a collection that already has an AtomicPacks/NeftyPacks pack is
+// skipped here entirely, even if it ALSO happens to own other, purely
+// url-only templates (confirmed live: bcbrawlers has 7 on-chain-registered
+// templates and 11 more that are url-only). That specific case is instead
+// covered for free, no scan needed, by loadPacksForCollection's own
+// per-owned-asset resolveUnpackUrl fallback below — this scan exists only
+// to find collections that never become a candidate any other way.
+async function scanForUrlPacks(wallet) {
+  const btn = document.getElementById('scanUrlPacksBtn');
+  const statusEl = document.getElementById('urlPackScanStatus');
+  btn.disabled = true;
+  statusEl.textContent = '';
+  try {
+    const [ownedRes, atomicCollectionNames, neftyCollectionNames] = await Promise.all([
+      WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
+      AtomicPacks.getPackCollections(),
+      NeftyPacks.getPackCollections(),
+    ]);
+    const onChainSet = new Set([...atomicCollectionNames, ...neftyCollectionNames]);
+    const alreadyKnown = new Set(_packCollections.map(c => c.collection_name));
+    const ownedCollections = ownedRes?.data?.collections || [];
+    const candidates = ownedCollections
+      .map(e => e.collection)
+      .filter(c => c?.collection_name && !alreadyKnown.has(c.collection_name) && !onChainSet.has(c.collection_name));
+
+    if (!candidates.length) {
+      statusEl.textContent = 'No additional collections to check.';
+      return;
+    }
+
+    const CONCURRENCY = 10;
+    const found = [];
+    let idx = 0, done = 0;
+    statusEl.textContent = `Checking 0 of ${candidates.length} collections…`;
+    async function worker() {
+      while (idx < candidates.length) {
+        const c = candidates[idx++];
+        try {
+          const templateIds = await getUrlPackTemplateIdsByCollection(c.collection_name);
+          if (templateIds.length) {
+            const count = await WaxApi.apiFetch(
+              `${WaxApi.aaBase()}/assets/_count?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(c.collection_name)}&template_whitelist=${templateIds.join(',')}`
+            );
+            const n = Number(count) || 0;
+            if (n > 0) found.push({ collection_name: c.collection_name, name: c.name || c.collection_name, ownedCount: n, _rawCount: n });
+          }
+        } catch { /* couldn't confirm — skip rather than risk showing an empty collection */ }
+        statusEl.textContent = `Checking ${++done} of ${candidates.length} collections…`;
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, candidates.length) }, worker));
+
+    if (found.length) {
+      // Only affects the picker's own option list — doesn't touch whatever
+      // is currently shown below it (the picked collection, if any, keeps
+      // showing exactly what it was already showing).
+      _packCollections = _packCollections.concat(found).sort((a, b) => (b._rawCount || 0) - (a._rawCount || 0));
+      renderCollectionPicker(_selectedCollection);
+      document.getElementById('packsCollectionPicker').style.display = '';
+      statusEl.textContent = `Found ${found.length} more collection${found.length === 1 ? '' : 's'} with external packs.`;
+    } else {
+      statusEl.textContent = 'No external packs found.';
+    }
+  } catch (err) {
+    console.error('External pack scan failed:', err);
+    statusEl.textContent = 'Scan failed — please try again later.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+document.getElementById('scanUrlPacksBtn').addEventListener('click', () => {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (wallet) scanForUrlPacks(wallet);
+});
+
 async function loadPackCollectionsList(wallet, onProgress) {
   const [ownedRes, atomicCollectionNames, neftyCollectionNames] = await Promise.all([
     WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
@@ -1138,7 +1273,18 @@ async function loadPacksForCollection(wallet, collectionName) {
       const tid = a.template?.template_id;
       if (!tid) continue;
       if (!byTemplate.has(tid)) byTemplate.set(tid, []);
-      byTemplate.get(tid).push(leanAsset(a));
+      const lean = leanAsset(a);
+      // Cheap, synchronous — a's own already-fetched data, no extra network
+      // call. Only used as a FALLBACK below for templates with no on-chain
+      // registration, but computed for every asset regardless since it's
+      // free: this is what lets a MIXED collection (some templates on-chain,
+      // others url-only — confirmed live: bcbrawlers has 7 on-chain + 11
+      // url-only) show its url-only templates too, automatically, the
+      // moment the collection is selected — no separate scan needed for
+      // that case, only for a collection with ZERO on-chain packs at all
+      // (see scanForUrlPacks/getUrlPackTemplateIdsByCollection above).
+      lean._unpackUrl = AtomicPacks.resolveUnpackUrl(a.data);
+      byTemplate.get(tid).push(lean);
     }
     if (rows.length < 1000) break;
     page++;
@@ -1162,10 +1308,18 @@ async function loadPacksForCollection(wallet, collectionName) {
   distinctIds.forEach((tid, i) => {
     const atomicPack = atomicRows[i];
     const neftyPack = neftyRows[i];
-    const pack = atomicPack || neftyPack;
-    if (!pack) return;
-    const provider = atomicPack ? 'atomicpacks' : 'neftyblocks';
-    for (const asset of byTemplate.get(tid)) entries.push({ asset, pack, provider });
+    if (atomicPack || neftyPack) {
+      const pack = atomicPack || neftyPack;
+      const provider = atomicPack ? 'atomicpacks' : 'neftyblocks';
+      for (const asset of byTemplate.get(tid)) entries.push({ asset, pack, provider });
+      return;
+    }
+    // No on-chain registration for this template — fall back to the
+    // url-attribute mechanism, already resolved for free above.
+    for (const asset of byTemplate.get(tid)) {
+      if (!asset._unpackUrl) continue;
+      entries.push({ asset, pack: { collection_name: collectionName, unlock_time: 0 }, provider: 'urlpack', unpackUrl: asset._unpackUrl });
+    }
   });
   return entries;
 }
@@ -1202,6 +1356,11 @@ function showState(state) {
   // a different collection re-loads what's below it, not itself — only
   // hidden while logged out or before collections have been discovered.
   document.getElementById('packsCollectionPicker').style.display = (state !== 'auth' && _packCollections.length > 0) ? '' : 'none';
+  // Shown once the first discovery pass has actually finished (list/empty),
+  // regardless of whether any on-chain-registered packs were found — a
+  // wallet could own packs ONLY via the url-attribute mechanism, in which
+  // case _packCollections stays empty and the picker above never shows.
+  document.getElementById('urlPackScanWrap').style.display = (state === 'list' || state === 'empty') ? '' : 'none';
   document.getElementById('packsList').style.display = state === 'list' ? '' : 'none';
   document.getElementById('packsLoadMoreWrap').style.display = (state === 'list' && _packVisible < _packEntries.length) ? '' : 'none';
 }
@@ -1326,6 +1485,11 @@ function buildPackCard(entry) {
   const statusEl = card.querySelector('[data-status]');
   if (!locked) {
     btn.addEventListener('click', () => {
+      // No on-chain unbox/claim flow for this mechanism at all — just the
+      // same direct external-link open inventory.html/asset.html already
+      // do for these, per this page's original scope decision to leave the
+      // URL-attribute mechanism's actual unpacking off-site.
+      if (entry.provider === 'urlpack') { window.open(entry.unpackUrl, '_blank', 'noopener'); return; }
       if (card.dataset.stage === 'claimable') openCardRevealPopup(entry, card, btn);
       else unboxPackFromCard(entry, card, btn, statusEl);
     });
