@@ -22,6 +22,7 @@
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/nefty-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/accept-offer-modal.js">\x3c/script>' +
       '<script src="' + _p + 'shared/make-offer-modal.js">\x3c/script>' +
@@ -5387,10 +5388,16 @@ function toggleCardActionMenu(btnEl, asset) {
   if (wasOpenForThis) return;
   const thisAssetId = String(asset.asset_id);
   _cardMenuAssetId = thisAssetId;
-  // Unpack only shows for assets carrying an unpack-url-shaped attribute
-  // (some pack collections put this directly in the asset's merged data) —
-  // there's no universal on-chain unpack action, so this just opens
-  // whatever off-chain flow that collection points to, in a new tab.
+  // Unpack shows for assets carrying an unpack-url-shaped attribute (some
+  // pack collections put this directly in the asset's merged data) — shown
+  // synchronously, no chain lookup needed. A collection can ALSO register
+  // the same template with the real on-chain contract (AtomicPacks or
+  // NeftyBlocks) — confirmed live: WAX Apes' template 768013 has both, an
+  // unpack_url pointing off-site (to a since-dead NeftyBlocks page, in that
+  // real case) AND a real atomicpacksx registration that opens directly on
+  // this site. The on-chain path should always win when both exist, so the
+  // async registry check below runs regardless of whether a URL was also
+  // found, and upgrades this item in place if it resolves after the fact.
   const unpackUrl = AtomicPacks.resolveUnpackUrl(asset.data);
   const actions = unpackUrl ? [{ key: 'unpack', label: 'Unpack' }, ...CARD_MENU_ACTIONS] : CARD_MENU_ACTIONS;
   menu.innerHTML = actions.map(a =>
@@ -5401,13 +5408,27 @@ function toggleCardActionMenu(btnEl, asset) {
   menu.style.display = '';
   _positionCardMenu(btnEl, menu);
 
-  // No URL-attribute match — check the AtomicPacks contract registry too
-  // (a chain lookup, so this can't happen synchronously above). Only splice
-  // "Unpack" in if this same card's menu is still the one open by the time
-  // it resolves — the visitor may have already closed it or opened another.
-  if (!unpackUrl && asset.template?.template_id) {
-    AtomicPacks.lookupPackByTemplateId(asset.template.template_id).then(pack => {
-      if (!pack || _cardMenuAssetId !== thisAssetId) return;
+  // Chain lookup, so this can't happen synchronously above — checks BOTH
+  // pack contracts. Only acts if this same card's menu is still the one
+  // open by the time it resolves — the visitor may have already closed it
+  // or opened another. If an "Unpack" item is already showing (from the
+  // unpack_url branch), its click handler is rewired in place to route
+  // on-chain instead of leaving it pointed off-site; otherwise a new item
+  // is inserted, same as before.
+  if (asset.template?.template_id) {
+    const tid = asset.template.template_id;
+    Promise.all([
+      AtomicPacks.lookupPackByTemplateId(tid),
+      NeftyPacks.lookupPackByTemplateId(tid),
+    ]).then(([atomicPack, neftyPack]) => {
+      if ((!atomicPack && !neftyPack) || _cardMenuAssetId !== thisAssetId) return;
+      const existing = menu.querySelector('[data-action="unpack"]');
+      if (existing) {
+        const fresh = existing.cloneNode(true);
+        existing.replaceWith(fresh);
+        _wireCardMenuItem(fresh, asset, null);
+        return;
+      }
       const item = document.createElement('div');
       item.className = 'bulk-action-item';
       item.dataset.action = 'unpack';

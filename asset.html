@@ -18,6 +18,7 @@
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/nefty-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
@@ -497,12 +498,18 @@ async function loadHeader() {
   // Unpack — some pack collections carry an unpack-url-shaped attribute (in
   // the same merged `data` view as everything else below) pointing to
   // whatever off-chain unpacking flow that collection uses; others are
-  // registered with the official AtomicPacks contract instead, which has no
-  // attribute at all and can only be detected via a chain lookup (async,
-  // so it resolves a beat after the rest of the page — acceptable, matches
-  // inventory.html's card menu doing the same lazy check). Owner-gated the
-  // same way as syncOfferBtn, just the opposite condition — only the actual
-  // owner can do anything useful by unpacking it.
+  // registered with an on-chain contract instead (AtomicPacks or
+  // NeftyBlocks), which has no attribute at all and can only be detected
+  // via a chain lookup (async, so it resolves a beat after the rest of the
+  // page — acceptable, matches inventory.html's card menu doing the same
+  // lazy check). A collection can register BOTH mechanisms for the same
+  // template — confirmed live: WAX Apes' template 768013 has an unpack_url
+  // pointing off-site (to a since-dead NeftyBlocks page) AND a real
+  // atomicpacksx registration that opens directly on this site — the
+  // on-chain path always wins once known, since onclick reads
+  // _isContractPack live at click time, not at the point this handler was
+  // assigned. Owner-gated the same way as syncOfferBtn, just the opposite
+  // condition — only the actual owner can do anything useful by unpacking it.
   const unpackUrl = AtomicPacks.resolveUnpackUrl(data);
   let _isContractPack = false;
   function syncUnpackBtn() {
@@ -514,12 +521,15 @@ async function loadHeader() {
   syncUnpackBtn();
   window.addEventListener('wax-auth-change', syncUnpackBtn);
   document.getElementById('astUnpackBtn').onclick = () => {
-    if (unpackUrl) window.open(unpackUrl, '_blank', 'noopener');
-    else location.href = `${_p}unpack?asset_id=${encodeURIComponent(assetId)}`;
+    if (_isContractPack) location.href = `${_p}unpack?asset_id=${encodeURIComponent(assetId)}`;
+    else if (unpackUrl) window.open(unpackUrl, '_blank', 'noopener');
   };
-  if (!unpackUrl && _templateId) {
-    AtomicPacks.lookupPackByTemplateId(_templateId).then(pack => {
-      if (!pack) return;
+  if (_templateId) {
+    Promise.all([
+      AtomicPacks.lookupPackByTemplateId(_templateId),
+      NeftyPacks.lookupPackByTemplateId(_templateId),
+    ]).then(([atomicPack, neftyPack]) => {
+      if (!atomicPack && !neftyPack) return;
       _isContractPack = true;
       syncUnpackBtn();
     });
