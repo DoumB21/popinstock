@@ -519,7 +519,7 @@ async function runReveal(ctx) {
     ctx.onClaimed(minted);
     if (_reveal === ctx) {
       renderResultsGrid(minted);
-      setPopupStage('results', '✨ Here’s What You Got');
+      setPopupStage('results', '✨ Look What You Pulled!');
     }
   } catch (err) {
     const info = describeTxError(err);
