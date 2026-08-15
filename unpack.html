@@ -249,8 +249,41 @@
 <script>
 'use strict';
 
-const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+// Public IPFS gateways don't all have the same peers/cache — a CID that's
+// cold on one (times out fetching it fresh from the P2P network) can already
+// be warm on another. Same list/order/retry-then-placeholder behavior as
+// inventory.html's imgUrl/onAssetImgError — this page was only ever trying
+// gateway[0] (ipfs.io, often the slowest) with no fallback and no onerror
+// handler at all, so any single failed load just stayed broken forever
+// instead of self-healing like inventory.html's cards do.
+const IPFS_GATEWAY_LIST = [
+  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
+function onPackMediaError(el) {
+  const hash = el.dataset.ipfsHash;
+  if (hash) {
+    const idx = parseInt(el.dataset.gwIdx || '0', 10) + 1;
+    if (idx < IPFS_GATEWAY_LIST.length) {
+      el.dataset.gwIdx = String(idx);
+      setTimeout(() => { el.src = IPFS_GATEWAY_LIST[idx] + hash; }, 1200);
+      return;
+    }
+  } else if (!el.dataset.retried) {
+    // Not a bare CID (already an absolute, non-gateway URL) — nothing to
+    // swap gateways on, so just retry the same URL once.
+    el.dataset.retried = '1';
+    setTimeout(() => { el.src = el.src + (el.src.includes('?') ? '&' : '?') + '_retry=1'; }, 1500);
+    return;
+  }
+  const ph = document.createElement('div');
+  ph.className = 'pack-media-ph';
+  ph.title = 'Unable to load media';
+  ph.textContent = '📦';
+  el.replaceWith(ph);
+}
 function escHtml(s) { return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function setSectionCount(elId, n) {
@@ -296,7 +329,10 @@ function leanAsset(a) {
 }
 
 function packMediaHtml(asset) {
-  if (asset.img) return `<img src="${escHtml(toMediaUrl(asset.img))}" alt="" loading="lazy">`;
+  if (asset.img) {
+    const hashAttr = /^https?:\/\//i.test(asset.img) ? '' : escHtml(asset.img);
+    return `<img src="${escHtml(toMediaUrl(asset.img))}" alt="" loading="lazy" data-ipfs-hash="${hashAttr}" data-gw-idx="0" onerror="onPackMediaError(this)">`;
+  }
   if (asset.video) return `<video src="${escHtml(toMediaUrl(asset.video))}" muted playsinline loop preload="none"></video>`;
   return '<div class="pack-media-ph">📦</div>';
 }
