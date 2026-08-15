@@ -17,6 +17,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
@@ -493,22 +494,36 @@ async function loadHeader() {
   syncOfferBtn();
   window.addEventListener('wax-auth-change', syncOfferBtn);
 
-  // Unpack — some pack collections carry an unpack-url-shaped attribute
-  // (in the same merged `data` view as everything else below) pointing to
-  // whatever off-chain unpacking flow that collection uses; there's no
-  // universal on-chain unpack action. Owner-gated the same way as
-  // syncOfferBtn, just the opposite condition — only the actual owner can
-  // do anything useful by unpacking it.
-  const unpackUrl = resolveUnpackUrl(data);
+  // Unpack — some pack collections carry an unpack-url-shaped attribute (in
+  // the same merged `data` view as everything else below) pointing to
+  // whatever off-chain unpacking flow that collection uses; others are
+  // registered with the official AtomicPacks contract instead, which has no
+  // attribute at all and can only be detected via a chain lookup (async,
+  // so it resolves a beat after the rest of the page — acceptable, matches
+  // inventory.html's card menu doing the same lazy check). Owner-gated the
+  // same way as syncOfferBtn, just the opposite condition — only the actual
+  // owner can do anything useful by unpacking it.
+  const unpackUrl = AtomicPacks.resolveUnpackUrl(data);
+  let _isContractPack = false;
   function syncUnpackBtn() {
     const btn = document.getElementById('astUnpackBtn');
-    if (!unpackUrl || isBurned) { btn.style.display = 'none'; return; }
+    if ((!unpackUrl && !_isContractPack) || isBurned) { btn.style.display = 'none'; return; }
     const acc = window.getWaxAccount ? window.getWaxAccount() : null;
     btn.style.display = (acc && acc === asset.owner) ? '' : 'none';
   }
   syncUnpackBtn();
   window.addEventListener('wax-auth-change', syncUnpackBtn);
-  document.getElementById('astUnpackBtn').onclick = () => window.open(unpackUrl, '_blank', 'noopener');
+  document.getElementById('astUnpackBtn').onclick = () => {
+    if (unpackUrl) window.open(unpackUrl, '_blank', 'noopener');
+    else location.href = `${_p}unpack?asset_id=${encodeURIComponent(assetId)}`;
+  };
+  if (!unpackUrl && _templateId) {
+    AtomicPacks.lookupPackByTemplateId(_templateId).then(pack => {
+      if (!pack) return;
+      _isContractPack = true;
+      syncUnpackBtn();
+    });
+  }
 
   document.getElementById('astOfferBtn').onclick = () => _offerModal.open({
     templateId: _templateId,

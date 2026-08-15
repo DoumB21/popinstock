@@ -17,6 +17,7 @@
 (function () {
   const BASE_ITEMS = [
     { href: 'inventory', label: 'Inventory', icon: '📦' },
+    { href: 'unpack', label: 'Unpack Packs', icon: '🎉' },
     { href: 'inventory-activity', label: 'Activity', icon: '🕒' },
     { href: 'trade-offers', label: 'Trade Offers', icon: '🔄' },
     { href: 'buy-offers', label: 'Buy Offers', icon: '🏷️' },

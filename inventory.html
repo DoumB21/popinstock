@@ -21,6 +21,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/accept-offer-modal.js">\x3c/script>' +
       '<script src="' + _p + 'shared/make-offer-modal.js">\x3c/script>' +
@@ -5342,25 +5343,6 @@ function closeBulkMenu() {
   document.getElementById('bulkActionChip')?.classList.remove('open');
 }
 
-// Pack collections don't agree on how they name this custom attribute, OR
-// whether the value includes a URL scheme — confirmed live: mlb.topps/packs
-// uses key "unpack_url" with value "toppsmlb.com/unpack" (no scheme, which
-// window.open() would otherwise resolve relative to the CURRENT page
-// instead of navigating away), while tmnt.funko/packs.drop uses key
-// "unpack url" (a literal space) with a full https:// URL already. Matches
-// the key by normalized shape rather than one fixed name, and always forces
-// a scheme onto the value.
-function resolveUnpackUrl(data) {
-  if (!data) return null;
-  for (const k in data) {
-    if (!/^unpack[\s_-]*url$/i.test(k)) continue;
-    const v = String(data[k] || '').trim();
-    if (!v) continue;
-    return /^https?:\/\//i.test(v) ? v : 'https://' + v;
-  }
-  return null;
-}
-
 /* ── Per-card "⋮" quick-action menu ──
    Only Transfer/Gift link/Burn/Back with tokens live here — List/Edit and
    Cancel already have their own dedicated button per card (openModal). ── */
@@ -5373,31 +5355,7 @@ const CARD_MENU_ACTIONS = [
 
 let _cardMenuAssetId = null;
 
-function toggleCardActionMenu(btnEl, asset) {
-  const menu = document.getElementById('cardActionMenu');
-  const wasOpenForThis = menu.style.display !== 'none' && _cardMenuAssetId === String(asset.asset_id);
-  closeCardActionMenu();
-  if (wasOpenForThis) return;
-  _cardMenuAssetId = String(asset.asset_id);
-  // Unpack only shows for assets carrying an unpack-url-shaped attribute
-  // (some pack collections put this directly in the asset's merged data) —
-  // there's no universal on-chain unpack action, so this just opens
-  // whatever off-chain flow that collection points to, in a new tab.
-  const unpackUrl = resolveUnpackUrl(asset.data);
-  const actions = unpackUrl ? [{ key: 'unpack', label: 'Unpack' }, ...CARD_MENU_ACTIONS] : CARD_MENU_ACTIONS;
-  menu.innerHTML = actions.map(a =>
-    `<div class="bulk-action-item" data-action="${a.key}"><span>${a.label}</span></div>`
-  ).join('');
-  menu.querySelectorAll('.bulk-action-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const action = item.dataset.action;
-      closeCardActionMenu();
-      if (action === 'unpack') { window.open(unpackUrl, '_blank', 'noopener'); return; }
-      openSingleItemModal(asset.asset_id, action);
-    });
-  });
-  btnEl.classList.add('open');
-  menu.style.display = '';
+function _positionCardMenu(btnEl, menu) {
   const rect = btnEl.getBoundingClientRect();
   const MW = menu.offsetWidth || 190;
   const MH = menu.offsetHeight || 180;
@@ -5407,6 +5365,58 @@ function toggleCardActionMenu(btnEl, asset) {
   if (top + MH > window.innerHeight - 8) top = rect.top - MH - 4;
   menu.style.left = left + 'px';
   menu.style.top  = top + 'px';
+}
+
+function _wireCardMenuItem(item, asset, unpackUrl) {
+  item.addEventListener('click', () => {
+    const action = item.dataset.action;
+    closeCardActionMenu();
+    if (action === 'unpack') {
+      if (unpackUrl) window.open(unpackUrl, '_blank', 'noopener');
+      else location.href = _p + 'unpack?asset_id=' + encodeURIComponent(asset.asset_id);
+      return;
+    }
+    openSingleItemModal(asset.asset_id, action);
+  });
+}
+
+function toggleCardActionMenu(btnEl, asset) {
+  const menu = document.getElementById('cardActionMenu');
+  const wasOpenForThis = menu.style.display !== 'none' && _cardMenuAssetId === String(asset.asset_id);
+  closeCardActionMenu();
+  if (wasOpenForThis) return;
+  const thisAssetId = String(asset.asset_id);
+  _cardMenuAssetId = thisAssetId;
+  // Unpack only shows for assets carrying an unpack-url-shaped attribute
+  // (some pack collections put this directly in the asset's merged data) —
+  // there's no universal on-chain unpack action, so this just opens
+  // whatever off-chain flow that collection points to, in a new tab.
+  const unpackUrl = AtomicPacks.resolveUnpackUrl(asset.data);
+  const actions = unpackUrl ? [{ key: 'unpack', label: 'Unpack' }, ...CARD_MENU_ACTIONS] : CARD_MENU_ACTIONS;
+  menu.innerHTML = actions.map(a =>
+    `<div class="bulk-action-item" data-action="${a.key}"><span>${a.label}</span></div>`
+  ).join('');
+  menu.querySelectorAll('.bulk-action-item').forEach(item => _wireCardMenuItem(item, asset, unpackUrl));
+  btnEl.classList.add('open');
+  menu.style.display = '';
+  _positionCardMenu(btnEl, menu);
+
+  // No URL-attribute match — check the AtomicPacks contract registry too
+  // (a chain lookup, so this can't happen synchronously above). Only splice
+  // "Unpack" in if this same card's menu is still the one open by the time
+  // it resolves — the visitor may have already closed it or opened another.
+  if (!unpackUrl && asset.template?.template_id) {
+    AtomicPacks.lookupPackByTemplateId(asset.template.template_id).then(pack => {
+      if (!pack || _cardMenuAssetId !== thisAssetId) return;
+      const item = document.createElement('div');
+      item.className = 'bulk-action-item';
+      item.dataset.action = 'unpack';
+      item.innerHTML = '<span>Unpack</span>';
+      _wireCardMenuItem(item, asset, null);
+      menu.insertBefore(item, menu.firstChild);
+      _positionCardMenu(btnEl, menu);
+    });
+  }
 }
 
 function closeCardActionMenu() {
