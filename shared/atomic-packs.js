@@ -95,7 +95,10 @@
      the pack's own AtomicAssets asset data (name/img, already fetched
      wherever this is used) is a far more reliable source for display than
      parsing that blob. */
-  const REGISTRY_CACHE_KEY = 'hoardio_atomicpacks_registry_v1';
+  // v2: bumped to force-invalidate any cache written before the partial-
+  // fetch-failure fix above — a v1 cache could be silently missing rows
+  // from a page that failed and got cached anyway.
+  const REGISTRY_CACHE_KEY = 'hoardio_atomicpacks_registry_v2';
   const REGISTRY_TTL_MS = 30 * 60 * 1000;
   const REGISTRY_PAGE = 1000;
 
@@ -126,16 +129,36 @@
   // range instead of following `more`/next_key one page at a time
   // (confirmed live: ~1s per 1000-row page: 14 pages in parallel beats 14
   // pages sequential by roughly an order of magnitude).
+  //
+  // A transient failure on even one of those ~14 parallel pages must NOT
+  // silently produce an incomplete registry that then gets cached as if it
+  // were the full picture for 30 minutes — confirmed live: this is exactly
+  // what made a real, still-on-chain unclaimed pack vanish from the
+  // Unclaimed Packs tab (its pack_id happened to fall in the one page that
+  // failed). Each page gets a couple of retries before giving up, and if a
+  // page is still missing after that, the result is returned for immediate
+  // use but deliberately NOT persisted to the cache — the next visit gets a
+  // clean refetch instead of repeating the same gap for the rest of the TTL.
+  async function _fetchPageWithRetry(params, attempts) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      try { return (await _getTableRows(params)).rows || []; }
+      catch (err) { lastErr = err; if (i < attempts - 1) await new Promise(r => setTimeout(r, 300 * (i + 1))); }
+    }
+    throw lastErr;
+  }
+
   async function _fetchFullRegistry() {
     const head = await _getTableRows({ code: 'atomicpacksx', scope: 'atomicpacksx', table: 'packs', limit: 1, reverse: true });
     const maxId = (head.rows && head.rows[0]) ? Number(head.rows[0].pack_id) : -1;
     const starts = [];
     for (let start = 0; start <= maxId; start += REGISTRY_PAGE) starts.push(start);
+    let complete = true;
     const pages = await Promise.all(starts.map(start =>
-      _getTableRows({
+      _fetchPageWithRetry({
         code: 'atomicpacksx', scope: 'atomicpacksx', table: 'packs',
         lower_bound: start, upper_bound: start + REGISTRY_PAGE - 1, limit: REGISTRY_PAGE,
-      }).then(j => j.rows || []).catch(() => []) // one failed page shouldn't sink the whole registry
+      }, 3).catch(() => { complete = false; return []; }) // still failed after retries — note it, don't sink the whole registry
     ));
     const byTemplate = {}, byPackId = {};
     for (const rows of pages) {
@@ -145,7 +168,7 @@
         byTemplate[String(row.pack_template_id)] = row.pack_id; // pointer, not a duplicate row
       }
     }
-    return { byTemplate, byPackId };
+    return { byTemplate, byPackId, complete };
   }
 
   let _registryPromise = null; // shared in-memory across every lookup this page load
@@ -155,7 +178,7 @@
     if (cached) return Promise.resolve(cached);
     if (!_registryPromise) {
       _registryPromise = _fetchFullRegistry().then(reg => {
-        _writeRegistryCache(reg.byTemplate, reg.byPackId);
+        if (reg.complete) _writeRegistryCache(reg.byTemplate, reg.byPackId);
         return reg;
       }).catch(err => { _registryPromise = null; throw err; });
     }

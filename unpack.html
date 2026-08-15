@@ -294,7 +294,6 @@ function setUnboxNote(msg) {
    inventory scan at all), show those as a picker, and only ever fetch
    owner=+collection_name= scoped assets for whichever one is selected. */
 let _packCollections = [];
-let _packCollectionsLoaded = false;
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
 
@@ -309,16 +308,21 @@ async function loadPackCollectionsList(wallet) {
     .map(e => ({
       collection_name: e.collection.collection_name,
       name: e.collection.name || e.collection.collection_name,
-      ownedCount: e.assets != null ? Number(e.assets) : null,
+      ownedCount: null, // filled in below with the actual PACK count, not total cards owned in the collection
     }));
 
   // Owning SOMETHING in a pack-bearing collection doesn't mean owning a
   // PACK specifically (could just own regular cards from it) — confirm
-  // each candidate with a cheap existence check (template_whitelist +
-  // limit=1, a single small response) rather than showing a collection
-  // that would just turn out empty once picked. Bounded concurrency since
-  // this can be dozens of collections' worth of individual requests.
+  // each candidate with a cheap existence check (template_whitelist,
+  // a single small response) rather than showing a collection that would
+  // just turn out empty once picked. The same response also gives an
+  // accurate pack count for the picker label (was previously the
+  // collection's total owned-card count from /accounts, not packs
+  // specifically) — capped at 100 since this is a display count, not
+  // something that needs to be exact past that point. Bounded concurrency
+  // since this can be dozens of collections' worth of individual requests.
   const CONCURRENCY = 10;
+  const COUNT_CAP = 100;
   const owns = new Array(candidates.length).fill(false);
   let idx = 0;
   async function worker() {
@@ -328,9 +332,12 @@ async function loadPackCollectionsList(wallet) {
       if (!templateIds.length) continue;
       try {
         const rows = await WaxApi.apiFetch(
-          `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}&limit=1`
+          `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}&limit=${COUNT_CAP + 1}`
         );
-        owns[i] = !!(rows && rows.length);
+        const n = rows ? rows.length : 0;
+        owns[i] = n > 0;
+        candidates[i]._rawCount = n; // kept numeric for sorting — ownedCount below may become a capped display string
+        candidates[i].ownedCount = n > COUNT_CAP ? `${COUNT_CAP}+` : n;
       } catch { /* couldn't confirm — leave it out rather than risk showing an empty collection */ }
     }
   }
@@ -338,7 +345,7 @@ async function loadPackCollectionsList(wallet) {
 
   return candidates
     .filter((c, i) => owns[i])
-    .sort((a, b) => (b.ownedCount || 0) - (a.ownedCount || 0));
+    .sort((a, b) => (b._rawCount || 0) - (a._rawCount || 0));
 }
 
 // Same type-to-search combo widget as inventory.html's own Collection
@@ -757,24 +764,33 @@ async function loadTab() {
   showState('loading');
   try {
     if (tab === 'packs') {
-      if (!_packCollectionsLoaded) {
-        const collections = await loadPackCollectionsList(wallet);
-        if (myGen !== _loadGen) return;
-        _packCollections = collections;
-        _packCollectionsLoaded = true;
-      }
+      // Re-discovered fresh on every visit to this tab, not just once per
+      // session — someone who just bought a pack (very common: buy it, go
+      // straight here to open it) needs to see it immediately, including
+      // in a collection they didn't have any candidate packs in a minute
+      // ago. This is a real network round-trip every time, not a big deal
+      // given how much it already dropped from the original whole-
+      // inventory-scan cost.
+      const collections = await loadPackCollectionsList(wallet);
+      if (myGen !== _loadGen) return;
+      _packCollections = collections;
       if (!_packCollections.length) {
         document.getElementById('emptyWrap').innerHTML = '<strong>No packs found</strong>Nothing in your inventory is openable right now.';
         showState('empty');
         return;
       }
-      if (_selectedCollection == null) {
-        // First time on this tab this session — resolve the initial value.
-        // Default is "All collections" (a prompt, not a fetch — see
-        // selectPackCollection) unless a deep link from asset.html/
-        // inventory.html resolves to one of the candidate collections, in
-        // which case that one loads immediately instead of waiting for a pick.
-        let initial = 'all';
+      let initial = 'all';
+      if (_selectedCollection != null) {
+        // Revisiting the tab — keep whatever was picked (its pack list
+        // gets re-fetched fresh below regardless of whether it's still in
+        // the candidate list, since that list is just for browsing; the
+        // fetch itself is always the live truth).
+        initial = _selectedCollection;
+      } else {
+        // First time on this tab this session — default "All collections"
+        // (a prompt, not a fetch — see selectPackCollection) unless a deep
+        // link from asset.html/inventory.html resolves to one of the
+        // candidate collections, in which case that one loads immediately.
         const targetAssetId = deepLinkAssetId();
         if (targetAssetId && !_deepLinkResolveAttempted) {
           _deepLinkResolveAttempted = true;
@@ -783,14 +799,9 @@ async function loadTab() {
           const col = brief?.collection?.collection_name;
           if (col && _packCollections.some(c => c.collection_name === col)) initial = col;
         }
-        renderCollectionPicker(initial);
-        await selectPackCollection(wallet, initial);
-      } else {
-        // Revisiting the tab (switched to Unclaimed and back) — the
-        // previously selected collection and its loaded packs are still
-        // good, just restore visibility rather than re-fetching/resetting.
-        showState(_packEntries.length ? 'list' : 'empty');
       }
+      renderCollectionPicker(initial);
+      await selectPackCollection(wallet, initial);
     } else {
       const entries = await loadUnclaimed(wallet);
       if (myGen !== _loadGen) return;
@@ -823,7 +834,6 @@ function onWalletChange() {
   // wallet's discovered collections entirely, not just its pack list.
   if (wallet !== _lastWallet) {
     _packCollections = [];
-    _packCollectionsLoaded = false;
     _selectedCollection = null;
     _deepLinkResolveAttempted = false;
   }
