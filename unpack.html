@@ -133,6 +133,14 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .pr-empty { color: var(--text-secondary); font-size: 0.9rem; text-align: center; padding: 1rem 0 1.5rem; }
+    .pr-ft-line {
+      text-align: center; font-size: 0.95rem; font-weight: 700; color: var(--accent-light);
+      background: rgba(240,168,64,0.1); border: 1px solid rgba(240,168,64,0.3);
+      border-radius: 10px; padding: 0.6rem 1rem; margin-bottom: 1rem;
+    }
+    .pr-empty-msg { text-align: center; padding: 1rem 0 1.5rem; }
+    .pr-empty-msg .pr-empty-title { color: var(--text-secondary); font-size: 0.9rem; }
+    .pr-empty-msg .pr-empty-sub { color: var(--text-primary); font-weight: 600; font-size: 0.95rem; margin-top: 0.3rem; }
     .pr-close-btn { width: 100%; text-align: center; }
     #packPopupIntro { padding: 2rem 1rem 1.5rem; text-align: center; }
     .pr-intro-text { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; max-width: 420px; margin: 0 auto 1.75rem; }
@@ -242,6 +250,7 @@
 
     <div id="packPopupResults" style="display:none;">
       <div class="pr-grid" id="packResultGrid"></div>
+      <div id="packResultExtras"></div>
       <button type="button" class="pack-btn pr-close-btn" id="packResultCloseBtn">Close</button>
     </div>
   </div>
@@ -519,15 +528,45 @@ packResultOverlay.addEventListener('mousedown', e => { _prDownOnOverlay = (e.tar
 packResultOverlay.addEventListener('click', e => { if (_prDownOnOverlay && e.target === packResultOverlay) closePackResultPopup(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && packResultOverlay.style.display !== 'none') closePackResultPopup(); });
 
-function renderResultsGrid(minted) {
-  packResultGrid.innerHTML = minted.length
-    ? minted.map(a => `
-        <a class="pr-card" href="asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener" data-asset-id="${escHtml(a.asset_id)}">
-          <div class="pr-card-media">${packMediaHtml(a)}</div>
-          <div class="pr-card-name" title="${escHtml(a.name || 'Card')}">${escHtml(a.name || 'Card')}</div>
-        </a>
-      `).join('')
-    : '<div class="pr-empty">Claimed — check your inventory for the new cards.</div>';
+// `extras` — non-NFT outcomes decoded off a NeftyBlocks claimassets row (see
+// shared/nefty-packs.js's _decodeClaims): {kind:'ft', quantity, contract} for
+// a token reward, {kind:'empty'} for a real "you got nothing this time"
+// result — confirmed live via a real "Raffle Packet" pack's own on-chain
+// description, which warns openers it may reveal nothing. Always [] for the
+// AtomicPacks path (no such concept there), so this stays a no-op for it.
+function renderResultsGrid(minted, extras) {
+  extras = extras || [];
+  const ftLines = extras.filter(e => e.kind === 'ft')
+    .map(e => `<div class="pr-ft-line">+ ${escHtml(e.quantity)}</div>`).join('');
+  const hadEmpty = extras.some(e => e.kind === 'empty');
+
+  packResultGrid.style.display = minted.length ? '' : 'none';
+  packResultGrid.innerHTML = minted.map(a => `
+    <a class="pr-card" href="asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener" data-asset-id="${escHtml(a.asset_id)}">
+      <div class="pr-card-media">${packMediaHtml(a)}</div>
+      <div class="pr-card-name" title="${escHtml(a.name || 'Card')}">${escHtml(a.name || 'Card')}</div>
+    </a>
+  `).join('');
+
+  const extrasEl = document.getElementById('packResultExtras');
+  if (minted.length || ftLines) {
+    // Got at least a card and/or a token reward — show whichever bonus
+    // token line(s) apply alongside the grid; no "empty" framing since
+    // something real was actually received.
+    extrasEl.innerHTML = ftLines;
+  } else if (hadEmpty) {
+    extrasEl.innerHTML = `
+      <div class="pr-empty-msg">
+        <div class="pr-empty-title">Unfortunately, this pack was empty.</div>
+        <div class="pr-empty-sub">Better luck next time! 🍀</div>
+      </div>`;
+  } else {
+    // No positive evidence of a real empty-roll outcome (e.g. the
+    // AtomicPacks path, which has no EMPTY_CLAIM concept at all) — keep the
+    // original generic fallback rather than implying this pack specifically
+    // rolled empty.
+    extrasEl.innerHTML = '<div class="pr-empty">Claimed — check your inventory for the new cards.</div>';
+  }
   if (minted.length) loadResultMintNumbers(minted);
 }
 
@@ -587,11 +626,11 @@ async function runReveal(ctx) {
   _popupLocked = true;
   updatePopupLockUi();
   try {
-    const { minted } = await ctx.claim(msg => { if (_reveal === ctx) packPopupLoadingText.textContent = msg; });
+    const { minted, extras } = await ctx.claim(msg => { if (_reveal === ctx) packPopupLoadingText.textContent = msg; });
     ctx.done = true;
     ctx.onClaimed(minted);
     if (_reveal === ctx) {
-      renderResultsGrid(minted);
+      renderResultsGrid(minted, extras);
       setPopupStage('results', '✨ Look What You Pulled!');
     }
   } catch (err) {
@@ -658,7 +697,7 @@ async function claimWithReveal(wallet, assetId, onProgress) {
   }
   onProgress('Confirm in your wallet…');
   const result = await WaxAuth.transact([claimAction]);
-  return { result, minted: AtomicPacks.extractMintedAssets(result) };
+  return { result, minted: AtomicPacks.extractMintedAssets(result), extras: [] };
 }
 
 // NeftyBlocks companion to claimWithReveal above — same poll/sign shape,
@@ -701,9 +740,13 @@ async function claimWithRevealNefty(wallet, assetId, onProgress) {
   const result = await WaxAuth.transact([claimAction]);
   onProgress('Finalizing…');
   const mintedFromTrace = AtomicPacks.extractMintedAssets(result);
-  const poolAssetIds = claimRow.claims.filter(c => c.kind === 'POOL_NFT_CLAIM' && !c.isClaimed).map(c => c.asset_id);
+  const unclaimed = claimRow.claims.filter(c => !c.isClaimed);
+  const poolAssetIds = unclaimed.filter(c => c.kind === 'POOL_NFT_CLAIM').map(c => c.asset_id);
   const poolAssets = (await Promise.all(poolAssetIds.map(fetchAssetBrief))).filter(Boolean).map(leanAsset);
-  return { result, minted: [...mintedFromTrace, ...poolAssets] };
+  const extras = unclaimed
+    .filter(c => c.kind === 'FT_CLAIM' || c.kind === 'EMPTY_CLAIM')
+    .map(c => c.kind === 'FT_CLAIM' ? { kind: 'ft', quantity: c.amount.quantity, contract: c.amount.contract } : { kind: 'empty' });
+  return { result, minted: [...mintedFromTrace, ...poolAssets], extras };
 }
 
 /* ── Unclaimed Packs — unscoped (every collection at once), loaded once
