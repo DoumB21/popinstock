@@ -44,6 +44,40 @@
       background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;
     }
     .load-progress-fill { height: 100%; width: 0%; background: var(--accent-light); border-radius: 999px; transition: width 0.2s ease; }
+
+    /* ── External-pack scan banner — same info-block pattern
+       funko/set-tracker.html uses for its own optional full-scan feature,
+       minus the "Premium Feature" framing (this isn't a paid/gated
+       feature, just a heavier optional check) — an explicit "Optional"
+       label plus a description explaining what it adds over what's
+       already shown, so it doesn't read as a required step. ── */
+    .urlpack-scan-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 1.25rem;
+      margin-bottom: 1.5rem; padding: 1.1rem 1.4rem;
+      background: linear-gradient(135deg, rgba(240,168,64,0.10) 0%, rgba(240,168,64,0.04) 100%);
+      border: 1px solid rgba(240,168,64,0.35); border-radius: 12px; flex-wrap: wrap;
+    }
+    .urlpack-scan-banner-left { display: flex; align-items: center; gap: 0.9rem; }
+    .urlpack-scan-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
+    .urlpack-scan-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--accent-light); margin-bottom: 0.2rem;
+    }
+    .urlpack-scan-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; max-width: 46ch; }
+    .urlpack-scan-right { flex-shrink: 0; text-align: right; }
+    .urlpack-scan-btn {
+      padding: 0.55rem 1.25rem; background: rgba(240,168,64,0.12);
+      border: 1px solid rgba(240,168,64,0.45); border-radius: 8px;
+      color: var(--accent-light); font-size: 0.84rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s;
+    }
+    .urlpack-scan-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
+    .urlpack-scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #urlPackScanStatus { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; }
+    @media (max-width: 560px) {
+      .urlpack-scan-banner { flex-direction: column; align-items: flex-start; }
+      .urlpack-scan-right { text-align: left; }
+    }
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
     .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
 
@@ -220,9 +254,18 @@
        collection's full template catalog. Deliberately opt-in rather than
        automatic, per explicit request — most wallets own dozens to hundreds
        of collections and the vast majority have no external packs at all. -->
-  <div id="urlPackScanWrap" style="display:none; margin-bottom:1.5rem;">
-    <button type="button" id="scanUrlPacksBtn" class="load-more-btn">Scan inventory for packs using external links</button>
-    <div id="urlPackScanStatus" style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.5rem;"></div>
+  <div id="urlPackScanWrap" class="urlpack-scan-banner" style="display:none;">
+    <div class="urlpack-scan-banner-left">
+      <div class="urlpack-scan-icon">🔗</div>
+      <div>
+        <div class="urlpack-scan-label">Optional</div>
+        <div class="urlpack-scan-desc">Packs above are found automatically. Some collections use an external site to unpack instead — this checks for those too, which can take longer on a large wallet.</div>
+      </div>
+    </div>
+    <div class="urlpack-scan-right">
+      <button type="button" id="scanUrlPacksBtn" class="urlpack-scan-btn">Scan for External Packs</button>
+      <div id="urlPackScanStatus"></div>
+    </div>
   </div>
 
   <div id="loadWrap" class="status-wrap" style="display:none;">
