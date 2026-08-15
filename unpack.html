@@ -1012,7 +1012,7 @@ async function scanForUrlPacks(wallet) {
               `${WaxApi.aaBase()}/assets/_count?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(c.collection_name)}&template_whitelist=${templateIds.join(',')}`
             );
             const n = Number(count) || 0;
-            if (n > 0) found.push({ collection_name: c.collection_name, name: c.name || c.collection_name, ownedCount: n, _rawCount: n });
+            if (n > 0) found.push({ collection_name: c.collection_name, name: c.name || c.collection_name, ownedCount: n, _rawCount: n, externalOnly: true });
           }
         } catch { /* couldn't confirm — skip rather than risk showing an empty collection */ }
         statusEl.textContent = `Checking ${++done} of ${candidates.length} collections…`;
@@ -1216,7 +1216,16 @@ function packCollectionComboItems() {
   return [{ value: 'all', label: 'All collections' }].concat(
     _packCollections.map(c => ({
       value: c.collection_name,
-      label: c.name + (c.ownedCount != null ? ` (${c.ownedCount})` : ''),
+      // Same "↗" convention this site already uses everywhere else for a
+      // link that leaves the site (see feedback_link_style_conventions) —
+      // only collections found via the external-pack scan get it: those are
+      // confirmed 100% url-only (zero on-chain presence, or the scan would
+      // have skipped them). A normal on-chain candidate isn't marked even
+      // if it also happens to have SOME url-only extras mixed in (see
+      // loadPacksForCollection's own free fallback) — flagging that
+      // accurately would need the same full-template-catalog scan the
+      // opt-in button exists specifically to avoid running by default.
+      label: c.name + (c.ownedCount != null ? ` (${c.ownedCount})` : '') + (c.externalOnly ? ' ↗' : ''),
     }))
   );
 }
