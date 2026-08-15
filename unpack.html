@@ -1492,6 +1492,20 @@ let _packCollectionCache = new Map(); // collection_name -> entries[]
 function renderPackEntries(entries) {
   _packEntries = entries;
   _packVisible = 0;
+  // The picker's own "(N)" count only ever reflects on-chain-registered
+  // packs (loadPackCollectionsList's cheap combined _count check) — it has
+  // no way to know about a collection's url-only EXTRAS
+  // (loadPacksForCollection's own free per-asset resolveUnpackUrl fallback,
+  // see 7757a3f) until this exact collection is actually loaded. Self-
+  // correct here for free — no extra network call, entries.length already
+  // IS the true count for this collection — so the picker's number gets
+  // fixed the first time a mismatched collection is actually visited.
+  const col = _packCollections.find(c => c.collection_name === _selectedCollection);
+  if (col && col.ownedCount !== entries.length) {
+    col.ownedCount = entries.length;
+    col._rawCount = entries.length;
+    renderCollectionPicker(_selectedCollection);
+  }
   const list = document.getElementById('packsList');
   list.innerHTML = '';
   if (!entries.length) {
