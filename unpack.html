@@ -39,6 +39,11 @@
       animation: spin 0.7s linear infinite; margin: 0 auto 0.75rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .load-progress-bar {
+      width: 220px; height: 6px; margin: 0.85rem auto 0;
+      background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;
+    }
+    .load-progress-fill { height: 100%; width: 0%; background: var(--accent-light); border-radius: 999px; transition: width 0.2s ease; }
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 0.9rem; }
     .empty-state strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.4rem; }
 
@@ -211,6 +216,9 @@
   <div id="loadWrap" class="status-wrap" style="display:none;">
     <div class="spinner"></div>
     <div id="loadWrapText">Scanning your inventory for packs…</div>
+    <div id="loadProgressBar" class="load-progress-bar" style="display:none;">
+      <div id="loadProgressFill" class="load-progress-fill"></div>
+    </div>
   </div>
 
   <div id="emptyWrap" class="empty-state" style="display:none;"></div>
@@ -822,7 +830,15 @@ function buildUnclaimedCard(entry) {
       const floorEl = card.querySelector('[data-floor-tid]');
       if (floorEl) { floorEl.dataset.floorTid = lean.template_id; loadFloorPricesForCards([lean]); }
     }
-    _assetPopup.wire(card, packPopupData(lean, pack), { hoverEl: mediaEl });
+    _assetPopup.wire(card, packPopupData(lean, pack), {
+      hoverEl: mediaEl,
+      // Same convention as inventory.html's own cards — click navigates to
+      // the asset page, hover still shows the info popup; without this the
+      // module's default click behavior (lock the hover popup open) kicks
+      // in instead, which reads as broken next to every other card grid on
+      // the site.
+      onCardClick: () => { location.href = 'asset/' + encodeURIComponent(lean.asset_id); },
+    });
   }).catch(() => {});
 
   return card;
@@ -892,7 +908,7 @@ let _packCollections = [];
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
 
-async function loadPackCollectionsList(wallet) {
+async function loadPackCollectionsList(wallet, onProgress) {
   const [ownedRes, atomicCollectionNames, neftyCollectionNames] = await Promise.all([
     WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
     AtomicPacks.getPackCollections(),
@@ -930,16 +946,18 @@ async function loadPackCollectionsList(wallet) {
   const CONCURRENCY = 10;
   const owns = new Array(candidates.length).fill(false);
   let idx = 0;
+  let done = 0;
+  onProgress && onProgress(0, candidates.length);
   async function worker() {
     while (idx < candidates.length) {
       const i = idx++;
-      const [atomicIds, neftyIds] = await Promise.all([
-        AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
-        NeftyPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
-      ]);
-      const templateIds = [...new Set([...atomicIds, ...neftyIds])];
-      if (!templateIds.length) continue;
       try {
+        const [atomicIds, neftyIds] = await Promise.all([
+          AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
+          NeftyPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
+        ]);
+        const templateIds = [...new Set([...atomicIds, ...neftyIds])];
+        if (!templateIds.length) continue;
         const count = await WaxApi.apiFetch(
           `${WaxApi.aaBase()}/assets/_count?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}`
         );
@@ -948,6 +966,7 @@ async function loadPackCollectionsList(wallet) {
         candidates[i]._rawCount = n;
         candidates[i].ownedCount = n;
       } catch { /* couldn't confirm — leave it out rather than risk showing an empty collection */ }
+      finally { onProgress && onProgress(++done, candidates.length); }
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, candidates.length) }, worker));
@@ -1151,7 +1170,31 @@ async function loadPacksForCollection(wallet, collectionName) {
   return entries;
 }
 
+// Real, honest progress — not an animated fake bar. Only the collection-
+// discovery pass (loadPackCollectionsList) has a knowable total ahead of
+// time (the candidate count, known right after the cheap /accounts +
+// registry calls resolve, before the slower per-candidate ownership checks
+// start) — that's also genuinely the slow, wallet-size-dependent step users
+// were seeing as an indefinite spinner with no sense of how long it'd take.
+// The per-collection asset fetch (selectPackCollection) has no such total,
+// so it's left as a plain spinner — reset here (display:none, no width) so
+// a stale bar from a previous discovery pass never lingers into it.
+function setLoadProgress(done, total) {
+  const bar = document.getElementById('loadProgressBar');
+  const fill = document.getElementById('loadProgressFill');
+  if (!total) {
+    bar.style.display = 'none';
+    fill.style.width = '0%';
+    document.getElementById('loadWrapText').textContent = 'Scanning your inventory for packs…';
+    return;
+  }
+  bar.style.display = '';
+  fill.style.width = Math.round((done / total) * 100) + '%';
+  document.getElementById('loadWrapText').textContent = `Checking ${done} of ${total} collections…`;
+}
+
 function showState(state) {
+  if (state === 'loading') setLoadProgress(0, 0);
   document.getElementById('authGate').style.display  = state === 'auth'    ? '' : 'none';
   document.getElementById('loadWrap').style.display  = state === 'loading' ? '' : 'none';
   document.getElementById('emptyWrap').style.display = state === 'empty'   ? '' : 'none';
@@ -1288,7 +1331,15 @@ function buildPackCard(entry) {
     });
   }
   const mediaEl = card.querySelector('.pack-card-media');
-  _assetPopup.wire(card, packPopupData(asset, pack), { hoverEl: mediaEl });
+  // Same convention as inventory.html's own cards — click navigates to the
+  // asset page, hover still shows the info popup. The card's own Unpack/
+  // Show Cards button keeps working untouched either way: asset-popup.js's
+  // click handler already skips e.target.closest('a, button') before ever
+  // reaching onCardClick.
+  _assetPopup.wire(card, packPopupData(asset, pack), {
+    hoverEl: mediaEl,
+    onCardClick: () => { location.href = 'asset/' + encodeURIComponent(asset.asset_id); },
+  });
   return card;
 }
 
@@ -1403,7 +1454,9 @@ async function loadPacksSection(wallet) {
     // just bought a pack (very common: buy it, go straight here to open
     // it) needs to see it immediately, including in a collection they
     // didn't have any candidate packs in a minute ago.
-    const collections = await loadPackCollectionsList(wallet);
+    const collections = await loadPackCollectionsList(wallet, (done, total) => {
+      if (myGen === _loadGen) setLoadProgress(done, total);
+    });
     if (myGen !== _loadGen) return;
     _packCollections = collections;
     if (!_packCollections.length) {
