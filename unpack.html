@@ -45,27 +45,50 @@
     }
     .load-progress-fill { height: 100%; width: 0%; background: var(--accent-light); border-radius: 999px; transition: width 0.2s ease; }
 
-    /* ── External-pack scan banner — same info-block pattern
-       funko/set-tracker.html uses for its own optional full-scan feature,
-       minus the "Premium Feature" framing (this isn't a paid/gated
-       feature, just a heavier optional check) — an explicit "Optional"
-       label plus a description explaining what it adds over what's
-       already shown, so it doesn't read as a required step. ── */
+    /* ── External-pack scan: collapsed link + expandable banner — same
+       "🔒 Feature →" collapsed-entry-point pattern inventory.html uses for
+       its own premium unlock banners (Buy Offer/Floor Price/Last Sold),
+       reused here per explicit request: most wallets never need this (it's
+       mainly old/legacy packs), so it shouldn't cost permanent page space —
+       collapsed to a small link by default, expands into the same info-
+       block styling as before on click, with an X to re-collapse it. ── */
+    .urlpack-unlock-row { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+    .urlpack-unlock-link {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.8rem; font-weight: 600; color: var(--accent-light);
+      cursor: pointer; opacity: 0.85; transition: opacity 0.15s; user-select: none;
+    }
+    .urlpack-unlock-link:hover { opacity: 1; text-decoration: underline; }
+    .urlpack-unlock-link.is-hidden { display: none; }
+
     .urlpack-scan-banner {
-      display: flex; align-items: center; justify-content: space-between; gap: 1.25rem;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem;
       margin-bottom: 1.5rem; padding: 1.1rem 1.4rem;
       background: linear-gradient(135deg, rgba(240,168,64,0.10) 0%, rgba(240,168,64,0.04) 100%);
       border: 1px solid rgba(240,168,64,0.35); border-radius: 12px; flex-wrap: wrap;
+      position: relative;
     }
-    .urlpack-scan-banner-left { display: flex; align-items: center; gap: 0.9rem; flex: 1 1 300px; min-width: 0; }
+    .urlpack-scan-banner.is-hidden { display: none; }
+    .urlpack-scan-banner-left { display: flex; align-items: center; gap: 0.9rem; flex: 1 1 320px; min-width: 0; }
     .urlpack-scan-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
     .urlpack-scan-label {
       font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
       color: var(--accent-light); margin-bottom: 0.2rem;
     }
     .urlpack-scan-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
-    .urlpack-scan-right { flex-shrink: 0; text-align: right; }
+    .urlpack-scan-close {
+      position: absolute; top: 0.6rem; right: 0.7rem; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; color: var(--text-secondary);
+      font-size: 1rem; line-height: 1; cursor: pointer; border-radius: 5px;
+    }
+    .urlpack-scan-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+    /* align-self:flex-end on a row-direction flex container pins this to
+       the BOTTOM-right of the banner (inventory.html's own fetch buttons
+       use the same trick) — keeps it clear of the close button's top-right
+       corner regardless of how many lines the description wraps to. */
     .urlpack-scan-btn {
+      flex-shrink: 0; align-self: flex-end;
       padding: 0.55rem 1.25rem; background: rgba(240,168,64,0.12);
       border: 1px solid rgba(240,168,64,0.45); border-radius: 8px;
       color: var(--accent-light); font-size: 0.84rem; font-weight: 700; font-family: inherit;
@@ -73,7 +96,7 @@
     }
     .urlpack-scan-btn:hover:not(:disabled) { background: rgba(240,168,64,0.2); border-color: rgba(240,168,64,0.7); }
     .urlpack-scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    #urlPackScanStatus { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; }
+    #urlPackScanStatus { flex-basis: 100%; text-align: right; font-size: 0.8rem; color: var(--text-secondary); }
     @media (max-width: 560px) {
       .urlpack-scan-banner { flex-direction: column; align-items: flex-start; }
       .urlpack-scan-right { text-align: left; }
@@ -253,16 +276,24 @@
        to know about them ahead of time short of scanning every owned
        collection's full template catalog. Deliberately opt-in rather than
        automatic, per explicit request — most wallets own dozens to hundreds
-       of collections and the vast majority have no external packs at all. -->
-  <div id="urlPackScanWrap" class="urlpack-scan-banner" style="display:none;">
-    <div class="urlpack-scan-banner-left">
-      <div class="urlpack-scan-icon">🔗</div>
-      <div>
-        <div class="urlpack-scan-label">Optional</div>
-        <div class="urlpack-scan-desc">Some collections use an external site to open their packs, so they don't appear in the list above. Run this optional scan to find those packs too. This may take longer for large wallets.</div>
-      </div>
+       of collections and the vast majority have no external packs at all.
+       Collapsed to a small link by default (same pattern as inventory.html's
+       own premium-feature unlock links) — most wallets never need this at
+       all (mainly old/legacy packs), so it shouldn't cost permanent page
+       space. -->
+  <div id="urlPackScanContainer" style="display:none;">
+    <div class="urlpack-unlock-row">
+      <div class="urlpack-unlock-link" id="urlPackUnlockLink" onclick="toggleUrlPackBanner(true)" title="Check for packs that use an external site to open">🔗 <strong>External Packs</strong> →</div>
     </div>
-    <div class="urlpack-scan-right">
+    <div id="urlPackScanWrap" class="urlpack-scan-banner is-hidden">
+      <button type="button" class="urlpack-scan-close" id="urlPackBannerClose" onclick="toggleUrlPackBanner(false)" title="Hide">✕</button>
+      <div class="urlpack-scan-banner-left">
+        <div class="urlpack-scan-icon">🔗</div>
+        <div>
+          <div class="urlpack-scan-label">Optional</div>
+          <div class="urlpack-scan-desc">Some collections use an external site to open their packs, so they don't appear in the list above. Run this optional scan to find those packs too. This may take longer for large wallets.</div>
+        </div>
+      </div>
       <button type="button" id="scanUrlPacksBtn" class="urlpack-scan-btn">Scan for External Packs</button>
       <div id="urlPackScanStatus"></div>
     </div>
@@ -1010,6 +1041,21 @@ async function getUrlPackTemplateIdsByCollection(collectionName) {
   return ids;
 }
 
+// Same collapsed-link/expandable-banner toggle inventory.html's own premium
+// unlock banners use — the link disappears while the banner is open, and
+// reappears once it's closed (unlike inventory.html's version, this one
+// doesn't stay permanently hidden after a successful scan — re-opening to
+// run it again, e.g. after buying a new external-only pack, is a
+// reasonable thing to want here).
+function toggleUrlPackBanner(show) {
+  const banner = document.getElementById('urlPackScanWrap');
+  const link = document.getElementById('urlPackUnlockLink');
+  if (!banner) return;
+  banner.classList.toggle('is-hidden', !show);
+  if (link) link.classList.toggle('is-hidden', show);
+  if (show) banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 // Skips only collections already confirmed as real candidates in
 // _packCollections (i.e. THIS wallet actually owns an on-chain pack there)
 // — those are covered for free, no scan needed, by loadPacksForCollection's
@@ -1412,7 +1458,7 @@ function showState(state) {
   // regardless of whether any on-chain-registered packs were found — a
   // wallet could own packs ONLY via the url-attribute mechanism, in which
   // case _packCollections stays empty and the picker above never shows.
-  document.getElementById('urlPackScanWrap').style.display = (state === 'list' || state === 'empty') ? '' : 'none';
+  document.getElementById('urlPackScanContainer').style.display = (state === 'list' || state === 'empty') ? '' : 'none';
   document.getElementById('packsList').style.display = state === 'list' ? '' : 'none';
   document.getElementById('packsLoadMoreWrap').style.display = (state === 'list' && _packVisible < _packEntries.length) ? '' : 'none';
 }
