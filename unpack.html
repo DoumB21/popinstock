@@ -32,12 +32,6 @@
 
     .tab-count { font-variant-numeric: tabular-nums; opacity: 0.85; }
 
-    .pack-note {
-      display: none; background: rgba(240,168,64,0.1); border: 1px solid rgba(240,168,64,0.3);
-      color: var(--accent-light); border-radius: 10px; padding: 0.75rem 1rem;
-      font-size: 0.85rem; margin-bottom: 1.25rem;
-    }
-
     .status-wrap { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
     .spinner {
       width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
@@ -86,6 +80,40 @@
     @media (max-width: 700px) {
       .page-main { padding: 1.25rem 0.75rem 3rem; }
     }
+
+    /* ── Pack results popup — shown after a successful Claim, listing the
+       cards just received. Single consumer (this page), so kept local
+       rather than a shared modal module. ── */
+    .pr-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      align-items: center; justify-content: center; z-index: 1000; padding: 1.5rem;
+    }
+    .pr-panel {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 1.5rem;
+    }
+    .pr-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .pr-title { font-size: 1.1rem; font-weight: 700; }
+    .pr-close {
+      background: none; border: none; color: var(--text-secondary);
+      font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0.25rem;
+    }
+    .pr-close:hover { color: var(--text-primary); }
+    .pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
+    .pr-card {
+      display: block; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; text-decoration: none; color: inherit;
+      transition: border-color 0.15s;
+    }
+    .pr-card:hover { border-color: var(--border-hover); }
+    .pr-card-media { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); }
+    .pr-card-media img, .pr-card-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .pr-card-name {
+      font-size: 0.82rem; font-weight: 600; padding: 0.5rem 0.6rem; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pr-empty { color: var(--text-secondary); font-size: 0.9rem; text-align: center; padding: 1rem 0 1.5rem; }
+    .pr-close-btn { width: 100%; text-align: center; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -119,8 +147,6 @@
     <p class="auth-gate-hint">Connect your WAX wallet using the button in the navigation bar to see your packs.</p>
   </div>
 
-  <div class="pack-note" id="unboxNote"></div>
-
   <!-- Unclaimed Packs — not a tab, always at the top, unscoped by
        collection, loaded once (see loadUnclaimedSection). Hidden entirely
        unless non-empty: normally there should never be anything here — its
@@ -152,6 +178,21 @@
     <button id="packsLoadMoreBtn" class="load-more-btn">Load more</button>
   </div>
 </main>
+
+<!-- Shown after a successful Claim — the cards just received, read directly
+     off that claim transaction's own trace (see AtomicPacks.extractMintedAssets).
+     Closing it just hides the overlay; the Packs page underneath is untouched,
+     so the visitor can immediately open another pack. -->
+<div class="pr-overlay" id="packResultOverlay">
+  <div class="pr-panel" id="packResultPanel" role="dialog" aria-modal="true" aria-label="Cards received">
+    <div class="pr-header">
+      <div class="pr-title">You got:</div>
+      <button type="button" class="pr-close" id="packResultCloseX" aria-label="Close">✕</button>
+    </div>
+    <div class="pr-grid" id="packResultGrid"></div>
+    <button type="button" class="pack-btn pr-close-btn" id="packResultCloseBtn">Close</button>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -208,19 +249,42 @@ const _wallet = WalletWidget.mount(document.querySelector('.nav-inner'), {
 });
 window.addEventListener('wax-auth-change', onWalletChange);
 
-function setUnboxNote(msg) {
-  const el = document.getElementById('unboxNote');
-  if (!msg) { el.style.display = 'none'; return; }
-  el.textContent = msg;
-  el.style.display = '';
+/* ── Pack results popup — shown after any successful Claim (both the
+   Unclaimed Packs section below and the inline Packs-section flow use it),
+   listing the cards just received with a Close button that falls back to
+   whichever page state was already showing underneath. ── */
+const packResultOverlay = document.getElementById('packResultOverlay');
+const packResultGrid = document.getElementById('packResultGrid');
+function closePackResultPopup() {
+  packResultOverlay.style.display = 'none';
+  packResultGrid.innerHTML = '';
+}
+document.getElementById('packResultCloseX').addEventListener('click', closePackResultPopup);
+document.getElementById('packResultCloseBtn').addEventListener('click', closePackResultPopup);
+let _prDownOnOverlay = false;
+packResultOverlay.addEventListener('mousedown', e => { _prDownOnOverlay = (e.target === packResultOverlay); });
+packResultOverlay.addEventListener('click', e => { if (_prDownOnOverlay && e.target === packResultOverlay) closePackResultPopup(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && packResultOverlay.style.display !== 'none') closePackResultPopup(); });
+function showPackResultsPopup(minted) {
+  packResultGrid.innerHTML = minted.length
+    ? minted.map(a => `
+        <a class="pr-card" href="/asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener">
+          <div class="pr-card-media">${packMediaHtml(a)}</div>
+          <div class="pr-card-name" title="${escHtml(a.name || 'Card')}">${escHtml(a.name || 'Card')}</div>
+        </a>
+      `).join('')
+    : '<div class="pr-empty">Claimed — check your inventory for the new cards.</div>';
+  packResultOverlay.style.display = 'flex';
 }
 
 /* ── Unclaimed Packs — unscoped (every collection at once), loaded once
    (page load / a real wallet change), not re-fetched by in-page
-   interactions like picking a different collection below. Also refreshed
-   directly after a successful Unpack, once polling confirms the new entry
-   exists (see pollForUnclaimed) — that's a deliberate consequence of the
-   user's own action, not a "background reload". ── */
+   interactions like picking a different collection below, and NOT touched
+   by the Packs section's own inline unbox→claim flow (see buildPackCard) —
+   a pack being actively opened there must never show up duplicated here
+   too. This section only ever reflects what's on-chain as of the last
+   load; a pack abandoned mid-flow (tab closed between Unbox and Claim)
+   surfaces here the next time the page is actually loaded. ── */
 async function loadUnclaimed(wallet) {
   const rows = await AtomicPacks.fetchUnclaimedPacks(wallet);
   const entries = [];
@@ -279,9 +343,10 @@ async function claimPack(packAssetId, pack, cardEl, btn, statusEl) {
   statusEl.textContent = '';
   statusEl.className = 'pack-card-status';
   try {
-    await WaxAuth.transact([AtomicPacks.buildClaimAction(wallet, packAssetId, pack.roll_counter)]);
+    const result = await WaxAuth.transact([AtomicPacks.buildClaimAction(wallet, packAssetId, pack.roll_counter)]);
     cardEl.remove();
     checkUnclaimedEmpty();
+    showPackResultsPopup(AtomicPacks.extractMintedAssets(result));
   } catch (err) {
     const info = describeTxError(err);
     if (info.kind === 'cancelled') {
@@ -635,11 +700,18 @@ function renderPackBatch() {
   moreWrap.style.display = _packVisible < _packEntries.length ? '' : 'none';
 }
 
+// Cards stay in place through the whole flow — clicking Unpack signs the
+// unbox tx, then (once the oracle roll resolves) the SAME card's button
+// flips to Claim in place, rather than moving into the Unclaimed Packs
+// section above (that section is reserved for packs abandoned mid-flow on
+// a past visit — see its own comment). `card.dataset.stage` drives which
+// handler the button's click runs.
 function buildPackCard(entry) {
   const { asset, pack } = entry;
   const card = document.createElement('div');
   card.className = 'pack-card';
   card.dataset.assetId = asset.asset_id;
+  card.dataset.stage = 'openable';
   const name = asset.name || 'Pack';
   const collection = asset.collection_name || pack.collection_name || '';
   const locked = pack.unlock_time && pack.unlock_time * 1000 > Date.now();
@@ -649,12 +721,17 @@ function buildPackCard(entry) {
       <div class="pack-card-name" title="${escHtml(name)}">${escHtml(name)}</div>
       <div class="pack-card-col">${escHtml(collection)}</div>
       <div class="pack-card-status" data-status>${locked ? 'Unlocks ' + new Date(pack.unlock_time * 1000).toLocaleDateString() : ''}</div>
-      <button type="button" class="pack-btn" data-unbox${locked ? ' disabled' : ''}>${locked ? 'Locked' : 'Unpack'}</button>
+      <button type="button" class="pack-btn" data-action${locked ? ' disabled' : ''}>${locked ? 'Locked' : 'Unpack'}</button>
     </div>
   `;
-  const btn = card.querySelector('[data-unbox]');
+  const btn = card.querySelector('[data-action]');
   const statusEl = card.querySelector('[data-status]');
-  if (!locked) btn.addEventListener('click', () => unboxPack(asset.asset_id, card, btn, statusEl));
+  if (!locked) {
+    btn.addEventListener('click', () => {
+      if (card.dataset.stage === 'claimable') claimPackFromCard(entry, card, btn, statusEl);
+      else unboxPackFromCard(entry, card, btn, statusEl);
+    });
+  }
   return card;
 }
 
@@ -670,21 +747,34 @@ function checkPacksEmpty() {
 // The actual on-chain action is still "unbox" (atomicassets::transfer with
 // memo "unbox", see shared/atomic-packs.js) — only the user-facing label
 // changed to "Unpack" to match the rest of this page's wording.
-async function unboxPack(assetId, cardEl, btn, statusEl) {
+async function unboxPackFromCard(entry, card, btn, statusEl) {
   const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
   if (!wallet) return;
+  const assetId = entry.asset.asset_id;
   btn.disabled = true;
   btn.textContent = 'Unpacking…';
   statusEl.textContent = '';
   statusEl.className = 'pack-card-status';
   try {
     await WaxAuth.transact([AtomicPacks.buildUnboxAction(wallet, assetId)]);
-    cardEl.remove();
-    const idx = _packEntries.findIndex(e => String(e.asset.asset_id) === String(assetId));
-    if (idx !== -1) { _packEntries.splice(idx, 1); _packVisible--; }
-    checkPacksEmpty();
-    setUnboxNote('Unpacking… this usually takes a few seconds.');
-    pollForUnclaimed(wallet, assetId);
+    btn.textContent = 'Waiting…';
+    statusEl.textContent = 'Waiting for reveal…';
+    const row = await pollForCardUnclaimed(wallet, assetId);
+    if (!row) {
+      // Degrades gracefully: the pack asset already left the wallet (it
+      // was transferred to atomicpacksx), so this exact button can't be
+      // used again — but the Unclaimed Packs section above will still pick
+      // it up on this page's next real load, same as any other abandoned
+      // in-progress pack.
+      statusEl.textContent = 'Taking longer than usual — reload in a bit; it will show under Unclaimed Packs above once ready.';
+      btn.textContent = 'Unboxed';
+      return;
+    }
+    entry.unclaimedRow = row; // { pack_asset_id, pack_id, unboxer } — needed by claimPackFromCard
+    card.dataset.stage = 'claimable';
+    statusEl.textContent = '';
+    btn.textContent = 'Claim';
+    btn.disabled = false;
   } catch (err) {
     const info = describeTxError(err);
     if (info.kind === 'cancelled') {
@@ -699,26 +789,49 @@ async function unboxPack(assetId, cardEl, btn, statusEl) {
   }
 }
 
-// Bounded auto-poll after a successful Unpack — the oracle callback usually
-// resolves in 2-5s, but isn't always reliable (a real pack sat unresolved
-// for 3+ months in testing), so this degrades gracefully: on timeout it
-// just stops silently and leaves the Unclaimed Packs section's own
-// always-fresh-on-demand query to pick it up whenever it's next loaded.
-async function pollForUnclaimed(wallet, assetId) {
+// Bounded poll after Unpack — the oracle callback usually resolves in
+// 2-5s, but isn't always reliable (a real pack sat unresolved for 3+
+// months in earlier testing). Scoped to one asset_id rather than the whole
+// Unclaimed Packs section (see that section's own comment for why).
+async function pollForCardUnclaimed(wallet, assetId) {
   const POLL_MS = 2000, TIMEOUT_MS = 30000;
   const start = Date.now();
   while (Date.now() - start < TIMEOUT_MS) {
     await new Promise(r => setTimeout(r, POLL_MS));
-    if ((window.getWaxAccount ? window.getWaxAccount() : null) !== wallet) return; // wallet changed mid-poll
+    if ((window.getWaxAccount ? window.getWaxAccount() : null) !== wallet) return null; // wallet changed mid-poll
     const rows = await AtomicPacks.fetchUnclaimedPacks(wallet);
-    if (rows.some(r => String(r.pack_asset_id) === String(assetId))) {
-      setUnboxNote('');
-      await loadUnclaimedSection(wallet);
-      document.getElementById('unclaimedSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const row = rows.find(r => String(r.pack_asset_id) === String(assetId));
+    if (row) return row;
+  }
+  return null;
+}
+
+async function claimPackFromCard(entry, card, btn, statusEl) {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet || !entry.unclaimedRow) return;
+  btn.disabled = true;
+  btn.textContent = 'Claiming…';
+  statusEl.textContent = '';
+  statusEl.className = 'pack-card-status';
+  try {
+    const result = await WaxAuth.transact([AtomicPacks.buildClaimAction(wallet, entry.unclaimedRow.pack_asset_id, entry.pack.roll_counter)]);
+    const idx = _packEntries.indexOf(entry);
+    if (idx !== -1) { _packEntries.splice(idx, 1); _packVisible--; }
+    card.remove();
+    checkPacksEmpty();
+    showPackResultsPopup(AtomicPacks.extractMintedAssets(result));
+  } catch (err) {
+    const info = describeTxError(err);
+    if (info.kind === 'cancelled') {
+      btn.disabled = false;
+      btn.textContent = 'Claim';
       return;
     }
+    statusEl.innerHTML = info.kind !== 'generic' ? txErrorHtml(info, '', '') : escHtml(err.message || 'Claim failed.');
+    statusEl.className = 'pack-card-status is-error';
+    btn.disabled = false;
+    btn.textContent = 'Claim';
   }
-  setUnboxNote('This may take longer than usual — check back shortly.');
 }
 
 /* ── Deep link (?asset_id=) — Packs section only, best-effort ──

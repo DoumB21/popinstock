@@ -282,6 +282,62 @@
     } catch { return []; }
   }
 
+  /* ── Reading the claimed cards straight off the claim transaction ──
+     claimunboxed triggers inline atomicassets::mintasset calls (one per
+     rolled result), each of which notifies atomicassets::logmint with the
+     new asset_id plus the template's immutable_template_data (name/img/
+     etc. as [type,value] pairs) — confirmed live against a real recent
+     claimunboxed transaction on-chain.
+
+     WharfKit's SessionKit broadcasts every wallet plugin's signed
+     transaction through the SAME session.transact() → send_transaction
+     call (confirmed in @wharfkit/session's own source — wallet plugins only
+     produce signatures, they don't broadcast), so the resolved
+     TransactResult's `.response.processed.action_traces` is the real
+     nodeos trace tree, complete with every inline action, regardless of
+     which of the 3 supported wallets signed it. That means the claimed
+     cards can be read directly from the SAME transact() call that claims
+     them — no follow-up indexer query, so no indexing-lag window (this is
+     what made "show claimed contents inline" unreliable via AtomicAssets'
+     own REST indexer in earlier design discussion; reading the broadcast's
+     own trace sidesteps that entirely). */
+  function _flattenTraces(traces) {
+    const out = [];
+    for (const t of traces || []) {
+      out.push(t);
+      if (t.inline_traces && t.inline_traces.length) out.push(..._flattenTraces(t.inline_traces));
+    }
+    return out;
+  }
+
+  function _traceDataValue(entry) {
+    return Array.isArray(entry.value) ? entry.value[1] : entry.value;
+  }
+
+  function extractMintedAssets(transactResult) {
+    const traces = transactResult?.response?.processed?.action_traces;
+    if (!traces) return [];
+    const minted = [];
+    for (const t of _flattenTraces(traces)) {
+      const act = t.act;
+      if (!act || act.account !== 'atomicassets' || act.name !== 'logmint') continue;
+      const d = act.data || {};
+      const fields = {};
+      for (const entry of d.immutable_template_data || []) fields[entry.key] = _traceDataValue(entry);
+      for (const entry of d.immutable_data || []) if (!(entry.key in fields)) fields[entry.key] = _traceDataValue(entry);
+      minted.push({
+        asset_id: d.asset_id,
+        collection_name: d.collection_name,
+        schema_name: d.schema_name,
+        template_id: d.template_id,
+        name: fields.name || '',
+        img: fields.img || fields.image || '',
+        video: fields.video || '',
+      });
+    }
+    return minted;
+  }
+
   window.AtomicPacks = {
     resolveUnpackUrl,
     lookupPackByTemplateId,
@@ -291,5 +347,6 @@
     getPackTemplateIdsByCollection,
     buildUnboxAction,
     buildClaimAction,
+    extractMintedAssets,
   };
 })();
