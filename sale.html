@@ -17,6 +17,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
@@ -135,6 +136,10 @@
     .tpl-info-val { font-size: 0.95rem; font-weight: 600; margin-top: 0.1rem; }
     .tpl-info-val a { color: var(--accent-light); text-decoration: none; }
     .tpl-info-val a:hover { text-decoration: underline; }
+    /* Real on-chain collection name, shown alongside the (often different,
+       friendlier) display name — small/grey so it reads as secondary info,
+       not a second heading. Same block as template.html/asset.html's own. */
+    .tpl-real-name { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-left: 0.35rem; }
     .tpl-supply-tag { cursor: default; }
     .tpl-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
     .tpl-badge--yes { background: rgba(74,222,128,0.15); color: #4ade80; }
@@ -265,11 +270,11 @@
           </div>
           <div>
             <div class="sale-info-label">Seller</div>
-            <div class="sale-info-val" id="saleSeller"></div>
+            <div class="sale-info-val tt-val-copiable" id="saleSeller"></div>
           </div>
           <div>
             <div class="sale-info-label">Buyer</div>
-            <div class="sale-info-val" id="saleBuyer">—</div>
+            <div class="sale-info-val tt-val-copiable" id="saleBuyer">—</div>
           </div>
           <div>
             <div class="sale-info-label">Listed On</div>
@@ -312,11 +317,11 @@
           <div class="tpl-info-grid">
             <div>
               <div class="tpl-info-label">Asset ID</div>
-              <div class="tpl-info-val" id="astId"></div>
+              <div class="tpl-info-val tt-val-copiable" id="astId"></div>
             </div>
             <div>
               <div class="tpl-info-label">Owner</div>
-              <div class="tpl-info-val" id="astOwner"></div>
+              <div class="tpl-info-val tt-val-copiable" id="astOwner"></div>
             </div>
             <div>
               <div class="tpl-info-label">Mint Number</div>
@@ -336,7 +341,7 @@
             </div>
             <div>
               <div class="tpl-info-label">Template ID</div>
-              <div class="tpl-info-val" id="astTemplate"></div>
+              <div class="tpl-info-val tt-val-copiable" id="astTemplate"></div>
             </div>
             <div>
               <div class="tpl-info-label">Backed Tokens</div>
@@ -749,8 +754,9 @@ async function loadSale() {
     (saleUsdRate ? ` <span class="sale-price-usd">≈ $${(Number(sale.price.amount) / (10 ** sale.price.token_precision) * saleUsdRate).toFixed(2)}</span>` : '');
   document.getElementById('salePriceLabel').textContent = sale.state === 3 ? 'Sold For' : sale.state === 2 ? 'Was Listed For' : 'Price';
   document.getElementById('saleStatus').innerHTML = `<span class="sale-status sale-status--${state.cls}">${escHtml(state.label)}</span>`;
-  document.getElementById('saleSeller').innerHTML = walletLinkHtml(sale.seller);
-  document.getElementById('saleBuyer').innerHTML = sale.buyer ? walletLinkHtml(sale.buyer) : '—';
+  document.getElementById('saleSeller').innerHTML = walletLinkHtml(sale.seller) + copyIconHtml(sale.seller, 'Copy seller wallet');
+  document.getElementById('saleBuyer').innerHTML = sale.buyer
+    ? walletLinkHtml(sale.buyer) + copyIconHtml(sale.buyer, 'Copy buyer wallet') : '—';
   document.getElementById('saleListedOn').textContent = fmtDateTime(sale.created_at_time);
   document.getElementById('saleSoldOn').textContent = sale.state === 3 ? fmtDateTime(sale.updated_at_time) : '—';
   // Independent facts — a listing can be made via one marketplace's UI and
@@ -1087,10 +1093,10 @@ function renderSingleAsset(asset, collectionName, templateId) {
   }
 
   document.getElementById('astName').textContent = data.name || asset.name || `Asset #${asset.asset_id}`;
-  document.getElementById('astId').innerHTML = `<a href="${_p}asset/${encodeURIComponent(asset.asset_id)}">#${escHtml(asset.asset_id)}</a>`;
+  document.getElementById('astId').innerHTML = `<a href="${_p}asset/${encodeURIComponent(asset.asset_id)}">#${escHtml(asset.asset_id)}</a>${copyIconHtml(asset.asset_id, 'Copy Asset ID')}`;
   document.getElementById('astOwner').innerHTML = isBurned
     ? `<span class="ast-burned-tag" title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}">🔥 Burned${asset.burned_by_account ? ' by ' + walletLinkHtml(asset.burned_by_account) : ''}</span>`
-    : walletLinkHtml(asset.owner);
+    : walletLinkHtml(asset.owner) + copyIconHtml(asset.owner, 'Copy owner wallet');
   const issuedSupply = asset.template ? Number(asset.template.issued_supply) : null;
   document.getElementById('astMint').textContent = issuedSupply != null
     ? `${asset.template_mint} of ${issuedSupply.toLocaleString()}`
@@ -1112,12 +1118,22 @@ function renderSingleAsset(asset, collectionName, templateId) {
   document.getElementById('astFlags').innerHTML =
     `<span class="tpl-badge ${asset.is_burnable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_burnable ? 'Burnable' : 'Not burnable'}</span> ` +
     `<span class="tpl-badge ${asset.is_transferable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_transferable ? 'Transferable' : 'Not transferable'}</span>`;
-  document.getElementById('astCollection').innerHTML = collectionName
-    ? `<a href="${_p}collection/${encodeURIComponent(collectionName)}">${escHtml(asset.collection?.name || collectionName)}</a>` : '—';
+  if (collectionName) {
+    const collDisplayName = asset.collection?.name || collectionName;
+    // Real on-chain name only adds information when it actually differs
+    // from the display name above — skip it when they're the same.
+    const collRealNameHtml = collDisplayName !== collectionName
+      ? ` <span class="tpl-real-name">${escHtml(collectionName)}${copyIconHtml(collectionName, 'Copy collection name')}</span>`
+      : '';
+    document.getElementById('astCollection').innerHTML =
+      `<a href="${_p}collection/${encodeURIComponent(collectionName)}">${escHtml(collDisplayName)}</a>${collRealNameHtml}`;
+  } else {
+    document.getElementById('astCollection').textContent = '—';
+  }
   document.getElementById('astSchema').innerHTML = (collectionName && schemaName)
     ? `<a href="${_p}schema/${encodeURIComponent(collectionName)}/${encodeURIComponent(schemaName)}">${escHtml(schemaName)}</a>` : '—';
   document.getElementById('astTemplate').innerHTML = templateId
-    ? `<a href="${_p}template/${encodeURIComponent(templateId)}">#${escHtml(templateId)}</a>` : '—';
+    ? `<a href="${_p}template/${encodeURIComponent(templateId)}">#${escHtml(templateId)}</a>${copyIconHtml(templateId, 'Copy Template ID')}` : '—';
   document.getElementById('astBacked').textContent = AssetPopup.fmtBackedTokens(asset.backed_tokens);
 
   const attrsBody = document.getElementById('astAttrsBody');

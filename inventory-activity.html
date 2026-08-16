@@ -224,6 +224,11 @@
     .wallet-link { color: inherit; text-decoration: none; }
     .wallet-link:hover { text-decoration: underline; }
     .sc-mint-range { color: #60a5fa; font-weight: 700; }
+    /* Real on-chain collection name, shown alongside the (often different,
+       friendlier) display name — small/grey so it reads as secondary info.
+       Same block as template.html/asset.html/sale.html's own. Sits inside
+       a nowrap/ellipsis .sc-value, so no wrapping concerns of its own. */
+    .tpl-real-name { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-left: 0.35rem; }
     .sc-value--wrap { white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
     /* A grid track sized `max-content` uses the unwrapped intrinsic width of
        its widest cell, ignoring the container — that's what let a long mint
@@ -315,6 +320,7 @@
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
   <script src="shared/asset-popup.js"></script>
+  <script src="shared/copy-to-clipboard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 </head>
 <body>
@@ -1107,8 +1113,13 @@ function assetFields(asset) {
   const nameHtml = templateId
     ? `<a href="template/${encodeURIComponent(templateId)}" class="sc-name-link">${escHtml(name)}</a>`
     : escHtml(name);
+  // Real on-chain collection name only adds information when it actually
+  // differs from the display name above — skip it when they're the same.
+  const collRealNameHtml = (col && collName !== col)
+    ? ` <span class="tpl-real-name">${escHtml(col)}${copyIconHtml(col, 'Copy collection name')}</span>`
+    : '';
   const collHtml = col
-    ? `<a href="collection/${encodeURIComponent(col)}" class="sc-name-link">${escHtml(collName)}</a>`
+    ? `<a href="collection/${encodeURIComponent(col)}" class="sc-name-link">${escHtml(collName)}</a>${collRealNameHtml}`
     : escHtml(collName);
   return { name, collName, mint, nameHtml, collHtml };
 }
@@ -1142,8 +1153,8 @@ function saleCardHtml(item, asset) {
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
-        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(item.seller)}</span>
-        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${walletLinkHtml(item.buyer)}</span>
+        <span class="sc-label">Seller</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.seller)}${copyIconHtml(item.seller, 'Copy seller wallet')}</span>
+        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.buyer)}${copyIconHtml(item.buyer, 'Copy buyer wallet')}</span>
       </div>
     </div>
   </div>`;
@@ -1168,8 +1179,8 @@ function saleBundleCardHtml(item, assets) {
         <span class="sc-label">Price</span><span class="sc-value sc-price">${wax.toFixed(4)} WAX${usdTag(wax, item.updated_at_time)}</span>
         <span class="sc-label">Listing ID</span><span class="sc-value sc-wallet"><a href="sale/${item.sale_id}" class="wallet-link">#${item.sale_id}</a></span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.updated_at_time)}</span>
-        <span class="sc-label">Seller</span><span class="sc-value sc-wallet">${walletLinkHtml(item.seller)}</span>
-        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet">${walletLinkHtml(item.buyer)}</span>
+        <span class="sc-label">Seller</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.seller)}${copyIconHtml(item.seller, 'Copy seller wallet')}</span>
+        <span class="sc-label">Buyer</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.buyer)}${copyIconHtml(item.buyer, 'Copy buyer wallet')}</span>
       </div>
     </div>
   </div>`;
@@ -1207,8 +1218,8 @@ function transferCardHtml(item, asset) {
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
-        <span class="sc-label">From</span><span class="sc-value sc-wallet">${walletLinkHtml(item.sender_name)}</span>
-        <span class="sc-label">To</span><span class="sc-value sc-wallet">${walletLinkHtml(item.recipient_name)}</span>
+        <span class="sc-label">From</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.sender_name)}${copyIconHtml(item.sender_name, 'Copy sender wallet')}</span>
+        <span class="sc-label">To</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.recipient_name)}${copyIconHtml(item.recipient_name, 'Copy recipient wallet')}</span>
       </div>
     </div>
     ${memoHtml}
@@ -1312,8 +1323,8 @@ function transferBundleCardHtml(item, assets) {
       <div class="sc-fields sc-fields--meta">
         <span class="sc-label">Transfer ID</span><span class="sc-value">#${item.transfer_id}</span>
         <span class="sc-label">Date</span><span class="sc-value">${fmtDate(item.created_at_time)}</span>
-        <span class="sc-label">From</span><span class="sc-value sc-wallet">${walletLinkHtml(item.sender_name)}</span>
-        <span class="sc-label">To</span><span class="sc-value sc-wallet">${walletLinkHtml(item.recipient_name)}</span>
+        <span class="sc-label">From</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.sender_name)}${copyIconHtml(item.sender_name, 'Copy sender wallet')}</span>
+        <span class="sc-label">To</span><span class="sc-value sc-wallet tt-val-copiable">${walletLinkHtml(item.recipient_name)}${copyIconHtml(item.recipient_name, 'Copy recipient wallet')}</span>
       </div>
     </div>
     ${memoHtml}

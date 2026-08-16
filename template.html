@@ -21,6 +21,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
@@ -72,6 +73,10 @@
     .tpl-info-val { font-size: 0.95rem; font-weight: 600; margin-top: 0.1rem; }
     .tpl-info-val a { color: var(--accent-light); text-decoration: none; }
     .tpl-info-val a:hover { text-decoration: underline; }
+    /* Real on-chain collection name, shown alongside the (often different,
+       friendlier) display name — small/grey so it reads as secondary info,
+       not a second heading. */
+    .tpl-real-name { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-left: 0.35rem; }
     .tpl-supply-tag { cursor: default; }
     .tpl-droppp-icon { color: #fff; vertical-align: -3px; margin-left: 1px; }
     .tpl-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
@@ -194,7 +199,7 @@
         <div class="tpl-info-grid">
           <div>
             <div class="tpl-info-label">Template ID</div>
-            <div class="tpl-info-val" id="tplId"></div>
+            <div class="tpl-info-val tt-val-copiable" id="tplId"></div>
           </div>
           <div>
             <div class="tpl-info-label">Collection</div>
@@ -558,8 +563,15 @@ async function loadHeader() {
   }
 
   document.getElementById('tplName').textContent = tpl.name || `Template #${templateId}`;
-  document.getElementById('tplId').textContent = `#${templateId}`;
-  document.getElementById('tplCollection').innerHTML = `<a href="${_p}collection/${encodeURIComponent(_collectionName)}">${escHtml(tpl.collection.name || _collectionName)}</a>`;
+  document.getElementById('tplId').innerHTML = `#${escHtml(templateId)}${copyIconHtml(templateId, 'Copy Template ID')}`;
+  const _collDisplayName = tpl.collection.name || _collectionName;
+  // Real on-chain collection name only adds information when it actually
+  // differs from the display name above — skip it when they're the same to
+  // avoid showing the identical string twice.
+  const _collRealNameHtml = _collDisplayName !== _collectionName
+    ? ` <span class="tpl-real-name">${escHtml(_collectionName)}${copyIconHtml(_collectionName, 'Copy collection name')}</span>`
+    : '';
+  document.getElementById('tplCollection').innerHTML = `<a href="${_p}collection/${encodeURIComponent(_collectionName)}">${escHtml(_collDisplayName)}</a>${_collRealNameHtml}`;
   document.getElementById('tplSchema').innerHTML = tpl.schema?.schema_name
     ? `<a href="${_p}schema/${encodeURIComponent(_collectionName)}/${encodeURIComponent(tpl.schema.schema_name)}">${escHtml(tpl.schema.schema_name)}</a>` : '';
   const burned = stats ? Number(stats.burned) : 0;

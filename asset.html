@@ -17,6 +17,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>' +
       '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/nefty-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/waxdao-packs.js">\x3c/script>' +
@@ -74,6 +75,10 @@
     .tpl-info-val { font-size: 0.95rem; font-weight: 600; margin-top: 0.1rem; }
     .tpl-info-val a { color: var(--accent-light); text-decoration: none; }
     .tpl-info-val a:hover { text-decoration: underline; }
+    /* Real on-chain collection name, shown alongside the (often different,
+       friendlier) display name — small/grey so it reads as secondary info,
+       not a second heading. Same block as template.html's own copy. */
+    .tpl-real-name { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); margin-left: 0.35rem; }
     .tpl-supply-tag { cursor: default; }
     .tpl-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
     .tpl-badge--yes { background: rgba(74,222,128,0.15); color: #4ade80; }
@@ -192,11 +197,11 @@
         <div class="tpl-info-grid">
           <div>
             <div class="tpl-info-label">Asset ID</div>
-            <div class="tpl-info-val" id="astId"></div>
+            <div class="tpl-info-val tt-val-copiable" id="astId"></div>
           </div>
           <div>
             <div class="tpl-info-label">Owner</div>
-            <div class="tpl-info-val" id="astOwner"></div>
+            <div class="tpl-info-val tt-val-copiable" id="astOwner"></div>
           </div>
           <div>
             <div class="tpl-info-label">Mint Number</div>
@@ -216,7 +221,7 @@
           </div>
           <div>
             <div class="tpl-info-label">Template ID</div>
-            <div class="tpl-info-val" id="astTemplate"></div>
+            <div class="tpl-info-val tt-val-copiable" id="astTemplate"></div>
           </div>
           <div>
             <div class="tpl-info-label">Backed Tokens</div>
@@ -457,10 +462,10 @@ async function loadHeader() {
   }
 
   document.getElementById('astName').textContent = data.name || asset.name || `Asset #${assetId}`;
-  document.getElementById('astId').textContent = `#${assetId}`;
+  document.getElementById('astId').innerHTML = `#${escHtml(assetId)}${copyIconHtml(assetId, 'Copy Asset ID')}`;
   document.getElementById('astOwner').innerHTML = isBurned
     ? `<span class="ast-burned-tag" title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}">🔥 Burned${asset.burned_by_account ? ' by ' + walletLinkHtml(asset.burned_by_account) : ''}</span>`
-    : walletLinkHtml(asset.owner);
+    : walletLinkHtml(asset.owner) + copyIconHtml(asset.owner, 'Copy owner wallet');
   const issuedSupply = asset.template ? Number(asset.template.issued_supply) : null;
   const burnedCount  = templateStats ? Number(templateStats.burned) : 0;
   document.getElementById('astMint').innerHTML = issuedSupply != null
@@ -469,12 +474,22 @@ async function loadHeader() {
   document.getElementById('astFlags').innerHTML =
     `<span class="tpl-badge ${asset.is_burnable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_burnable ? 'Burnable' : 'Not burnable'}</span> ` +
     `<span class="tpl-badge ${asset.is_transferable ? 'tpl-badge--yes' : 'tpl-badge--no'}">${asset.is_transferable ? 'Transferable' : 'Not transferable'}</span>`;
-  document.getElementById('astCollection').innerHTML = _collectionName
-    ? `<a href="${_p}collection/${encodeURIComponent(_collectionName)}">${escHtml(asset.collection?.name || _collectionName)}</a>` : '—';
+  if (_collectionName) {
+    const collDisplayName = asset.collection?.name || _collectionName;
+    // Real on-chain name only adds information when it actually differs
+    // from the display name above — skip it when they're the same.
+    const collRealNameHtml = collDisplayName !== _collectionName
+      ? ` <span class="tpl-real-name">${escHtml(_collectionName)}${copyIconHtml(_collectionName, 'Copy collection name')}</span>`
+      : '';
+    document.getElementById('astCollection').innerHTML =
+      `<a href="${_p}collection/${encodeURIComponent(_collectionName)}">${escHtml(collDisplayName)}</a>${collRealNameHtml}`;
+  } else {
+    document.getElementById('astCollection').textContent = '—';
+  }
   document.getElementById('astSchema').innerHTML = (_collectionName && _schemaName)
     ? `<a href="${_p}schema/${encodeURIComponent(_collectionName)}/${encodeURIComponent(_schemaName)}">${escHtml(_schemaName)}</a>` : '—';
   document.getElementById('astTemplate').innerHTML = _templateId
-    ? `<a href="${_p}template/${encodeURIComponent(_templateId)}">#${escHtml(_templateId)}</a>` : '—';
+    ? `<a href="${_p}template/${encodeURIComponent(_templateId)}">#${escHtml(_templateId)}</a>${copyIconHtml(_templateId, 'Copy Template ID')}` : '—';
   document.getElementById('astBacked').textContent = AssetPopup.fmtBackedTokens(asset.backed_tokens);
 
   if (lowestListing) {

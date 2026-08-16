@@ -28,7 +28,8 @@
       '<script src="' + _p + 'shared/wax-api.js">\x3c/script>' +
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
-      '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>'
+      '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>'
     );
   </script>
   <title>Collection — Hoardio</title>
@@ -553,7 +554,7 @@ async function loadHeader() {
 
   const created = fmtDate(info.created_at_time);
   document.getElementById('collSub').innerHTML =
-    `${escHtml(collectionName)} &middot; by ${walletLinkHtml(info.author)}` +
+    `<span class="tt-val-copiable">${escHtml(collectionName)}${copyIconHtml(collectionName, 'Copy collection name')}</span> &middot; by ${walletLinkHtml(info.author)}` +
     (created ? ` &middot; created ${created}` : '');
 
   const royaltyPill = document.getElementById('collRoyaltyPill');
