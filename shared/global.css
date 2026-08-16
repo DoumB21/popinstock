@@ -238,6 +238,45 @@ body::before {
   .nav-mobile.open { display: flex; }
 }
 
+/* Below 900px the nav row has to fit logo + divider + section badge +
+   search/cart/profile icons + the wallet button/pill + the burger, all
+   flex-shrink:0 — on real phone widths that total overflows and forces the
+   whole page to scroll horizontally, with the burger squeezed toward the
+   edge. Tighten every fixed gap/margin and drop the "Connect Wallet" text
+   (icon-only, matching the other circular nav buttons) to bring it back
+   under typical phone viewport widths. */
+@media (max-width: 640px) {
+  .nav-inner   { padding: 0 0.75rem; gap: 0.35rem; }
+  .nav-home    { margin-right: 0.5rem; }
+  .nav-home img { height: 30px; width: 30px; }
+  .nav-divider { margin: 0 0.35rem 0 0.15rem; }
+  .nav-section { margin-right: 0.4rem; }
+  .nav-burger  { margin-left: 0.15rem; padding: 0.3rem; }
+
+  .nav-cart-btn { width: 30px; height: 30px; }
+
+  .nav-wax-btn    { padding: 8px; gap: 0; }
+  #navWaxBtnLabel { display: none; }
+
+  /* The Profile icon moves into the wallet dropdown (under the balance,
+     .nav-wax-menu-profile-mobile below) — one less fixed-width item in the
+     row means the wallet name below doesn't need to be squeezed nearly as
+     hard to avoid overflowing on real phone widths. */
+  #navProfileBtn { display: none; }
+  .nav-wax-menu-profile-mobile { display: flex; }
+
+  .nav-wax-connected-widget { padding: 6px 10px; gap: 6px; }
+  .nav-wax-name {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 400px) {
+  .nav-section { display: none; }
+}
+
 /* ── Wallet widget (shared/wallet-widget.js), used on every page ── */
 .nav-divider {
   width: 1px;
@@ -398,6 +437,11 @@ body::before {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   margin-bottom: 0.3rem;
 }
+
+/* Standalone nav Profile icon (#navProfileBtn) moves here under the balance
+   on mobile, where the row has no room to spare — hidden here on desktop
+   since the icon already covers it. See the 640px block below. */
+.nav-wax-menu-profile-mobile { display: none; }
 
 @media (max-width: 480px) {
   .nav-wax-balance { display: none; }

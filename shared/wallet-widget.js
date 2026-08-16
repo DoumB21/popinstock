@@ -260,6 +260,7 @@
         <button id="navWaxName" class="nav-wax-name" type="button"></button>
         <div id="navWaxMenu" class="nav-wax-menu" style="display:none;">
           <div id="navWaxMenuBalance" class="nav-wax-menu-balance"></div>
+          <a id="navWaxMenuProfile" class="nav-wax-menu-item nav-wax-menu-profile-mobile" href="${profileHref}"><span class="nav-wax-menu-icon">👤</span>Profile &amp; settings</a>
           ${menuHtml}
           <div class="nav-wax-menu-divider"></div>
           <div id="navWaxLinkedWallets" class="nav-wax-linked-wallets" style="display:none;"></div>

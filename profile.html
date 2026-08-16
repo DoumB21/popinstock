@@ -260,7 +260,7 @@
 
     @media (max-width: 900px) {
       .profile-shell { flex-direction: column; }
-      .profile-tabs { width: 100%; flex-direction: row; flex-wrap: wrap; }
+      .profile-tabs { width: 100%; }
       .profile-shell.profile-shell--panel .profile-tabs { display: none; }
       .profile-shell:not(.profile-shell--panel) .profile-panels { display: none; }
       .profile-shell.profile-shell--panel .profile-breadcrumb { display: flex; }
@@ -1322,7 +1322,12 @@ function maybeLazyInit(slug) {
 }
 
 function renderActiveTab() {
-  document.querySelectorAll('.profile-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === _activeTab));
+  // On mobile, before a tab has been picked, the tab list IS the whole
+  // screen (no panel is showing yet) — highlighting Preferences as if it
+  // were selected would be misleading, so the guard below skips the
+  // .active class entirely while in that menu-only view.
+  const menuOnly = isMobile() && !_mobileShowingPanel;
+  document.querySelectorAll('.profile-tab-btn').forEach(b => b.classList.toggle('active', !menuOnly && b.dataset.tab === _activeTab));
   document.querySelectorAll('.profile-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === _activeTab));
   document.getElementById('profileBreadcrumbCurrent').textContent = TAB_LABELS[_activeTab];
   shellEl.classList.toggle('profile-shell--panel', isMobile() && _mobileShowingPanel);
@@ -1344,7 +1349,7 @@ document.getElementById('profileTabs').addEventListener('click', e => {
 
 document.getElementById('profileBreadcrumbRoot').addEventListener('click', () => {
   _mobileShowingPanel = false; // pure view-state toggle, no URL/history change
-  shellEl.classList.remove('profile-shell--panel');
+  renderActiveTab();
 });
 
 window.addEventListener('popstate', () => {
