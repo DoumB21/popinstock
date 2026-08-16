@@ -102,6 +102,7 @@
 
     /* ── Section titles / tables (same convention as collection.html) ── */
     .tpl-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
+    .tpl-attr-key { width: 35%; }
 
     /* ── Top Active Offers panel — tinted so it reads as its own block
        instead of blending into the page background between "Template
@@ -148,6 +149,52 @@
     .tpl-card-mint { font-size: 0.72rem; color: var(--text-secondary); }
     .tpl-card-owner { font-size: 0.85rem; color: var(--accent-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tpl-card-burned { font-size: 0.72rem; color: #f87171; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Template Attributes / Top Active Offers: stacked-card layout on
+       mobile instead of a table forced into horizontal scroll. Placed after
+       every other rule in this stylesheet (not grouped with the sections
+       above) so these overrides reliably win the cascade regardless of
+       selector specificity — see collection.html's .coll-tabs for what goes
+       wrong when a same-specificity mobile rule sits earlier in the file
+       than the base rule it's meant to override. ── */
+    @media (max-width: 640px) {
+      /* Template Attributes — each row already carries its own label (the
+         key cell) and value, so no data-label/::before needed: just stack
+         them instead of sitting side by side. */
+      #tplAttrsTable { display: block; width: 100%; }
+      #tplAttrsBody { display: block; }
+      #tplAttrsBody tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #tplAttrsBody tr:last-child { margin-bottom: 0; }
+      #tplAttrsBody td {
+        display: block; width: auto; padding: 0.15rem 0;
+        white-space: normal; overflow-wrap: anywhere;
+      }
+
+      /* Top Active Offers — no per-row label cell in the source data, so the
+         label comes from data-label (set in loadTemplateBuyOffers()) via
+         ::before, same stacked-card convention as funko/redemptions.html. */
+      #tplOffersWrap table { display: block; width: 100%; }
+      #tplOffersWrap thead { display: none; }
+      #tplOffersWrap tbody { display: block; }
+      #tplOffersWrap tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #tplOffersWrap tr:last-child { margin-bottom: 0; }
+      #tplOffersWrap td {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 0.75rem; padding: 0.25rem 0; border: none;
+        text-align: right; white-space: normal; overflow-wrap: anywhere;
+      }
+      #tplOffersWrap td::before {
+        content: attr(data-label); flex-shrink: 0; text-align: left;
+        font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.07em; color: var(--text-secondary);
+      }
+    }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -240,7 +287,7 @@
     </div>
 
     <div class="tpl-section-title">Template Attributes</div>
-    <div class="table-wrap"><table><tbody id="tplAttrsBody"></tbody></table></div>
+    <div class="table-wrap"><table id="tplAttrsTable"><tbody id="tplAttrsBody"></tbody></table></div>
 
     <div class="tpl-offers-panel">
       <div class="tpl-section-title">Top Active Offers</div>
@@ -615,7 +662,7 @@ async function loadHeader() {
   // summary which filters out image/ipfs-typed fields).
   const attrsBody = document.getElementById('tplAttrsBody');
   attrsBody.innerHTML = Object.entries(tpl.immutable_data || {}).map(([k, v]) =>
-    `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
+    `<tr><td class="wallet-cell tpl-attr-key">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
   ).join('') || '<tr><td>No attributes</td></tr>';
 
   document.getElementById('loadingMsg').style.display = 'none';
@@ -649,9 +696,9 @@ async function loadTemplateBuyOffers() {
     <tbody>${offers.map(o => {
       const usd = window._waxUsdRate ? ` <span class="tpl-listing-usd">≈ $${(Number(o.price.amount) / (10 ** o.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '';
       return `<tr>
-        <td class="wallet-cell">${walletLinkHtml(o.buyer)}</td>
-        <td>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</td>
-        <td>${fmtDate(o.created_at_time)}</td>
+        <td class="wallet-cell" data-label="Buyer">${walletLinkHtml(o.buyer)}</td>
+        <td data-label="Price Offered"><span>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</span></td>
+        <td data-label="Offer Placed On">${fmtDate(o.created_at_time)}</td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;

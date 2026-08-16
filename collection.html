@@ -95,6 +95,11 @@
          tall at 375px wide) — the desktop overlap would swallow the whole
          banner and then some, so mobile keeps the older, smaller overlap. */
       .coll-banner { margin-top: -1.75rem; margin-bottom: -40px; }
+
+      /* Logo alone on its own row, info stacked underneath instead of
+         squeezed into a side column — gives the name/description/links the
+         full row width instead of sharing it with a 124px logo. */
+      .coll-header { flex-direction: column; }
     }
     .coll-header { display: flex; gap: 1.25rem; align-items: flex-start; margin-bottom: 1.25rem; position: relative; }
     /* funko/drop.html's own header uses padding:1.5rem unconditionally —
@@ -154,6 +159,17 @@
       border-color: transparent; color: #fff;
     }
     .coll-tab-count { opacity: 0.7; font-weight: 400; }
+
+    /* 2x2 grid instead of flex-wrap, which let the first three tabs
+       (Overview/Templates/Schemas) crowd onto one row and stranded Holders
+       alone on the next. Placed after the base .coll-tabs rule above (not
+       grouped with the other 540px overrides near the top of this <style>)
+       so this display:grid actually wins the cascade — equal-specificity
+       same-viewport rules resolve by source order, and a media-query block
+       gets no special priority over an unconditional rule that comes later. */
+    @media (max-width: 540px) {
+      .coll-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+    }
 
     /* ── Overview tab ── */
     .coll-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }

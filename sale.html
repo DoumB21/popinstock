@@ -150,6 +150,7 @@
        collection.html/template.html/asset.html) ── */
     .tpl-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
     .tpl-section-title:first-child { margin-top: 0; }
+    .tpl-attr-key { width: 35%; }
     .tpl-offers-panel {
       background: rgba(240,168,64,0.05); border: 1px solid rgba(240,168,64,0.18);
       border-radius: 14px; padding: 1.1rem 1.25rem 1.25rem; margin: 1.75rem 0;
@@ -207,6 +208,82 @@
       text-decoration: none; white-space: nowrap;
     }
     .sale-log-tx a:hover { text-decoration: underline; }
+
+    /* ── Mobile: stacked-card layout for the attribute/offers/logs tables
+       instead of a table forced into horizontal scroll. Placed after every
+       other rule in this stylesheet (not grouped with the sections above) so
+       these same-specificity overrides reliably win the cascade regardless
+       of where in the file the base rule sits — see collection.html's
+       .coll-tabs for what goes wrong otherwise. ── */
+    @media (max-width: 640px) {
+      /* Asset Attributes — each row already carries its own label (the key
+         cell) and value, so just stack them instead of side by side. */
+      #astAttrsTable { display: block; width: 100%; }
+      #astAttrsBody { display: block; }
+      #astAttrsBody tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #astAttrsBody tr:last-child { margin-bottom: 0; }
+      #astAttrsBody td {
+        display: block; width: auto; padding: 0.15rem 0;
+        white-space: normal; overflow-wrap: anywhere;
+      }
+
+      /* Top Active Offers — no per-row label cell in the source data, so the
+         label comes from data-label (set in loadTemplateOffers()) via
+         ::before. */
+      #astOffersWrap table { display: block; width: 100%; }
+      #astOffersWrap thead { display: none; }
+      #astOffersWrap tbody { display: block; }
+      #astOffersWrap tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #astOffersWrap tr:last-child { margin-bottom: 0; }
+      #astOffersWrap td {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 0.75rem; padding: 0.25rem 0; border: none;
+        text-align: right; white-space: normal; overflow-wrap: anywhere;
+      }
+      #astOffersWrap td::before {
+        content: attr(data-label); flex-shrink: 0; text-align: left;
+        font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.07em; color: var(--text-secondary);
+      }
+
+      /* Blockchain Logs — same label/value card as Top Active Offers for
+         Date/Transaction, but Event can be a badge + several detail lines so
+         it gets its own full-width stacked row instead of being squeezed
+         next to a label. */
+      #saleLogsWrap table { display: block; width: 100%; }
+      #saleLogsWrap thead { display: none; }
+      #saleLogsWrap tbody { display: block; }
+      #saleLogsWrap tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #saleLogsWrap tr:last-child { margin-bottom: 0; }
+      #saleLogsWrap td {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 0.75rem; padding: 0.25rem 0; border: none;
+        text-align: right; white-space: normal; overflow-wrap: anywhere;
+      }
+      #saleLogsWrap td::before {
+        content: attr(data-label); flex-shrink: 0; text-align: left;
+        font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.07em; color: var(--text-secondary);
+      }
+      /* No transaction link for this event — hides the label too instead of
+         showing an empty "TRANSACTION" row. */
+      #saleLogsWrap td:empty { display: none; }
+      /* display:block, not flex — Event mixes an inline badge span with
+         block detail <div>s (from logDetailHtml); a flex container would
+         split each into its own row instead of letting them flow/stack
+         naturally. Same fix as asset.html's History "Event" column. */
+      #saleLogsWrap td[data-label="Event"] { display: block; text-align: left; }
+      #saleLogsWrap td[data-label="Event"]::before { display: block; margin-bottom: 0.2rem; }
+    }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -352,7 +429,7 @@
       </div>
 
       <div class="tpl-section-title">Asset Attributes</div>
-      <div class="table-wrap"><table><tbody id="astAttrsBody"></tbody></table></div>
+      <div class="table-wrap"><table id="astAttrsTable"><tbody id="astAttrsBody"></tbody></table></div>
 
       <div class="tpl-offers-panel">
         <div class="tpl-section-title">Top Active Offers</div>
@@ -1138,7 +1215,7 @@ function renderSingleAsset(asset, collectionName, templateId) {
 
   const attrsBody = document.getElementById('astAttrsBody');
   attrsBody.innerHTML = Object.entries(data).map(([k, v]) =>
-    `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
+    `<tr><td class="wallet-cell tpl-attr-key">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
   ).join('') || '<tr><td>No attributes</td></tr>';
 
   if (templateId) {
@@ -1168,9 +1245,9 @@ async function loadTemplateOffers(templateId) {
     <tbody>${offers.map(o => {
       const usd = window._waxUsdRate ? ` <span class="tpl-listing-usd">≈ $${(Number(o.price.amount) / (10 ** o.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '';
       return `<tr>
-        <td class="wallet-cell">${walletLinkHtml(o.buyer)}</td>
-        <td>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</td>
-        <td>${fmtDate(o.created_at_time)}</td>
+        <td class="wallet-cell" data-label="Buyer">${walletLinkHtml(o.buyer)}</td>
+        <td data-label="Price Offered"><span>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</span></td>
+        <td data-label="Offer Placed On">${fmtDate(o.created_at_time)}</td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -1196,9 +1273,9 @@ async function loadSaleLogs() {
   if (!logs || !logs.length) { wrap.innerHTML = '<div class="ast-placeholder">No logs found.</div>'; return; }
   wrap.innerHTML = `<table><thead><tr><th>Event</th><th>Date</th><th></th></tr></thead><tbody>
     ${logs.map(l => `<tr>
-      <td class="sale-log-detail"><span class="sale-log-type">${escHtml(logTypeLabel(l.name))}</span>${logDetailHtml(l)}</td>
-      <td>${fmtDateTime(l.created_at_time)}</td>
-      <td class="sale-log-tx">${l.txid ? `<a href="https://waxblock.io/transaction/${escHtml(l.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
+      <td class="sale-log-detail" data-label="Event"><span class="sale-log-type">${escHtml(logTypeLabel(l.name))}</span>${logDetailHtml(l)}</td>
+      <td data-label="Date">${fmtDateTime(l.created_at_time)}</td>
+      <td class="sale-log-tx" data-label="Transaction">${l.txid ? `<a href="https://waxblock.io/transaction/${escHtml(l.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
     </tr>`).join('')}
   </tbody></table>`;
 }

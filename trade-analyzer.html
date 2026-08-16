@@ -154,6 +154,14 @@
       .controls-card { padding: 1.25rem 1rem; }
       .search-btn { width: 100%; }
       .control-group--filter { max-width: none; }
+      /* Results summary text ("N templates x M wallets - Collection - Schema")
+         used to share one nowrap flex row with the two filter buttons, which
+         hold their width and squeeze the text into a sliver — wrapping it
+         across as many as 7 lines. Give it the full row to itself; the two
+         buttons then wrap to their own row underneath, side by side. */
+      .results-header { flex-wrap: wrap; justify-content: flex-start; }
+      .results-meta { flex: 1 1 100%; }
+
       .results-table { font-size: 0.85rem; }
       .results-table th, .results-table td { padding: 0.4rem 0.5rem; }
       .results-table td.col-wallet, .results-table td.col-empty { padding-left: 0.35rem; padding-right: 0.35rem; }

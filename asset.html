@@ -104,6 +104,7 @@
 
     /* ── Section titles / tables (same convention as collection.html/template.html) ── */
     .tpl-section-title { font-size: 1.05rem; font-weight: 700; margin: 1.75rem 0 0.75rem; }
+    .tpl-attr-key { width: 35%; }
     .tpl-offers-panel {
       background: rgba(240,168,64,0.05); border: 1px solid rgba(240,168,64,0.18);
       border-radius: 14px; padding: 1.1rem 1.25rem 1.25rem; margin: 1.75rem 0;
@@ -145,6 +146,86 @@
       text-decoration: none; white-space: nowrap;
     }
     .ast-hist-tx a:hover { text-decoration: underline; }
+
+    /* ── Mobile: stacked-card layout for the attribute/offers/history tables
+       instead of a table forced into horizontal scroll, and a 2x2 grid for
+       the 4 history tabs instead of flex-wrap crowding 3 onto one row. Kept
+       as one block after every other rule in this stylesheet (not grouped
+       with the sections above) so these same-specificity overrides reliably
+       win the cascade regardless of where in the file the base rule sits —
+       see collection.html's .coll-tabs for what goes wrong otherwise. ── */
+    @media (max-width: 640px) {
+      .ast-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+
+      /* Asset Attributes — each row already carries its own label (the key
+         cell) and value, so just stack them instead of side by side. */
+      #astAttrsTable { display: block; width: 100%; }
+      #astAttrsBody { display: block; }
+      #astAttrsBody tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #astAttrsBody tr:last-child { margin-bottom: 0; }
+      #astAttrsBody td {
+        display: block; width: auto; padding: 0.15rem 0;
+        white-space: normal; overflow-wrap: anywhere;
+      }
+
+      /* Top Active Offers — no per-row label cell in the source data, so the
+         label comes from data-label (set in loadOffers()) via ::before. */
+      #astOffersWrap table { display: block; width: 100%; }
+      #astOffersWrap thead { display: none; }
+      #astOffersWrap tbody { display: block; }
+      #astOffersWrap tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #astOffersWrap tr:last-child { margin-bottom: 0; }
+      #astOffersWrap td {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 0.75rem; padding: 0.25rem 0; border: none;
+        text-align: right; white-space: normal; overflow-wrap: anywhere;
+      }
+      #astOffersWrap td::before {
+        content: attr(data-label); flex-shrink: 0; text-align: left;
+        font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.07em; color: var(--text-secondary);
+      }
+
+      /* History (Transfers/Sales/Updates/Logs) — same label/value card as
+         Top Active Offers for Date/Transaction, but Event can be a multi-line
+         badge + description (+ memo) so it gets its own full-width stacked
+         row instead of being squeezed to the right of a label. */
+      #astHistWrap table { display: block; width: 100%; }
+      #astHistWrap thead { display: none; }
+      #astHistWrap tbody { display: block; }
+      #astHistWrap tr {
+        display: block; border: 1px solid var(--border); border-radius: 10px;
+        padding: 0.6rem 0.85rem; margin-bottom: 0.5rem;
+      }
+      #astHistWrap tr:last-child { margin-bottom: 0; }
+      #astHistWrap td {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 0.75rem; padding: 0.25rem 0; border: none;
+        text-align: right; white-space: normal; overflow-wrap: anywhere;
+      }
+      #astHistWrap td::before {
+        content: attr(data-label); flex-shrink: 0; text-align: left;
+        font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.07em; color: var(--text-secondary);
+      }
+      /* No transaction/listing link for this event — hides the label too
+         instead of showing an empty "TRANSACTION" row. */
+      #astHistWrap td:empty { display: none; }
+      /* display:block, not flex — Event's content is mixed inline markup
+         (wallet links, a "→" text node, sometimes a badge span) that a flex
+         container would split into separate anonymous flex items, each on
+         its own line ("atomicmarket" / "→" / "qdobq.wam" stacked instead of
+         flowing as one line that wraps normally). Block layout lets it flow
+         and wrap like ordinary text instead. */
+      #astHistWrap td[data-label="Event"] { display: block; text-align: left; }
+      #astHistWrap td[data-label="Event"]::before { display: block; margin-bottom: 0.2rem; }
+    }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -243,7 +324,7 @@
     </div>
 
     <div class="tpl-section-title">Asset Attributes</div>
-    <div class="table-wrap"><table><tbody id="astAttrsBody"></tbody></table></div>
+    <div class="table-wrap"><table id="astAttrsTable"><tbody id="astAttrsBody"></tbody></table></div>
 
     <div class="tpl-offers-panel">
       <div class="tpl-section-title">Top Active Offers</div>
@@ -571,7 +652,7 @@ async function loadHeader() {
   // Attributes, deliberately not filtering out image/ipfs fields.
   const attrsBody = document.getElementById('astAttrsBody');
   attrsBody.innerHTML = Object.entries(data).map(([k, v]) =>
-    `<tr><td class="wallet-cell" style="width:35%;">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
+    `<tr><td class="wallet-cell tpl-attr-key">${escHtml(k)}</td><td>${linkifyValue(v)}</td></tr>`
   ).join('') || '<tr><td>No attributes</td></tr>';
 
   document.getElementById('loadingMsg').style.display = 'none';
@@ -604,9 +685,9 @@ async function loadOffers() {
     <tbody>${offers.map(o => {
       const usd = window._waxUsdRate ? ` <span class="tpl-listing-usd">≈ $${(Number(o.price.amount) / (10 ** o.price.token_precision) * window._waxUsdRate).toFixed(2)}</span>` : '';
       return `<tr>
-        <td class="wallet-cell">${walletLinkHtml(o.buyer)}</td>
-        <td>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</td>
-        <td>${fmtDate(o.created_at_time)}</td>
+        <td class="wallet-cell" data-label="Buyer">${walletLinkHtml(o.buyer)}</td>
+        <td data-label="Price Offered"><span>${fmtWax(o.price.amount, o.price.token_precision)}${usd}</span></td>
+        <td data-label="Offer Placed On">${fmtDate(o.created_at_time)}</td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -693,9 +774,9 @@ function renderHistory(tab) {
   if (!items.length) { wrap.innerHTML = '<div class="ast-placeholder">No events found.</div>'; return; }
   wrap.innerHTML = `<table><thead><tr><th>Event</th><th>Date</th><th></th></tr></thead><tbody>
     ${items.map(e => `<tr>
-      <td class="ast-hist-detail">${e.html}${e.memo ? `<div class="ast-hist-memo">${escHtml(e.memo)}</div>` : ''}</td>
-      <td>${fmtDateTime(e.time)}</td>
-      <td class="ast-hist-tx">${e.saleId ? `<a href="${_p}sale/${escHtml(e.saleId)}">View listing</a>` : e.txid ? `<a href="https://waxblock.io/transaction/${escHtml(e.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
+      <td class="ast-hist-detail" data-label="Event">${e.html}${e.memo ? `<div class="ast-hist-memo">${escHtml(e.memo)}</div>` : ''}</td>
+      <td data-label="Date">${fmtDateTime(e.time)}</td>
+      <td class="ast-hist-tx" data-label="Transaction">${e.saleId ? `<a href="${_p}sale/${escHtml(e.saleId)}">View listing</a>` : e.txid ? `<a href="https://waxblock.io/transaction/${escHtml(e.txid)}" target="_blank" rel="noopener">View transaction ↗</a>` : ''}</td>
     </tr>`).join('')}
   </tbody></table>`;
 }
