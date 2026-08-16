@@ -23,6 +23,7 @@
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/nefty-packs.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/waxdao-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/accept-offer-modal.js">\x3c/script>' +
       '<script src="' + _p + 'shared/make-offer-modal.js">\x3c/script>' +
@@ -5420,8 +5421,9 @@ function toggleCardActionMenu(btnEl, asset) {
     Promise.all([
       AtomicPacks.lookupPackByTemplateId(tid),
       NeftyPacks.lookupPackByTemplateId(tid),
-    ]).then(([atomicPack, neftyPack]) => {
-      if ((!atomicPack && !neftyPack) || _cardMenuAssetId !== thisAssetId) return;
+      WaxdaoPacks.lookupPackByTemplateId(tid),
+    ]).then(([atomicPack, neftyPack, waxdaoPack]) => {
+      if ((!atomicPack && !neftyPack && !waxdaoPack) || _cardMenuAssetId !== thisAssetId) return;
       const existing = menu.querySelector('[data-action="unpack"]');
       if (existing) {
         const fresh = existing.cloneNode(true);

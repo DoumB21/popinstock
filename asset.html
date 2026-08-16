@@ -19,6 +19,7 @@
       '<script src="' + _p + 'shared/tx-error.js">\x3c/script>' +
       '<script src="' + _p + 'shared/atomic-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/nefty-packs.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/waxdao-packs.js">\x3c/script>' +
       '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/image-lightbox.js">\x3c/script>' +
       '<script src="' + _p + 'shared/template-price-chart.js">\x3c/script>' +
@@ -528,8 +529,9 @@ async function loadHeader() {
     Promise.all([
       AtomicPacks.lookupPackByTemplateId(_templateId),
       NeftyPacks.lookupPackByTemplateId(_templateId),
-    ]).then(([atomicPack, neftyPack]) => {
-      if (!atomicPack && !neftyPack) return;
+      WaxdaoPacks.lookupPackByTemplateId(_templateId),
+    ]).then(([atomicPack, neftyPack, waxdaoPack]) => {
+      if (!atomicPack && !neftyPack && !waxdaoPack) return;
       _isContractPack = true;
       syncUnpackBtn();
     });

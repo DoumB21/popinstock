@@ -225,6 +225,7 @@
   <script src="shared/tx-error.js"></script>
   <script src="shared/atomic-packs.js"></script>
   <script src="shared/nefty-packs.js"></script>
+  <script src="shared/waxdao-packs.js"></script>
   <script src="shared/asset-popup.js"></script>
 </head>
 <body>
@@ -711,8 +712,8 @@ function openRevealPopup(ctx) {
   packResultGrid.innerHTML = '';
   packResultOverlay.style.display = 'flex';
   if (ctx.startStage === 'loading') {
-    packPopupLoadingText.textContent = 'Revealing your cards…';
-    setPopupStage('loading', 'Claiming your pack…');
+    packPopupLoadingText.textContent = ctx.loadingText || 'Revealing your cards…';
+    setPopupStage('loading', ctx.loadingTitle || 'Claiming your pack…');
     runReveal(ctx);
   } else {
     setPopupStage('intro', 'Pack opened! 🎉');
@@ -844,6 +845,25 @@ async function claimWithRevealNefty(wallet, assetId, onProgress) {
     .filter(c => c.kind === 'FT_CLAIM' || c.kind === 'EMPTY_CLAIM')
     .map(c => c.kind === 'FT_CLAIM' ? { kind: 'ft', quantity: c.amount.quantity, contract: c.amount.contract } : { kind: 'empty' });
   return { result, minted: [...mintedFromTrace, ...poolAssets], extras };
+}
+
+// WAXDAO companion to the two claim functions above — but there's no
+// separate claim step to wait on at all. The single unbox transfer IS the
+// whole flow: sign it, and the reward asset is already sitting in the
+// wallet the moment it broadcasts (see shared/waxdao-packs.js's own
+// top-of-file comment for why this is safe to read straight off the same
+// transaction, no polling). Reused as this provider's "claim" function
+// purely so it can plug into the exact same reveal-popup machinery as the
+// other two — from the popup's point of view this is just a claim that
+// never needs a retry-until-ready loop.
+async function claimWithRevealWaxdao(wallet, assetId, dropId, onProgress) {
+  onProgress('Confirm in your wallet…');
+  const unboxAction = WaxdaoPacks.buildUnboxAction(wallet, assetId, dropId);
+  const result = await WaxAuth.transact([unboxAction]);
+  onProgress('Finalizing…');
+  const rewardIds = WaxdaoPacks.extractRewardAssetIds(result, wallet);
+  const rewardAssets = (await Promise.all(rewardIds.map(fetchAssetBrief))).filter(Boolean).map(leanAsset);
+  return { result, minted: rewardAssets, extras: [] };
 }
 
 /* ── Unclaimed Packs — unscoped (every collection at once), loaded once
@@ -1148,12 +1168,13 @@ document.getElementById('scanUrlPacksBtn').addEventListener('click', () => {
 });
 
 async function loadPackCollectionsList(wallet, onProgress) {
-  const [ownedRes, atomicCollectionNames, neftyCollectionNames] = await Promise.all([
+  const [ownedRes, atomicCollectionNames, neftyCollectionNames, waxdaoCollectionNames] = await Promise.all([
     WaxApi.rawFetch(`${WaxApi.aaBase()}/accounts/${encodeURIComponent(wallet)}`).then(r => r.json()),
     AtomicPacks.getPackCollections(),
     NeftyPacks.getPackCollections(),
+    WaxdaoPacks.getPackCollections(),
   ]);
-  const packSet = new Set([...atomicCollectionNames, ...neftyCollectionNames]);
+  const packSet = new Set([...atomicCollectionNames, ...neftyCollectionNames, ...waxdaoCollectionNames]);
   const candidates = (ownedRes?.data?.collections || [])
     .filter(e => e.collection?.collection_name && packSet.has(e.collection.collection_name))
     .map(e => ({
@@ -1191,11 +1212,12 @@ async function loadPackCollectionsList(wallet, onProgress) {
     while (idx < candidates.length) {
       const i = idx++;
       try {
-        const [atomicIds, neftyIds] = await Promise.all([
+        const [atomicIds, neftyIds, waxdaoIds] = await Promise.all([
           AtomicPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
           NeftyPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
+          WaxdaoPacks.getPackTemplateIdsByCollection(candidates[i].collection_name),
         ]);
-        const templateIds = [...new Set([...atomicIds, ...neftyIds])];
+        const templateIds = [...new Set([...atomicIds, ...neftyIds, ...waxdaoIds])];
         if (!templateIds.length) continue;
         const count = await WaxApi.apiFetch(
           `${WaxApi.aaBase()}/assets/_count?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(candidates[i].collection_name)}&template_whitelist=${templateIds.join(',')}`
@@ -1422,18 +1444,20 @@ async function loadPacksForCollection(wallet, collectionName) {
   // real registered template under one collection on one contract, so the
   // two never genuinely compete for the same id in practice.
   const distinctIds = [...byTemplate.keys()];
-  const [atomicRows, neftyRows] = await Promise.all([
+  const [atomicRows, neftyRows, waxdaoRows] = await Promise.all([
     Promise.all(distinctIds.map(tid => AtomicPacks.lookupPackByTemplateId(tid))),
     Promise.all(distinctIds.map(tid => NeftyPacks.lookupPackByTemplateId(tid))),
+    Promise.all(distinctIds.map(tid => WaxdaoPacks.lookupPackByTemplateId(tid))),
   ]);
 
   const entries = [];
   distinctIds.forEach((tid, i) => {
     const atomicPack = atomicRows[i];
     const neftyPack = neftyRows[i];
-    if (atomicPack || neftyPack) {
-      const pack = atomicPack || neftyPack;
-      const provider = atomicPack ? 'atomicpacks' : 'neftyblocks';
+    const waxdaoPack = waxdaoRows[i];
+    if (atomicPack || neftyPack || waxdaoPack) {
+      const pack = atomicPack || neftyPack || waxdaoPack;
+      const provider = atomicPack ? 'atomicpacks' : (neftyPack ? 'neftyblocks' : 'waxdao');
       for (const asset of byTemplate.get(tid)) entries.push({ asset, pack, provider });
       return;
     }
@@ -1636,6 +1660,10 @@ function buildPackCard(entry) {
       // do for these, per this page's original scope decision to leave the
       // URL-attribute mechanism's actual unpacking off-site.
       if (entry.provider === 'urlpack') { window.open(entry.unpackUrl, '_blank', 'noopener'); return; }
+      // WAXDAO resolves in one signature (burn + reward both happen inline
+      // in the same transaction) — no separate Unpack-then-Show-Cards
+      // staging like the other two providers, straight to the reveal popup.
+      if (entry.provider === 'waxdao') { unpackWaxdaoFromCard(entry, card, btn); return; }
       if (card.dataset.stage === 'claimable') openCardRevealPopup(entry, card, btn);
       else unboxPackFromCard(entry, card, btn, statusEl);
     });
@@ -1705,6 +1733,35 @@ async function unboxPackFromCard(entry, card, btn, statusEl) {
     btn.disabled = false;
     btn.textContent = 'Unpack';
   }
+}
+
+// WAXDAO's single-signature flow — unlike unboxPackFromCard/
+// openCardRevealPopup (which straddle two separate transactions, hence the
+// "intro" stage and the "Show Cards" isolation), there's nothing to isolate
+// here: signing IS the whole flow, so this goes straight to the reveal
+// popup's "loading" stage and its own claim function does the actual
+// signing (see claimWithRevealWaxdao). On success, the picker count and the
+// card itself are cleared exactly like the other two providers — the box
+// really did leave the wallet, just at the same instant it also delivered
+// the reward instead of a moment earlier.
+function unpackWaxdaoFromCard(entry, card, btn) {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  if (!wallet) return;
+  const assetId = entry.asset.asset_id;
+  const dropId = entry.pack.drop_id;
+  btn.disabled = true;
+  btn.textContent = 'Unpacking…';
+  const resetBtn = () => { btn.disabled = false; btn.textContent = 'Unpack'; };
+  openRevealPopup({
+    assetId,
+    startStage: 'loading',
+    loadingTitle: 'Opening your box…',
+    loadingText: 'Confirm in your wallet…',
+    claim: onProgress => claimWithRevealWaxdao(wallet, assetId, dropId, onProgress),
+    onClaimed: () => { decrementPackCollectionCount(_selectedCollection); removeClaimedPackCard(entry, card); },
+    onCancelReset: resetBtn,
+    onDismissReset: resetBtn,
+  });
 }
 
 // (Re)opens the reveal popup at the "intro" stage for a card already past
@@ -1826,12 +1883,13 @@ async function tryFastDeepLink(wallet, assetId) {
   const unpackUrl = AtomicPacks.resolveUnpackUrl(asset.data);
   const tid = lean.template_id;
   if (tid) {
-    const [atomicPack, neftyPack] = await Promise.all([
+    const [atomicPack, neftyPack, waxdaoPack] = await Promise.all([
       AtomicPacks.lookupPackByTemplateId(tid),
       NeftyPacks.lookupPackByTemplateId(tid),
+      WaxdaoPacks.lookupPackByTemplateId(tid),
     ]);
-    if (atomicPack || neftyPack) {
-      return { asset: lean, pack: atomicPack || neftyPack, provider: atomicPack ? 'atomicpacks' : 'neftyblocks' };
+    if (atomicPack || neftyPack || waxdaoPack) {
+      return { asset: lean, pack: atomicPack || neftyPack || waxdaoPack, provider: atomicPack ? 'atomicpacks' : (neftyPack ? 'neftyblocks' : 'waxdao') };
     }
   }
   if (unpackUrl) {
