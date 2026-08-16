@@ -54,9 +54,21 @@
     /* ── Subset context label ── */
     .subset-context { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
 
-    /* ── Set selector — base look (.set-selector) lives in shared/global.css ── */
     .set-selector-wrap { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
     .set-selector-label { font-size: 0.75rem; color: var(--text-secondary); }
+    /* The dropdown used to also carry global.css's .set-selector class,
+       meant for real <select>/input elements — its background/border/
+       padding stacked on top of .cb-dropdown-btn's own identical styling
+       (already inside it), producing a redundant double-bordered box wider
+       than the widget needed to be. Dropped the class; .cb-dropdown-btn
+       alone already looks right.
+       A flex item's minimum width defaults to its content's min-content —
+       for a long single-line (nowrap) set label, that's wide enough to push
+       the whole row past the viewport on phones, even though .cb-label
+       itself already ellipsis-truncates. min-width:0 lets the dropdown
+       actually shrink so that ellipsis can do its job instead of being
+       overridden by the flex item's own unshrinkable minimum. */
+    .set-selector-wrap .cb-dropdown { min-width: 0; flex: 1; }
 
     /* ── Set summary ── */
     .set-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
@@ -91,8 +103,17 @@
     .market-link--primary:hover { filter: drop-shadow(0 0 6px rgba(240,168,64,0.9)) drop-shadow(0 0 12px rgba(240,168,64,0.5)); }
     .buy-label { font-size: 0.82rem; font-weight: 700; color: var(--accent-light); letter-spacing: 0.03em; }
 
+    /* Rarity folds under the card name as its own line instead of its own
+       fixed-width column — with ID/Rarity/Mint/Market all fixed-width,
+       there was almost no room left for the card name on phone widths.
+       Kept as its own column above 500px, where there's room to spare. */
+    .card-rarity-mobile { display: none; margin-top: 4px; }
+
     @media (max-width: 500px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .rarity-col { display: none; }
+      .card-rarity-mobile { display: block; }
+      .set-selector-wrap { flex-direction: column; align-items: stretch; }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -384,10 +405,13 @@
         : '';
       return `<tr>
         <td class="col-r" style="width:70px;font-size:0.78rem;color:var(--text-secondary)">${tpl.cardid ?? '—'}</td>
-        <td><div class="card-name">${tpl.name || '—'}</div></td>
-        <td style="width:120px">${rarityHtml}</td>
-        <td class="col-r" style="width:80px"><span class="mint-num ${mintClass(mint, avgMint)}">#${fmt(mint)}</span></td>
-        <td style="width:100px">${marketLinks}</td>
+        <td>
+          <div class="card-name">${tpl.name || '—'}</div>
+          ${rarityHtml ? `<div class="card-rarity-mobile">${rarityHtml}</div>` : ''}
+        </td>
+        <td class="rarity-col" style="width:120px">${rarityHtml}</td>
+        <td class="col-r" style="width:70px"><span class="mint-num ${mintClass(mint, avgMint)}">#${fmt(mint)}</span></td>
+        <td style="width:80px">${marketLinks}</td>
       </tr>`;
     }).join('');
 
@@ -395,9 +419,9 @@
       <thead><tr>
         <th class="col-r" style="width:70px">ID</th>
         <th>Card</th>
-        <th style="width:120px">Rarity</th>
-        <th class="col-r" style="width:80px">Mint</th>
-        <th style="width:100px">Market</th>
+        <th class="rarity-col" style="width:120px">Rarity</th>
+        <th class="col-r" style="width:70px">Mint</th>
+        <th style="width:80px">Market</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
@@ -463,7 +487,7 @@
         for (const t of tplData) tplMapCache.set(t.template_id, t);
       }
 
-      const setLabel = r => `Set #${r.set_number} · Rank #${r.rank} · Avg ${fmtDec(r.avg_mint)} · Rating ${fmtDec(r.rating)}`;
+      const setLabel = r => `Set #${r.set_number} · Rank #${r.rank} · Avg ${fmtDec(r.avg_mint)} · Rtg ${fmtDec(r.rating)}`;
       const options = fullRows.map((r, i) =>
         `<div class="cb-item${i === 0 ? ' active' : ''}" data-val="${r.set_number}" onclick="switchSet('${r.set_number}', this)"><span>${setLabel(r)}</span></div>`
       ).join('');
@@ -483,7 +507,7 @@
       const selectorHtml = fullRows.length > 1
         ? `<div class="set-selector-wrap">
             <span class="set-selector-label">Viewing:</span>
-            <div class="cb-dropdown set-selector" id="subsetSetDd">
+            <div class="cb-dropdown" id="subsetSetDd">
               <button class="cb-dropdown-btn" type="button" onclick="toggleDd('subsetSetDd')">
                 <span class="cb-label">${setLabel(fullRows[0])}</span>
                 <span class="cb-arrow">▾</span>
