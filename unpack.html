@@ -272,6 +272,22 @@
       </div>
     </div>
 
+    <!-- Sort — same standard (non-premium) options as inventory.html's own
+         sort dropdown; the Buy Offer/Floor Price/Last Sold premium sorts
+         don't apply here (this page has no equivalent unlock system) so
+         they're deliberately left out of PACK_SORT_OPTIONS rather than
+         shown disabled. Only shown once there's an actual list to sort. -->
+    <div id="packsSortPicker" style="display:none; width:200px; max-width:100%; flex:0 1 auto;">
+      <label style="display:block; font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.4rem;">Sort by</label>
+      <div class="cb-dropdown" id="packsSortDropdown">
+        <button class="cb-dropdown-btn" type="button">
+          <span class="cb-label">Transferred (Newest)</span>
+          <span class="cb-arrow">▾</span>
+        </button>
+        <div class="cb-panel"></div>
+      </div>
+    </div>
+
     <!-- Collections whose packs use the older unpack_url attribute (no
          on-chain registry, unlike AtomicPacks/NeftyPacks — see
          getUrlPackTemplateIdsByCollection) never become picker candidates
@@ -429,6 +445,7 @@ function leanAsset(a) {
     schema_name: a.schema?.schema_name || '',
     template_id: a.template?.template_id || null,
     mint: a.template_mint || null,
+    transferred: a.transferred_at_time != null ? Number(a.transferred_at_time) : null,
     owner: a.owner || '',
     backed_tokens: a.backed_tokens || [],
     issued_supply: a.template?.issued_supply != null ? Number(a.template.issued_supply) : null,
@@ -1016,6 +1033,54 @@ async function loadUnclaimedSection(wallet) {
 let _packCollections = [];
 let _selectedCollection = null;
 let _deepLinkResolveAttempted = false;
+
+/* ── Sort — same standard options as inventory.html's SORT_OPTIONS, minus
+   the premium Buy Offer/Floor Price/Last Sold ones (no unlock system on
+   this page to gate them behind). A collection's full entry set is already
+   fetched in one shot (see loadPacksForCollection) rather than paginated
+   from a live API call like inventory.html's own sort, so re-sorting is
+   just a client-side re-order of what's already in memory — no refetch,
+   no query params. */
+const PACK_SORT_OPTIONS = [
+  { value: 'transferred_desc', label: 'Transferred (Newest)' },
+  { value: 'transferred_asc',  label: 'Transferred (Oldest)' },
+  { value: 'mint_desc',        label: 'Mint (Highest)' },
+  { value: 'mint_asc',         label: 'Mint (Lowest)' },
+  { value: 'name_asc',         label: 'Alphabetical (A-Z)' },
+  { value: 'name_desc',        label: 'Alphabetical (Z-A)' },
+];
+let _packSort = PACK_SORT_OPTIONS[0].value;
+// The selected collection's entries exactly as loaded (unsorted) — kept
+// separately from _packEntries (the currently rendered, sorted view) so
+// changing the sort order never needs a refetch, cached or otherwise.
+let _packEntriesRaw = [];
+
+function sortPackEntries(entries, sortValue) {
+  const [field, dir] = sortValue.split('_');
+  const getter = field === 'transferred' ? e => e.asset.transferred
+    : field === 'mint' ? e => e.asset.mint
+    : e => (e.asset.name || '').toLowerCase();
+  const sorted = entries.slice();
+  sorted.sort((a, b) => {
+    const av = getter(a), bv = getter(b);
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;  // unknown values always sort last, either direction
+    if (bv == null) return -1;
+    if (av < bv) return dir === 'asc' ? -1 : 1;
+    if (av > bv) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  return sorted;
+}
+
+function renderSortPickerDropdown() {
+  buildSingleCbDropdown('packsSortDropdown', PACK_SORT_OPTIONS, _packSort, val => {
+    _packSort = val;
+    renderSortPickerDropdown();
+    if (_packEntriesRaw.length) renderPackEntries(_packEntriesRaw);
+  });
+}
+renderSortPickerDropdown();
 // Remembers the fast deep-link path's original target across the whole
 // unbox->claim flow, since the URL's own ?asset_id= gets cleared the
 // moment it's opened (see loadPacksSection/removeClaimedPackCard below) —
@@ -1276,6 +1341,42 @@ function closeAllCbCombos() {
     if (combo._cbItems) syncCbComboDisplay(combo);
   });
 }
+
+// Single-select dropdown (button + panel, no type-to-search) — same widget
+// inventory.html's own sort dropdown uses, ported here rather than shared
+// since this is this page's first non-combo dropdown (see cbItemHtml's own
+// comment on the small-per-page-helper convention).
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel')?.classList.remove('open');
+    d.querySelector('.cb-dropdown-btn')?.classList.remove('open');
+  });
+}
+function buildSingleCbDropdown(containerId, items, currentValue, onSelect) {
+  const container = document.getElementById(containerId);
+  const labelEl = container.querySelector('.cb-label');
+  const panel   = container.querySelector('.cb-panel');
+  const active  = items.find(i => i.value === currentValue);
+  labelEl.textContent = active ? active.label : (items[0]?.label || '');
+  panel.innerHTML = items.map(i => cbItemHtml(i, currentValue)).join('');
+  panel.querySelectorAll('.cb-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeAllCbDropdowns();
+      onSelect(item.dataset.val);
+    });
+  });
+  const btn = container.querySelector('.cb-dropdown-btn');
+  if (btn._wired) return;
+  btn._wired = true;
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = panel.classList.contains('open');
+    closeAllCbCombos();
+    closeAllCbDropdowns();
+    if (!isOpen) { panel.classList.add('open'); btn.classList.add('open'); }
+  });
+}
+
 function buildCbCombo(comboId, items, currentValue, onSelect) {
   const combo = document.getElementById(comboId);
   combo._cbItems        = items;
@@ -1304,6 +1405,7 @@ function buildCbCombo(comboId, items, currentValue, onSelect) {
 
   input.addEventListener('focus', () => {
     closeAllCbCombos();
+    closeAllCbDropdowns();
     combo.classList.add('open');
     panel.classList.add('open');
     renderList('');
@@ -1333,6 +1435,7 @@ function buildCbCombo(comboId, items, currentValue, onSelect) {
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('.cb-combo')) closeAllCbCombos();
+  if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
 });
 
 // item[0] is always the "All collections" sentinel — selecting it means
@@ -1517,6 +1620,8 @@ function showState(state) {
   // case _packCollections stays empty and the picker above never shows,
   // but the link (the only way to find those) still should.
   document.getElementById('urlPackScanContainer').style.display = ((state === 'list' || state === 'empty') && _discoveryComplete) ? '' : 'none';
+  // Only meaningful once there's an actual grid to reorder.
+  document.getElementById('packsSortPicker').style.display = state === 'list' ? '' : 'none';
   document.getElementById('packsList').style.display = state === 'list' ? '' : 'none';
   document.getElementById('packsLoadMoreWrap').style.display = (state === 'list' && _packVisible < _packEntries.length) ? '' : 'none';
 }
@@ -1541,7 +1646,8 @@ document.getElementById('packsLoadMoreBtn').addEventListener('click', () => {
 let _packCollectionCache = new Map(); // collection_name -> entries[]
 
 function renderPackEntries(entries) {
-  _packEntries = entries;
+  _packEntriesRaw = entries;
+  _packEntries = sortPackEntries(entries, _packSort);
   _packVisible = 0;
   // The picker's own "(N)" count only ever reflects on-chain-registered
   // packs (loadPackCollectionsList's cheap combined _count check) — it has
@@ -1820,6 +1926,11 @@ async function onDeepLinkPackClaimed(wallet) {
 function removeClaimedPackCard(entry, card) {
   const idx = _packEntries.indexOf(entry);
   if (idx !== -1) { _packEntries.splice(idx, 1); _packVisible--; }
+  // Same object reference in both arrays (sortPackEntries only copies the
+  // array, not its entries) — removed from the raw list too so switching
+  // sort order afterward can't resurrect an already-claimed card.
+  const rawIdx = _packEntriesRaw.indexOf(entry);
+  if (rawIdx !== -1) _packEntriesRaw.splice(rawIdx, 1);
   card.remove();
   // The deep-linked pack itself just got claimed — clear the now-stale
   // ?asset_id= and immediately show what else is left in this collection
