@@ -219,6 +219,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
   <script src="shared/supabase-config.js"></script>
+  <script src="shared/settings.js"></script>
   <script src="shared/wax-api.js"></script>
   <script src="shared/wallet-widget.js"></script>
   <script src="shared/wallet-menu.js"></script>
@@ -418,8 +419,10 @@ function setSectionCount(elId, n) {
 // A Packs grid can easily hold 1000+ cards for a large wallet (confirmed
 // live) — autoplaying video on every one at once (inventory.html avoids this
 // entirely via a real IntersectionObserver lazy-loader) crashed the tab in
-// testing. Preferring the static image and never autoplaying avoids the
-// whole class of problem without needing that same lazy-load machinery here.
+// testing. Preferring the static image keeps that risk low without needing
+// the same lazy-load machinery here; PACK_PAGE_SIZE's own 60-card batching
+// (see renderPackBatch) further bounds how many video-fallback cards can
+// ever be in the DOM from the main grid at once.
 //
 // Full AtomicAssets asset objects are heavy (nested collection/schema/
 // template/mutable_data/backed_tokens) — confirmed live that scanning a
@@ -453,12 +456,22 @@ function leanAsset(a) {
   };
 }
 
-function packMediaHtml(asset) {
+// forceAnimate skips the site's "pause animation" preference entirely —
+// used only by the pulled-results popup (see renderResultsGrid), a small,
+// bounded set of cards shown at a one-time celebratory reveal moment where
+// the user explicitly asked to always keep motion regardless of the
+// setting. Every other caller (the main Packs grid, the Unclaimed Packs
+// section) leaves it off, so window.getReduceMotion() decides normally —
+// same reduce-motion gate inventory.html's own eager video path uses.
+function packMediaHtml(asset, forceAnimate) {
   if (asset.img) {
     const hashAttr = /^https?:\/\//i.test(asset.img) ? '' : escHtml(asset.img);
     return `<img src="${escHtml(toMediaUrl(asset.img))}" alt="" loading="lazy" data-ipfs-hash="${hashAttr}" data-gw-idx="0" onerror="onPackMediaError(this)">`;
   }
-  if (asset.video) return `<video src="${escHtml(toMediaUrl(asset.video))}" muted playsinline loop preload="none"></video>`;
+  if (asset.video) {
+    const autoplay = forceAnimate || !window.getReduceMotion?.() ? 'autoplay' : '';
+    return `<video src="${escHtml(toMediaUrl(asset.video))}" muted playsinline loop ${autoplay}></video>`;
+  }
   return '<div class="pack-media-ph">📦</div>';
 }
 
@@ -658,7 +671,7 @@ function renderResultsGrid(minted, extras) {
   packResultGrid.style.display = minted.length ? '' : 'none';
   packResultGrid.innerHTML = minted.map(a => `
     <a class="pr-card" href="asset/${encodeURIComponent(a.asset_id)}" target="_blank" rel="noopener" data-asset-id="${escHtml(a.asset_id)}">
-      <div class="pr-card-media">${packMediaHtml(a)}</div>
+      <div class="pr-card-media">${packMediaHtml(a, true)}</div>
       <div class="pr-card-name" title="${escHtml(a.name || 'Card')}">${escHtml(a.name || 'Card')}</div>
     </a>
   `).join('');
