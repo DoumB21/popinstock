@@ -263,7 +263,6 @@ body::before {
      row means the wallet name below doesn't need to be squeezed nearly as
      hard to avoid overflowing on real phone widths. */
   #navProfileBtn { display: none; }
-  .nav-wax-menu-profile-mobile { display: flex; }
 
   .nav-wax-connected-widget { padding: 6px 10px; gap: 6px; }
   .nav-wax-name {
@@ -440,8 +439,10 @@ body::before {
 
 /* Standalone nav Profile icon (#navProfileBtn) moves here under the balance
    on mobile, where the row has no room to spare — hidden here on desktop
-   since the icon already covers it. See the 640px block below. */
-.nav-wax-menu-profile-mobile { display: none; }
+   since the icon already covers it. Combined-class selector (matching the
+   one that re-shows it below) so this reliably beats .nav-wax-menu-item's
+   own `display: flex` regardless of the two rules' source order. */
+.nav-wax-menu-item.nav-wax-menu-profile-mobile { display: none; }
 
 @media (max-width: 480px) {
   .nav-wax-balance { display: none; }
@@ -482,6 +483,10 @@ body::before {
 }
 
 .nav-wax-menu-icon { font-size: 0.95em; flex-shrink: 0; width: 1.1em; text-align: center; }
+
+@media (max-width: 640px) {
+  .nav-wax-menu-item.nav-wax-menu-profile-mobile { display: flex; }
+}
 .nav-wax-menu-item:hover { background: rgba(255, 255, 255, 0.07); color: var(--accent-light); }
 .nav-wax-menu-divider { height: 1px; background: rgba(255, 255, 255, 0.08); margin: 0.35rem 0.25rem; }
 .nav-wax-menu-logout { color: rgba(224, 82, 82, 0.8); }
