@@ -157,20 +157,42 @@
     .empty-state p { font-size: 0.88rem; margin: 0; }
     .trending-collections { width: 640px; max-width: 100%; margin: 2rem 0 5rem; }
     .trending-collections-card { border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem 1.5rem; background: var(--bg-card); }
-    .trending-collections-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.9rem; display: flex; align-items: baseline; gap: 0.5rem; }
-    .trending-collections-title span { margin-left: auto; font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); }
-    .trending-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0.25rem; text-decoration: none; border-radius: 8px; transition: background 0.1s; }
-    .trending-row:hover { background: rgba(255,255,255,0.05); }
+    .trending-collections-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.9rem; }
+    /* Same 3-column shape as the magnifying glass's own collection results
+       (see shared/global.css's .gs-col-head/.gs-result) — Collection page /
+       Last 24h volume / Marketplace, in that order, sharing one grid
+       template between the header and every row so the columns actually
+       line up regardless of how wide each cell's content is. */
+    .trending-col-head, .trending-row {
+      display: grid; grid-template-columns: 1fr 140px 96px; align-items: center; gap: 0.5rem;
+    }
+    .trending-col-head {
+      padding: 0 0.25rem 0.45rem; font-size: 0.64rem; font-weight: 700; color: var(--text-secondary);
+      letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.65;
+    }
+    .trending-col-head-vol { text-align: right; }
+    .trending-col-head-action { text-align: center; }
+    .trending-row { padding: 0.15rem 0.25rem; border-radius: 8px; }
     .trending-row + .trending-row { border-top: 1px solid rgba(255,255,255,0.05); }
+    /* Hover feedback lives on .trending-row-main alone (not .trending-row),
+       so hovering the Explore button doesn't also light up the whole row
+       like it's one link. */
+    .trending-row-main {
+      min-width: 0; display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.4rem 0.25rem; text-decoration: none; border-radius: 8px;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .trending-row-main:hover { background: rgba(255,255,255,0.05); }
     .trending-row-rank { width: 1.4rem; flex-shrink: 0; text-align: center; font-size: 0.86rem; font-weight: 700; color: var(--text-secondary); }
     .trending-row img, .trending-row-ph { width: 40px; height: 40px; border-radius: 7px; object-fit: cover; flex-shrink: 0; }
     .trending-row-ph { background: rgba(255,255,255,0.07); }
     .trending-row-info { min-width: 0; flex: 1; }
     .trending-row-name { display: block; font-size: 0.94rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .trending-row-slug { display: block; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .trending-row-vol { text-align: right; flex-shrink: 0; margin-left: 0.5rem; }
+    .trending-row-vol { text-align: right; }
     .trending-row-wax { display: block; font-size: 0.94rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
     .trending-row-usd { display: block; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; }
+    .trending-row-action-col { display: flex; align-items: center; justify-content: center; }
     .trending-promo { display: block; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
     .trending-promo img { display: block; width: 100%; height: auto; }
     .results-status { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; min-height: 1.2em; }
@@ -1469,19 +1491,39 @@ function trendingRowHtml(c, i) {
     ? `<img src="${IPFS_GW}${escHtml(c.img)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'trending-row-ph'}))">`
     : '<div class="trending-row-ph"></div>';
   const usd = _waxUsd ? `<span class="trending-row-usd">≈ $${(c.volume * _waxUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>` : '';
-  return `<a class="trending-row" href="collection/${encodeURIComponent(c.collection_name)}">
-    <span class="trending-row-rank">${i + 1}</span>
-    ${img}
-    <div class="trending-row-info">
-      <span class="trending-row-name">${escHtml(c.name)}</span>
-      <span class="trending-row-slug">${escHtml(c.collection_name)}</span>
-    </div>
+  // Same 3-column shape/order as the magnifying glass's own collection
+  // results (see shared/global.css's .gs-result/.gs-result-main/
+  // .gs-result-action): Collection page (name/image, links to the
+  // collection page) / Last 24h volume / Marketplace (the "Explore"
+  // button, reusing those exact .gs-result-action* classes for a matching
+  // look) — Explore last so it lines up under its own "Marketplace"
+  // header instead of the volume column's.
+  return `<div class="trending-row">
+    <a class="trending-row-main" href="collection/${encodeURIComponent(c.collection_name)}">
+      <span class="trending-row-rank">${i + 1}</span>
+      ${img}
+      <div class="trending-row-info">
+        <span class="trending-row-name">${escHtml(c.name)}</span>
+        <span class="trending-row-slug">${escHtml(c.collection_name)}</span>
+      </div>
+    </a>
     <div class="trending-row-vol">
       <span class="trending-row-wax">${c.volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} WAX</span>
       ${usd}
     </div>
-  </a>`;
+    <div class="trending-row-action-col">
+      <a class="gs-result-action" href="?col=${encodeURIComponent(c.collection_name)}" title="Shop this collection" data-trending-explore="${i}">Explore</a>
+    </div>
+  </div>`;
 }
+
+const _TRENDING_COL_HEAD_HTML = `<div class="trending-col-head">
+  <span>Collection page</span>
+  <span class="trending-col-head-vol">Last 24h volume</span>
+  <span class="trending-col-head-action">Marketplace</span>
+</div>`;
+
+let _trendingRows = [];
 
 async function renderTrendingCollections() {
   const $el = document.getElementById('trendingCollections');
@@ -1491,12 +1533,29 @@ async function renderTrendingCollections() {
   }
   try {
     const [rows] = await Promise.all([fetchTrendingCollections(), fetchWaxUsd()]);
+    _trendingRows = rows;
     $el.innerHTML = rows.length ? `<div class="trending-collections-card">
-      <div class="trending-collections-title">Trending Collections on WAX <span>Last 24h volume</span></div>
+      <div class="trending-collections-title">Trending Collections on WAX</div>
+      ${_TRENDING_COL_HEAD_HTML}
       ${rows.map(trendingRowHtml).join('')}
     </div>` : '';
   } catch { $el.innerHTML = ''; } // API hiccup — quietly stay empty rather than show a broken block
 }
+
+// Explore button navigates via its own href (?col=, same param
+// selectCollection's own page-load handling already reads) for a real
+// link's usual behavior — new tab, copy link, etc. — but a plain left
+// click is intercepted to call selectCollection() directly instead of
+// reloading, since we're already on this exact page; same instant-select
+// pattern the Popular/Recent quick-access rows below already use.
+document.getElementById('trendingCollections').addEventListener('click', e => {
+  const btn = e.target.closest('[data-trending-explore]');
+  if (!btn) return;
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  const c = _trendingRows[+btn.dataset.trendingExplore];
+  if (c) selectCollection({ collection_name: c.collection_name, name: c.name, img: c.img });
+});
 
 function renderQuickAccess() {
   renderRecents();
