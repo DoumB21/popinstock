@@ -70,6 +70,34 @@
     .wallet-cell { font-size: 0.92rem; color: var(--accent-light); }
     .rating-cell { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
 
+    /* Rating folds into the Avg Mint column as a second row instead of its
+       own fixed-width column — kept as two REAL columns on desktop (below
+       600px they'd otherwise merge into one flex box, which can't keep each
+       row's values vertically aligned into clean columns the way a real
+       <td> boundary does — different-length Avg Mint values shift the
+       Rating value left/right per row). Desktop stays exactly as it was:
+       two separate 100px columns. */
+    .am-row2 { display: none; font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    @media (max-width: 600px) {
+      .rating-col { display: none; }
+      .am-row2 { display: block; }
+    }
+
+    /* Sets folds into the Wallet column as a second row (with the "Set #N"
+       badge alongside it) instead of its own fixed-width column — between
+       Rank/Sets/Avg Mint/Rating, there was almost no room left for the
+       wallet name itself on phone widths. Kept as its own column above
+       600px, where there's room to spare. */
+    .wc-row1 { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .wc-row2 { display: none; align-items: center; gap: 0.5rem; margin-top: 3px; font-size: 0.78rem; color: var(--text-secondary); }
+    .wc-badge--bottom { display: none; }
+    @media (max-width: 600px) {
+      .sets-col { display: none; }
+      .wc-badge--top { display: none; }
+      .wc-row2 { display: flex; }
+      .wc-badge--bottom { display: inline-flex; }
+    }
+
     /* ── Mint tier icons ── */
     .mint-tier { font-size: 0.78rem; cursor: default; flex-shrink: 0; line-height: 1; }
     .mint-tier.single { color: #f0a840; }
@@ -186,10 +214,16 @@
       const tierIcon = mintTierIcon(e.mint_tier);
       return `<tr onclick="window.location='${href}'">
         <td class="rank-cell ${rankClass(pos)}">#${pos}${rankArrow(e.rank, e.rank_snapshot)}</td>
-        <td class="wallet-cell" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem">${e.wallet}${setBadge}</td>
-        <td class="col-r">${e.total_sets ?? 1}</td>
-        <td class="col-r" style="display:flex;align-items:center;justify-content:space-between">${tierIcon}${fmtDec(e.avg_mint, 3)}</td>
-        <td class="rating-cell">${fmtDec(e.rating, 3)}</td>
+        <td class="wallet-cell">
+          <div class="wc-row1">${e.wallet}<span class="wc-badge wc-badge--top">${setBadge}</span></div>
+          <div class="wc-row2"><span class="wc-sets">${e.total_sets ?? 1} set${(e.total_sets ?? 1) === 1 ? '' : 's'}</span><span class="wc-badge wc-badge--bottom">${setBadge}</span></div>
+        </td>
+        <td class="col-r sets-col">${e.total_sets ?? 1}</td>
+        <td class="col-r">
+          <div class="am-row1" style="display:flex;align-items:center;justify-content:flex-end;gap:4px">${tierIcon}${fmtDec(e.avg_mint, 3)}</div>
+          <div class="am-row2">${fmtDec(e.rating, 3)}</div>
+        </td>
+        <td class="rating-cell rating-col">${fmtDec(e.rating, 3)}</td>
       </tr>`;
     }).join('');
 
@@ -197,9 +231,9 @@
       <thead><tr>
         <th style="width:72px">Rank</th>
         <th>Wallet</th>
-        <th class="col-r" style="width:70px">Sets</th>
+        <th class="col-r sets-col" style="width:70px">Sets</th>
         <th class="col-r" style="width:100px">Avg Mint</th>
-        <th class="col-r" style="width:100px">Rating <span class="info-tip" onclick="event.stopPropagation();document.getElementById('ratingModal').classList.add('open')"><span class="info-tip-icon">ⓘ</span></span></th>
+        <th class="col-r rating-col" style="width:100px">Rating <span class="info-tip" onclick="event.stopPropagation();document.getElementById('ratingModal').classList.add('open')"><span class="info-tip-icon">ⓘ</span></span></th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>`;
