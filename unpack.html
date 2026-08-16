@@ -879,19 +879,26 @@ async function claimWithRevealNefty(wallet, assetId, onProgress) {
 
 // WAXDAO companion to the two claim functions above — but there's no
 // separate claim step to wait on at all. The single unbox transfer IS the
-// whole flow: sign it, and the reward asset is already sitting in the
-// wallet the moment it broadcasts (see shared/waxdao-packs.js's own
-// top-of-file comment for why this is safe to read straight off the same
-// transaction, no polling). Reused as this provider's "claim" function
-// purely so it can plug into the exact same reveal-popup machinery as the
-// other two — from the popup's point of view this is just a claim that
-// never needs a retry-until-ready loop.
+// whole flow: sign it, and the reward asset should already be sitting in
+// the wallet the moment it broadcasts. "Should" is doing real work there
+// though — the transaction's own trace has been observed to name a reward
+// asset that was never actually delivered (a speculative-execution result
+// later superseded by a reorg before finality — see verifyRewardAssetIds's
+// doc comment in shared/waxdao-packs.js), so the trace is only a starting
+// guess, confirmed against the chain before display. Reused as this
+// provider's "claim" function purely so it can plug into the exact same
+// reveal-popup machinery as the other two.
 async function claimWithRevealWaxdao(wallet, assetId, dropId, onProgress) {
   onProgress('Confirm in your wallet…');
   const unboxAction = WaxdaoPacks.buildUnboxAction(wallet, assetId, dropId);
   const result = await WaxAuth.transact([unboxAction]);
   onProgress('Finalizing…');
-  const rewardIds = WaxdaoPacks.extractRewardAssetIds(result, wallet);
+  const claimedIds = WaxdaoPacks.extractRewardAssetIds(result, wallet);
+  // The trace is only a claim, not proof (see verifyRewardAssetIds's own
+  // doc comment) — confirm the wallet actually holds each one before it's
+  // ever displayed as "pulled".
+  onProgress('Confirming reward…');
+  const rewardIds = await WaxdaoPacks.verifyRewardAssetIds(wallet, claimedIds);
   const rewardAssets = (await Promise.all(rewardIds.map(fetchAssetBrief))).filter(Boolean).map(leanAsset);
   return { result, minted: rewardAssets, extras: [] };
 }

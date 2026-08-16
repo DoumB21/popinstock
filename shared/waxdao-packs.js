@@ -39,7 +39,20 @@
    Because unbox and reward are the same transaction, there is no
    "unclaimed"/pending state this contract can ever leave a pack in — unlike
    AtomicPacks/NeftyBlocks, nothing here needs an Unclaimed-Packs-style
-   recovery path. */
+   recovery path.
+
+   HOWEVER: the trace returned by that transaction's own broadcast is only
+   a claim, not proof of what the wallet actually ended up holding —
+   confirmed via a real mismatch (a wallet's reveal popup named an asset
+   that turned out to have sat untouched in waxdaomarket's pool the whole
+   time, never transferred). Root cause: public nodes execute
+   push_transaction speculatively and hand back a trace before the block is
+   irreversible; if a reorg bumps the transaction into a different block
+   alongside other unboxers, premintpools' order-dependent pick can land on
+   a different asset than the one the original (later-discarded) trace
+   named. See extractRewardAssetIds + verifyRewardAssetIds below — every
+   caller MUST run extracted ids through verifyRewardAssetIds before
+   showing them to anyone. */
 (function () {
   // Same fallback list / localStorage key convention as the other two pack
   // modules — see their own top-of-file notes for why this stays a small
@@ -205,7 +218,12 @@
      entries), deduped by asset_id for the same reason extractMintedAssets
      dedupes mints. Filtered to from:waxdaomarket/to:walletAccount so the
      INBOUND leg of the same transaction (the box going the other way) is
-     never mistaken for a reward. */
+     never mistaken for a reward.
+
+     This only tells you what the trace CLAIMED happened — not what's
+     really in the wallet (see the top-of-file note on speculative-
+     execution/reorg divergence). Every id this returns must be passed
+     through verifyRewardAssetIds before it's shown to anyone. */
   function _flattenTraces(traces) {
     const out = [];
     for (const t of traces || []) {
@@ -234,6 +252,55 @@
     return out;
   }
 
+  /* ── Reward verification — ground truth against the chain's own
+     atomicassets `assets` table, NOT the AtomicAssets index and NOT the
+     transaction's own trace. Confirmed against a real case: the trace
+     claimed a specific asset had been transferred to the user, but that
+     asset had actually SAT UNTOUCHED in waxdaomarket's pool the whole
+     time — never transferred at all. Root cause: public nodes execute
+     push_transaction speculatively and can return a trace for a run that
+     later gets superseded by a reorg before irreversibility; premintpools'
+     pick (contract-side, order-dependent on which pool row is "next") can
+     land on a different asset once the transaction is actually finalized
+     in a different block alongside other unboxers' requests. The reward
+     trace is a claim, not proof — this checks whether the wallet ACTUALLY
+     holds the asset before it's ever shown as "pulled".
+
+     Retried with backoff rather than checked once immediately — the same
+     reorg risk that can hand back a wrong trace can also mean the correct,
+     final state genuinely isn't settled yet at the instant transact()
+     resolves. The common/correct case still costs only one extra RPC call
+     (no delay before the first attempt). Anything that never verifies is
+     dropped — better to show nothing specific (renderResultsGrid's
+     "Claimed — check your inventory" fallback) than to show a card the
+     visitor didn't really get and let them find out the hard way. */
+  const VERIFY_ATTEMPTS = 4;
+  const VERIFY_DELAY_MS = 1500;
+
+  async function _isOwnedByWallet(walletAccount, assetId) {
+    try {
+      const res = await _getTableRows({
+        code: 'atomicassets', scope: walletAccount, table: 'assets',
+        lower_bound: String(assetId), upper_bound: String(assetId), limit: 1,
+      });
+      return !!(res.rows && res.rows.length && String(res.rows[0].asset_id) === String(assetId));
+    } catch { return false; }
+  }
+
+  async function verifyRewardAssetIds(walletAccount, assetIds) {
+    let remaining = [...new Set(assetIds.map(String))];
+    const verified = new Set();
+    for (let attempt = 0; attempt < VERIFY_ATTEMPTS && remaining.length; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, VERIFY_DELAY_MS));
+      const results = await Promise.all(remaining.map(id => _isOwnedByWallet(walletAccount, id)));
+      const stillMissing = [];
+      remaining.forEach((id, i) => { if (results[i]) verified.add(id); else stillMissing.push(id); });
+      remaining = stillMissing;
+    }
+    // Original relative order, filtered down to only what actually verified.
+    return assetIds.filter(id => verified.has(String(id)));
+  }
+
   window.WaxdaoPacks = {
     lookupPackByTemplateId,
     lookupPackByDropId,
@@ -241,5 +308,6 @@
     getPackTemplateIdsByCollection,
     buildUnboxAction,
     extractRewardAssetIds,
+    verifyRewardAssetIds,
   };
 })();
