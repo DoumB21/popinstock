@@ -58,6 +58,9 @@
     .ov-schema { font-size: 0.68rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
     .ov-rating { font-weight: 600; color: var(--text-primary); }
     .ov-rank { color: var(--text-secondary); }
+    .ov-rank-1 { color: #ffd700 !important; }
+    .ov-rank-2 { color: #c0c0c0 !important; }
+    .ov-rank-3 { color: #cd7f32 !important; }
     .ov-sets { color: var(--text-secondary); }
     .ov-avg { color: var(--text-secondary); }
     .ov-none { color: rgba(255,255,255,0.15); }
@@ -122,11 +125,41 @@
        Kept as its own column above 500px, where there's room to spare. */
     .card-rarity-mobile { display: none; margin-top: 4px; }
 
+    /* The combined 9-column Royalty+Mastery overview table (Collection/
+       Series + 4 columns each) never fits a phone width — below 500px it's
+       replaced by two separate single-drop-type tables instead (each still
+       keeping Collection/Series), built alongside it in buildOverviewGrid()
+       and toggled here rather than reworked with colspan/rowspan tricks,
+       which can't actually split one <table> into two. */
+    .ov-mobile { display: none; }
+    .ov-split-heading { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin: 1.25rem 0 0.5rem; }
+    .ov-split-heading:first-child { margin-top: 0; }
+    /* Same colors as the desktop table's .col-group-royalty/-mastery group
+       headers, so the split mobile tables read as the same two sections. */
+    .ov-split-heading--royalty { color: #007deb; }
+    .ov-split-heading--mastery { color: #e93494; }
+    /* Letting "Best Rank" wrap to two lines shrinks that column to whichever
+       single word is wider, rather than the full nowrap phrase. */
+    .overview-table thead th.ov-wrap-th { white-space: normal; }
+    /* Average + Rating merged into one stacked cell in the split tables
+       only — the combined desktop table keeps them as real separate
+       columns, unchanged. */
+    .am-row2 { color: var(--text-secondary); margin-top: 2px; }
+    /* Scoped to .ov-mobile only, not .overview-table generally — the
+       desktop combined table's own padding stays untouched. With 4 columns
+       each carrying 14px of padding on both sides, that's 112px before any
+       content even renders; tightened here since phones have far less room
+       to spare than the wide desktop table this padding was tuned for. */
+    .ov-mobile .overview-table th,
+    .ov-mobile .overview-table td { padding-left: 8px; padding-right: 8px; }
+
     @media (max-width: 500px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .rarity-col { display: none; }
       .card-rarity-mobile { display: block; }
       .set-selector-wrap { flex-direction: column; align-items: stretch; }
+      .ov-desktop { display: none; }
+      .ov-mobile { display: block; }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -181,6 +214,13 @@
   function fmt(n)    { return Number(n).toLocaleString(); }
   function fmtDec(n) { return Number(n).toFixed(3); }
   function enc(v)    { return encodeURIComponent(v); }
+
+  function rankClass(rank) {
+    if (rank === 1) return 'ov-rank-1';
+    if (rank === 2) return 'ov-rank-2';
+    if (rank === 3) return 'ov-rank-3';
+    return '';
+  }
 
   function ipfsUrl(cid) {
     if (!cid) return '';
@@ -427,26 +467,33 @@
 
     const none = '<span class="ov-none">—</span>';
 
-    const rows = drops.map(d => {
+    const combinedRows = [];
+    const royaltyRows = [];
+    const masteryRows = [];
+
+    for (const d of drops) {
       const displayName = collNameMap.get(d.col) || d.col;
       const royaltyBest = d.royalty.reduce((best, r) => (!best || r.set_number < best.set_number) ? r : best, null);
       const masteryBest = d.mastery.reduce((best, r) => (!best || r.set_number < best.set_number) ? r : best, null);
 
-      const rRank    = royaltyBest ? `<span class="ov-rank">#${royaltyBest.rank}</span>`      : none;
+      const rRank    = royaltyBest ? `<span class="ov-rank ${rankClass(royaltyBest.rank)}">#${royaltyBest.rank}</span>` : none;
       const rSets    = d.royalty.length ? `<span class="ov-sets">${d.royalty.length}</span>`   : none;
       const rAvg     = royaltyBest ? `<span class="ov-avg">${fmtDec(royaltyBest.avg_mint)}</span>` : none;
       const rRating  = royaltyBest ? `<span class="ov-rating">${fmtDec(royaltyBest.rating)}</span>` : none;
 
-      const mRank    = masteryBest ? `<span class="ov-rank">#${masteryBest.rank}</span>`       : none;
+      const mRank    = masteryBest ? `<span class="ov-rank ${rankClass(masteryBest.rank)}">#${masteryBest.rank}</span>` : none;
       const mSets    = d.mastery.length ? `<span class="ov-sets">${d.mastery.length}</span>`   : none;
       const mAvg     = masteryBest ? `<span class="ov-avg">${fmtDec(masteryBest.avg_mint)}</span>` : none;
       const mRating  = masteryBest ? `<span class="ov-rating">${fmtDec(masteryBest.rating)}</span>` : none;
 
-      return `<tr onclick="selectDrop('${d.col}', '${d.schema}')">
-        <td>
+      const collCell = `<td>
           <div class="ov-collection">${displayName}</div>
           <div class="ov-schema">${schemaLabel(d.schema)}</div>
-        </td>
+        </td>`;
+      const onclick = `onclick="selectDrop('${d.col}', '${d.schema}')"`;
+
+      combinedRows.push(`<tr ${onclick}>
+        ${collCell}
         <td class="col-r col-sep">${rRank}</td>
         <td class="col-r">${rSets}</td>
         <td class="col-r">${rAvg}</td>
@@ -455,10 +502,39 @@
         <td class="col-r">${mSets}</td>
         <td class="col-r">${mAvg}</td>
         <td class="col-r">${mRating}</td>
-      </tr>`;
-    }).join('');
+      </tr>`);
 
-    return `<div class="overview-table-wrap"><table class="overview-table">
+      // Mobile-only: Royalty and Mastery split into their own table (fitting
+      // both side by side, 9 columns total, never worked on phone widths),
+      // each keeping the Collection/Series column and merging Average+Rating
+      // into one stacked cell.
+      royaltyRows.push(`<tr ${onclick}>
+        ${collCell}
+        <td class="col-r">${rRank}</td>
+        <td class="col-r">${rSets}</td>
+        <td class="col-r"><div class="am-row1">${rAvg}</div><div class="am-row2">${rRating}</div></td>
+      </tr>`);
+      masteryRows.push(`<tr ${onclick}>
+        ${collCell}
+        <td class="col-r">${mRank}</td>
+        <td class="col-r">${mSets}</td>
+        <td class="col-r"><div class="am-row1">${mAvg}</div><div class="am-row2">${mRating}</div></td>
+      </tr>`);
+    }
+
+    const splitTable = (heading, typeClass, rowsHtml) => `
+      <div class="ov-split-heading ov-split-heading--${typeClass}">${heading}</div>
+      <div class="overview-table-wrap"><table class="overview-table">
+        <thead><tr>
+          <th>Collection<div class="am-row2">Series</div></th>
+          <th class="col-r ov-wrap-th">Best Rank</th>
+          <th class="col-r">Sets</th>
+          <th class="col-r">Avg Mint<div class="am-row2">Rating</div></th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table></div>`;
+
+    return `<div class="ov-desktop"><div class="overview-table-wrap"><table class="overview-table">
       <thead>
         <tr>
           <th rowspan="2">Collection / Series</th>
@@ -476,8 +552,12 @@
           <th class="col-r">Rating</th>
         </tr>
       </thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
+      <tbody>${combinedRows.join('')}</tbody>
+    </table></div></div>
+    <div class="ov-mobile">
+      ${splitTable('Royalty', 'royalty', royaltyRows.join(''))}
+      ${splitTable('Mastery', 'mastery', masteryRows.join(''))}
+    </div>`;
   }
 
   function buildOverviewStats() {

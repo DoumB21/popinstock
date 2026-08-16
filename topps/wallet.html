@@ -56,7 +56,7 @@
     /* Rating folds into the Avg Mint column as a second row instead of its
        own column, same treatment as the ranking tables elsewhere on the
        site — kept as two real columns on desktop for row alignment. */
-    .am-row2 { display: none; font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    .am-row2 { display: none; color: var(--text-secondary); margin-top: 2px; }
     .ov-rank-1 { color: #ffd700 !important; }
     .ov-rank-2 { color: #c0c0c0 !important; }
     .ov-rank-3 { color: #cd7f32 !important; }
@@ -381,7 +381,7 @@
             <th>Subset</th>
             <th class="col-r ov-wrap-th">Best Rank</th>
             <th class="col-r">Sets</th>
-            <th class="col-r">Avg Mint</th>
+            <th class="col-r">Avg Mint<div class="am-row2">Rating</div></th>
             <th class="col-r rating-col">Rating</th>
           </tr></thead>
           <tbody>${rows}</tbody>
