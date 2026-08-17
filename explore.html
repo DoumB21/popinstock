@@ -157,8 +157,10 @@
       border-radius: 10px; padding: 0.6rem 0.75rem;
       color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
       cursor: pointer; transition: border-color 0.2s, color 0.15s, background 0.2s;
+      white-space: nowrap;
     }
-    .ex-filters-toggle-label { display: flex; align-items: center; gap: 0.4rem; }
+    .ex-filters-toggle-label { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+    .ex-filters-toggle-label span { overflow: hidden; text-overflow: ellipsis; }
     .ex-filters-toggle:hover,
     .ex-filters-toggle.open { border-color: rgba(192,120,40,0.5); }
     /* One or more filters currently narrowing results — separate from
@@ -177,6 +179,25 @@
       background: var(--accent-light); color: #0a0a0f;
       font-size: 0.85rem; font-weight: 800;
     }
+
+    /* Closes the sidebar from the top too, once you've scrolled down into
+       it — the toggle button in the toolbar above is out of reach at that
+       point. Hidden on desktop alongside .ex-filters-toggle; the sidebar
+       never collapses there. */
+    .ex-sidebar-mobile-header {
+      display: none; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .ex-sidebar-mobile-title { font-size: 1rem; font-weight: 700; }
+    .ex-filters-close {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px;
+      background: none; border: none; border-radius: 50%;
+      color: var(--text-secondary); font-size: 1.4rem; line-height: 1;
+      cursor: pointer; transition: color 0.15s, background 0.15s;
+    }
+    .ex-filters-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
 
     /* Empty state, with a Trending Collections leaderboard centered below it
        (only shown pre-selection — populated by renderTrendingCollections()). */
@@ -700,6 +721,12 @@
          yet — "Search for a collection" IS the sidebar at that point). */
       .ex-sidebar.ex-sidebar--collapsed { display: none; }
       .ex-filters-toggle { display: flex; }
+      /* Requires .visible (toggled alongside #exploreToolbar's own, in
+         showFilters()/hideFilters()) — without a collection picked yet,
+         there's no toolbar button to reopen the sidebar with, so the close
+         X here must not be offered either or a click strands the user with
+         no way back to the collection picker short of reloading. */
+      .ex-sidebar-mobile-header.visible { display: flex; }
 
       /* Filters + Sort split the row evenly instead of sitting pill-sized
          at their content width with empty space trailing them. */
@@ -751,6 +778,11 @@
 
   <!-- ── Sidebar ── -->
   <aside class="ex-sidebar" id="exSidebar">
+
+    <div class="ex-sidebar-mobile-header" id="exSidebarMobileHeader">
+      <span class="ex-sidebar-mobile-title">Filters</span>
+      <button type="button" id="mobileFiltersCloseBtn" class="ex-filters-close" aria-label="Close filters">✕</button>
+    </div>
 
     <div class="filter-section" id="secCollection">
       <span class="filter-label">Collection</span>
@@ -917,7 +949,7 @@
         <button type="button" id="mobileFiltersToggle" class="ex-filters-toggle" aria-expanded="false" aria-controls="exSidebar">
           <span class="ex-filters-toggle-label">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
-            <span>Filters</span>
+            <span id="mobileFiltersToggleLabel">Show Filters</span>
           </span>
           <span id="filtersCountBadge" class="ex-filters-count" style="display:none;"></span>
         </button>
@@ -1703,6 +1735,7 @@ const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle
 function showFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
   document.getElementById('exploreToolbar').classList.add('visible');
+  document.getElementById('exSidebarMobileHeader').classList.add('visible');
   document.getElementById('secDrop').classList.toggle('hidden', !_col?.isCatalog);
   document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
   document.getElementById('colQuickAccess').style.display = 'none'; // covers funkoCatalogBtn too — it now lives inside it
@@ -1714,6 +1747,7 @@ function showFilters() {
 function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('exploreToolbar').classList.remove('visible');
+  document.getElementById('exSidebarMobileHeader').classList.remove('visible');
   document.getElementById('secDrop').classList.add('hidden');
   document.getElementById('secTemplate').classList.add('hidden');
   document.getElementById('secDynMsg').classList.add('hidden');
@@ -1741,6 +1775,7 @@ function setMobileSidebarCollapsed(collapsed) {
   const btn = document.getElementById('mobileFiltersToggle');
   btn.classList.toggle('open', !collapsed);
   btn.setAttribute('aria-expanded', String(!collapsed));
+  document.getElementById('mobileFiltersToggleLabel').textContent = collapsed ? 'Show Filters' : 'Hide Filters';
   if (collapsed) {
     closeAllDd();
     // Collapsing the sidebar shrinks the page above wherever the user was
@@ -1759,6 +1794,9 @@ function scrollToolbarIntoView() {
 document.getElementById('mobileFiltersToggle').addEventListener('click', () => {
   setMobileSidebarCollapsed(!document.getElementById('exSidebar').classList.contains('ex-sidebar--collapsed'));
 });
+// Closes from the top of the panel too — once scrolled down into a long
+// filter list, the toggle button up in the toolbar is out of reach.
+document.getElementById('mobileFiltersCloseBtn').addEventListener('click', () => setMobileSidebarCollapsed(true));
 
 // How many filters are currently narrowing results — everything in
 // #exSidebar EXCEPT Collection/Drop/Template (those pick *what* you're
