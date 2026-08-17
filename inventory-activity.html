@@ -189,10 +189,8 @@
       position: relative;
       color: inherit; text-decoration: none;
     }
-    /* Purchases/Sales cards only (the outer .act-card carries data-sale-id
-       there, see saleCardHtml/saleBundleCardHtml) — Transfers' thumbnails
-       aren't a link to anything, so they stay the default cursor. */
-    [data-sale-id] .act-card-thumb { cursor: pointer; }
+    /* No explicit cursor:pointer rule needed — .act-card-thumb is always a
+       real <a href> now (see thumbWrapHtml), which gets it natively. */
     /* Bundle-transfer sub-rows stay at the old compact size — several can
        be stacked in one card, unlike the single thumb everywhere else. */
     .act-card-asset .act-card-thumb { width: 72px; height: 72px; }
@@ -1062,16 +1060,21 @@ function assetPopupData(asset) {
 // every thumbnail — single-asset cards and each grouped row inside a bundle
 // alike — gets its own hover popup without duplicating the bundle template-
 // grouping logic that only bundleAssetsHtml/groupAssetsByTemplate know.
-// opts.saleId (Purchases/Sales tabs only — see saleCardHtml/saleBundleCardHtml)
-// renders the thumb as a real <a href> instead of a div, so the browser's own
-// right-click "Open link in new tab"/middle-click/ctrl-click all work.
-// Transfers' thumbnails aren't a link to anything, so they stay a plain div.
+// Real <a href> instead of a div, so the browser's own right-click "Open
+// link in new tab"/middle-click/ctrl-click all work. opts.saleId (Purchases/
+// Sales tabs — see saleCardHtml/saleBundleCardHtml) points at that shared
+// listing; Transfers has no sale to point to, so its thumb links to the
+// asset page instead (same target inventory.html's own cards use). Falls
+// back to a plain div only for the rare card with neither (an empty
+// placeholder asset — see renderSaleItem/renderTransferItem's `|| [{}]`).
 function thumbWrapHtml(asset, opts) {
   const isBurned = !!asset.burned_at_time;
   const title = isBurned ? ` title="${escHtml(asset.burned_by_account ? 'Burned by ' + asset.burned_by_account : 'Burned')}"` : '';
   const popupAttr = ` data-popup="${escHtml(JSON.stringify(assetPopupData(asset)))}"`;
-  const tag = opts?.saleId ? 'a' : 'div';
-  const hrefAttr = opts?.saleId ? ` href="sale/${encodeURIComponent(opts.saleId)}"` : '';
+  const href = opts?.saleId ? `sale/${encodeURIComponent(opts.saleId)}`
+    : asset.asset_id ? `asset/${encodeURIComponent(asset.asset_id)}` : null;
+  const tag = href ? 'a' : 'div';
+  const hrefAttr = href ? ` href="${href}"` : '';
   return `<${tag} class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${hrefAttr}${title}${popupAttr}>${assetThumbHtml(asset, opts)}</${tag}>`;
 }
 
