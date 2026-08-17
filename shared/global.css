@@ -248,12 +248,16 @@ body::before {
 @media (max-width: 640px) {
   .nav-inner   { padding: 0 0.75rem; gap: 0.35rem; }
   .nav-home    { margin-right: 0.5rem; }
-  .nav-home img { height: 40px; width: 40px; }
+  .nav-home img { height: 30px; width: 30px; }
   .nav-divider { margin: 0 0.35rem 0 0.15rem; }
   .nav-section { margin-right: 0.4rem; }
   .nav-burger  { margin-left: 0.15rem; padding: 0.3rem; }
 
-  .nav-cart-btn { width: 30px; height: 30px; }
+  /* These buttons' icons are inline SVGs hardcoded at 16x16 (wallet-widget.js,
+     global-search.js) — the button circle alone doesn't control the glyph
+     size, so it has to be overridden here explicitly to actually look bigger. */
+  .nav-cart-btn { width: 34px; height: 34px; }
+  .nav-cart-btn svg { width: 20px; height: 20px; }
 
   .nav-wax-btn    { padding: 8px; gap: 0; }
   #navWaxBtnLabel { display: none; }
