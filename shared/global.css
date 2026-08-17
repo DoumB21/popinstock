@@ -1848,3 +1848,31 @@ footer {
 @media (min-width: 541px) and (max-width: 768px) {
   .grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* iOS Safari auto-zooms the page on focus for any text-entry field under
+   16px, then often fails to zoom back out cleanly — leaving the page
+   drifted/scrollable horizontally. Force every real text-entry element up
+   to that threshold on mobile only (desktop's denser input styling is
+   untouched); checkbox/radio/range/file inputs don't show a keyboard so
+   they're excluded. Placed last so it reliably wins the cascade over the
+   input classes declared earlier in this file. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* margin-right: auto pushes ALL the leftover nav row space into the gap
+     right after the divider, so logo+divider anchor left and every
+     element that follows (section badge, action icons, wallet widget,
+     search, burger) rides together as one flush-right group — not just
+     the burger alone with unused space stranded to its right. Placed
+     here (not with the other .nav-divider rules near the top of this
+     file) because an unconditional `.nav-divider { margin: ... }` rule
+     is declared further down for the wallet widget — same specificity,
+     later source order, so it silently wins over an earlier same-file
+     media-query override regardless of viewport. Needs to come after
+     that rule to actually take effect. */
+  .nav-divider { margin-right: auto; }
+}
