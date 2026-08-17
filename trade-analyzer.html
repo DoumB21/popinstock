@@ -45,7 +45,6 @@
     .control-hint { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; }
     .control-group--filter { max-width: 280px; }
     .input-error { color: #e05252; font-size: 0.82rem; margin-top: 0.6rem; }
-    .template-id-meta { display: none; }
 
     /* ── Collection typeahead (Generic mode) ── */
     .typeahead-wrap { position: relative; }
@@ -167,10 +166,7 @@
       .results-table td.col-wallet, .results-table td.col-empty { padding-left: 0.35rem; padding-right: 0.35rem; }
       .trade-sidebar { width: 100%; right: -100%; }
 
-      .template-id-name { display: none; }
-      .template-id-meta { display: inline; }
       .card-meta-line { flex-wrap: wrap; row-gap: 0.35rem; }
-      .card-meta-line .rarity-badge { flex-basis: 100%; }
     }
 
     /* ── Quick Start Guide ── */
@@ -435,7 +431,8 @@
     /* ── Double-row card layout ── */
     .card-sub-row td { border-top: none !important; padding-top: 0; padding-bottom: 0.45rem; }
     .card-id-prefix { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-    .template-id-suffix { color: var(--text-secondary); font-size: 0.88em; opacity: 0.55; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .card-name-link { color: inherit; text-decoration: none; }
+    .card-name-link:hover { color: var(--accent-light); text-decoration: underline; }
     .card-name-line { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; }
     .card-meta-line { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 
@@ -666,6 +663,52 @@
     .card-preview-media img, .card-preview-media video { width: 100%; height: 100%; object-fit: contain; }
     .card-preview-loading { color: var(--text-secondary); font-size: 0.78rem; text-align: center; padding: 0 0.5rem; }
     .card-preview-caption { margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-primary); text-align: center; }
+
+    /* ── Mobile card list — replaces the results table below 640px. The
+       table can't reflow into this via CSS alone: each card is two <tr>s
+       (a main row with the first mint, a sub-row with the rest) sharing
+       column alignment with a sticky header, so "wallet name + full mint
+       list" needs its own markup. Built and kept in sync alongside the
+       table by renderTable/applyFilter rather than derived from it —
+       see the mint-selected sync fix in toggleMint/removeFromTrade/
+       reapplyHighlights, needed because a mint now has two DOM
+       representations (table span + mobile-card span). Hidden above
+       640px; the table's wrapper is hidden below it instead. ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    .mobile-card-info { padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); margin-bottom: 0.55rem; }
+    .mobile-card-info .card-meta-line { margin-top: 0.35rem; }
+    .mobile-wallet-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    /* Two-row-per-wallet grid, mirroring the desktop table's main-row +
+       sub-row split: row 1 col 2 is the wallet-cell (qty left, lowest mint
+       right, reusing the exact desktop classes below so the "lowest mint is
+       bigger/bold/accent-colored" logic is identical, not reimplemented);
+       row 2 col 1 is left empty (no markup needed — grid auto-placement
+       just skips it) and row 2 col 2 is the next-mints list. Fixed-width
+       column 1 (not content-hugging) so every card's wallet-name column
+       lands at the same x-position regardless of how long that card's
+       wallet names happen to be. */
+    .mobile-wallet-block {
+      display: grid; grid-template-columns: 6.5rem 1fr;
+      column-gap: 0.6rem; row-gap: 0.1rem; padding: 0.15rem 0;
+    }
+    .mobile-wallet-block.mint-lowest { border-radius: 8px; margin: 0 -0.4rem; padding: 0.15rem 0.4rem; }
+    .mobile-wallet-name {
+      font-size: 0.78rem; font-weight: 700; align-self: start;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mobile-wallet-block .wallet-cell,
+    .mobile-wallet-block .wallet-next-mints,
+    .mobile-wallet-empty { grid-column: 2; }
+    .mobile-wallet-empty { color: var(--text-secondary); text-align: right; }
+
+    @media (max-width: 640px) {
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
+    }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -862,6 +905,7 @@
         <tbody id="tableBody"></tbody>
       </table>
     </div>
+    <div class="mobile-card-list" id="mobileCardList"></div>
   </div>
 </main>
 
@@ -1848,6 +1892,65 @@
     return wallet.length > 13 ? wallet.slice(0, 6) + '…' + wallet.slice(-4) : wallet;
   }
 
+  // ── Card info block — shared between the desktop table's name/meta cells
+  // and the mobile card list, so both stay in sync from one source. ──
+  function buildCardNameLine(tmpl) {
+    const nameLine = document.createElement('div');
+    nameLine.className = 'card-name-line';
+    const nameLeft = document.createElement('span');
+    if (tmpl.media) {
+      const previewBtn = document.createElement('button');
+      previewBtn.type = 'button';
+      previewBtn.className = 'card-preview-btn';
+      previewBtn.title = 'Preview card image';
+      previewBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+      previewBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardPreview(tmpl, previewBtn); });
+      nameLeft.appendChild(previewBtn);
+    }
+    if (tmpl.cardId !== '—') {
+      const idSpan = document.createElement('span');
+      idSpan.className = 'card-id-prefix';
+      idSpan.textContent = `${tmpl.cardId} — `;
+      nameLeft.appendChild(idSpan);
+    }
+    const nameLink = document.createElement('a');
+    nameLink.className = 'card-name-link';
+    nameLink.href = `template/${encodeURIComponent(tmpl.templateId)}`;
+    nameLink.title = 'View template page';
+    nameLink.textContent = tmpl.name;
+    nameLeft.appendChild(nameLink);
+    nameLine.appendChild(nameLeft);
+    return nameLine;
+  }
+
+  function buildCardMetaLine(tmpl) {
+    const metaLine = document.createElement('div');
+    metaLine.className = 'card-meta-line';
+    const rarityBadge = document.createElement('span');
+    rarityBadge.className = `rarity-badge rarity-${rarityKey(tmpl.rarity)}`;
+    rarityBadge.textContent = tmpl.rarity;
+    metaLine.appendChild(rarityBadge);
+    const linksWrap = document.createElement('div');
+    linksWrap.className = 'market-links';
+    const buyA = document.createElement('a');
+    buyA.href = `explore?template_id=${tmpl.templateId}&sort=template_mint&order=asc`;
+    buyA.target = '_blank';
+    buyA.rel = 'noopener noreferrer';
+    buyA.className = 'market-link market-link--primary';
+    buyA.title = 'Buy on Hoardio';
+    const buyImg = document.createElement('img');
+    buyImg.src = 'images/Hoardio_fav.png';
+    buyImg.alt = 'Hoardio';
+    const buySpan = document.createElement('span');
+    buySpan.className = 'buy-label';
+    buySpan.textContent = 'Buy';
+    buyA.appendChild(buyImg);
+    buyA.appendChild(buySpan);
+    linksWrap.appendChild(buyA);
+    metaLine.appendChild(linksWrap);
+    return metaLine;
+  }
+
   function renderTable(templates, wallets, walletMaps) {
     const sorted = [...templates.values()].sort((a, b) => {
       const rd = getRank(a.rarity) - getRank(b.rarity);
@@ -1864,17 +1967,7 @@
     ['ID — Card', ...wallets.map(abbrev)].forEach((col, i) => {
       const th = document.createElement('th');
       if (i === 0) {
-        const wrap = document.createElement('div');
-        wrap.className = 'card-name-line';
-        const left = document.createElement('span');
-        left.textContent = 'ID — Card';
-        const right = document.createElement('span');
-        right.className = 'template-id-suffix template-id-name';
-        right.style.opacity = '0.4';
-        right.textContent = 'Template ID';
-        wrap.appendChild(left);
-        wrap.appendChild(right);
-        th.appendChild(wrap);
+        th.textContent = 'ID — Card';
       } else {
         th.textContent = col;
         th.className = 'col-wallet';
@@ -1885,10 +1978,15 @@
     });
     thead.appendChild(hr);
 
-    // Body — one <tbody class="card-group"> per card (main row + market sub-row)
+    // Body — one <tbody class="card-group"> per card (main row + market sub-row),
+    // plus one mirrored <div class="mobile-card"> per card for the mobile list.
     const tableEl = document.querySelector('.results-table');
     tableEl.querySelectorAll('tbody').forEach(b => b.remove());
     const frag = document.createDocumentFragment();
+
+    const mobileListEl = document.getElementById('mobileCardList');
+    mobileListEl.innerHTML = '';
+    const mobileFrag = document.createDocumentFragment();
 
     lastSorted     = sorted;
     lastWalletMaps = walletMaps;
@@ -1907,30 +2005,7 @@
       row.className = 'card-main-row';
 
       const tdName = document.createElement('td');
-      const nameLine = document.createElement('div');
-      nameLine.className = 'card-name-line';
-      const nameLeft = document.createElement('span');
-      if (tmpl.media) {
-        const previewBtn = document.createElement('button');
-        previewBtn.type = 'button';
-        previewBtn.className = 'card-preview-btn';
-        previewBtn.title = 'Preview card image';
-        previewBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
-        previewBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardPreview(tmpl, previewBtn); });
-        nameLeft.appendChild(previewBtn);
-      }
-      if (tmpl.cardId !== '—') {
-        const idSpan = document.createElement('span');
-        idSpan.className = 'card-id-prefix';
-        idSpan.textContent = `${tmpl.cardId} — `;
-        nameLeft.appendChild(idSpan);
-      }
-      nameLeft.appendChild(document.createTextNode(tmpl.name));
-      const tidSpan = document.createElement('span');
-      tidSpan.className = 'template-id-suffix template-id-name';
-      tidSpan.textContent = tmpl.templateId;
-      nameLine.appendChild(nameLeft);
-      nameLine.appendChild(tidSpan);
+      const nameLine = buildCardNameLine(tmpl);
       tdName.appendChild(nameLine);
       row.appendChild(tdName);
 
@@ -1939,50 +2014,45 @@
       subRow.className = 'card-sub-row';
       const tdMeta = document.createElement('td');
       tdMeta.className = 'card-meta-cell';
-      const metaLine = document.createElement('div');
-      metaLine.className = 'card-meta-line';
-      const rarityBadge = document.createElement('span');
-      rarityBadge.className = `rarity-badge rarity-${rarityKey(tmpl.rarity)}`;
-      rarityBadge.textContent = tmpl.rarity;
-      metaLine.appendChild(rarityBadge);
-      const tidMetaSpan = document.createElement('span');
-      tidMetaSpan.className = 'template-id-suffix template-id-meta';
-      tidMetaSpan.textContent = tmpl.templateId;
-      metaLine.appendChild(tidMetaSpan);
-      const linksWrap = document.createElement('div');
-      linksWrap.className = 'market-links';
-      const buyA = document.createElement('a');
-      buyA.href = `explore?template_id=${tmpl.templateId}&sort=template_mint&order=asc`;
-      buyA.target = '_blank';
-      buyA.rel = 'noopener noreferrer';
-      buyA.className = 'market-link market-link--primary';
-      buyA.title = 'Buy on Hoardio';
-      const buyImg = document.createElement('img');
-      buyImg.src = 'images/Hoardio_fav.png';
-      buyImg.alt = 'Hoardio';
-      const buySpan = document.createElement('span');
-      buySpan.className = 'buy-label';
-      buySpan.textContent = 'Buy';
-      buyA.appendChild(buyImg);
-      buyA.appendChild(buySpan);
-      linksWrap.appendChild(buyA);
-      metaLine.appendChild(linksWrap);
-      tdMeta.appendChild(metaLine);
+      tdMeta.appendChild(buildCardMetaLine(tmpl));
       subRow.appendChild(tdMeta);
 
       fillWalletCells(row, subRow, tmpl, walletMaps, curHasMin, curMin, curHasMax, curMax);
 
+      const offerPairs = wallets.length >= 2 ? computeOfferPairs(tmpl, curHasMin, curMin, curHasMax, curMax) : [];
       if (wallets.length >= 2) {
-        applyOfferBadges(tdName, cardTbody, tmpl, curHasMin, curMin, curHasMax, curMax);
+        applyOfferBadgesTo(tdName, tdName, cardTbody, offerPairs);
       }
 
       cardTbody.appendChild(row);
       cardTbody.appendChild(subRow);
 
       frag.appendChild(cardTbody);
+
+      // ── Mirrored mobile card ──
+      const mCard = document.createElement('div');
+      mCard.className = 'mobile-card';
+
+      const mInfo = document.createElement('div');
+      mInfo.className = 'mobile-card-info';
+      mInfo.appendChild(buildCardNameLine(tmpl));
+      mInfo.appendChild(buildCardMetaLine(tmpl));
+      mCard.appendChild(mInfo);
+
+      const mWalletList = document.createElement('div');
+      mWalletList.className = 'mobile-wallet-list';
+      fillMobileWalletRows(mWalletList, tmpl, walletMaps, curHasMin, curMin, curHasMax, curMax);
+      mCard.appendChild(mWalletList);
+
+      if (wallets.length >= 2) {
+        applyOfferBadgesTo(mInfo, mCard, mCard, offerPairs);
+      }
+
+      mobileFrag.appendChild(mCard);
     }
 
     tableEl.appendChild(frag);
+    mobileListEl.appendChild(mobileFrag);
 
     const smartBtn = document.getElementById('smartFilterBtn');
     smartBtn.style.display = wallets.length >= 2 ? '' : 'none';
@@ -2096,14 +2166,13 @@
     span.dataset.tradeKey = key;
     span.textContent = `#${mint}`;
     if (isInTrade(tmpl.templateId, wallet, mint)) span.classList.add('mint-selected');
-    span.addEventListener('click', () => toggleMint(tmpl, wallet, mint, span));
+    span.addEventListener('click', () => toggleMint(tmpl, wallet, mint));
     return span;
   }
 
-  function fillWalletCells(mainRow, subRow, tmpl, walletMaps, hasMin, min, hasMax, max) {
-    while (mainRow.cells.length > 1) mainRow.deleteCell(1);
-    while (subRow.cells.length > 1) subRow.deleteCell(1);
-
+  // Cheapest visible mint of tmpl across every wallet — shared by the
+  // desktop table and the mobile card list so "lowest" always agrees.
+  function computeLowestMint(tmpl, walletMaps, hasMin, min, hasMax, max) {
     let lowest = Infinity;
     for (const wmap of walletMaps) {
       const e = wmap.get(tmpl.templateId);
@@ -2113,6 +2182,49 @@
         }
       }
     }
+    return lowest;
+  }
+
+  // A wallet's mint display for one card: "Nx" + its lowest visible mint
+  // (bigger/default-colored — or accent-colored+bold when the caller adds
+  // .mint-lowest to the row/cell that holds it, via the existing
+  // .mint-lowest .wallet-mint rule), plus its remaining mints underneath in
+  // .wallet-next-mints (smaller/secondary). Shared by the desktop table and
+  // the mobile card list so the sizing/color/bold logic is identical, not
+  // reimplemented twice.
+  function buildWalletCellContent(tmpl, wallet, entry, visible) {
+    const cell = document.createElement('div');
+    cell.className = 'wallet-cell';
+    const spanCopies = document.createElement('span');
+    spanCopies.className = 'wallet-copies';
+    spanCopies.textContent = `${entry.count}x`;
+    const spanMint = document.createElement('span');
+    spanMint.className = 'wallet-mint';
+    if (visible.length > 0) {
+      spanMint.appendChild(makeMintSpan(tmpl, wallet, visible[0]));
+    } else {
+      spanMint.textContent = '—';
+    }
+    cell.appendChild(spanCopies);
+    cell.appendChild(spanMint);
+
+    let nextEl = null;
+    if (visible.length > 1) {
+      nextEl = document.createElement('div');
+      nextEl.className = 'wallet-next-mints';
+      visible.slice(1).forEach((m, i) => {
+        if (i > 0) nextEl.appendChild(document.createTextNode(', '));
+        nextEl.appendChild(makeMintSpan(tmpl, wallet, m));
+      });
+    }
+    return { cell, nextEl };
+  }
+
+  function fillWalletCells(mainRow, subRow, tmpl, walletMaps, hasMin, min, hasMax, max) {
+    while (mainRow.cells.length > 1) mainRow.deleteCell(1);
+    while (subRow.cells.length > 1) subRow.deleteCell(1);
+
+    const lowest = computeLowestMint(tmpl, walletMaps, hasMin, min, hasMax, max);
 
     walletMaps.forEach((wmap, walletIdx) => {
       const wallet  = lastWallets[walletIdx] ?? `wallet${walletIdx}`;
@@ -2127,31 +2239,9 @@
         tdMain.className = cls;
         tdSub.className  = cls;
 
-        const cell = document.createElement('div');
-        cell.className = 'wallet-cell';
-        const spanCopies = document.createElement('span');
-        spanCopies.className = 'wallet-copies';
-        spanCopies.textContent = `${entry.count}x`;
-        const spanMint = document.createElement('span');
-        spanMint.className = 'wallet-mint';
-        if (visible.length > 0) {
-          spanMint.appendChild(makeMintSpan(tmpl, wallet, visible[0]));
-        } else {
-          spanMint.textContent = '—';
-        }
-        cell.appendChild(spanCopies);
-        cell.appendChild(spanMint);
+        const { cell, nextEl } = buildWalletCellContent(tmpl, wallet, entry, visible);
         tdMain.appendChild(cell);
-
-        if (visible.length > 1) {
-          const next = document.createElement('div');
-          next.className = 'wallet-next-mints';
-          visible.slice(1).forEach((m, i) => {
-            if (i > 0) next.appendChild(document.createTextNode(', '));
-            next.appendChild(makeMintSpan(tmpl, wallet, m));
-          });
-          tdSub.appendChild(next);
-        }
+        if (nextEl) tdSub.appendChild(nextEl);
       } else {
         tdMain.className = 'col-empty';
         tdMain.textContent = '—';
@@ -2162,15 +2252,55 @@
     });
   }
 
-  function applyOfferBadges(tdName, cardGroup, tmpl, hasMin, min, hasMax, max) {
-    const existing = tdName.querySelector('.offer-badges');
-    if (existing) existing.remove();
-    tdName.style.borderLeft = '';
-    delete cardGroup.dataset.offer;
+  // Mobile equivalent of fillWalletCells — one 2-row grid block per wallet
+  // (row 1: name + wallet-cell, row 2: next-mints under column 2), mirroring
+  // the desktop table's main-row/sub-row split instead of flattening
+  // everything into a single line. See buildWalletCellContent for why the
+  // "lowest mint is bigger/bold/accent-colored" styling matches desktop
+  // exactly — it's the same markup, just placed in a grid instead of <td>s.
+  function fillMobileWalletRows(container, tmpl, walletMaps, hasMin, min, hasMax, max) {
+    container.innerHTML = '';
+    const lowest = computeLowestMint(tmpl, walletMaps, hasMin, min, hasMax, max);
 
-    if (lastWallets.length < 2) return;
+    walletMaps.forEach((wmap, walletIdx) => {
+      const wallet = lastWallets[walletIdx] ?? `wallet${walletIdx}`;
+      const entry  = wmap.get(tmpl.templateId);
 
+      const block = document.createElement('div');
+      block.className = 'mobile-wallet-block';
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'mobile-wallet-name';
+      nameEl.textContent = abbrev(wallet);
+      nameEl.title = wallet;
+      nameEl.style.color = WALLET_COLORS[walletIdx % WALLET_COLORS.length].text;
+      block.appendChild(nameEl);
+
+      if (entry) {
+        const visible = entry.mints.filter(m => mintInRange(m, hasMin, min, hasMax, max));
+        if (visible.length > 0 && visible[0] === lowest) block.classList.add('mint-lowest');
+
+        const { cell, nextEl } = buildWalletCellContent(tmpl, wallet, entry, visible);
+        block.appendChild(cell);
+        if (nextEl) block.appendChild(nextEl);
+      } else {
+        const dash = document.createElement('div');
+        dash.className = 'mobile-wallet-empty';
+        dash.textContent = '—';
+        block.appendChild(dash);
+      }
+
+      container.appendChild(block);
+    });
+  }
+
+  // Which wallet-pair trade offers exist for tmpl under the current mint
+  // filter — pure data, shared by the desktop table and the mobile card
+  // list (see applyOfferBadgesTo, which paints it into either DOM shape).
+  function computeOfferPairs(tmpl, hasMin, min, hasMax, max) {
     const offerPairs = [];
+    if (lastWallets.length < 2) return offerPairs;
+
     for (let oi = 0; oi < lastWallets.length; oi++) {
       for (let oj = 0; oj < lastWallets.length; oj++) {
         if (oi === oj) continue;
@@ -2183,23 +2313,39 @@
         if (visI.length > 1 && (visJ.length === 0 || ispare < jbest)) offerPairs.push({ from: oi, to: oj });
       }
     }
+    return offerPairs;
+  }
+
+  function buildOfferBadgesEl(offerPairs) {
+    const badgesDiv = document.createElement('div');
+    badgesDiv.className = 'offer-badges';
+    for (const { from, to } of offerPairs) {
+      const col = WALLET_COLORS[from % WALLET_COLORS.length];
+      const badge = document.createElement('span');
+      badge.className = 'offer-tag';
+      badge.style.color = col.text;
+      badge.style.background = col.bg;
+      badge.style.border = `1px solid ${col.border}`;
+      badge.textContent = `${abbrev(lastWallets[from])} → ${abbrev(lastWallets[to])}`;
+      badgesDiv.appendChild(badge);
+    }
+    return badgesDiv;
+  }
+
+  // badgeHostEl gets the badges appended into it; borderHostEl gets the
+  // accent-colored left border (same element as badgeHostEl on the desktop
+  // table's name cell, but the mobile card wants the border on the whole
+  // card rather than just its info block).
+  function applyOfferBadgesTo(badgeHostEl, borderHostEl, cardGroup, offerPairs) {
+    const existing = badgeHostEl.querySelector('.offer-badges');
+    if (existing) existing.remove();
+    borderHostEl.style.borderLeft = '';
+    delete cardGroup.dataset.offer;
 
     if (offerPairs.length > 0) {
       cardGroup.dataset.offer = '1';
-      const badgesDiv = document.createElement('div');
-      badgesDiv.className = 'offer-badges';
-      for (const { from, to } of offerPairs) {
-        const col = WALLET_COLORS[from % WALLET_COLORS.length];
-        const badge = document.createElement('span');
-        badge.className = 'offer-tag';
-        badge.style.color = col.text;
-        badge.style.background = col.bg;
-        badge.style.border = `1px solid ${col.border}`;
-        badge.textContent = `${abbrev(lastWallets[from])} → ${abbrev(lastWallets[to])}`;
-        badgesDiv.appendChild(badge);
-      }
-      tdName.appendChild(badgesDiv);
-      tdName.style.borderLeft = `2px solid ${WALLET_COLORS[offerPairs[0].from % WALLET_COLORS.length].text}`;
+      badgeHostEl.appendChild(buildOfferBadgesEl(offerPairs));
+      borderHostEl.style.borderLeft = `2px solid ${WALLET_COLORS[offerPairs[0].from % WALLET_COLORS.length].text}`;
     }
   }
 
@@ -2209,11 +2355,18 @@
     const hasMin = !isNaN(minVal);
     const hasMax = !isNaN(maxVal);
 
-    const mainRows = document.querySelectorAll('.card-main-row');
-    const subRows  = document.querySelectorAll('.card-sub-row');
+    const mainRows    = document.querySelectorAll('.card-main-row');
+    const subRows     = document.querySelectorAll('.card-sub-row');
+    const mobileCards = document.querySelectorAll('.mobile-card');
     lastSorted.forEach((tmpl, i) => {
       fillWalletCells(mainRows[i], subRows[i], tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
-      applyOfferBadges(mainRows[i].cells[0], mainRows[i].closest('.card-group'), tmpl, hasMin, minVal, hasMax, maxVal);
+      fillMobileWalletRows(mobileCards[i].querySelector('.mobile-wallet-list'), tmpl, lastWalletMaps, hasMin, minVal, hasMax, maxVal);
+
+      const offerPairs = computeOfferPairs(tmpl, hasMin, minVal, hasMax, maxVal);
+      const tdName = mainRows[i].cells[0];
+      applyOfferBadgesTo(tdName, tdName, mainRows[i].closest('.card-group'), offerPairs);
+      const mInfo = mobileCards[i].querySelector('.mobile-card-info');
+      applyOfferBadgesTo(mInfo, mobileCards[i], mobileCards[i], offerPairs);
     });
     applyTradeFilter();
   }
@@ -2224,12 +2377,20 @@
   // sidebar is capped at 2 distinct wallets even though the comparison table
   // above it can hold up to MAX_WAL — adding from a 3rd wallet is blocked
   // with a toast rather than silently accepted and then unable to send.
-  function toggleMint(tmpl, wallet, mint, spanEl) {
+  // A mint now has two DOM representations (the desktop table span and the
+  // mobile-card span) — sync every element carrying this trade key rather
+  // than just the one that was clicked.
+  function syncMintSelection(key, selected) {
+    document.querySelectorAll(`[data-trade-key="${key}"]`).forEach(el => el.classList.toggle('mint-selected', selected));
+  }
+
+  function toggleMint(tmpl, wallet, mint) {
+    const key = tradeKey(tmpl.templateId, wallet, mint);
     if (isInTrade(tmpl.templateId, wallet, mint)) {
-      const entry = tradeSummary.find(e => e.key === tradeKey(tmpl.templateId, wallet, mint));
+      const entry = tradeSummary.find(e => e.key === key);
       if (entry) removeFromTrade(entry.id);
     } else {
-      if (addToTrade(tmpl, wallet, mint)) spanEl.classList.add('mint-selected');
+      if (addToTrade(tmpl, wallet, mint)) syncMintSelection(key, true);
     }
     applyTradeFilter();
   }
@@ -2273,8 +2434,7 @@
     if (!entry) return;
     tradeSummary = tradeSummary.filter(e => e.id !== id);
     saveTrade();
-    const span = document.querySelector(`[data-trade-key="${entry.key}"]`);
-    if (span) span.classList.remove('mint-selected');
+    syncMintSelection(entry.key, false);
     renderSidebar();
     updateTradeTab();
   }
@@ -2288,10 +2448,7 @@
   }
 
   function reapplyHighlights() {
-    tradeSummary.forEach(entry => {
-      const span = document.querySelector(`[data-trade-key="${entry.key}"]`);
-      if (span) span.classList.add('mint-selected');
-    });
+    tradeSummary.forEach(entry => syncMintSelection(entry.key, true));
   }
 
   function renderSidebar() {
@@ -2731,21 +2888,31 @@
   }
 
   function applyTradeFilter() {
+    // Desktop tbody groups are the source of truth for show/hide + counting;
+    // mobileCards[i] mirrors the same template in the same order (both are
+    // built in one pass per card by renderTable/applyFilter) so it just
+    // follows whatever the desktop group decided, without being counted twice.
     const groups = document.querySelectorAll('.card-group');
+    const mobileCards = document.querySelectorAll('.mobile-card');
     const tableScroll = document.querySelector('.table-scroll');
+    const mobileList  = document.getElementById('mobileCardList');
     const emptyEl = document.getElementById('tradeFilterEmpty');
     let visible = 0;
 
-    groups.forEach(group => {
-      const showForTrade = !tradeFilterActive || group.querySelector('.mint-selected') !== null;
+    groups.forEach((group, i) => {
+      const hasSelected = group.querySelector('.mint-selected') !== null
+        || mobileCards[i]?.querySelector('.mint-selected') !== null;
+      const showForTrade = !tradeFilterActive || hasSelected;
       const showForSmart = !smartFilterActive || !!group.dataset.offer;
       const show = showForTrade && showForSmart;
       group.style.display = show ? '' : 'none';
+      if (mobileCards[i]) mobileCards[i].style.display = show ? '' : 'none';
       if (show) visible++;
     });
 
     const isEmpty = (tradeFilterActive || smartFilterActive) && visible === 0;
     tableScroll.style.display = isEmpty ? 'none' : '';
+    mobileList.style.display  = isEmpty ? 'none' : '';
     emptyEl.style.display     = isEmpty ? 'block' : 'none';
 
     updateResultsMeta(visible, lastSorted.length);
