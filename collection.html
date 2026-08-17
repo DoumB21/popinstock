@@ -30,6 +30,7 @@
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
       '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/asset-popup.js">\x3c/script>' +
       '<script src="' + _p + 'shared/collection-sales-chart.js">\x3c/script>'
     );
   </script>
@@ -179,7 +180,7 @@
     .top-sales-row { display: flex; gap: 0.9rem; overflow-x: auto; padding-bottom: 0.4rem; }
     .top-sale-card {
       flex: 0 0 150px; background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 12px; overflow: hidden;
+      border-radius: 12px; overflow: hidden; cursor: pointer;
     }
     .top-sale-img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--bg); display: block; }
     .top-sale-body { padding: 0.55rem 0.65rem; }
@@ -506,6 +507,19 @@ function getCollectionNameFromUrl() {
 const collectionName = getCollectionNameFromUrl();
 let _collInfo = null;
 
+/* ── Hover tooltip + click info popup — shared/asset-popup.js ── */
+const _assetPopup = AssetPopup.mount({
+  aaBase: WaxApi.aaBase,
+  apiFetch: WaxApi.apiFetch,
+  // Defaults are root-relative — need the _p prefix here since this page
+  // itself can be loaded one level deep via /collection/:name.
+  collectionHref: name => `${_p}collection/${encodeURIComponent(name)}`,
+  templateHref:   id   => `${_p}template/${encodeURIComponent(id)}`,
+  walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
+  schemaHref:     (collection, schema) => `${_p}schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
+  assetHref:      id   => `${_p}asset/${encodeURIComponent(id)}`,
+});
+
 /* ── Tabs ── */
 const _loadedTabs = { overview: false, templates: false, schemas: false, holders: false };
 function setActiveTab(tab) {
@@ -678,13 +692,41 @@ async function loadOverview() {
         const rate = rateByDate[dateStr];
         const waxAmount = Number(sale.price.amount) / (10 ** sale.price.token_precision);
         const usdStr = rate ? `≈ $${(waxAmount * rate).toFixed(2)}` : '';
-        return `<div class="top-sale-card">${media}<div class="top-sale-body">
+        return `<div class="top-sale-card" data-sale-id="${sale.sale_id}">${media}<div class="top-sale-body">
           <div class="top-sale-name" title="${escHtml(name)}">${escHtml(name)}</div>
           <div class="top-sale-price">${fmtWax(sale.price.amount)}</div>
           <div class="top-sale-usd">${usdStr}</div>
           <div class="top-sale-date">${fmtDate(sale.updated_at_time)}</div>
         </div></div>`;
       }).join('');
+
+      // Hover tooltip (Attributes/Supply/You) + click-through to the sale
+      // page — same AssetPopup.wire() pattern explore.html/sale.html use,
+      // onCardClick overriding the default click-to-toggle-info-popup
+      // behavior since a Top Sale card's natural action is "go see this
+      // sale", not open the popup persistently.
+      row.querySelectorAll('.top-sale-card').forEach((cardEl, i) => {
+        const sale = top[i];
+        const asset = sale.assets[0];
+        const tmpl = asset.template;
+        const data = {
+          assetId: asset.asset_id,
+          templateId: tmpl?.template_id,
+          collection: asset.collection?.collection_name || collectionName,
+          collectionName: asset.collection?.name || asset.collection?.collection_name,
+          schema: asset.schema?.schema_name,
+          rarity: tmpl?.immutable_data?.rarity,
+          cardid: tmpl?.immutable_data?.cardid,
+          name: tmpl?.immutable_data?.name || asset.name || 'Unnamed',
+          owner: asset.owner,
+          backedTokens: asset.backed_tokens,
+          issuedSupply: tmpl?.issued_supply,
+        };
+        _assetPopup.wire(cardEl, data, {
+          hoverEl: cardEl.querySelector('.top-sale-img'),
+          onCardClick: () => { location.href = `${_p}sale/${encodeURIComponent(sale.sale_id)}`; },
+        });
+      });
     } catch { row.innerHTML = `<div class="collection-placeholder">Could not load top sales.</div>`; }
   })();
 
