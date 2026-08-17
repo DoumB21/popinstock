@@ -29,9 +29,11 @@
       '<script src="' + _p + 'shared/settings.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-widget.js">\x3c/script>' +
       '<script src="' + _p + 'shared/wallet-menu.js">\x3c/script>' +
-      '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>'
+      '<script src="' + _p + 'shared/copy-to-clipboard.js">\x3c/script>' +
+      '<script src="' + _p + 'shared/collection-sales-chart.js">\x3c/script>'
     );
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <title>Collection — Hoardio</title>
   <meta name="description" content="General information for any WAX NFT collection — stats, schemas, and market activity." />
   <link rel="canonical" href="https://www.hoardio.com/collection" />
@@ -306,6 +308,8 @@
     <div id="tabOverview" class="coll-tab-panel">
       <div class="coll-section-title">Top Sales (All-Time)</div>
       <div class="top-sales-row" id="topSalesRow"><div class="collection-placeholder">Loading…</div></div>
+      <div class="coll-section-title">Sales Volume</div>
+      <div id="collSalesChart"></div>
       <div class="overview-cols">
         <div>
           <div class="coll-section-title">Top Sellers</div>
@@ -627,6 +631,8 @@ function renderLeaderboardTable(wrapId, sortField) {
 
 async function loadOverview() {
   const mkt = WaxApi.marketBase();
+
+  CollectionSalesChart.mount({ containerId: 'collSalesChart', collectionName });
 
   // Top 5 all-time sales by price. /v1/sales already returns full nested
   // asset/template data (name+img), so no separate resolve step is needed —
