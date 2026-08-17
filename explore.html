@@ -148,6 +148,36 @@
     .explore-ctrl-group .cb-dropdown-btn { width: auto; }
     .explore-ctrl-group .cb-panel { min-width: 170px; }
 
+    /* ── Mobile filters toggle — hidden entirely above the sidebar's own
+       collapse breakpoint (1000px, see .ex-sidebar rule below); the sidebar
+       is always just visible on desktop, so there's nothing to toggle. ── */
+    .ex-filters-toggle {
+      display: none; align-items: center; justify-content: space-between; gap: 0.4rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.6rem 0.75rem;
+      color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
+      cursor: pointer; transition: border-color 0.2s, color 0.15s, background 0.2s;
+    }
+    .ex-filters-toggle-label { display: flex; align-items: center; gap: 0.4rem; }
+    .ex-filters-toggle:hover,
+    .ex-filters-toggle.open { border-color: rgba(192,120,40,0.5); }
+    /* One or more filters currently narrowing results — separate from
+       .open (panel expanded/collapsed) since either can be true on its
+       own: a picked filter stays "active" with the panel closed, and the
+       panel can be open with nothing picked yet. */
+    .ex-filters-toggle.has-active {
+      background: rgba(240,168,64,0.1);
+      border-color: rgba(240,168,64,0.5);
+      color: var(--accent-light);
+    }
+    .ex-filters-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; padding: 0 6px;
+      border-radius: 999px;
+      background: var(--accent-light); color: #0a0a0f;
+      font-size: 0.85rem; font-weight: 800;
+    }
+
     /* Empty state, with a Trending Collections leaderboard centered below it
        (only shown pre-selection — populated by renderTrendingCollections()). */
     .empty-state-row { display: flex; flex-direction: column; align-items: center; }
@@ -662,6 +692,21 @@
          page) wider than the viewport instead of scrolling internally. An
          explicit width + overflow-x:hidden forces real containment. */
       .explore-main { width: 100%; min-width: 0; overflow-x: hidden; }
+
+      /* Collapsed behind the Filters toggle so the toolbar/grid don't sit
+         below a full page's worth of filter controls — see
+         toggleMobileFilters()/showFilters()/hideFilters() in the script.
+         Sidebar still starts open pre-selection (nothing to collapse to
+         yet — "Search for a collection" IS the sidebar at that point). */
+      .ex-sidebar.ex-sidebar--collapsed { display: none; }
+      .ex-filters-toggle { display: flex; }
+
+      /* Filters + Sort split the row evenly instead of sitting pill-sized
+         at their content width with empty space trailing them. */
+      .explore-ctrl-group { width: 100%; }
+      .ex-filters-toggle { flex: 1; }
+      .explore-ctrl-group .cb-dropdown { flex: 1; }
+      .explore-ctrl-group .cb-dropdown-btn { width: 100%; }
     }
     /* Locked to exactly 2 (not auto-fill) — unlike inventory.html's simpler
        single-purpose tiles, these cards carry a 2-button Buy/Cart row that
@@ -705,7 +750,7 @@
 <div class="explore-layout">
 
   <!-- ── Sidebar ── -->
-  <aside class="ex-sidebar">
+  <aside class="ex-sidebar" id="exSidebar">
 
     <div class="filter-section" id="secCollection">
       <span class="filter-label">Collection</span>
@@ -869,6 +914,13 @@
     <div class="explore-toolbar" id="exploreToolbar">
       <input type="text" id="nameSearch" class="explore-name-search control-input" placeholder="Search by name…" autocomplete="off" spellcheck="false" />
       <div class="explore-ctrl-group">
+        <button type="button" id="mobileFiltersToggle" class="ex-filters-toggle" aria-expanded="false" aria-controls="exSidebar">
+          <span class="ex-filters-toggle-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+            <span>Filters</span>
+          </span>
+          <span id="filtersCountBadge" class="ex-filters-count" style="display:none;"></span>
+        </button>
         <div class="cb-dropdown" id="sortByDd">
           <button class="cb-dropdown-btn" id="sortByTrigger" type="button">
             <span class="cb-label">Price (Lowest)</span>
@@ -1656,6 +1708,8 @@ function showFilters() {
   document.getElementById('colQuickAccess').style.display = 'none'; // covers funkoCatalogBtn too — it now lives inside it
   updateHideOwnedAvailability();
   applyModeVisibility();
+  setMobileSidebarCollapsed(true);
+  updateFilterCountBadge();
 }
 function hideFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -1668,7 +1722,58 @@ function hideFilters() {
   document.getElementById('colQuickAccess').style.display = '';
   renderQuickAccess();
   applyModeVisibility();
+  // Nothing selected yet — the sidebar itself ("Search for a collection")
+  // is the primary thing to show, so make sure it isn't left collapsed
+  // from a previous selection.
+  setMobileSidebarCollapsed(false);
+  updateFilterCountBadge();
 }
+
+// Mobile-only sidebar collapse (see .ex-sidebar--collapsed / .ex-filters-toggle
+// CSS — both are no-ops above the 1000px breakpoint, so this is safe to call
+// unconditionally regardless of viewport). Auto-collapsed the moment a
+// collection is picked (showFilters(), below) so the toolbar/grid are
+// immediately visible instead of sitting under a full sidebar of filters;
+// the toggle button reopens it, and clearing the collection (hideFilters(),
+// above) reopens it automatically too.
+function setMobileSidebarCollapsed(collapsed) {
+  document.getElementById('exSidebar').classList.toggle('ex-sidebar--collapsed', collapsed);
+  const btn = document.getElementById('mobileFiltersToggle');
+  btn.classList.toggle('open', !collapsed);
+  btn.setAttribute('aria-expanded', String(!collapsed));
+  if (collapsed) closeAllDd();
+}
+document.getElementById('mobileFiltersToggle').addEventListener('click', () => {
+  setMobileSidebarCollapsed(!document.getElementById('exSidebar').classList.contains('ex-sidebar--collapsed'));
+});
+
+// How many filters are currently narrowing results — everything in
+// #exSidebar EXCEPT Collection/Drop/Template (those pick *what* you're
+// browsing, not a narrowing filter on top of it — same distinction
+// FILTER_SECTIONS above already draws). Price/Mint each count as one
+// filter (a range), not two, even though they're two inputs. Scoped to
+// #exSidebar so the Sort dropdown (same .cb-dropdown-btn component, but
+// lives in .explore-toolbar, outside the sidebar) is never counted.
+function countActiveFilters() {
+  let n = document.querySelectorAll('#exSidebar .cb-dropdown-btn.has-selection').length;
+  if (document.getElementById('minPrice').value !== '' || document.getElementById('maxPrice').value !== '') n++;
+  if (document.getElementById('minMint').value !== '' || document.getElementById('maxMint').value !== '') n++;
+  if (document.getElementById('hideOwnedWallet').value.trim() !== '') n++;
+  return n;
+}
+function updateFilterCountBadge() {
+  const n = countActiveFilters();
+  const badge = document.getElementById('filtersCountBadge');
+  badge.textContent = String(n);
+  badge.style.display = n > 0 ? '' : 'none';
+  document.getElementById('mobileFiltersToggle').classList.toggle('has-active', n > 0);
+}
+// Delegated rather than wired to each individual filter control — dropdown
+// picks/clears and typed inputs all bubble here, and by the time they do,
+// the specific handler that ran first (pick(), setDdActive(), the input's
+// own value) has already updated the DOM state this reads.
+document.getElementById('exSidebar').addEventListener('input', updateFilterCountBadge);
+document.getElementById('exSidebar').addEventListener('click', updateFilterCountBadge);
 
 // Reconciles every piece of UI that depends on _mode (grid vs. list
 // container, cart bar, select-first toolbar, hide-owned filter, tab
