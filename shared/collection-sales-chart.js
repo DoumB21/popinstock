@@ -178,7 +178,7 @@
               yAxisID: 'y1', order: 2,
             },
             {
-              type: 'line', label: 'Avg Price', data: priceData,
+              type: 'line', label: 'Volume', data: volumeData,
               borderColor: '#f0a840', backgroundColor: 'rgba(240,168,64,0.12)',
               borderWidth: 2, fill: true, tension: 0.3,
               pointRadius: keys.length > 40 ? 0 : 3, pointHoverRadius: 6,
@@ -197,12 +197,12 @@
               borderWidth: 1, titleColor: '#fff', padding: 10,
               callbacks: {
                 title: items => `${unitLabel}: ${items[0]?.label ?? ''}`,
-                label: ctx => ctx.dataset.label === 'Avg Price'
-                  ? 'Avg price: ' + fmtAmount(ctx.parsed.y)
+                label: ctx => ctx.dataset.label === 'Volume'
+                  ? 'Volume: ' + fmtAmount(ctx.parsed.y)
                   : 'Sales: ' + ctx.parsed.y.toLocaleString(),
                 afterBody: items => {
                   const idx = items[0]?.dataIndex;
-                  return idx == null ? [] : ['Volume: ' + fmtAmount(volumeData[idx])];
+                  return idx == null ? [] : ['Avg price: ' + fmtAmount(priceData[idx])];
                 },
               },
             },
