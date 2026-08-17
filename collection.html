@@ -181,6 +181,7 @@
     .top-sale-card {
       flex: 0 0 150px; background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 12px; overflow: hidden; cursor: pointer;
+      display: block; color: inherit; text-decoration: none;
     }
     .top-sale-img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--bg); display: block; }
     .top-sale-body { padding: 0.55rem 0.65rem; }
@@ -692,19 +693,25 @@ async function loadOverview() {
         const rate = rateByDate[dateStr];
         const waxAmount = Number(sale.price.amount) / (10 ** sale.price.token_precision);
         const usdStr = rate ? `≈ $${(waxAmount * rate).toFixed(2)}` : '';
-        return `<div class="top-sale-card" data-sale-id="${sale.sale_id}">${media}<div class="top-sale-body">
+        // A real <a href> (not a div + JS location.href) so the browser's
+        // own right-click "Open link in new tab"/middle-click/ctrl-click all
+        // work — those never fire on a div, and right-clicking the image
+        // portion of a div-based card just showed the image's own context
+        // menu (Save image, Open image in new tab) since there was no link
+        // there for the browser to offer instead.
+        return `<a class="top-sale-card" href="${_p}sale/${encodeURIComponent(sale.sale_id)}" data-sale-id="${sale.sale_id}">${media}<div class="top-sale-body">
           <div class="top-sale-name" title="${escHtml(name)}">${escHtml(name)}</div>
           <div class="top-sale-price">${fmtWax(sale.price.amount)}</div>
           <div class="top-sale-usd">${usdStr}</div>
           <div class="top-sale-date">${fmtDate(sale.updated_at_time)}</div>
-        </div></div>`;
+        </div></a>`;
       }).join('');
 
-      // Hover tooltip (Attributes/Supply/You) + click-through to the sale
-      // page — same AssetPopup.wire() pattern explore.html/sale.html use,
-      // onCardClick overriding the default click-to-toggle-info-popup
-      // behavior since a Top Sale card's natural action is "go see this
-      // sale", not open the popup persistently.
+      // Hover tooltip (Attributes/Supply/You) — click-through to the sale
+      // page is now the card's own native <a href> above, not JS; wire()'s
+      // own click listener is effectively inert here (cardEl being an <a>
+      // means e.target.closest('a, button') always matches cardEl itself),
+      // which is exactly what's wanted — no onCardClick needed.
       row.querySelectorAll('.top-sale-card').forEach((cardEl, i) => {
         const sale = top[i];
         const asset = sale.assets[0];
@@ -722,10 +729,7 @@ async function loadOverview() {
           backedTokens: asset.backed_tokens,
           issuedSupply: tmpl?.issued_supply,
         };
-        _assetPopup.wire(cardEl, data, {
-          hoverEl: cardEl.querySelector('.top-sale-img'),
-          onCardClick: () => { location.href = `${_p}sale/${encodeURIComponent(sale.sale_id)}`; },
-        });
+        _assetPopup.wire(cardEl, data, { hoverEl: cardEl.querySelector('.top-sale-img') });
       });
     } catch { row.innerHTML = `<div class="collection-placeholder">Could not load top sales.</div>`; }
   })();

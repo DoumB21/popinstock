@@ -187,6 +187,7 @@
       background: rgba(255,255,255,0.03); overflow: hidden;
       display: flex; align-items: center; justify-content: center;
       position: relative;
+      color: inherit; text-decoration: none;
     }
     /* Purchases/Sales cards only (the outer .act-card carries data-sale-id
        there, see saleCardHtml/saleBundleCardHtml) — Transfers' thumbnails
@@ -1061,11 +1062,17 @@ function assetPopupData(asset) {
 // every thumbnail — single-asset cards and each grouped row inside a bundle
 // alike — gets its own hover popup without duplicating the bundle template-
 // grouping logic that only bundleAssetsHtml/groupAssetsByTemplate know.
+// opts.saleId (Purchases/Sales tabs only — see saleCardHtml/saleBundleCardHtml)
+// renders the thumb as a real <a href> instead of a div, so the browser's own
+// right-click "Open link in new tab"/middle-click/ctrl-click all work.
+// Transfers' thumbnails aren't a link to anything, so they stay a plain div.
 function thumbWrapHtml(asset, opts) {
   const isBurned = !!asset.burned_at_time;
   const title = isBurned ? ` title="${escHtml(asset.burned_by_account ? 'Burned by ' + asset.burned_by_account : 'Burned')}"` : '';
   const popupAttr = ` data-popup="${escHtml(JSON.stringify(assetPopupData(asset)))}"`;
-  return `<div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${title}${popupAttr}>${assetThumbHtml(asset, opts)}</div>`;
+  const tag = opts?.saleId ? 'a' : 'div';
+  const hrefAttr = opts?.saleId ? ` href="sale/${encodeURIComponent(opts.saleId)}"` : '';
+  return `<${tag} class="act-card-thumb${isBurned ? ' burned-thumb' : ''}"${hrefAttr}${title}${popupAttr}>${assetThumbHtml(asset, opts)}</${tag}>`;
 }
 
 function assetThumbHtml(asset, opts) {
@@ -1143,7 +1150,7 @@ function saleCardHtml(item, asset) {
   // deliberately left untouched here).
   return `<div class="act-card" data-sale-id="${item.sale_id}">
     <div class="act-card-thumb-wrap">
-      ${thumbWrapHtml(asset)}
+      ${thumbWrapHtml(asset, { saleId: item.sale_id })}
       <a class="act-card-txlink tx-link" href="#" data-sale-id="${item.sale_id}" data-created="0" target="_blank" rel="noopener">View transaction ↗</a>
     </div>
     <div class="act-card-cols">
@@ -1171,7 +1178,7 @@ function saleCardHtml(item, asset) {
 function saleBundleCardHtml(item, assets) {
   const precision = item.price?.token_precision ?? 8;
   const wax = Number(item.price?.amount ?? 0) / Math.pow(10, precision);
-  const { assetsHtml, topToggleHtml } = bundleAssetsHtml(assets);
+  const { assetsHtml, topToggleHtml } = bundleAssetsHtml(assets, item.sale_id);
   // Same data-sale-id-on-the-outer-card trick as saleCardHtml — every
   // asset's thumbnail in the bundle points at this one shared listing.
   return `<div class="act-card act-card--bundle" data-sale-id="${item.sale_id}">
@@ -1274,11 +1281,11 @@ function mintRangesHtml(mints) {
   }).join(', ');
 }
 
-function bundleAssetRowHtml(group, extraClass) {
+function bundleAssetRowHtml(group, extraClass, saleId) {
   const { nameHtml, collHtml } = assetFields(group[0]);
   const mints = mintRangesHtml(group.map(a => a.template_mint).filter(Boolean));
   return `<div class="act-card-asset${extraClass}">
-    ${thumbWrapHtml(group[0], { staticVideo: true })}
+    ${thumbWrapHtml(group[0], { staticVideo: true, saleId })}
     <div class="sc-fields sc-fields--wrap">
       <span class="sc-label">Mint #</span><span class="sc-value sc-value--wrap">${mints}</span>
       <span class="sc-label">Name</span><span class="sc-value sc-name">${nameHtml}</span>
@@ -1297,9 +1304,9 @@ function bundleAssetRowHtml(group, extraClass) {
 // count — so collapsing a long bundle back down doesn't require scrolling
 // past dozens of rows to reach the only control that does it.
 const BUNDLE_COLLAPSE_THRESHOLD = 3;
-function bundleAssetsHtml(assets) {
+function bundleAssetsHtml(assets, saleId) {
   const groups = groupAssetsByTemplate(assets);
-  const rows = groups.map((g, i) => bundleAssetRowHtml(g, i >= BUNDLE_COLLAPSE_THRESHOLD ? ' act-card-asset--extra' : '')).join('');
+  const rows = groups.map((g, i) => bundleAssetRowHtml(g, i >= BUNDLE_COLLAPSE_THRESHOLD ? ' act-card-asset--extra' : '', saleId)).join('');
   const hidden = groups.length - BUNDLE_COLLAPSE_THRESHOLD;
   if (hidden <= 0) return { assetsHtml: rows, topToggleHtml: '' };
   const toggleAttrs = ` data-more="Show ${hidden} more" data-less="Show less"`;
@@ -1468,18 +1475,12 @@ async function onSaleTxLinkClick(link) {
 }
 
 document.getElementById('actList').addEventListener('click', e => {
-  // Thumbnail click → sale page, Purchases/Sales tabs only (the outer card
-  // only carries data-sale-id there — see saleCardHtml/saleBundleCardHtml).
+  // Thumbnail click → sale page (Purchases/Sales tabs only) is now the
+  // thumb's own native <a href> (see thumbWrapHtml) — no JS needed here.
   // The rest of the card body does nothing on click, same as Transfers
   // already did — deliberately NOT the whole-card-is-a-link pattern
   // explore.html's Sales History had, which made it impossible to click
   // into e.g. the Buyer/Seller text to select and copy an address.
-  const thumb = e.target.closest('.act-card-thumb');
-  if (thumb) {
-    const saleCard = thumb.closest('[data-sale-id]');
-    if (saleCard) { location.href = `sale/${encodeURIComponent(saleCard.dataset.saleId)}`; }
-    return;
-  }
   // Two toggle buttons per bundle (bottom of the row list + up top next to
   // the item count, see bundleAssetsHtml) drive the same .is-expanded state
   // — clicking either one flips both so their labels never disagree.

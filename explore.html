@@ -308,6 +308,7 @@
       background: rgba(255,255,255,0.03); overflow: hidden;
       display: flex; align-items: center; justify-content: center;
       position: relative; cursor: pointer;
+      color: inherit; text-decoration: none;
     }
     .act-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .act-card-thumb-ph { color: var(--text-secondary); font-size: 2rem; opacity: 0.3; }
@@ -361,6 +362,7 @@
       border-radius: 12px; overflow: hidden;
       cursor: pointer; user-select: none;
       transition: border-color 0.15s;
+      display: block; color: inherit; text-decoration: none;
     }
     .bl-card:hover { border-color: rgba(192,120,40,0.45); }
     .bl-card.selected { border-color: var(--accent-light); }
@@ -3231,8 +3233,8 @@ function cardHtml(sale) {
     checkHtml   = '';
   } else {
     const buyBtn = window.getWaxAccount()
-      ? `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="buyListing(this,'${id}')">Buy</button>`
-      : `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="connectWallet()">Connect</button>`;
+      ? `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="event.preventDefault();buyListing(this,'${id}')">Buy</button>`
+      : `<button type="button" class="ex-buy-btn" data-sale-id="${id}" onclick="event.preventDefault();connectWallet()">Connect</button>`;
     const cartBtn = `<button type="button" class="cart-btn${isSel ? ' cart-btn--active' : ''}">${isSel ? '✕ Cart' : '🛒 Cart'}</button>`;
     actionsHtml = `${buyBtn}${cartBtn}`;
     checkHtml   = `<button type="button" class="bl-card-check" title="Select">${isSel ? '✓' : ''}</button>`;
@@ -3252,7 +3254,12 @@ function cardHtml(sale) {
       <button type="button" class="bl-card-bundle-arrow bl-card-bundle-next" title="Next item" aria-label="Next item">›</button>
     </div>` : `<div class="bl-card-name" title="${name}">${name}</div>`;
 
-  return `<div class="bl-card${isSel ? ' selected' : ''}" data-id="${id}" ${ttAttrs}>
+  // A real <a href> (not a div + JS location.href) so the browser's own
+  // right-click "Open link in new tab"/middle-click/ctrl-click all work —
+  // every nested interactive control below (checkbox, Buy/Connect, Cart,
+  // Edit listing, bundle-nav arrows) calls event.preventDefault() in its own
+  // click handler so it doesn't also trigger the anchor's navigation.
+  return `<a class="bl-card${isSel ? ' selected' : ''}" href="sale/${encodeURIComponent(id)}" data-id="${id}" ${ttAttrs}>
     <div class="bl-card-img">
       ${mediaHtml}
       ${mint || isBundle ? `<span class="bl-card-mint">${mint}</span>` : ''}
@@ -3263,17 +3270,18 @@ function cardHtml(sale) {
       <div class="bl-card-listed-note">${listingPriceHtml(sale)}</div>
       <div class="ex-card-actions">${actionsHtml}</div>
     </div>
-  </div>`;
+  </a>`;
 }
 
-// Card body click navigates to the sale page — ignored when the click landed
-// on Buy/Cart/bundle-arrows, so those keep working normally (handled generi-
-// cally by AssetPopup.wire()'s own `a, button` exclusion). The persistent
-// click-to-open info popup is gone from Explore; the hover tooltip (still
-// wired below) covers the same info without leaving the grid. Cart button
-// gets its own listener here (not inline onclick) since attachCardEvents
-// already closes over the real `sale` object at render time — no need for a
-// separate sale_id -> sale lookup map just for this.
+// Card body click navigates to the sale page via the card's own native
+// <a href> now (see bl-cardHtml above) — Buy/Cart/checkbox/Edit/bundle-arrows
+// each call event.preventDefault() in their own handler so they don't also
+// trigger that navigation. The persistent click-to-open info popup is gone
+// from Explore; the hover tooltip (still wired below) covers the same info
+// without leaving the grid. Cart button gets its own listener here (not
+// inline onclick) since attachCardEvents already closes over the real `sale`
+// object at render time — no need for a separate sale_id -> sale lookup map
+// just for this.
 function attachCardEvents(card, sale) {
   const imgEl = card.querySelector('.bl-card-img');
   const chk   = card.querySelector('.bl-card-check');
@@ -3281,19 +3289,18 @@ function attachCardEvents(card, sale) {
   _assetPopup.wire(card, popupData, {
     hoverEl: imgEl,
     pauseElements: chk ? [chk] : [],
-    onCardClick: () => { location.href = `sale/${encodeURIComponent(card.dataset.id)}`; },
   });
 
   const cartBtn = card.querySelector('.cart-btn');
-  if (cartBtn) cartBtn.addEventListener('click', () => toggleSelect(sale, card));
+  if (cartBtn) cartBtn.addEventListener('click', e => { e.preventDefault(); toggleSelect(sale, card); });
 
   // The circle acts exactly like the Cart button (just a smaller target
   // reachable without scrolling to the card's footer) — same toggle, same
   // handler.
-  if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(sale, card); });
+  if (chk) chk.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); toggleSelect(sale, card); });
 
   const editBtn = card.querySelector('.ex-edit-btn');
-  if (editBtn) editBtn.addEventListener('click', () => openEditModal(sale));
+  if (editBtn) editBtn.addEventListener('click', e => { e.preventDefault(); openEditModal(sale); });
 
   wireBundleNav(card, sale, popupData);
 }
@@ -3368,12 +3375,16 @@ function wireBundleNav(card, sale, popupData) {
     Object.assign(popupData, assetPopupData(asset));
   }
 
+  // preventDefault too — card is now a real <a href> (see bl-cardHtml),
+  // so an unprevented click here would also fire its navigation.
   prevBtn.addEventListener('click', e => {
+    e.preventDefault();
     e.stopPropagation();
     idx = (idx - 1 + assets.length) % assets.length;
     render();
   });
   nextBtn.addEventListener('click', e => {
+    e.preventDefault();
     e.stopPropagation();
     idx = (idx + 1) % assets.length;
     render();
@@ -3430,7 +3441,7 @@ function historyCardHtml(sale) {
 
   return `<div class="act-card">
     <div class="act-card-thumb-wrap">
-      <div class="act-card-thumb${isBurned ? ' burned-thumb' : ''}" ${isBurned ? `title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}"` : ''}>${mediaHtml}</div>
+      <a class="act-card-thumb${isBurned ? ' burned-thumb' : ''}" href="sale/${encodeURIComponent(sale.sale_id)}" ${isBurned ? `title="${asset.burned_by_account ? 'Burned by ' + escHtml(asset.burned_by_account) : 'Burned'}"` : ''}>${mediaHtml}</a>
       <a class="act-card-txlink tx-link" href="#" data-sale-id="${sale.sale_id}" target="_blank" rel="noopener">View transaction ↗</a>
     </div>
     <div class="act-card-cols">
@@ -3499,16 +3510,17 @@ function wireHistoryBundleNav(card, sale, popupData) {
   });
 }
 
-// Only the thumbnail image and the Listing ID link (its own <a href>,
-// untouched here) navigate to the sale page — the rest of the card body is
-// inert on click. Previously the whole card navigated on any click that
-// didn't land on a real <a>/<button>, which made it impossible to click
-// into e.g. the Buyer/Seller text to select and copy an address without
-// immediately leaving for the sale page. Hover still shows the info popup
-// on the thumbnail; onCardClick is a no-op so the rest of the card body
-// (price, mint, labels, whitespace) does nothing on click, and every real
-// link (Name, Collection, Seller/Buyer, View transaction, bundle-nav
-// arrows) keeps navigating to its own separate target as before.
+// Only the thumbnail (now a real <a href>, not a div + JS click — so
+// right-click/middle-click/ctrl-click all work on it) and the Listing ID
+// link navigate to the sale page — the rest of the card body is inert on
+// click. Previously the whole card navigated on any click that didn't land
+// on a real <a>/<button>, which made it impossible to click into e.g. the
+// Buyer/Seller text to select and copy an address without immediately
+// leaving for the sale page. Hover still shows the info popup on the
+// thumbnail; onCardClick is a no-op so the rest of the card body (price,
+// mint, labels, whitespace) does nothing on click, and every real link
+// (Name, Collection, Seller/Buyer, View transaction, bundle-nav arrows)
+// keeps navigating to its own separate target as before.
 function attachHistoryCardEvents(card, sale) {
   const popupData = assetPopupData(sale.assets?.[0] || {});
   const thumb = card.querySelector('.act-card-thumb');
@@ -3516,7 +3528,6 @@ function attachHistoryCardEvents(card, sale) {
     hoverEl: thumb,
     onCardClick: () => {},
   });
-  thumb.addEventListener('click', () => { location.href = `sale/${encodeURIComponent(sale.sale_id)}`; });
   wireHistoryBundleNav(card, sale, popupData);
 }
 

@@ -121,6 +121,7 @@
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
       overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
       transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      color: inherit; text-decoration: none;
     }
     .pack-card:hover { border-color: rgba(240,168,64,0.45); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
     .pack-card--highlight { border-color: var(--accent-light); box-shadow: 0 0 0 2px rgba(240,168,64,0.35); }
@@ -933,7 +934,12 @@ async function loadUnclaimed(wallet) {
 
 function buildUnclaimedCard(entry) {
   const { row, pack, provider } = entry;
-  const card = document.createElement('div');
+  // A real <a href> (not a div + JS location.href) so the browser's own
+  // right-click "Open link in new tab"/middle-click/ctrl-click all work —
+  // the Claim button below calls event.preventDefault() in its own click
+  // handler so it doesn't also trigger the anchor's navigation.
+  const card = document.createElement('a');
+  card.href = 'asset/' + encodeURIComponent(row.pack_asset_id);
   card.className = 'pack-card';
   card.dataset.packAssetId = row.pack_asset_id;
   card.innerHTML = `
@@ -949,7 +955,7 @@ function buildUnclaimedCard(entry) {
     </div>
   `;
   const btn = card.querySelector('[data-claim]');
-  btn.addEventListener('click', () => claimPack(row.pack_asset_id, pack, card, btn, provider));
+  btn.addEventListener('click', e => { e.preventDefault(); claimPack(row.pack_asset_id, pack, card, btn, provider); });
 
   // Best-effort enrich with the asset's own name/image/mint — it's
   // currently owned by the pack contract (atomicpacksx or neftyblocksp,
@@ -976,15 +982,9 @@ function buildUnclaimedCard(entry) {
       const floorEl = card.querySelector('[data-floor-tid]');
       if (floorEl) { floorEl.dataset.floorTid = lean.template_id; loadFloorPricesForCards([lean]); }
     }
-    _assetPopup.wire(card, packPopupData(lean, pack), {
-      hoverEl: mediaEl,
-      // Same convention as inventory.html's own cards — click navigates to
-      // the asset page, hover still shows the info popup; without this the
-      // module's default click behavior (lock the hover popup open) kicks
-      // in instead, which reads as broken next to every other card grid on
-      // the site.
-      onCardClick: () => { location.href = 'asset/' + encodeURIComponent(lean.asset_id); },
-    });
+    // Click navigates to the asset page via the card's own native <a href>
+    // (set at creation, above) — no onCardClick needed.
+    _assetPopup.wire(card, packPopupData(lean, pack), { hoverEl: mediaEl });
   }).catch(() => {});
 
   return card;
@@ -1757,7 +1757,12 @@ function renderPackBatch() {
 // fires automatically just because the oracle happened to resolve.
 function buildPackCard(entry) {
   const { asset, pack } = entry;
-  const card = document.createElement('div');
+  // A real <a href> (not a div + JS location.href) so the browser's own
+  // right-click "Open link in new tab"/middle-click/ctrl-click all work —
+  // the Unpack/Show Cards button below calls event.preventDefault() in its
+  // own click handler so it doesn't also trigger the anchor's navigation.
+  const card = document.createElement('a');
+  card.href = 'asset/' + encodeURIComponent(asset.asset_id);
   card.className = 'pack-card';
   card.dataset.assetId = asset.asset_id;
   card.dataset.stage = 'openable';
@@ -1780,7 +1785,8 @@ function buildPackCard(entry) {
   const btn = card.querySelector('[data-action]');
   const statusEl = card.querySelector('[data-status]');
   if (!locked) {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
       // No on-chain unbox/claim flow for this mechanism at all — just the
       // same direct external-link open inventory.html/asset.html already
       // do for these, per this page's original scope decision to leave the
@@ -1795,15 +1801,11 @@ function buildPackCard(entry) {
     });
   }
   const mediaEl = card.querySelector('.pack-card-media');
-  // Same convention as inventory.html's own cards — click navigates to the
-  // asset page, hover still shows the info popup. The card's own Unpack/
-  // Show Cards button keeps working untouched either way: asset-popup.js's
-  // click handler already skips e.target.closest('a, button') before ever
-  // reaching onCardClick.
-  _assetPopup.wire(card, packPopupData(asset, pack), {
-    hoverEl: mediaEl,
-    onCardClick: () => { location.href = 'asset/' + encodeURIComponent(asset.asset_id); },
-  });
+  // Click navigates to the asset page via the card's own native <a href>
+  // (set at creation, above) — no onCardClick needed. Hover still shows the
+  // info popup; the card's own Unpack/Show Cards button keeps working
+  // untouched (its own preventDefault above blocks the anchor's navigation).
+  _assetPopup.wire(card, packPopupData(asset, pack), { hoverEl: mediaEl });
   return card;
 }
 

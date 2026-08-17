@@ -152,6 +152,7 @@
       border-radius: 12px; overflow: hidden; cursor: pointer;
       transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
       display: flex; flex-direction: column;
+      color: inherit; text-decoration: none;
     }
     .inv-card:hover {
       border-color: rgba(240,168,64,0.45);
@@ -1588,21 +1589,21 @@ function openMakeOfferForAsset(asset) {
 
 function attachCardEvents(card, asset) {
   const btn = card.querySelector('.inv-card-btn');
-  if (btn) btn.addEventListener('click', e => { e.stopPropagation(); _readOnly ? openMakeOfferForAsset(asset) : openModal(asset); });
+  if (btn) btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); _readOnly ? openMakeOfferForAsset(asset) : openModal(asset); });
 
   const dotsBtn = card.querySelector('.inv-card-dots-btn');
-  if (dotsBtn) dotsBtn.addEventListener('click', e => { e.stopPropagation(); toggleCardActionMenu(dotsBtn, asset); });
+  if (dotsBtn) dotsBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); toggleCardActionMenu(dotsBtn, asset); });
 
   const chk = card.querySelector('.inv-card-check');
-  if (chk) chk.addEventListener('click', e => { e.stopPropagation(); toggleSelect(asset.asset_id, card); });
+  if (chk) chk.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); toggleSelect(asset.asset_id, card); });
 
-  // Hover shows the info popup, click navigates to the asset page — same
-  // split as explore.html's cards. Hover is scoped to the image itself, not
-  // the whole card, so hovering the title/List-Edit button/checkbox doesn't
-  // also pop the tooltip in the way; the checkbox is a pauseElement since it
-  // sits inside the image area. Click landing on a real <button> (checkbox,
-  // List/Edit, ⋮ menu) is already excluded by AssetPopup.wire() itself, so
-  // those keep working untouched.
+  // Hover shows the info popup, click navigates to the asset page via the
+  // card's own native <a href> now (see cardHtml above), not JS. Hover is
+  // scoped to the image itself, not the whole card, so hovering the title/
+  // List-Edit button/checkbox doesn't also pop the tooltip in the way; the
+  // checkbox is a pauseElement since it sits inside the image area. Click
+  // landing on a real <button> (checkbox, List/Edit, ⋮ menu) is already
+  // excluded by AssetPopup.wire() itself, so those keep working untouched.
   const imgEl = card.querySelector('.inv-card-img');
   _assetPopup.wire(card, assetPopupData(asset), {
     hoverEl: imgEl,
@@ -1610,7 +1611,6 @@ function attachCardEvents(card, asset) {
     shouldSuppressHover: () =>
       document.getElementById('listingModal').style.display !== 'none' ||
       document.getElementById('acceptOfferModal').style.display !== 'none',
-    onCardClick: () => { location.href = `${_p}asset/${encodeURIComponent(asset.asset_id)}`; },
   });
 }
 
@@ -2755,8 +2755,13 @@ function cardHtml(a) {
   // chain), so the button must stay disabled rather than open Edit/Cancel.
   const isPending = isListed && listing.sale_id == null;
   const isSel   = _selected.has(String(a.asset_id));
+  // A real <a href> (not a div + JS location.href) so the browser's own
+  // right-click "Open link in new tab"/middle-click/ctrl-click all work —
+  // every nested interactive control (checkbox, List/Edit/Offer, ⋮ menu,
+  // buyoffer's own View button) calls event.preventDefault() in its click
+  // handler so it doesn't also trigger the anchor's navigation.
   return `
-    <div class="inv-card${isListed ? ' is-listed' : ''}${isSel ? ' selected' : ''}" data-id="${a.asset_id}">
+    <a class="inv-card${isListed ? ' is-listed' : ''}${isSel ? ' selected' : ''}" href="${_p}asset/${encodeURIComponent(a.asset_id)}" data-id="${a.asset_id}">
       <div class="inv-card-img">
         ${assetMediaHtml(a, 'loading="lazy"')}
         ${mint ? `<span class="inv-card-mint">${mint}</span>` : ''}
@@ -2778,7 +2783,7 @@ function cardHtml(a) {
             </button>
             <button type="button" class="inv-card-dots-btn" title="More actions">⋮</button>`}
       </div>
-    </div>
+    </a>
   `;
 }
 
@@ -3680,6 +3685,7 @@ function updateBuyOfferCards() {
       el.innerHTML = `<span>Best offer: ${offer.price.toFixed(2)} WAX${usdTag(offer.price)}</span>${viewBtnHtml}`;
       el.style.display = 'flex';
       el.querySelector('.buyoffer-accept-btn')?.addEventListener('click', e => {
+        e.preventDefault();
         e.stopPropagation();
         const assetId = el.closest('.inv-card')?.dataset.id;
         const asset   = _assets.find(a => String(a.asset_id) === assetId);
