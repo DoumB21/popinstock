@@ -48,9 +48,9 @@
   function bucketLabel(key, unit) {
     if (unit === 'month') {
       const [y, m] = key.split('-').map(Number);
-      return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+      return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(undefined, { month: 'short', year: '2-digit', timeZone: 'UTC' });
     }
-    return new Date(key + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return new Date(key + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
   }
 
   const RANGE_DAYS = { '1M': 30, '3M': 90, '6M': 182, '1Y': 365, 'ALL': Infinity };
