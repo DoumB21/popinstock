@@ -1741,7 +1741,20 @@ function setMobileSidebarCollapsed(collapsed) {
   const btn = document.getElementById('mobileFiltersToggle');
   btn.classList.toggle('open', !collapsed);
   btn.setAttribute('aria-expanded', String(!collapsed));
-  if (collapsed) closeAllDd();
+  if (collapsed) {
+    closeAllDd();
+    // Collapsing the sidebar shrinks the page above wherever the user was
+    // scrolled to, so without this they land stranded mid-grid instead of
+    // back at the top of the results. Only matters on mobile — the class
+    // above is a no-op on desktop, where the sidebar never collapses.
+    if ($exSidebarMq.matches) scrollToolbarIntoView();
+  }
+}
+function scrollToolbarIntoView() {
+  const toolbar = document.getElementById('exploreToolbar');
+  const navHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-height'), 10) || 64;
+  const top = toolbar.getBoundingClientRect().top + window.scrollY - navHeight - 12;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 document.getElementById('mobileFiltersToggle').addEventListener('click', () => {
   setMobileSidebarCollapsed(!document.getElementById('exSidebar').classList.contains('ex-sidebar--collapsed'));
