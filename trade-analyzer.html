@@ -704,6 +704,11 @@
     .mobile-wallet-block .wallet-next-mints,
     .mobile-wallet-empty { grid-column: 2; }
     .mobile-wallet-empty { color: var(--text-secondary); text-align: right; }
+    /* Desktop's smaller 0.8rem for the "next mints" row reads fine in a
+       dense table but is too small to tap/read on a phone — match it to
+       the lowest-mint size (.wallet-mint has no font-size of its own, so
+       it's whatever this inherits) instead of hardcoding a duplicate value. */
+    .mobile-wallet-block .wallet-next-mints { font-size: inherit; }
 
     @media (max-width: 640px) {
       .table-scroll { display: none; }
