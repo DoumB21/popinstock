@@ -61,6 +61,57 @@ const GENERIC_NAV_LINKS = [
   });
 })();
 
+// Twitch promo — Explore and Inventory only ("the 2 main pages," per direct
+// request), desktop-only (hidden below 900px in global.css, same breakpoint
+// .nav-links already collapses at). Matched against the pathname as a whole
+// (any /explore or /inventory *segment*, optionally with a trailing .html)
+// rather than a fixed segment index — checking only the first segment broke
+// on the user's own local dev server, which hosts the site under a subpath
+// (/PopInStock/explore, first segment "PopInStock"); checking only the last
+// segment would just as wrongly break inventory.html's nested wallet-pin URL
+// (/inventory/<wallet>, last segment the wallet name, not "inventory"). This
+// regex is agnostic to both a leading subpath and a trailing extra segment.
+// Must run after buildGenericNav (needs the burger it creates as an
+// insertion anchor) and before shared/wallet-widget.js mounts (loaded as a
+// separate <script> tag, so it can't run until this whole file finishes) —
+// wallet-widget.js inserts its own UI immediately before .nav-burger too, so
+// inserting this promo block before the burger now means the final order
+// ends up nav-links, promo, wallet, burger.
+const NAV_PROMO_PATH_RE = /(^|\/)(explore|inventory)(\.html)?(\/|$)/;
+
+(function buildTwitchPromo() {
+  if (!NAV_PROMO_PATH_RE.test(location.pathname)) return;
+
+  const nav      = document.querySelector('.site-nav');
+  const navInner = nav && nav.querySelector('.nav-inner');
+  const burger   = navInner && navInner.querySelector('.nav-burger');
+  if (!navInner || !burger) return;
+
+  navInner.classList.add('nav-inner--has-promo');
+
+  const promo = document.createElement('a');
+  promo.className = 'nav-promo';
+  promo.href = 'https://www.twitch.tv/popinstock';
+  promo.target = '_blank';
+  promo.rel = 'noopener noreferrer';
+  promo.innerHTML = `
+    <span class="nav-promo-line1"><span class="nav-promo-dot"></span><span class="nav-promo-text">HOARDIO LIVE 24/7 ON TWITCH</span></span>
+    <span class="nav-promo-line2">15 WAX every 5 min &bull; Monthly prizes &rarr;</span>
+  `;
+  navInner.insertBefore(promo, burger);
+
+  // Same site-level (not just OS-level) reduce-motion toggle already
+  // respected elsewhere (e.g. bundle video autoplay) — shared/settings.js
+  // loads before this script on both pages, so getReduceMotion already
+  // exists here. @media (prefers-reduced-motion: reduce) in global.css
+  // covers the OS setting; this covers the in-site one, live, via the same
+  // reduce-motion-change event other pages already listen for.
+  const dot = promo.querySelector('.nav-promo-dot');
+  const applyMotion = () => dot.classList.toggle('no-motion', !!window.getReduceMotion?.());
+  applyMotion();
+  window.addEventListener('reduce-motion-change', applyMotion);
+})();
+
 // Sitewide quick-search icon (Collection/Wallet lookup) — shared/global-
 // search.js isn't preloaded by any of these pages (unlike wallet-widget.js,
 // which every page already tags in its own <head>), so it's fetched lazily

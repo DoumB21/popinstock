@@ -238,6 +238,90 @@ body::before {
   .nav-mobile.open { display: flex; }
 }
 
+/* Twitch promo (shared/generic-nav.js, Explore/Inventory only) — sits between
+   .nav-links and the wallet controls. .nav-links only ever holds a couple of
+   short pill links and doesn't need its own flex:1 anymore on pages that also
+   have this block, so the promo takes over that role and gets the full open
+   middle of the bar to center itself in, instead of both competing for space. */
+.nav-inner--has-promo .nav-links { flex: 0 0 auto; }
+
+.nav-promo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+  padding: 0.3rem 1rem;
+  margin: 0 0.5rem;
+  border-radius: 10px;
+  border: 1px solid rgba(240, 168, 64, 0.25);
+  background: linear-gradient(135deg, rgba(240, 168, 64, 0.08), rgba(192, 120, 40, 0.04));
+  text-decoration: none;
+  transition: border-color 0.18s, background 0.18s, transform 0.15s;
+}
+
+.nav-promo:hover {
+  border-color: rgba(240, 168, 64, 0.5);
+  background: linear-gradient(135deg, rgba(240, 168, 64, 0.14), rgba(192, 120, 40, 0.07));
+  transform: translateY(-1px);
+}
+
+.nav-promo-line1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.nav-promo-text {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.nav-promo-line2 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-light);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-promo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff3b3b;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.55);
+  animation: nav-promo-pulse 1.8s ease-out infinite;
+}
+
+.nav-promo-dot.no-motion { animation: none; }
+
+@keyframes nav-promo-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.55); }
+  70%  { box-shadow: 0 0 0 5px rgba(255, 59, 59, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-promo-dot { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .nav-promo { display: none; }
+}
+
 /* Below 900px the nav row has to fit logo + divider + section badge +
    search/cart/profile icons + the wallet button/pill + the burger, all
    flex-shrink:0 — on real phone widths that total overflows and forces the
