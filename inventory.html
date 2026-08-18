@@ -476,6 +476,12 @@
     .buyoffer-unlock-link:hover { opacity: 1; text-decoration: underline; }
     .buyoffer-unlock-link.is-hidden { display: none; }
     .unlock-links-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem 1.4rem; margin-top: 0.6rem; }
+    /* Sits in the unlock-link's own slot once that data is fetched — sums
+       Floor Price/Last Sold over whatever's currently filtered (see
+       updateValueTotals()), not the whole wallet. */
+    .inv-value-total { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+    .inv-value-total.is-hidden { display: none; }
+    .inv-value-partial { color: var(--text-secondary); font-weight: 400; }
     .buyoffer-fetch-btn {
       padding: 0.55rem 1.25rem; flex-shrink: 0; align-self: flex-end;
       background: rgba(240,168,64,0.12); border: 1px solid rgba(240,168,64,0.45);
@@ -810,7 +816,9 @@
     <div class="unlock-links-row">
       <div class="buyoffer-unlock-link" id="buyofferUnlockLink" onclick="toggleBuyOfferBanner(true)" title="Unlock Buy Offer sort filter">🔒 <strong>Buy Offer</strong></div>
       <div class="buyoffer-unlock-link" id="floorpriceUnlockLink" onclick="toggleFloorPriceBanner(true)" title="Unlock Floor Price sort filter">🔒 <strong>Floor Price</strong></div>
+      <div class="inv-value-total is-hidden" id="floorValueTotal"></div>
       <div class="buyoffer-unlock-link" id="lastsoldUnlockLink" onclick="toggleLastSoldBanner(true)" title="Unlock Last Sold sort filter">🔒 <strong>Last Sold</strong></div>
+      <div class="inv-value-total is-hidden" id="lastSoldValueTotal"></div>
     </div>
     <div class="controls-row filter-row">
       <div class="control-group" id="schemaGroup">
@@ -1066,6 +1074,8 @@ let _lastSoldChunkIdx      = 0;          // next chunk index to fetch
 let _lastSoldBuffer        = [];         // all fetched last-sold-sorted assets
 let _lastSoldFetchSkipped  = 0;          // chunks that exhausted WaxApi.rawFetch's retries and got no data this run — see fetchLastSoldChunk
 let _lastSoldByCol         = {};         // collection_name → Set(templateId) with a known last-sold price — see _floorOffersByCol's comment
+let _valueTotalsToken      = 0;          // bumped on every updateValueTotals() scan — lets a stale in-flight scan detect it's been superseded and skip touching the DOM
+let _lastValueTotalsSig    = null;       // currentFilterSignature() as of the last completed/started scan — lets updateValueTotals() skip re-scanning on a render triggered by pagination/sort alone
 let _clientPage            = PAGE_SIZE;  // visible asset count in client-side sort mode
 let _listBusy           = false;
 let _listingRoyaltyPct  = 0;
@@ -1490,6 +1500,139 @@ function assetMediaHtml(a, extraAttr = '', eager = false) {
 function filtered() {
   if (_listingsFilter === 'hide') return _assets.filter(a => !_listings.has(String(a.asset_id)));
   return _assets;
+}
+
+// Encodes every filter that changes which assets are "currently filtered" —
+// used by updateValueTotals() to tell a real filter change (needs a fresh
+// scan) apart from a render triggered by pagination/sort alone (same set,
+// skip re-scanning). Deliberately excludes _sortOrder — reordering the same
+// matching set doesn't change its total.
+function currentFilterSignature() {
+  const dyn = Object.entries(_selectedDynamicFilters)
+    .filter(([, s]) => s.size > 0)
+    .map(([field, s]) => `${field}:${[...s].sort().join('|')}`)
+    .sort().join(',');
+  return [
+    _filterCol, _filterSchema, _filterTemplate,
+    [..._selectedCardIds].sort().join('|'), dyn,
+    _filterMintMin, _filterMintMax, _filterText,
+    _onlyBacked ? 1 : 0, _listingsFilter,
+    _excludeLowestMint ? 1 : 0, _onlyHighestMint ? 1 : 0,
+  ].join('§');
+}
+
+// Same lowest/highest-mint-per-template logic as loadAssetsFullScan/
+// loadAssetsOnlyHighest (runDupesScan's computeResult callbacks) — duplicated
+// rather than reused because those are wired into runDupesScan's own
+// loading-UI/state side effects, not usable as a plain pool -> pool function.
+function applyDupeFilterForTotals(pool) {
+  if (!_excludeLowestMint && !_onlyHighestMint) return pool;
+  const groupsByTemplate = new Map();
+  for (const a of pool) {
+    const tid = a.template?.template_id;
+    const mint = Number(a.template_mint);
+    if (!tid || !isFinite(mint)) continue;
+    if (!groupsByTemplate.has(tid)) groupsByTemplate.set(tid, []);
+    groupsByTemplate.get(tid).push(a);
+  }
+  if (_onlyHighestMint) {
+    const keepIds = new Set();
+    for (const group of groupsByTemplate.values()) {
+      if (group.length < 2) continue;
+      keepIds.add(String(group.reduce((hi, a) => Number(a.template_mint) > Number(hi.template_mint) ? a : hi).asset_id));
+    }
+    return pool.filter(a => keepIds.has(String(a.asset_id)));
+  }
+  const dropIds = new Set();
+  for (const group of groupsByTemplate.values()) {
+    dropIds.add(String(group.reduce((lo, a) => Number(a.template_mint) < Number(lo.template_mint) ? a : lo).asset_id));
+  }
+  return pool.filter(a => !dropIds.has(String(a.asset_id)));
+}
+
+function renderValueTotal(el, fetched, pool, priceFn, label) {
+  if (!el) return;
+  if (!fetched || !pool.length) { el.classList.add('is-hidden'); return; }
+  let sum = 0, priced = 0;
+  for (const a of pool) {
+    const tid = String(a.template?.template_id || '');
+    const price = tid ? priceFn(tid) : null;
+    if (price != null) { sum += price; priced++; }
+  }
+  const partial = priced < pool.length ? ` <span class="inv-value-partial">(${priced}/${pool.length} priced)</span>` : '';
+  el.innerHTML = `${label}: <strong>${sum.toFixed(2)} WAX</strong>${usdTag(sum)}${partial}`;
+  el.classList.remove('is-hidden');
+}
+
+// Sums Floor Price/Last Sold over the WHOLE currently-filtered inventory —
+// not just what's scrolled into _assets so far. filtered()/_assets can't be
+// used for this (confirmed live on kkbaw.wam, 3,451 collections: the total
+// silently under-reported because only 18 of thousands of owned assets had
+// been paginated into memory) — instead this runs its own full paginated
+// scan via fetchAllMatchingAssets(), the same aaBase()-rotating-mirror
+// pagination already used by the dupe/attr-filter scans (loadAssetsFullScan
+// etc.), applying every one of the same client-side narrowing passes
+// (filterByActiveAttrs, filterByMintRange, listings-filter, dupe filter) so
+// the result matches exactly what's on screen, not an approximation of it.
+// No separate fetch for the API's own suggested_median/suggested_average
+// "estimated value" field — per direct request, Floor Price and Last Sold
+// sums are the only two value metrics wanted.
+//
+// currentFilterSignature() guards against re-running this full scan on
+// every render — renderGrid() (and updateFloorPriceBanner/
+// updateLastSoldBanner) call this unconditionally on every pagination
+// append and sort change too, not just real filter changes; the signature
+// check turns all of those into instant no-ops. _valueTotalsToken guards the
+// case where filters change again while a scan is still in flight — the
+// stale scan's result is discarded instead of clobbering the newer one's.
+async function updateValueTotals() {
+  const floorEl    = document.getElementById('floorValueTotal');
+  const lastSoldEl = document.getElementById('lastSoldValueTotal');
+  if (!floorEl && !lastSoldEl) return;
+
+  if (!_floorOffersFetched && !_lastSoldFetched) {
+    floorEl?.classList.add('is-hidden');
+    lastSoldEl?.classList.add('is-hidden');
+    _lastValueTotalsSig = null; // force a fresh scan once a fetch does complete
+    return;
+  }
+
+  const sig = currentFilterSignature();
+  if (sig === _lastValueTotalsSig) return;
+  _lastValueTotalsSig = sig;
+
+  const token = ++_valueTotalsToken;
+  if (floorEl && _floorOffersFetched)    { floorEl.textContent    = 'Floor value: calculating…';    floorEl.classList.remove('is-hidden'); }
+  if (lastSoldEl && _lastSoldFetched)    { lastSoldEl.textContent = 'Last Sold value: calculating…'; lastSoldEl.classList.remove('is-hidden'); }
+
+  let pool = null;
+  try {
+    const whitelist = safeWhitelist(computeTemplateWhitelist());
+    if (whitelist === 'EMPTY') {
+      pool = [];
+    } else {
+      let all = await fetchAllMatchingAssets(whitelist);
+      all = filterByActiveAttrs(all);
+      all = filterByMintRange(all);
+      if (_listingsFilter === 'hide')      all = all.filter(a => !_listings.has(String(a.asset_id)));
+      else if (_listingsFilter === 'only') all = all.filter(a =>  _listings.has(String(a.asset_id)));
+      pool = applyDupeFilterForTotals(all);
+    }
+  } catch (err) {
+    console.error('updateValueTotals scan failed:', err);
+    pool = null; // show nothing rather than a number we're not sure matches the filter
+  }
+
+  if (token !== _valueTotalsToken) return; // a newer scan already owns the DOM
+
+  if (pool === null) {
+    floorEl?.classList.add('is-hidden');
+    lastSoldEl?.classList.add('is-hidden');
+    return;
+  }
+
+  renderValueTotal(floorEl,    _floorOffersFetched, pool, tid => _floorOffers[tid],      'Floor value');
+  renderValueTotal(lastSoldEl, _lastSoldFetched,    pool, tid => _lastSold[tid]?.price,  'Last Sold value');
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -2722,6 +2865,7 @@ function renderGrid() {
   const grid  = document.getElementById('invGrid');
   const empty = document.getElementById('emptyWrap');
   const list  = filtered();
+  updateValueTotals();
 
   if (list.length === 0) {
     grid.style.display  = 'none';
@@ -3272,6 +3416,7 @@ function updateFloorPriceBanner() {
   if (_floorOffersBusy) return;
   const n = _collections.size;
   if (_floorOffersFetched) {
+    updateValueTotals();
     const count = Object.keys(_floorOffers).length;
     // A skipped chunk (a lookup that still failed after WaxApi.rawFetch's own
     // retries) used to surface a "Retry N skipped →" button here. Dropped —
@@ -3983,6 +4128,7 @@ function updateLastSoldBanner() {
   if (_lastSoldBusy) return;
   const n = _collections.size;
   if (_lastSoldFetched) {
+    updateValueTotals();
     const count = Object.keys(_lastSold).length;
     // See updateFloorPriceBanner's matching comment on _floorFetchSkipped —
     // no "Retry N skipped" button anymore, kept silent.
