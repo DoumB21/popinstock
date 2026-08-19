@@ -1432,11 +1432,6 @@
   // ── GENERIC mode (collection typeahead ported from explore.html) ────────
 
   const IPFS_GW = (typeof IPFS_GATEWAY !== 'undefined' && IPFS_GATEWAY) || 'https://ipfs.io/ipfs/';
-  // Public IPFS gateways don't all have the same peers/cache — a CID that's
-  // cold on one (times out fetching it fresh from the P2P network) can
-  // already be warm on another. The preview popover cycles through these
-  // instead of retrying the same gateway.
-  const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://dweb.link/ipfs/'];
 
   let genCollection = null; // { collection_name, name, img }
   let genSchema     = '';

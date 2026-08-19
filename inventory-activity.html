@@ -567,14 +567,6 @@ function imgUrl(hash) {
   return gw + hash;
 }
 
-// Public IPFS gateways don't all have the same peers/cache — a CID that's
-// cold on one can already be warm on another. Cycle through a few instead
-// of retrying the same one, before giving up. Same pattern as inventory.html.
-const IPFS_GATEWAY_LIST = [
-  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
-  'https://dweb.link/ipfs/',
-];
-
 function onAssetImgError(el) {
   const hash = el.dataset.ipfsHash;
   if (hash) {

@@ -1449,15 +1449,6 @@ function imgUrl(hash) {
   return gw + hash;
 }
 
-// Public IPFS gateways don't all have the same peers/cache — a CID that's
-// cold on one (times out fetching it fresh from the P2P network) can
-// already be warm on another. Cycle through a few gateways instead of
-// retrying the same one, before giving up and hiding the image.
-const IPFS_GATEWAY_LIST = [
-  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
-  'https://dweb.link/ipfs/',
-];
-
 function onAssetImgError(el) {
   const hash = el.dataset.ipfsHash;
   if (hash) {

@@ -247,10 +247,6 @@ function imgUrl(hash) {
   const gw = (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/';
   return gw + hash;
 }
-const IPFS_GATEWAY_LIST = [
-  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
-  'https://dweb.link/ipfs/',
-];
 function onAssetImgError(el) {
   const hash = el.dataset.ipfsHash;
   if (hash) {

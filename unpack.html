@@ -375,17 +375,10 @@
 <script>
 'use strict';
 
-// Public IPFS gateways don't all have the same peers/cache — a CID that's
-// cold on one (times out fetching it fresh from the P2P network) can already
-// be warm on another. Same list/order/retry-then-placeholder behavior as
-// inventory.html's imgUrl/onAssetImgError — this page was only ever trying
-// gateway[0] (ipfs.io, often the slowest) with no fallback and no onerror
-// handler at all, so any single failed load just stayed broken forever
-// instead of self-healing like inventory.html's cards do.
-const IPFS_GATEWAY_LIST = [
-  (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
-  'https://dweb.link/ipfs/',
-];
+// Same retry-then-placeholder behavior as inventory.html's imgUrl/onAssetImgError —
+// this page was only ever trying gateway[0] (ipfs.io, often the slowest) with no
+// fallback and no onerror handler at all, so any single failed load just stayed
+// broken forever instead of self-healing like inventory.html's cards do.
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }
 function onPackMediaError(el) {
   const hash = el.dataset.ipfsHash;

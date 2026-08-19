@@ -268,7 +268,7 @@ function ipfsUrl(cid) {
 }
 function videoUrl(cid) {
   if (!cid) return '';
-  return 'https://ipfs.io/ipfs/' + cid;
+  return IPFS_GATEWAY + cid;
 }
 function cleanName(name) {
   return name

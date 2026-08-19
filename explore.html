@@ -1045,8 +1045,7 @@ const MARKET_FEE        = 0.02; // AtomicMarket's cut — same constants as inve
 const ECOSYSTEM_FEE     = 0.01;
 const BATCH_SIZE_BUY    = 25;   // up to 25 individual (assertsale, transfer, purchasesale) triplets per tx — a stale listing fails the whole chunk, so raise further only after this size is confirmed to clear on-chain
 const MAX_SELECTED      = 350;  // tray-render-perf cap, unrelated to batch size
-const IPFS_GW           = 'https://ipfs.io/ipfs/';
-const IPFS_GATEWAY_LIST = [IPFS_GW, 'https://dweb.link/ipfs/'];
+const IPFS_GW           = (typeof IPFS_GATEWAY !== 'undefined' && IPFS_GATEWAY) || 'https://ipfs.io/ipfs/';
 const CART_STORAGE_KEY  = 'explore_cart_v1';
 
 const RARITY_CSS = {
