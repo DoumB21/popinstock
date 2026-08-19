@@ -37,6 +37,8 @@ const AA_BASES = [
 // here because this runs in the Edge runtime, which can't load that browser script.
 // Keep the two in sync.
 const IPFS_GATEWAYS = [
+  'https://ipfs.blacklusion.cloud/ipfs/',
+  'https://ipfs.eosdac.io/ipfs/',
   'https://gateway.pinata.cloud/ipfs/',
   'https://ipfs.io/ipfs/',
   'https://dweb.link/ipfs/',
