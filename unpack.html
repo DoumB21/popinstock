@@ -384,7 +384,6 @@
 // instead of self-healing like inventory.html's cards do.
 const IPFS_GATEWAY_LIST = [
   (typeof IPFS_GATEWAY !== 'undefined') ? IPFS_GATEWAY : 'https://ipfs.io/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/',
   'https://dweb.link/ipfs/',
 ];
 function toMediaUrl(v) { return /^https?:\/\//i.test(v) ? v : IPFS_GATEWAY_LIST[0] + v; }

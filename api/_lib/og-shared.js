@@ -36,7 +36,6 @@ const AA_BASES = [
 // Same 3-gateway list used client-side (collection.html / template.html / inventory.html).
 const IPFS_GATEWAYS = [
   'https://ipfs.io/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/',
   'https://dweb.link/ipfs/',
 ];
 

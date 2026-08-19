@@ -218,7 +218,7 @@
 <script>
 'use strict';
 
-const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/', 'https://dweb.link/ipfs/'];
+const IPFS_GATEWAY_LIST = ['https://ipfs.io/ipfs/', 'https://dweb.link/ipfs/'];
 
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
