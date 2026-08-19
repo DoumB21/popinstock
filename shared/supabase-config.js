@@ -11,10 +11,14 @@ const IPFS_GATEWAY      = 'https://ipfs.blacklusion.cloud/ipfs/';
 // Order is based on live testing (2026-08-19): blacklusion.cloud and eosdac.io are
 // WAX block-producer-run gateways that recovered CIDs the general-purpose public
 // gateways (ipfs.io, Pinata, dweb.link) couldn't, and were consistently faster.
+// Pinata sits ahead of eosdac (both #2 candidates) because it's a genuinely
+// different pinning source — two BP gateways likely overlap in what they hold,
+// so trying Pinata 2nd has better odds of recovering a CID blacklusion missed
+// than trying another BP would.
 const IPFS_GATEWAY_LIST = [
   IPFS_GATEWAY,
-  'https://ipfs.eosdac.io/ipfs/',
   'https://gateway.pinata.cloud/ipfs/',
+  'https://ipfs.eosdac.io/ipfs/',
   'https://ipfs.io/ipfs/',
   'https://dweb.link/ipfs/',
 ];

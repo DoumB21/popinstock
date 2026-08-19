@@ -38,8 +38,8 @@ const AA_BASES = [
 // Keep the two in sync.
 const IPFS_GATEWAYS = [
   'https://ipfs.blacklusion.cloud/ipfs/',
-  'https://ipfs.eosdac.io/ipfs/',
   'https://gateway.pinata.cloud/ipfs/',
+  'https://ipfs.eosdac.io/ipfs/',
   'https://ipfs.io/ipfs/',
   'https://dweb.link/ipfs/',
 ];
