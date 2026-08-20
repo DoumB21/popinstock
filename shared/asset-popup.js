@@ -16,6 +16,8 @@
      walletHref:     acc  => `inventory/${acc}`   | `../inventory/${acc}`,      // optional, defaults shown
      schemaHref:     (collection, schema) => `schema/${collection}/${schema}` | `../schema/${collection}/${schema}`, // optional, defaults shown
      assetHref:      id   => `asset/${id}`        | `../asset/${id}`,               // optional, defaults shown
+     marketBase: () => WaxApi.marketBase(),        // optional — AtomicMarket REST base, defaults to the official node
+     usdRate:    () => _waxUsdRate || 0,           // optional — caller's own live WAX/USD rate, for the Floor price $ tag
    });
 
    Per card: popup.wire(cardEl, data, { hoverEl, shouldSuppressHover, onCardClick });
@@ -124,6 +126,10 @@ window.AssetPopup = (function () {
     const walletHref     = opts.walletHref     || (acc  => `inventory/${encodeURIComponent(acc)}`);
     const schemaHref     = opts.schemaHref     || ((collection, schema) => `schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`);
     const assetHref      = opts.assetHref      || (id   => `asset/${encodeURIComponent(id)}`);
+    // Not pooled/failover like aaBase — atomicmarket is only reliable on the
+    // official node (see wax-api.js), so a fixed default is safe here.
+    const marketBase     = opts.marketBase     || (() => 'https://wax.api.atomicassets.io/atomicmarket/v1');
+    const usdRate        = opts.usdRate        || (() => 0);
 
     let hover = document.getElementById('assetPopupHover');
     if (!hover) {
@@ -144,6 +150,7 @@ window.AssetPopup = (function () {
 
     const _supplyCache = {};
     const _ownedCache = {};
+    const _floorCache = {};
 
     // A node can pass /health (fast, not rate-limited) while one specific
     // aggregate endpoint on it silently serves a broken/empty secondary
@@ -219,7 +226,37 @@ window.AssetPopup = (function () {
       return _ownedCache[key];
     }
 
-    function renderBody(d, supply, owned) {
+    // Cheapest active listing for this template, same AtomicMarket query
+    // explore.html's Edit-listing modal and inventory.html's own
+    // fetchFloorPrice already use for "Market floor price" — collection_name
+    // is required (AtomicMarket won't scope template_id-only queries the
+    // same way), min/max_assets=1 excludes bundle listings from skewing it.
+    function fetchFloorPrice(templateId, collectionName) {
+      const key = `${templateId}:${collectionName || ''}`;
+      if (_floorCache[key]) return _floorCache[key];
+      _floorCache[key] = (async () => {
+        try {
+          const url  = `${marketBase()}/sales?state=1&template_id=${templateId}&collection_name=${encodeURIComponent(collectionName || '')}&symbol=WAX&min_assets=1&max_assets=1&sort=price&order=asc&limit=1`;
+          const rows = await apiFetch(url);
+          if (!rows || !rows.length) return null;
+          const sale      = rows[0];
+          const precision = sale.price?.token_precision ?? 8;
+          const raw       = sale.price?.amount;
+          return raw != null ? Number(raw) / (10 ** precision) : null;
+        } catch { return null; }
+      })();
+      return _floorCache[key];
+    }
+
+    // wax === null means "fetched, no active listings" (renderBody already
+    // shows "No listings" for that) — this only ever fires for a real price.
+    function usdTagHtml(wax) {
+      const rate = usdRate();
+      if (!rate || wax == null) return '';
+      return ` <span style="color:var(--text-secondary);font-weight:400">≈ $${(wax * rate).toFixed(2)}</span>`;
+    }
+
+    function renderBody(d, supply, owned, floor) {
       const loading = !supply && !owned;
       const dash    = loading ? '…' : '—';
       const fmt     = n => n != null ? Number(n).toLocaleString() : dash;
@@ -253,6 +290,11 @@ window.AssetPopup = (function () {
           <div class="tt-row"><span class="tt-label">In circulation</span><span class="tt-val">${fmt(circ)}</span></div>
         </div>
         <div class="tt-divider"></div>
+        <div class="tt-heading">Market</div>
+        <div class="tt-section">
+          <div class="tt-row"><span class="tt-label">Floor price</span><span class="tt-val tt-orange">${floor === undefined ? dash : (floor != null ? `${floor.toFixed(2)} WAX${usdTagHtml(floor)}` : 'No listings')}</span></div>
+        </div>
+        <div class="tt-divider"></div>
         <div class="tt-heading">You</div>
         <div class="tt-section">
           <div class="tt-row"><span class="tt-label">Owned</span><span class="tt-val tt-orange">${owned != null ? fmt(owned.count) : '…'}</span></div>
@@ -260,8 +302,8 @@ window.AssetPopup = (function () {
         </div>`;
     }
 
-    function renderHover(d, supply, owned) {
-      return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${esc(d.name || 'Unknown')}</div>${renderBody(d, supply, owned)}`;
+    function renderHover(d, supply, owned, floor) {
+      return `<div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:0.55rem">${esc(d.name || 'Unknown')}</div>${renderBody(d, supply, owned, floor)}`;
     }
     // Header (name + close button) is rendered once and kept stable across
     // the loading->loaded transition — see open()'s use of #assetPopupInfoBody.
@@ -271,11 +313,11 @@ window.AssetPopup = (function () {
     // close button as a new node, so a tap landing mid-fetch could highlight
     // the button (touchstart) but never actually close the popup (click never
     // fires because the original node is already gone).
-    function renderInfo(d, supply, owned) {
+    function renderInfo(d, supply, owned, floor) {
       return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.55rem">
         <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:0.5rem">${esc(d.name || 'Unknown')}</div>
         <button class="info-popup-close" onclick="AssetPopup.close()" aria-label="Close">✕</button>
-      </div><div id="assetPopupInfoBody">${renderBody(d, supply, owned)}</div>`;
+      </div><div id="assetPopupInfoBody">${renderBody(d, supply, owned, floor)}</div>`;
     }
 
     // Dynamic, not hardcoded — the popup's real rendered size varies with
@@ -314,12 +356,13 @@ window.AssetPopup = (function () {
       hover.style.display = '';
       positionNear(cardEl, hover);
 
-      const [supply, owned] = await Promise.all([
+      const [supply, owned, floor] = await Promise.all([
         d.templateId ? fetchSupply(d.templateId, d.collection, d.issuedSupply) : Promise.resolve(null),
         d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
+        d.templateId ? fetchFloorPrice(d.templateId, d.collection) : Promise.resolve(null),
       ]);
       if (_hoverAssetId !== d.assetId) return; // moved on to a different card (or dismissed) since this fetch started
-      hover.innerHTML = renderHover(d, supply, owned);
+      hover.innerHTML = renderHover(d, supply, owned, floor);
       positionNear(cardEl, hover);
     }
 
@@ -342,13 +385,14 @@ window.AssetPopup = (function () {
       info.style.display = '';
       positionNear(cardEl, info);
 
-      const [supply, owned] = await Promise.all([
+      const [supply, owned, floor] = await Promise.all([
         d.templateId ? fetchSupply(d.templateId, d.collection, d.issuedSupply) : Promise.resolve(null),
         d.templateId && wallet ? fetchOwned(wallet, d.templateId) : Promise.resolve(null),
+        d.templateId ? fetchFloorPrice(d.templateId, d.collection) : Promise.resolve(null),
       ]);
       if (_infoAssetId !== d.assetId) return;
       const bodyEl = info.querySelector('#assetPopupInfoBody');
-      if (bodyEl) bodyEl.innerHTML = renderBody(d, supply, owned);
+      if (bodyEl) bodyEl.innerHTML = renderBody(d, supply, owned, floor);
       positionNear(cardEl, info);
     }
 

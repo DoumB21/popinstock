@@ -554,6 +554,7 @@ const _assetPopup = AssetPopup.mount({
   walletHref:     acc  => `inventory/${encodeURIComponent(acc)}`,
   schemaHref:     (collection, schema) => `schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
   assetHref:      id   => `asset/${encodeURIComponent(id)}`,
+  usdRate:        () => _waxUsdRate || 0,
 });
 
 // Maps a leanAsset (this page's own asset shape) onto AssetPopup's

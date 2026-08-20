@@ -605,6 +605,7 @@ const _assetPopup = AssetPopup.mount({
   walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
   schemaHref:     (collection, schema) => `${_p}schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
   assetHref:      id   => `${_p}asset/${encodeURIComponent(id)}`,
+  usdRate:        () => window._waxUsdRate || 0,
 });
 
 const SALE_STATE = { 1: { label: 'Active', cls: 'active' }, 2: { label: 'Cancelled', cls: 'cancelled' }, 3: { label: 'Sold', cls: 'sold' } };

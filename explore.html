@@ -4478,6 +4478,7 @@ async function handleUpdateListingExplore() {
 const _assetPopup = AssetPopup.mount({
   aaBase: WaxApi.aaBase,
   apiFetch: WaxApi.apiFetch,
+  usdRate: () => _waxUsd,
 });
 
 function cardDataFromEl(cardEl) {

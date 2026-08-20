@@ -999,6 +999,7 @@ function debounceLoad() {
 const _assetPopup = AssetPopup.mount({
   aaBase: () => WaxApi.aaBase(),
   apiFetch: url => WaxApi.apiFetch(url),
+  usdRate: () => _waxUsdRate || 0,
 });
 
 // This page never dealt with rarity before (no filter/badge used it) — same

@@ -403,6 +403,18 @@ function attachCardEvents(card, asset) {
 /* Info popup / hover tooltip — shared/asset-popup.js                        */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+// Only used for the hover popup's Floor price $ tag below — non-fatal if it
+// never resolves, usdTagHtml() just omits the tag when the rate is unset.
+let _waxUsdRate = null;
+async function fetchWaxPrice() {
+  try {
+    const r    = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd');
+    const json = await r.json();
+    _waxUsdRate = json?.wax?.usd ?? null;
+  } catch { /* non-fatal */ }
+}
+fetchWaxPrice();
+
 const _assetPopup = AssetPopup.mount({
   aaBase: WaxApi.aaBase,
   apiFetch: WaxApi.apiFetch,
@@ -413,6 +425,7 @@ const _assetPopup = AssetPopup.mount({
   walletHref:     acc  => `${_p}inventory/${encodeURIComponent(acc)}`,
   schemaHref:     (collection, schema) => `${_p}schema/${encodeURIComponent(collection)}/${encodeURIComponent(schema)}`,
   assetHref:      id   => `${_p}asset/${encodeURIComponent(id)}`,
+  usdRate:        () => _waxUsdRate || 0,
 });
 function closeInfoPopup() { _assetPopup.close(); }
 function copyVal(btn, text) { AssetPopup.copyVal(btn, text); }
