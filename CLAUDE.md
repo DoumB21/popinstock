@@ -53,7 +53,7 @@ PopInStock is a **static HTML + vanilla JS** collector tool suite for WAX blockc
 ### funko/ — Funko Digital
 
 Hub: `funko/funko.html`  
-Nav links (in `funko/nav.js`): Trade Analyzer · Mint Rankings · Wallet Look Up · Market Overview · Set Tracker
+Nav links (in `funko/nav.js`): Trade Analyzer · Mint Rankings · Wallet Look Up · Market Overview
 
 | Page | Purpose |
 |------|---------|

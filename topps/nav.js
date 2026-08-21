@@ -12,14 +12,12 @@ function buildNav() {
     <a href="${href}" class="nav-link${currentPage === href ? ' nav-link--active' : ''}">${label}</a>
   `).join('');
 
-  const navStyle = document.createElement('style');
-  navStyle.textContent = `
-    .nav-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 0.5rem 0 0.25rem; flex-shrink: 0; }
-    .nav-section { font-size: 0.75rem; font-weight: 700; color: var(--accent); flex-shrink: 0; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 0.75rem; text-decoration: none; }
-    .nav-section:hover { opacity: 0.75; }
-  `;
-  document.head.appendChild(navStyle);
-
+  // .nav-divider and .nav-section are NOT redeclared here — shared/
+  // global.css owns both (base rules plus mobile/tablet `margin-right:
+  // auto` overrides that flush-right the icon cluster while keeping this
+  // section badge pinned next to the logo). Redeclaring either here,
+  // injected after global.css loads, would silently win the cascade at
+  // every width and defeat those overrides.
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
   nav.innerHTML = `
@@ -166,4 +164,14 @@ function _showMovedOverlay() {
   document.body.appendChild(el);
 }
 
-document.addEventListener('DOMContentLoaded', () => { buildNav(); buildBackToTop(); buildFooter(); _initWallet(); _initGlobalSearch(); _showMovedOverlay(); });
+document.addEventListener('DOMContentLoaded', async () => {
+  buildNav(); buildBackToTop(); buildFooter();
+  // Wallet must mount before search — both insert immediately before the
+  // burger, so whichever finishes its own lazy script load first wins the
+  // DOM position. Awaiting wallet first pins the order deterministically
+  // (search always ends up between the wallet controls and the burger),
+  // instead of racing on network timing like the two lazy loads used to.
+  await _initWallet();
+  _initGlobalSearch();
+  _showMovedOverlay();
+});

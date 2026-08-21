@@ -334,7 +334,6 @@ body::before {
   .nav-home    { margin-right: 0.5rem; }
   .nav-home img { height: 30px; width: 30px; }
   .nav-divider { margin: 0 0.35rem 0 0.15rem; }
-  .nav-section { margin-right: 0.4rem; }
   .nav-burger  { margin-left: 0.15rem; padding: 0.3rem; }
 
   /* These buttons' icons are inline SVGs hardcoded at 16x16 (wallet-widget.js,
@@ -372,6 +371,25 @@ body::before {
   margin: 0 0.5rem 0 0.25rem;
   flex-shrink: 0;
 }
+
+/* ── Section badge (Funko/Topps/Wombat/Twitch nav.js) — was previously
+   redeclared via a JS-injected <style> tag in each of those four nav.js
+   files, which (being injected after this stylesheet loads) always won the
+   cascade over this file's own responsive rules for the same selector.
+   Centralized here instead so there's only ever one source of truth for
+   it. */
+.nav-section {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-right: 0.75rem;
+  text-decoration: none;
+}
+
+.nav-section:hover { opacity: 0.75; }
 
 .nav-cart-btn {
   position: relative;
@@ -1950,17 +1968,33 @@ footer {
   textarea {
     font-size: 16px;
   }
+}
 
-  /* margin-right: auto pushes ALL the leftover nav row space into the gap
-     right after the divider, so logo+divider anchor left and every
-     element that follows (section badge, action icons, wallet widget,
-     search, burger) rides together as one flush-right group — not just
-     the burger alone with unused space stranded to its right. Placed
-     here (not with the other .nav-divider rules near the top of this
-     file) because an unconditional `.nav-divider { margin: ... }` rule
-     is declared further down for the wallet widget — same specificity,
-     later source order, so it silently wins over an earlier same-file
-     media-query override regardless of viewport. Needs to come after
-     that rule to actually take effect. */
-  .nav-divider { margin-right: auto; }
+/* .nav-links loses its flex:1 entirely (display:none) at 900px — see the
+   rule near the top of this file — so nothing pulls the trailing icon
+   cluster (cart/offers/profile/wallet/search, inserted by shared/
+   wallet-widget.js and shared/global-search.js right before .nav-burger)
+   to the right anymore below that width, phone and tablet (e.g. iPad
+   Mini, ~768px) alike. #navCartBtn is always the first element of that
+   cluster — shared/wallet-widget.js creates it unconditionally and it's
+   never itself hidden (unlike the offers/buy-offers/profile icons next to
+   it, which only show once logged in), and every nav.js on the site now
+   awaits the wallet mount before the search-icon mount, so it always
+   lands before #navSearchBtn too. margin-left: auto on it alone pushes
+   the whole cluster (and the burger after it) flush right, while
+   whatever comes before it — logo, divider, and on Funko/Topps/Wombat/
+   Twitch pages the .nav-section badge — stays exactly where it already
+   sits. (An earlier version of this rule tried to target .nav-divider/
+   .nav-section directly with a `:has()` sibling check instead; dropped
+   because :has() isn't supported on pre-2023 Safari/iPadOS, which
+   silently dropped the whole rule and broke flush-right alignment
+   sitewide on those devices — this #navCartBtn version needs no relational
+   selector at all.) Placed here (not with the other rules near the top of
+   this file) because #navCartBtn's own unconditional styling is declared
+   further down for the wallet widget — same specificity, later source
+   order, so an earlier same-file media-query override would silently lose
+   regardless of viewport. Needs to come after that rule to actually take
+   effect. */
+@media (max-width: 900px) {
+  #navCartBtn { margin-left: auto; }
 }
