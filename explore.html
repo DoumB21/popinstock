@@ -133,6 +133,18 @@
     .wallet-fill-btn:hover:not(:disabled) { color: var(--accent-light); background: rgba(255,255,255,0.08); }
     .wallet-fill-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
+    .bl-checkbox-label {
+      display: flex; align-items: center; gap: 0.45rem;
+      font-size: 0.82rem; color: var(--text-primary);
+      cursor: pointer; user-select: none;
+    }
+    .bl-checkbox-label input[type="checkbox"] {
+      accent-color: var(--accent-light); width: 15px; height: 15px;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .bl-checkbox-label:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+    .bl-checkbox-label input:disabled { cursor: not-allowed; }
+
     /* ── Main results column ── */
     .explore-main { flex: 1; min-width: 0; }
     .explore-toolbar {
@@ -936,6 +948,17 @@
       </div>
     </div>
 
+    <!-- Caps each template's listings to mints lower than the connected
+         wallet's own lowest-owned mint for that template — templates the
+         wallet doesn't own at all are left unfiltered (any mint beats owning
+         none). See lowerMintsActive()/fetchOwnedMinMints(). -->
+    <div class="filter-section hidden" id="secLowerMints">
+      <label class="bl-checkbox-label" id="lowerMintsLabel" title="Connect a wallet to use this">
+        <input type="checkbox" id="lowerMintsToggle" disabled />
+        Only lower mints than mine
+      </label>
+    </div>
+
     <div class="filter-section hidden" id="secClear">
       <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
     </div>
@@ -1093,6 +1116,15 @@ let _hideOwnedWallet = '';
 // per collection+wallet pair covers every schema/rarity/price/mint combo under it).
 // null = not loaded yet for the current collection+wallet pair.
 let _ownedTemplateIds = null;
+// "Only lower mints than mine" toggle — always scoped to the connected
+// wallet (never a typed-in one, unlike hideOwnedWallet above), since the
+// whole point is "beat my own lowest mint". Off by default.
+let _lowerMintsOn = false;
+// Map<template_id (string), minOwnedMint (number)> for the connected wallet
+// in the selected collection — same one-fetch-per-collection+wallet scope as
+// _ownedTemplateIds. null = not loaded yet. A template absent from the map
+// means the wallet owns none of it, and is deliberately left unfiltered.
+let _ownedMinMints = null;
 let _waxUsd = 0;
 const _historicalRates = {}; // rate_date ('YYYY-MM-DD') -> usd_per_wax, for Sales History's per-sale USD tag
 let _suggestions = [];
@@ -1686,6 +1718,7 @@ async function selectCollection(c) {
   _rarity = ''; _schema = ''; _nameFilter = ''; _dynFilters = {};
   _templateId = ''; $tplChip.style.display = 'none';
   _ownedTemplateIds = null; // new collection scope — stale for the one just left
+  _ownedMinMints = null;
   document.getElementById('nameSearch').value = '';
   document.querySelector('#schemaDd .cb-label').textContent = 'All schemas';
   setDdActive('schemaDd', false);
@@ -1715,6 +1748,7 @@ function clearCollection() {
   _sortBy = 'price'; _sortOrd = 'asc';
   _templateId = ''; $tplChip.style.display = 'none';
   _ownedTemplateIds = null;
+  _ownedMinMints = null;
   $colChip.style.display = 'none';
   $colSearch.value = '';
   document.getElementById('nameSearch').value = '';
@@ -1732,7 +1766,7 @@ function clearCollection() {
   document.getElementById('emptyStateRow').style.display = '';
 }
 
-const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secHideOwned','secClear'];
+const FILTER_SECTIONS = ['secSchema','secRarity','secPrice','secMint','secBundle','secHideOwned','secLowerMints','secClear'];
 function showFilters() {
   FILTER_SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
   document.getElementById('exploreToolbar').classList.add('visible');
@@ -1741,6 +1775,7 @@ function showFilters() {
   document.getElementById('schemaTrigger').disabled = !!_col?.isCatalog;
   document.getElementById('colQuickAccess').style.display = 'none'; // covers funkoCatalogBtn too — it now lives inside it
   updateHideOwnedAvailability();
+  updateLowerMintsAvailability();
   applyModeVisibility();
   setMobileSidebarCollapsed(true);
   updateFilterCountBadge();
@@ -1811,6 +1846,7 @@ function countActiveFilters() {
   if (document.getElementById('minPrice').value !== '' || document.getElementById('maxPrice').value !== '') n++;
   if (document.getElementById('minMint').value !== '' || document.getElementById('maxMint').value !== '') n++;
   if (document.getElementById('hideOwnedWallet').value.trim() !== '') n++;
+  if (document.getElementById('lowerMintsToggle').checked) n++;
   return n;
 }
 function updateFilterCountBadge() {
@@ -1840,6 +1876,7 @@ function applyModeVisibility() {
   document.getElementById('historyList').style.display = hist ? '' : 'none';
   document.getElementById('blToolbar').style.display = (!_col || hist) ? 'none' : '';
   document.getElementById('secHideOwned').classList.toggle('hidden', !_col || hist);
+  document.getElementById('secLowerMints').classList.toggle('hidden', !_col || hist);
   updateCartBarVisible();
 }
 
@@ -1922,6 +1959,10 @@ function buildDropDropdown(options) {
     // leaving it set would silently keep filtering to a template_id from a
     // different collection/schema than the one now showing.
     _templateId = ''; $tplChip.style.display = 'none';
+    // The Drop pins/unpins the single-collection scope lowerMintsActive()
+    // needs — re-check its availability and drop the stale per-collection map.
+    _ownedMinMints = null;
+    updateLowerMintsAvailability();
     pushUrl(); resetResults(); loadMore(); refreshDynAttrFilters();
   };
 
@@ -2832,6 +2873,9 @@ function clearFilters() {
   _hideOwnedWallet = '';
   _ownedTemplateIds = null;
   document.getElementById('hideOwnedWallet').value = '';
+  _lowerMintsOn = false;
+  _ownedMinMints = null;
+  document.getElementById('lowerMintsToggle').checked = false;
 
   document.getElementById('minPrice').value = '';
   document.getElementById('maxPrice').value = '';
@@ -2927,6 +2971,74 @@ document.getElementById('hideOwnedWalletFillBtn').addEventListener('click', () =
   const val = wallet.toLowerCase();
   $hideOwnedWallet.value = val;
   applyHideOwnedWallet(val);
+});
+
+// Blocked outright only while Catalog mode has no single collection pinned
+// down — a per-template min-mint scan across 70+ joined collections at once
+// is too heavy for a nice-to-have filter (same reasoning hideOwnedActive()
+// uses). Once a Drop is picked it pins exactly one collection+schema, same
+// as effectiveScope() resolves for the sales fetch and dyn-attr filters.
+function lowerMintsBlockedByScope() {
+  return !!_col?.isCatalog && !_drop;
+}
+function lowerMintsActive() {
+  const wallet = window.getWaxAccount ? window.getWaxAccount() : null;
+  return _lowerMintsOn && !!wallet && !lowerMintsBlockedByScope() && _mode === 'listings';
+}
+
+// Unlike updateHideOwnedAvailability() (a text field that keeps its typed
+// value even while disabled), this is a checkbox — disabling it force-clears
+// the state too, so a stale "on" doesn't silently reactivate the moment the
+// wallet reconnects or the scope changes back.
+function updateLowerMintsAvailability() {
+  const wallet      = window.getWaxAccount ? window.getWaxAccount() : null;
+  const scopeBlocked = lowerMintsBlockedByScope();
+  const $cb    = document.getElementById('lowerMintsToggle');
+  const $label = document.getElementById('lowerMintsLabel');
+  const blocked = scopeBlocked || !wallet;
+  $cb.disabled = blocked;
+  $label.title = scopeBlocked ? 'Pick a Drop to use this in Funko Catalog mode' : (wallet ? '' : 'Connect a wallet to use this');
+  if (blocked && $cb.checked) {
+    $cb.checked = false;
+    _lowerMintsOn = false;
+    _ownedMinMints = null;
+  }
+}
+
+// Same pagination as fetchOwnedTemplateIds — one fetch per collection+wallet
+// pair, template_id keyed (collection-wide unique, so no need to also scope
+// by schema_name) — but resolved through effectiveScope() so a Drop-pinned
+// Catalog scope fetches against its one real collection, not the joined
+// 70+-collection list. Tracks the lowest template_mint seen per template
+// rather than just presence.
+async function fetchOwnedMinMints(wallet) {
+  if (!wallet || !_col || lowerMintsBlockedByScope()) return new Map();
+  const { col } = effectiveScope();
+  const mins = new Map();
+  let page = 1;
+  while (true) {
+    const url = `${WaxApi.aaBase()}/assets?owner=${encodeURIComponent(wallet)}&collection_name=${encodeURIComponent(col)}&limit=1000&page=${page}`;
+    let data;
+    try { data = await WaxApi.apiFetch(url); } catch { break; }
+    (data || []).forEach(a => {
+      const tid  = a.template?.template_id;
+      const mint = Number(a.template_mint);
+      if (!tid || !mint) return;
+      const key = String(tid);
+      const cur = mins.get(key);
+      if (cur === undefined || mint < cur) mins.set(key, mint);
+    });
+    if (!data || data.length < 1000) break;
+    page++;
+  }
+  return mins;
+}
+
+document.getElementById('lowerMintsToggle').addEventListener('change', function () {
+  _lowerMintsOn = this.checked;
+  _ownedMinMints = null;
+  resetResults();
+  loadMore();
 });
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -3059,6 +3171,10 @@ async function loadMore() {
     _ownedTemplateIds = await fetchOwnedTemplateIds(_hideOwnedWallet);
     if (myGen !== _gen) return; // collection/filters changed while this was in flight — resetResults() already reset _busy
   }
+  if (lowerMintsActive() && !_ownedMinMints) {
+    _ownedMinMints = await fetchOwnedMinMints(window.getWaxAccount ? window.getWaxAccount() : null);
+    if (myGen !== _gen) return;
+  }
 
   const MAX_PAGES_PER_CALL = 10;
   const BATCH_SIZE         = 3;
@@ -3081,6 +3197,12 @@ async function loadMore() {
       for (const sale of sales) {
         if (!sale.assets?.[0]) continue;
         if (hideOwnedActive() && _ownedTemplateIds?.has(String(sale.assets[0].template?.template_id))) continue;
+        if (lowerMintsActive() && _ownedMinMints) {
+          const cap = _ownedMinMints.get(String(sale.assets[0].template?.template_id));
+          // Absent from the map = wallet owns none of this template — left
+          // unfiltered by design (any mint beats owning none).
+          if (cap !== undefined && Number(sale.assets[0].template_mint) >= cap) continue;
+        }
         _queue.push(sale);
       }
     }
@@ -4670,7 +4792,15 @@ window.addEventListener('wax-auth-change', () => {
   // the gap for anything already sitting in a restored cart.
   for (const [id, sale] of [..._selected]) if (isOwnListing(sale)) _selected.delete(id);
   renderTray();
-  if (_col) updateHideOwnedAvailability(); // syncs the 👛 fill button's disabled state — never touches the field's value
+  if (_col) {
+    updateHideOwnedAvailability(); // syncs the 👛 fill button's disabled state — never touches the field's value
+    const wasLowerMintsOn = _lowerMintsOn;
+    updateLowerMintsAvailability();
+    _ownedMinMints = null; // wallet identity may have changed (switch, not just connect/disconnect) — always stale
+    // Only re-run the query if the toggle was actually in play — a plain
+    // connect/disconnect with the filter off shouldn't reset the grid.
+    if (wasLowerMintsOn) { resetResults(); loadMore(); }
+  }
 });
 
 // A cart hydrated from storage renders immediately at init, before this
