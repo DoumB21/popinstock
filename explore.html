@@ -3176,7 +3176,14 @@ async function loadMore() {
     if (myGen !== _gen) return;
   }
 
-  const MAX_PAGES_PER_CALL = 10;
+  // A per-item narrowing filter (hideOwned/lowerMints) can reject most of a
+  // page's raw sales — scanning only 10 pages then handing back to a manual
+  // "Load more" click left almost nothing on screen per click while these
+  // are active. Give them a much bigger per-click search budget; both still
+  // bail out the moment the API itself runs dry (_apiDone), so this only
+  // means more scanning, not more results shown per click.
+  const narrowingFilterActive = hideOwnedActive() || lowerMintsActive();
+  const MAX_PAGES_PER_CALL = narrowingFilterActive ? 40 : 10;
   const BATCH_SIZE         = 3;
   let pagesLoaded = 0;
   let hadError    = false;
