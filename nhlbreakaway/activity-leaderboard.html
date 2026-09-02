@@ -422,12 +422,17 @@ function syncAmountInputsVisibility() {
 }
 
 function populateTypeCombo() {
+  // buildCombo's own renderList always slice(1)s the items array — index 0
+  // is reserved for the "All X" sentinel every other combo on this page
+  // uses (never rendered as a clickable row, just what an empty input
+  // means). Type has no "All types" — each one is a genuinely different
+  // metric — but that reserved slot still has to exist as a real (if inert)
+  // placeholder, or the FIRST real option silently takes its place and can
+  // never show as the active row in the open dropdown. An empty-value
+  // sentinel that's simply never selectable keeps Purchase (or whichever
+  // type is active) correctly highlighted when the list opens.
   buildCombo('typeCombo',
-    // No "All types" option here — unlike every other filter on this page,
-    // Type isn't optional: each one is a different metric, there's no
-    // meaningful "combined" leaderboard. First item still doubles as the
-    // combo's "nothing selected" sentinel internally, so make it Purchase.
-    Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label })),
+    [{ value: '', label: '' }, ...Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))],
     () => state.type, v => {
       state.type = v;
       // Amount-based types default to sorting by amount; count-only types
@@ -437,10 +442,6 @@ function populateTypeCombo() {
       syncAmountInputsVisibility();
     },
     () => { renderHead(); fetchPage(true); });
-  // First item is the sentinel "All"-equivalent for buildCombo's own
-  // internal logic (never actually selectable as "no type") — force a
-  // real default selection into the input on load.
-  syncComboDisplay(document.getElementById('typeCombo'));
 }
 
 async function populateFilters() {
