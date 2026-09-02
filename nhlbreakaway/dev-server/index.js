@@ -775,22 +775,9 @@ const WALLET_ACTIVITY_SORT_COLUMNS = {
   amount: 's.amount',
 };
 
-async function handleWalletActivity(url, res) {
-  const q = url.searchParams;
-  const wallet = normalizeWallet(q.get('wallet'));
-  if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
-
-  const { rows: userRows } = await pool.query(
-    `SELECT username FROM wallet_usernames WHERE LOWER(wallet_address) = $1`,
-    [wallet]
-  );
-  const username = userRows[0]?.username;
-  if (!username) {
-    // Not an error — this wallet simply has no username Sweet's own API
-    // would ever report as a from/to value, so it can't match any row.
-    return sendJson(res, 200, { activity: [], total: 0, has_more: false, no_username: true }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
-  }
-
+// Shared by handleWalletActivity and handleWalletActivitySummary — same
+// filter set applies to both the row-level and aggregated views.
+function buildActivityWhere(q, username) {
   const where = ['(s.from_username = $1 OR s.to_username = $1)'];
   const params = [username];
   if (WALLET_ACTIVITY_TYPES.has(q.get('type'))) {
@@ -814,6 +801,37 @@ async function handleWalletActivity(url, res) {
     params.push(`%${walletSearch.toLowerCase()}%`);
     where.push(`(LOWER(s.from_username) LIKE $${params.length} OR LOWER(s.to_username) LIKE $${params.length})`);
   }
+  const playerSearch = (q.get('player') || '').trim();
+  if (playerSearch) {
+    // c.player only (not p.* — packs have no player), so this naturally
+    // excludes pack rows, same as filtering by a player would imply.
+    params.push(`%${playerSearch.toLowerCase()}%`);
+    where.push(`LOWER(c.player) LIKE $${params.length}`);
+  }
+  return { where, params };
+}
+
+async function resolveWalletUsername(wallet) {
+  const { rows } = await pool.query(
+    `SELECT username FROM wallet_usernames WHERE LOWER(wallet_address) = $1`,
+    [wallet]
+  );
+  return rows[0]?.username || null;
+}
+
+async function handleWalletActivity(url, res) {
+  const q = url.searchParams;
+  const wallet = normalizeWallet(q.get('wallet'));
+  if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
+
+  const username = await resolveWalletUsername(wallet);
+  if (!username) {
+    // Not an error — this wallet simply has no username Sweet's own API
+    // would ever report as a from/to value, so it can't match any row.
+    return sendJson(res, 200, { activity: [], total: 0, has_more: false, no_username: true }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  }
+
+  const { where, params } = buildActivityWhere(q, username);
 
   const sortKey = WALLET_ACTIVITY_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'date';
   const sortSql = WALLET_ACTIVITY_SORT_COLUMNS[sortKey];
@@ -865,6 +883,40 @@ async function handleWalletActivity(url, res) {
   sendJson(res, 200, { activity, total, has_more: offset + activity.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
+// Summary view — one row per transaction_type, respecting the same filters
+// as handleWalletActivity, GROUP BY at the database rather than aggregating
+// a client-visible page of rows (which would silently under-count once
+// there's more than one page). `total_amount` is a real SUM, NULL for any
+// type that never carries an amount (everything but 'purchase').
+async function handleWalletActivitySummary(url, res) {
+  const q = url.searchParams;
+  const wallet = normalizeWallet(q.get('wallet'));
+  if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
+
+  const username = await resolveWalletUsername(wallet);
+  if (!username) {
+    return sendJson(res, 200, { summary: [], no_username: true }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  }
+
+  const { where, params } = buildActivityWhere(q, username);
+  const { rows } = await pool.query(
+    `SELECT s.transaction_type, COUNT(*) AS count, SUM(s.amount) AS total_amount
+     FROM sweet_transaction_history s
+     LEFT JOIN cards c ON c.token_uri = s.token_uri
+     LEFT JOIN packs p ON p.token_uri = s.token_uri
+     WHERE ${where.join(' AND ')}
+     GROUP BY s.transaction_type
+     ORDER BY count DESC`,
+    params
+  );
+  const summary = rows.map(r => ({
+    transaction_type: r.transaction_type,
+    count: Number(r.count),
+    total_amount: r.total_amount === null ? null : Number(r.total_amount),
+  }));
+  sendJson(res, 200, { summary }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
 // Filter dropdown options, scoped to THIS wallet's own activity rows (same
 // "don't show a set/rarity the wallet has zero activity in" convention as
 // populateSetsFilters()) — not the whole sitewide catalog.
@@ -872,11 +924,7 @@ async function handleWalletActivityFilters(url, res) {
   const wallet = normalizeWallet(url.searchParams.get('wallet'));
   if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
 
-  const { rows: userRows } = await pool.query(
-    `SELECT username FROM wallet_usernames WHERE LOWER(wallet_address) = $1`,
-    [wallet]
-  );
-  const username = userRows[0]?.username;
+  const username = await resolveWalletUsername(wallet);
   if (!username) return sendJson(res, 200, { series: [], sets: [], rarities: [] }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 
   const { rows } = await pool.query(
@@ -2059,6 +2107,8 @@ export async function routeRequest(url, res) {
       await handleWalletMintRankings(url, res);
     } else if (url.pathname === '/api/wallet/activity/filters') {
       await handleWalletActivityFilters(url, res);
+    } else if (url.pathname === '/api/wallet/activity/summary') {
+      await handleWalletActivitySummary(url, res);
     } else if (url.pathname === '/api/wallet/activity') {
       await handleWalletActivity(url, res);
     } else if (url.pathname === '/api/mint-rankings/collections') {

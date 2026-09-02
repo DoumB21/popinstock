@@ -561,12 +561,24 @@ EXAMPLE QUERIES
     GROUP BY username
     ORDER BY trades DESC
     LIMIT 25
-- "Top spenders" (secondary-market purchases only, real USD amounts):
+- "Top spenders" / "Top sellers" (secondary-market purchases only, real USD amounts) —
+  there is NO separate 'sale' transaction_type; a `purchase` row already IS both sides
+  of the same event at once (from_username = seller, to_username = buyer, amount = sale
+  price) — a wallet's purchase is logically the other wallet's sale, same row, just
+  group by the other column:
+    -- spenders (money out)
     SELECT to_username AS buyer, COUNT(*) AS purchases, SUM(amount) AS total_spent_usd
     FROM sweet_transaction_history
     WHERE transaction_type = 'purchase' AND currency = 'usd'
     GROUP BY to_username
     ORDER BY total_spent_usd DESC
+    LIMIT 25
+    -- sellers (money in) — identical query, from_username instead of to_username
+    SELECT from_username AS seller, COUNT(*) AS sales, SUM(amount) AS total_earned_usd
+    FROM sweet_transaction_history
+    WHERE transaction_type = 'purchase' AND currency = 'usd'
+    GROUP BY from_username
+    ORDER BY total_earned_usd DESC
     LIMIT 25
 - Per-wallet activity page (this is the "wallet activity history" feature nhlba.com and
   thefifthlinecode.onrender.com show, e.g. nhlba.com/accounts/activity/{address}) — go

@@ -424,6 +424,10 @@
 
       <div class="wallet-tab-panel" id="tabPanelActivity">
         <div class="filter-bar">
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="activityPlayerSearch" placeholder="Search player" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="activityPlayerSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
           <div class="cb-combo" id="activityTypeCombo">
             <input type="text" class="cb-combo-input" id="activityTypeComboInput" autocomplete="off" spellcheck="false">
             <button type="button" class="cb-combo-clear" id="activityTypeComboClear" style="display:none" title="Clear">✕</button>
@@ -449,6 +453,10 @@
           <div class="text-search-wrap">
             <input type="text" class="search-input" id="activityWalletSearch" placeholder="Search from/to wallet" autocomplete="off" spellcheck="false">
             <button type="button" class="cb-dropdown-clear" id="activityWalletSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+          <div class="tpc-toggle-group" id="activityViewToggle">
+            <button type="button" class="tpc-toggle-btn active" data-view="detailed">Detailed</button>
+            <button type="button" class="tpc-toggle-btn" data-view="summary">Summary</button>
           </div>
         </div>
         <div class="results-meta" id="activityCount"></div>
@@ -1298,7 +1306,7 @@ const ACTIVITY_TYPE_LABELS = {
   purchase: 'Purchase', trade: 'Trade', gift: 'Gift',
   pack_open: 'Pack Open', promo: 'Promo', transfer: 'Transfer',
 };
-const ACTIVITY_COLUMNS = [
+const ACTIVITY_COLUMNS_DETAILED = [
   { key: 'type',   label: 'Type' },
   { key: 'date',   label: 'Date', sortable: true },
   { key: 'player', label: 'Player' },
@@ -1309,28 +1317,52 @@ const ACTIVITY_COLUMNS = [
   { key: 'to',     label: 'To' },
   { key: 'link',   label: '' },
 ];
+const ACTIVITY_COLUMNS_SUMMARY = [
+  { key: 'type',  label: 'Type' },
+  { key: 'count', label: 'Count', num: true },
+  { key: 'total_amount', label: 'Total Amount', num: true },
+];
+function activeActivityColumns() {
+  return activityState.view === 'summary' ? ACTIVITY_COLUMNS_SUMMARY : ACTIVITY_COLUMNS_DETAILED;
+}
 const activityState = {
-  wallet: '', type: '', series_label: '', set_name: '', rarity: '',
+  wallet: '', type: '', series_label: '', set_name: '', rarity: '', player: '',
   min_amount: '', max_amount: '', wallet_search: '',
-  activity: [], sortField: 'date', sortDir: 'desc',
+  view: 'detailed', activity: [], summary: [], sortField: 'date', sortDir: 'desc',
   offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false, noUsername: false,
 };
 
-function activityQuery() {
+// Shared by the detailed (paginated) and summary (aggregated) fetches — both
+// respect the exact same filter set, just not sort/limit/offset.
+function activityFilterParams() {
   const params = new URLSearchParams();
   params.set('wallet', activityState.wallet);
   if (activityState.type) params.set('type', activityState.type);
   if (activityState.series_label) params.set('series_label', activityState.series_label);
   if (activityState.set_name) params.set('set_name', activityState.set_name);
   if (activityState.rarity) params.set('rarity', activityState.rarity);
+  if (activityState.player) params.set('player', activityState.player);
   if (activityState.min_amount !== '') params.set('min_amount', activityState.min_amount);
   if (activityState.max_amount !== '') params.set('max_amount', activityState.max_amount);
   if (activityState.wallet_search) params.set('wallet_search', activityState.wallet_search);
+  return params;
+}
+
+function activityQuery() {
+  const params = activityFilterParams();
   params.set('sort', activityState.sortField);
   params.set('dir', activityState.sortDir);
   params.set('limit', PAGE_SIZE);
   params.set('offset', activityState.offset);
   return params;
+}
+
+// Dispatches to whichever fetch the active view needs — every filter/sort
+// control calls this instead of fetchActivityPage directly, so switching
+// the Detailed/Summary toggle doesn't require touching each filter's own
+// change handler.
+function refreshActivity(reset) {
+  return activityState.view === 'summary' ? fetchActivitySummary() : fetchActivityPage(reset);
 }
 
 // UTC-naive per the handoff note (no timezone suffix in the raw string) —
@@ -1375,9 +1407,26 @@ async function fetchActivityPage(reset) {
   await loadActivityChunk();
 }
 
+// Summary view — one row per transaction type, real DB-side aggregates
+// (not a client-side reduce over whatever page of `activity` happens to be
+// loaded, which would silently under-count past the first page).
+async function fetchActivitySummary() {
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/wallet/activity/summary?${activityFilterParams()}`, version));
+    const data = await res.json();
+    activityState.noUsername = !!data.no_username;
+    activityState.summary = data.summary;
+    renderActivityBody();
+  } catch (err) {
+    document.getElementById('activityCount').textContent = 'Failed to load activity summary. Please try again shortly.';
+    console.error(err);
+  }
+}
+
 function renderActivityHead() {
   const row = document.getElementById('activityHeadRow');
-  row.innerHTML = ACTIVITY_COLUMNS.map(col => {
+  row.innerHTML = activeActivityColumns().map(col => {
     if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
     const sorted = activityState.sortField === col.key;
     const icon = sorted ? (activityState.sortDir === 'asc' ? '↑' : '↓') : '↕';
@@ -1399,6 +1448,20 @@ function renderActivityHead() {
 }
 
 function renderActivityBody() {
+  if (activityState.view === 'summary') {
+    document.getElementById('activityBody').innerHTML = activityState.summary.map(s => `
+      <tr>
+        <td><span class="type-pill type-pill--${s.transaction_type}">${ACTIVITY_TYPE_LABELS[s.transaction_type] || s.transaction_type}</span></td>
+        <td class="col-r">${fmtNum(s.count)}</td>
+        <td class="col-r">${s.total_amount != null ? `$${s.total_amount.toFixed(2)}` : '—'}</td>
+      </tr>
+    `).join('');
+    const grandTotal = activityState.summary.reduce((sum, s) => sum + s.count, 0);
+    document.getElementById('activityCount').innerHTML = activityState.noUsername
+      ? "This wallet has no known username, so it can't be matched against Sweet's own transaction history yet."
+      : `<strong>${fmtNum(grandTotal)}</strong> transaction${grandTotal === 1 ? '' : 's'} across ${activityState.summary.length} type${activityState.summary.length === 1 ? '' : 's'}`;
+    return;
+  }
   document.getElementById('activityBody').innerHTML = activityState.activity.map(a => `
     <tr>
       <td><span class="type-pill type-pill--${a.transaction_type}">${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</span></td>
@@ -1425,7 +1488,7 @@ function renderActivityBody() {
 function renderActivityLoadMore() {
   const wrap = document.getElementById('activityLoadMoreWrap');
   const btn = document.getElementById('activityLoadMoreBtn');
-  wrap.style.display = activityState.hasMore ? 'block' : 'none';
+  wrap.style.display = (activityState.view === 'detailed' && activityState.hasMore) ? 'block' : 'none';
   btn.disabled = activityState.busy;
   btn.textContent = activityState.busy ? 'Loading…' : 'Load more';
 }
@@ -1443,7 +1506,7 @@ new IntersectionObserver(entries => {
 function populateActivityTypeCombo() {
   buildCombo('activityTypeCombo',
     [{ value: '', label: 'All types' }, ...Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => ({ value, label }))],
-    () => activityState.type, v => activityState.type = v, () => fetchActivityPage(true));
+    () => activityState.type, v => activityState.type = v, () => refreshActivity(true));
 }
 
 async function populateActivityFilters() {
@@ -1452,18 +1515,23 @@ async function populateActivityFilters() {
   const data = await res.json();
   buildCombo('activitySeriesCombo',
     [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
-    () => activityState.series_label, v => activityState.series_label = v, () => fetchActivityPage(true));
+    () => activityState.series_label, v => activityState.series_label = v, () => refreshActivity(true));
   buildCombo('activitySetCombo',
     [{ value: '', label: 'All sets' }, ...data.sets.map(v => ({ value: v, label: v }))],
-    () => activityState.set_name, v => activityState.set_name = v, () => fetchActivityPage(true));
+    () => activityState.set_name, v => activityState.set_name = v, () => refreshActivity(true));
   buildCombo('activityRarityCombo',
     [{ value: '', label: 'All rarities' }, ...data.rarities.map(v => ({ value: v, label: v }))],
-    () => activityState.rarity, v => activityState.rarity = v, () => fetchActivityPage(true));
+    () => activityState.rarity, v => activityState.rarity = v, () => refreshActivity(true));
 }
+
+const activityPlayerSearchWidget = setupTextSearch({
+  inputId: 'activityPlayerSearch', clearId: 'activityPlayerSearchClear', debounceMs: 400,
+  applyValue: val => { activityState.player = val; refreshActivity(true); },
+});
 
 const activityWalletSearchWidget = setupTextSearch({
   inputId: 'activityWalletSearch', clearId: 'activityWalletSearchClear', debounceMs: 250,
-  applyValue: val => { activityState.wallet_search = val; fetchActivityPage(true); },
+  applyValue: val => { activityState.wallet_search = val; refreshActivity(true); },
 });
 
 let _activityAmountT = null;
@@ -1471,11 +1539,21 @@ function wireActivityAmountInput(id, stateKey) {
   document.getElementById(id).addEventListener('input', e => {
     clearTimeout(_activityAmountT);
     const val = e.target.value;
-    _activityAmountT = setTimeout(() => { activityState[stateKey] = val; fetchActivityPage(true); }, 250);
+    _activityAmountT = setTimeout(() => { activityState[stateKey] = val; refreshActivity(true); }, 250);
   });
 }
 wireActivityAmountInput('activityMinAmount', 'min_amount');
 wireActivityAmountInput('activityMaxAmount', 'max_amount');
+
+document.getElementById('activityViewToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  activityState.view = btn.dataset.view;
+  document.querySelectorAll('#activityViewToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderActivityHead();
+  renderActivityLoadMore();
+  refreshActivity(true);
+});
 
 /* ══════════════════ Tabs (Set Progress / Cards / Packs) ══════════════════ */
 const TAB_NAMES = ['sets', 'cards', 'packs', 'rankings', 'activity'];
@@ -1598,15 +1676,21 @@ async function lookupWallet(query, initialTab, initialSetName) {
     packSearchWidget.reset();
     renderPacksHead();
 
-    activityState.wallet = wallet; activityState.type = ''; activityState.series_label = ''; activityState.set_name = ''; activityState.rarity = '';
+    activityState.wallet = wallet; activityState.type = ''; activityState.series_label = ''; activityState.set_name = ''; activityState.rarity = ''; activityState.player = '';
     activityState.min_amount = ''; activityState.max_amount = ''; activityState.wallet_search = '';
-    activityState.sortField = 'date'; activityState.sortDir = 'desc';
+    activityState.view = 'detailed'; activityState.sortField = 'date'; activityState.sortDir = 'desc';
     document.getElementById('activityMinAmount').value = '';
     document.getElementById('activityMaxAmount').value = '';
     document.getElementById('activityWalletSearch').value = '';
+    document.getElementById('activityPlayerSearch').value = '';
     activityWalletSearchWidget.reset();
+    activityPlayerSearchWidget.reset();
+    document.querySelectorAll('#activityViewToggle .tpc-toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === activityState.view);
+    });
     populateActivityTypeCombo();
     renderActivityHead();
+    renderActivityLoadMore();
 
     await Promise.all([
       fetchWalletSets(wallet),
