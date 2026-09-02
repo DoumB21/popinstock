@@ -424,10 +424,6 @@
 
       <div class="wallet-tab-panel" id="tabPanelActivity">
         <div class="filter-bar">
-          <div class="text-search-wrap">
-            <input type="text" class="search-input" id="activityPlayerSearch" placeholder="Search player" autocomplete="off" spellcheck="false">
-            <button type="button" class="cb-dropdown-clear" id="activityPlayerSearchClear" style="display:none" title="Clear">✕</button>
-          </div>
           <div class="cb-combo" id="activityTypeCombo">
             <input type="text" class="cb-combo-input" id="activityTypeComboInput" autocomplete="off" spellcheck="false">
             <button type="button" class="cb-combo-clear" id="activityTypeComboClear" style="display:none" title="Clear">✕</button>
@@ -448,16 +444,22 @@
             <button type="button" class="cb-combo-clear" id="activityRarityComboClear" style="display:none" title="Clear">✕</button>
             <div class="cb-panel" id="activityRarityPanel"></div>
           </div>
-          <input type="number" class="search-input amount-range-input" id="activityMinAmount" placeholder="Min amount" min="0" step="0.01" inputmode="decimal">
-          <input type="number" class="search-input amount-range-input" id="activityMaxAmount" placeholder="Max amount" min="0" step="0.01" inputmode="decimal">
           <div class="text-search-wrap">
-            <input type="text" class="search-input" id="activityWalletSearch" placeholder="Search from/to wallet" autocomplete="off" spellcheck="false">
-            <button type="button" class="cb-dropdown-clear" id="activityWalletSearchClear" style="display:none" title="Clear">✕</button>
+            <input type="text" class="search-input" id="activityPlayerSearch" placeholder="Search player" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="activityPlayerSearchClear" style="display:none" title="Clear">✕</button>
           </div>
+        </div>
+        <div class="filter-bar">
           <div class="tpc-toggle-group" id="activityViewToggle">
             <button type="button" class="tpc-toggle-btn active" data-view="detailed">Detailed</button>
             <button type="button" class="tpc-toggle-btn" data-view="summary">Summary</button>
           </div>
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="activityWalletSearch" placeholder="Search from/to wallet" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="activityWalletSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+          <input type="number" class="search-input amount-range-input" id="activityMinAmount" placeholder="Min amount" min="0" step="0.01" inputmode="decimal">
+          <input type="number" class="search-input amount-range-input" id="activityMaxAmount" placeholder="Max amount" min="0" step="0.01" inputmode="decimal">
         </div>
         <div class="results-meta" id="activityCount"></div>
         <div style="overflow-x:auto;">
@@ -545,6 +547,9 @@ function withVersion(url, version) {
 
 function fmtNum(n) {
   return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+function fmtUsd(n) {
+  return n === null || n === undefined ? '—' : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 // Wallet profile fields (display_name/username) come from Sweet's own
 // backfill, not this codebase's controlled catalog data — unlike player/set
@@ -1453,7 +1458,7 @@ function renderActivityBody() {
       <tr>
         <td><span class="type-pill type-pill--${s.transaction_type}">${ACTIVITY_TYPE_LABELS[s.transaction_type] || s.transaction_type}</span></td>
         <td class="col-r">${fmtNum(s.count)}</td>
-        <td class="col-r">${s.total_amount != null ? `$${s.total_amount.toFixed(2)}` : '—'}</td>
+        <td class="col-r">${fmtUsd(s.total_amount)}</td>
       </tr>
     `).join('');
     const grandTotal = activityState.summary.reduce((sum, s) => sum + s.count, 0);
@@ -1474,7 +1479,7 @@ function renderActivityBody() {
           : ''}</div>
       </td>
       <td class="col-r">${a.edition != null ? fmtNum(a.edition) : '—'}</td>
-      <td class="col-r">${a.amount != null ? `$${a.amount.toFixed(2)}` : '—'}</td>
+      <td class="col-r">${fmtUsd(a.amount)}</td>
       <td>${escHtml(a.from_username || '—')}</td>
       <td>${escHtml(a.to_username || '—')}</td>
       <td>${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}</td>
