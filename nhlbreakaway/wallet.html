@@ -207,6 +207,34 @@
     .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
     .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
 
+    /* ── Activity tab: transaction-type pills — simple tinted chips (not the
+       gradient rarity-pill treatment, which is a distinct "premium" look
+       reserved for rarity tiers), one flat color per type so the Type
+       column reads at a glance instead of as plain text. */
+    .type-pill {
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(var(--tp-rgb), 0.12); border: 1px solid rgba(var(--tp-rgb), 0.4);
+      color: rgb(var(--tp-rgb));
+    }
+    .type-pill--purchase  { --tp-rgb: 34, 197, 94; }
+    .type-pill--trade     { --tp-rgb: 59, 130, 246; }
+    .type-pill--gift      { --tp-rgb: 236, 72, 153; }
+    .type-pill--pack_open { --tp-rgb: 240, 168, 64; }
+    .type-pill--promo     { --tp-rgb: 20, 184, 166; }
+    .type-pill--transfer  { --tp-rgb: 148, 163, 184; }
+
+    /* Pack transactions have no player — a colored "Pack" pill instead of a
+       bare "—" so it reads as "this row IS a pack," not "data missing." */
+    .pack-pill {
+      display: inline-flex; align-items: center; gap: 4px; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(240,168,64,0.1); border: 1px solid rgba(240,168,64,0.35);
+      color: var(--accent-light);
+    }
+
     @media (max-width: 700px) {
       .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
       .sets-table, .items-table { font-size: 0.78rem; }
@@ -1369,12 +1397,14 @@ function renderActivityHead() {
 function renderActivityBody() {
   document.getElementById('activityBody').innerHTML = activityState.activity.map(a => `
     <tr>
-      <td>${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</td>
+      <td><span class="type-pill type-pill--${a.transaction_type}">${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</span></td>
       <td>${fmtActivityDate(a.transaction_datetime)}</td>
-      <td>${a.player ? escHtml(a.player) : '—'}</td>
+      <td>${a.player ? escHtml(a.player) : (a.is_pack ? `<span class="pack-pill">📦 Pack</span>` : '—')}</td>
       <td>
         <div class="cell-set-name">${a.item_name || '—'}</div>
-        <div class="cell-series">${[a.series_label, a.rarity].filter(Boolean).join(' · ')}</div>
+        <div class="cell-series">${a.series_label || ''}${a.rarity
+          ? ` <span class="rarity-pill rarity-pill--${a.rarity.toLowerCase()}"><span class="rarity-pill-text">${a.rarity}</span></span>`
+          : ''}</div>
       </td>
       <td class="col-r">${a.edition != null ? fmtNum(a.edition) : '—'}</td>
       <td class="col-r">${a.amount != null ? `$${a.amount.toFixed(2)}` : '—'}</td>
