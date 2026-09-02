@@ -27,8 +27,14 @@ const SECTION_NAME = 'NHL Breakaway';
 // except the hub, the one page with no API_BASE of its own). Never reuse a
 // page-level const name here.
 const NAV_API_BASE = 'https://www.hoardio.com';
+// Same key/shape every page's own getDataVersion()/withVersion() cache-
+// busting helper uses — whichever of the two runs first on a given page
+// load is the only one that actually hits the network, the other just
+// reads this same sessionStorage entry. TTL matches the backend's own
+// SITE_META_CACHE_SECONDS (60s) — no point holding onto a value client-side
+// longer than the server itself considers it current.
 const FRESHNESS_CACHE_KEY = 'nhlbreakaway_data_last_updated';
-const FRESHNESS_CACHE_TTL_MS = 5 * 60 * 1000; // avoid re-querying on every page nav within a visit
+const FRESHNESS_CACHE_TTL_MS = 60 * 1000;
 
 // Every relative href in this file must stay RELATIVE (never a leading-slash
 // absolute path) — an absolute path silently drops whatever prefix the site

@@ -411,6 +411,49 @@
 const API_BASE = 'https://www.hoardio.com';
 const PAGE_SIZE = 100;
 
+// The backend caches its cacheable endpoints effectively forever, keyed on
+// this version string (see nhlbreakaway/dev-server/index.js's
+// VERSIONED_CACHE_SECONDS comment for the full reasoning) — appending it to
+// every cacheable fetch is what makes that cache actually invalidate the
+// moment new data lands, with no fixed TTL to guess at. Resolved once
+// (shares nav.js's own sessionStorage cache/key, so whichever of the two
+// runs first on a given page load is the only one that actually hits the
+// network) and reused for every fetch on this page — filter changes, Load
+// More, etc., not just the first one.
+const DATA_VERSION_CACHE_KEY = 'nhlbreakaway_data_last_updated';
+const DATA_VERSION_CACHE_TTL_MS = 60 * 1000;
+let _dataVersionPromise = null;
+function getDataVersion() {
+  if (_dataVersionPromise) return _dataVersionPromise;
+  _dataVersionPromise = (async () => {
+    try {
+      const cached = sessionStorage.getItem(DATA_VERSION_CACHE_KEY);
+      if (cached) {
+        const { value, cachedAt } = JSON.parse(cached);
+        if (Date.now() - cachedAt < DATA_VERSION_CACHE_TTL_MS) return value;
+      }
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/api/site-meta`);
+      const { data_last_updated } = await res.json();
+      if (data_last_updated) {
+        try { sessionStorage.setItem(DATA_VERSION_CACHE_KEY, JSON.stringify({ value: data_last_updated, cachedAt: Date.now() })); } catch {}
+      }
+      return data_last_updated || '';
+    } catch {
+      return '';
+    }
+  })();
+  return _dataVersionPromise;
+}
+// Appends the cache-busting version param, respecting whether `url` already
+// has a query string. No-op (returns url unchanged) if the version couldn't
+// be resolved — worst case that one request just isn't optimally cached,
+// never a broken request.
+function withVersion(url, version) {
+  return version ? url + (url.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(version) : url;
+}
+
 function fmtNum(n) {
   return n === null || n === undefined ? '—' : n.toLocaleString();
 }
@@ -529,7 +572,8 @@ function renderSetsBody() {
 }
 
 async function fetchWalletSets(wallet) {
-  const res = await fetch(`${API_BASE}/api/wallet/sets?wallet=${encodeURIComponent(wallet)}`);
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/wallet/sets?wallet=${encodeURIComponent(wallet)}`, version));
   const data = await res.json();
   setsState.sets = data.sets;
   setsState.sortField = 'name'; setsState.sortDir = 'asc';
@@ -639,7 +683,8 @@ async function loadCardsChunk() {
   renderCardsLoadMore();
   let got = 0;
   try {
-    const res = await fetch(`${API_BASE}/api/wallet/cards?${cardsQuery()}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/wallet/cards?${cardsQuery()}`, version));
     const data = await res.json();
     cardsState.cards = [...cardsState.cards, ...data.cards];
     cardsState.total = data.total;
@@ -735,7 +780,8 @@ const packSearchWidget = setupTextSearch({
 // populateCardFilters() — pack_moments is a small design catalog, not
 // millions of owned rows, so this is cheap regardless of collection size.
 async function populatePacksFilters() {
-  const res = await fetch(`${API_BASE}/api/wallet/packs/filters`);
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/wallet/packs/filters`, version));
   const data = await res.json();
   buildCombo('packSeriesCombo',
     [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
@@ -776,7 +822,8 @@ async function loadPacksChunk() {
   renderPacksLoadMore();
   let got = 0;
   try {
-    const res = await fetch(`${API_BASE}/api/wallet/packs?${packsQuery()}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/wallet/packs?${packsQuery()}`, version));
     const data = await res.json();
     packsState.packs = [...packsState.packs, ...data.packs];
     packsState.total = data.total;
@@ -938,7 +985,8 @@ function buildCombo(comboId, items, getValue, setValue, onPick) {
 // list every set/rarity in the whole catalog (not just ones this wallet
 // owns), same convention as Highlights' own filter bar.
 async function populateCardFilters() {
-  const res = await fetch(`${API_BASE}/api/highlights/filters`);
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/highlights/filters`, version));
   const data = await res.json();
   buildCombo('seriesCombo',
     [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
@@ -1071,7 +1119,8 @@ async function fetchWalletMintRankings(wallet) {
   countEl.textContent = 'Loading…';
   bodyEl.innerHTML = '';
   try {
-    const res = await fetch(`${API_BASE}/api/wallet/mint-rankings?wallet=${encodeURIComponent(wallet)}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/wallet/mint-rankings?wallet=${encodeURIComponent(wallet)}`, version));
     const data = await res.json();
 
     if (!data.sets.length) {
@@ -1135,7 +1184,8 @@ async function lookupWallet(query, initialTab) {
   btn.disabled = true;
   btn.textContent = 'Looking up…';
   try {
-    const resolveRes = await fetch(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`);
+    const version = await getDataVersion();
+    const resolveRes = await fetch(withVersion(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`, version));
     if (resolveRes.status === 404) {
       errorEl.textContent = `No wallet or username found matching "${query}".`;
       errorEl.style.display = 'block';
@@ -1145,7 +1195,7 @@ async function lookupWallet(query, initialTab) {
     const resolved = await resolveRes.json();
     const { wallet_address: wallet, username, avatar_url, favorite_team, favorite_team_name, favorite_team_logo_url } = resolved;
 
-    const res = await fetch(`${API_BASE}/api/wallet/summary?wallet=${encodeURIComponent(wallet)}`);
+    const res = await fetch(withVersion(`${API_BASE}/api/wallet/summary?wallet=${encodeURIComponent(wallet)}`, version));
     const summary = await res.json();
 
     if (summary.cards_held === 0 && summary.packs_held === 0) {
@@ -1271,7 +1321,8 @@ walletInputEl.addEventListener('input', () => {
   _suggestT = setTimeout(async () => {
     const seq = ++suggestSeq;
     try {
-      const res = await fetch(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`);
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`, version));
       const data = await res.json();
       if (seq !== suggestSeq) return; // a newer keystroke's request already won
       suggestItems = data.suggestions;

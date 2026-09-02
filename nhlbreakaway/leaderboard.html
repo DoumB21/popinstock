@@ -226,6 +226,49 @@
 const API_BASE = 'https://www.hoardio.com';
 const PAGE_SIZE = 100;
 
+// The backend caches its cacheable endpoints effectively forever, keyed on
+// this version string (see nhlbreakaway/dev-server/index.js's
+// VERSIONED_CACHE_SECONDS comment for the full reasoning) — appending it to
+// every cacheable fetch is what makes that cache actually invalidate the
+// moment new data lands, with no fixed TTL to guess at. Resolved once
+// (shares nav.js's own sessionStorage cache/key, so whichever of the two
+// runs first on a given page load is the only one that actually hits the
+// network) and reused for every fetch on this page — filter changes, Load
+// More, etc., not just the first one.
+const DATA_VERSION_CACHE_KEY = 'nhlbreakaway_data_last_updated';
+const DATA_VERSION_CACHE_TTL_MS = 60 * 1000;
+let _dataVersionPromise = null;
+function getDataVersion() {
+  if (_dataVersionPromise) return _dataVersionPromise;
+  _dataVersionPromise = (async () => {
+    try {
+      const cached = sessionStorage.getItem(DATA_VERSION_CACHE_KEY);
+      if (cached) {
+        const { value, cachedAt } = JSON.parse(cached);
+        if (Date.now() - cachedAt < DATA_VERSION_CACHE_TTL_MS) return value;
+      }
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/api/site-meta`);
+      const { data_last_updated } = await res.json();
+      if (data_last_updated) {
+        try { sessionStorage.setItem(DATA_VERSION_CACHE_KEY, JSON.stringify({ value: data_last_updated, cachedAt: Date.now() })); } catch {}
+      }
+      return data_last_updated || '';
+    } catch {
+      return '';
+    }
+  })();
+  return _dataVersionPromise;
+}
+// Appends the cache-busting version param, respecting whether `url` already
+// has a query string. No-op (returns url unchanged) if the version couldn't
+// be resolved — worst case that one request just isn't optimally cached,
+// never a broken request.
+function withVersion(url, version) {
+  return version ? url + (url.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(version) : url;
+}
+
 const EDITION_BADGE_ITEMS = [
   { value: 'first',   label: '#1 Edition' },
   { value: 'jersey',   label: 'Jersey Match Edition' },
@@ -336,7 +379,8 @@ async function loadChunk() {
   renderLoadMore();
   let got = 0;
   try {
-    const res = await fetch(`${API_BASE}/api/leaderboard?${buildQuery()}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/leaderboard?${buildQuery()}`, version));
     const data = await res.json();
     state.leaders = [...state.leaders, ...data.leaders];
     state.hasMore = data.has_more;
@@ -365,7 +409,8 @@ async function loadSpotlight() {
   try {
     const rankParams = buildFilterParams();
     rankParams.set('wallet', state.spotlightWallet);
-    const res = await fetch(`${API_BASE}/api/leaderboard/rank?${rankParams}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/leaderboard/rank?${rankParams}`, version));
     const data = await res.json();
     state.leaders = data.found
       ? [{ holder: data.holder, holder_username: data.holder_username, cards_owned: data.cards_owned, rank: data.rank }]
@@ -526,7 +571,8 @@ function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange)
 }
 
 async function populateFilters() {
-  const res = await fetch(`${API_BASE}/api/leaderboard/filters`);
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/leaderboard/filters`, version));
   const data = await res.json();
 
   // Set/Team/Edition Badges/Highlight Badges are highlight-only concepts (see
@@ -616,7 +662,8 @@ document.getElementById('highlightsDdSearch').addEventListener('input', e => {
   if (q.length < 2) { itemsEl.innerHTML = ''; return; }
   _highlightSearchT = setTimeout(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/highlights?player=${encodeURIComponent(q)}&limit=8`);
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/highlights?player=${encodeURIComponent(q)}&limit=8`, version));
       const data = await res.json();
       itemsEl.innerHTML = data.highlights.length
         ? data.highlights.map(h => `
@@ -685,7 +732,8 @@ playerSearchEl.addEventListener('input', () => {
   if (val.length < 2) { closePlayerSuggestions(); return; }
   _playerSuggestT = setTimeout(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/leaderboard/players?q=${encodeURIComponent(val)}`);
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/leaderboard/players?q=${encodeURIComponent(val)}`, version));
       const data = await res.json();
       _playerSuggestItems = data.players;
       const panel = document.getElementById('playerSuggestPanel');
@@ -777,7 +825,8 @@ async function spotlightCollector(resolvedWallet) {
   try {
     let wallet = resolvedWallet;
     if (!wallet) {
-      const resolveRes = await fetch(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`);
+      const version = await getDataVersion();
+      const resolveRes = await fetch(withVersion(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`, version));
       if (resolveRes.status === 404) {
         resultEl.textContent = `No wallet or username found matching "${query}".`;
         return;
@@ -808,7 +857,8 @@ findCollectorInputEl.addEventListener('input', () => {
   _fcSuggestT = setTimeout(async () => {
     const seq = ++fcSuggestSeq;
     try {
-      const res = await fetch(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`);
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`, version));
       const data = await res.json();
       if (seq !== fcSuggestSeq) return;
       fcSuggestItems = data.suggestions;

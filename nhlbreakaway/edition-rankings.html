@@ -275,6 +275,49 @@
 const API_BASE = 'https://www.hoardio.com';
 const PAGE_SIZE = 100;
 
+// The backend caches its cacheable endpoints effectively forever, keyed on
+// this version string (see nhlbreakaway/dev-server/index.js's
+// VERSIONED_CACHE_SECONDS comment for the full reasoning) — appending it to
+// every cacheable fetch is what makes that cache actually invalidate the
+// moment new data lands, with no fixed TTL to guess at. Resolved once
+// (shares nav.js's own sessionStorage cache/key, so whichever of the two
+// runs first on a given page load is the only one that actually hits the
+// network) and reused for every fetch on this page — filter changes, Load
+// More, etc., not just the first one.
+const DATA_VERSION_CACHE_KEY = 'nhlbreakaway_data_last_updated';
+const DATA_VERSION_CACHE_TTL_MS = 60 * 1000;
+let _dataVersionPromise = null;
+function getDataVersion() {
+  if (_dataVersionPromise) return _dataVersionPromise;
+  _dataVersionPromise = (async () => {
+    try {
+      const cached = sessionStorage.getItem(DATA_VERSION_CACHE_KEY);
+      if (cached) {
+        const { value, cachedAt } = JSON.parse(cached);
+        if (Date.now() - cachedAt < DATA_VERSION_CACHE_TTL_MS) return value;
+      }
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/api/site-meta`);
+      const { data_last_updated } = await res.json();
+      if (data_last_updated) {
+        try { sessionStorage.setItem(DATA_VERSION_CACHE_KEY, JSON.stringify({ value: data_last_updated, cachedAt: Date.now() })); } catch {}
+      }
+      return data_last_updated || '';
+    } catch {
+      return '';
+    }
+  })();
+  return _dataVersionPromise;
+}
+// Appends the cache-busting version param, respecting whether `url` already
+// has a query string. No-op (returns url unchanged) if the version couldn't
+// be resolved — worst case that one request just isn't optimally cached,
+// never a broken request.
+function withVersion(url, version) {
+  return version ? url + (url.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(version) : url;
+}
+
 const state = {
   collectionKey: '',
   collection: null,
@@ -386,9 +429,10 @@ function buildCombo(comboId, items, getValue, setValue, onPick) {
 }
 
 async function populateSetPicker() {
+  const version = await getDataVersion();
   const [setsRes, collRes] = await Promise.all([
-    fetch(`${API_BASE}/api/sets`).then(r => r.json()),
-    fetch(`${API_BASE}/api/mint-rankings/collections`).then(r => r.json()),
+    fetch(withVersion(`${API_BASE}/api/sets`, version)).then(r => r.json()),
+    fetch(withVersion(`${API_BASE}/api/mint-rankings/collections`, version)).then(r => r.json()),
   ]);
   const rankedKeys = new Set(collRes.collection_keys);
   const options = setsRes.sets
@@ -422,7 +466,8 @@ function holderLabel(row) {
 async function loadTopGrid() {
   const grid = document.getElementById('topGrid');
   try {
-    const res = await fetch(`${API_BASE}/api/mint-rankings/top?limit=5`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/mint-rankings/top?limit=5`, version));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     grid.innerHTML = data.top.map((t, i) => {
@@ -472,7 +517,8 @@ async function fetchPage(reset) {
   state.loading = true;
   const offset = reset ? 0 : state.offset;
   try {
-    const res = await fetch(`${API_BASE}/api/mint-rankings?collection_key=${encodeURIComponent(state.collectionKey)}&limit=${PAGE_SIZE}&offset=${offset}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/mint-rankings?collection_key=${encodeURIComponent(state.collectionKey)}&limit=${PAGE_SIZE}&offset=${offset}`, version));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
@@ -557,7 +603,8 @@ async function toggleExpand(row) {
   state.expanded.set(key, 'loading');
   renderBody();
   try {
-    const res = await fetch(`${API_BASE}/api/mint-rankings/expand?collection_key=${encodeURIComponent(state.collectionKey)}&wallet=${encodeURIComponent(row.wallet_address)}&set_number=${row.set_number}`);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/mint-rankings/expand?collection_key=${encodeURIComponent(state.collectionKey)}&wallet=${encodeURIComponent(row.wallet_address)}&set_number=${row.set_number}`, version));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     state.expanded.set(key, data.cards);

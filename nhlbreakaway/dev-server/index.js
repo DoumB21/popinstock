@@ -284,7 +284,7 @@ async function handlePacks(res) {
     };
   });
   // Same shape/cost as handleSets' aggregation, same reasoning for caching.
-  sendJson(res, 200, { packs }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { packs }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 async function handleSets(res) {
@@ -326,7 +326,7 @@ async function handleSets(res) {
   // Full aggregation over all 1.14M cards rows on every call, ~7-12s
   // uncached — cache it, since this result is identical for every visitor
   // and only actually changes when the data-refresh pipeline runs.
-  sendJson(res, 200, { sets }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { sets }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Wallet Look Up. Ethereum/Polygon addresses have no existence check the way
@@ -385,7 +385,7 @@ async function handleWalletResolve(url, res) {
       favorite_team: r.favorite_team || null,
       favorite_team_name: r.favorite_team_name || null,
       favorite_team_logo_url: r.favorite_team_logo_url || null,
-    }, { cacheSeconds: CACHE_SECONDS });
+    }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
   }
 
   // Not address-shaped — must resolve as a username. Case-insensitive exact
@@ -407,7 +407,7 @@ async function handleWalletResolve(url, res) {
     favorite_team: r.favorite_team || null,
     favorite_team_name: r.favorite_team_name || null,
     favorite_team_logo_url: r.favorite_team_logo_url || null,
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Type-ahead suggestions for the Wallet Look Up search box. A partial 0x
@@ -441,7 +441,7 @@ async function handleWalletSuggest(url, res) {
   }
   sendJson(res, 200, {
     suggestions: rows.map(r => ({ wallet_address: normalizeWallet(r.wallet_address), username: r.username })),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 async function handleWalletSummary(url, res) {
@@ -493,7 +493,7 @@ async function handleWalletSummary(url, res) {
       perfect_edition: Number(b.perfect_edition_count),
       jersey_match: Number(b.jersey_match_count),
     },
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 async function handleWalletSets(url, res) {
@@ -530,7 +530,7 @@ async function handleWalletSets(url, res) {
       pct_complete: pct(momentsOwned, momentsTotal),
     };
   });
-  sendJson(res, 200, { sets }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { sets }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Edition Rankings — user-facing name; the underlying table/endpoints keep
@@ -595,7 +595,7 @@ async function handleMintRankings(url, res) {
       rating: Number(r.rating),
       rank: r.rank,
     })),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Which collections actually have Edition Rankings data — 73 of 93 as of the
@@ -607,7 +607,7 @@ async function handleMintRankingsCollections(res) {
   const { rows } = await pool.query(`SELECT DISTINCT collection_key FROM mint_rankings`);
   // mint_rankings is a precompute-batch table, refreshed even less often
   // than the live cards data — very safe to cache.
-  sendJson(res, 200, { collection_keys: rows.map(r => r.collection_key) }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { collection_keys: rows.map(r => r.collection_key) }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // The landing state (no set picked yet) shows a "Top 5 best" teaser instead
@@ -653,7 +653,7 @@ async function handleMintRankingsTop(url, res) {
       rarity: r.rarity,
       image_url: r.image_url,
     })),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Expands one specific ranked row's `editions_used` JSON (moment_uuid/
@@ -701,7 +701,7 @@ async function handleMintRankingsExpand(url, res) {
       };
     })
     .sort((a, b) => (a.player || '').localeCompare(b.player || ''));
-  sendJson(res, 200, { cards }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { cards }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // One wallet's own complete sets across EVERY collection — backs a section
@@ -744,7 +744,7 @@ async function handleWalletMintRankings(url, res) {
       rating: Number(r.rating),
       rank: r.rank,
     })),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 const WALLET_CARDS_SORT_COLUMNS = {
@@ -807,7 +807,7 @@ async function handleWalletCards(url, res) {
     team: r.team,
     team_logo_url: r.team_logo_url || null,
   }));
-  sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 const WALLET_PACKS_SORT_COLUMNS = {
@@ -829,7 +829,7 @@ async function handleWalletPacksFilters(res) {
   sendJson(res, 200, {
     series: seriesRes.rows.map(r => r.series_label),
     rarities: sortRarities(raritiesRes.rows.map(r => r.rarity)),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 async function handleWalletPacks(url, res) {
@@ -873,7 +873,7 @@ async function handleWalletPacks(url, res) {
     series_label: r.series_label,
     rarity: r.rarity,
   }));
-  sendJson(res, 200, { packs, total, has_more: offset + packs.length < total }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { packs, total, has_more: offset + packs.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 const HIGHLIGHTS_SORT_COLUMNS = {
@@ -1023,7 +1023,7 @@ async function handleHighlights(url, res) {
   // moments/cards/teams (no live Sweet API call, unlike Holders), so it's
   // identical for every visitor with the same filters and only actually
   // changes when the data-refresh pipeline runs.
-  sendJson(res, 200, { highlights, has_more: hasMore }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { highlights, has_more: hasMore }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 function sortRarities(rarities) {
@@ -1056,7 +1056,7 @@ async function handleHighlightsFilters(res) {
     sets: setsRes.rows.map(r => r.set_name),
     rarities: sortRarities(raritiesRes.rows.map(r => r.rarity)),
     teams: teamsRes.rows.map(r => r.team),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // "Listed" is deliberately NOT stored in our DB — a listing can appear or
@@ -1504,7 +1504,7 @@ async function handleLeaderboardFilters(res) {
     rarities: sortRarities(raritiesRes.rows.map(r => r.rarity)),
     teams: teamsRes.rows.map(r => r.team),
     highlight_badges: badgesRes.rows.map(r => r.badge_name),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Query-param convention for multi-select filters (matches inventory.html's
@@ -1675,7 +1675,7 @@ async function handleLeaderboard(url, res) {
   // combo just won't hit cache often, no downside either way. Same
   // "identical for everyone, only changes when the pipeline refreshes"
   // reasoning as handleSets.
-  sendJson(res, 200, { leaders, has_more: hasMore }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { leaders, has_more: hasMore }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // "Find a collector" — a specific wallet's rank within the CURRENT filtered
@@ -1720,7 +1720,7 @@ async function handleLeaderboardRank(url, res) {
     WHERE LOWER(a.owner_wallet) = $${params.length}
   `;
   const { rows } = await pool.query(sql, params);
-  if (!rows.length) return sendJson(res, 200, { found: false }, { cacheSeconds: CACHE_SECONDS });
+  if (!rows.length) return sendJson(res, 200, { found: false }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
   const r = rows[0];
   // The rank computation here (COUNT of every OTHER wallet with more cards)
   // is another full aggregation over the combined highlights/packs union —
@@ -1733,7 +1733,7 @@ async function handleLeaderboardRank(url, res) {
     holder_username: r.wu_username || r.card_username || null,
     cards_owned: Number(r.cards_owned),
     rank: Number(r.rank),
-  }, { cacheSeconds: CACHE_SECONDS });
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Type-ahead for the leaderboard's Player text filter — makes sure a picked
@@ -1752,34 +1752,57 @@ async function handleLeaderboardPlayers(url, res) {
      LIMIT 8`,
     [raw]
   );
-  sendJson(res, 200, { players: rows.map(r => r.player) }, { cacheSeconds: CACHE_SECONDS });
+  sendJson(res, 200, { players: rows.map(r => r.player) }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
-// Backs the nav bar's small "Data updated ..." line — read live, no cache
-// on this side (nav.js caches it client-side in sessionStorage instead).
+// Backs the nav bar's "Last updated: ..." line AND every page's
+// getDataVersion()/withVersion() cache-busting helper — this is the single
+// source of truth both read to decide whether a new data version exists.
+// Short real TTL (SITE_META_CACHE_SECONDS), not versioned/immutable like
+// everything else — see that constant's own comment for why.
 async function handleSiteMeta(res) {
   const { rows } = await pool.query(
     `SELECT value FROM site_meta WHERE key = 'data_last_updated'`
   );
-  sendJson(res, 200, { data_last_updated: rows[0]?.value ?? null });
+  sendJson(res, 200, { data_last_updated: rows[0]?.value ?? null }, { cacheSeconds: SITE_META_CACHE_SECONDS });
 }
 
-// Matches the data-refresh pipeline's own cadence (hourly, per the user) —
-// no point expiring the cache more often than the underlying data can
-// actually change. stale-while-revalidate below gives another full cycle of
-// grace on top, so even a quiet period right at expiry never makes a real
-// visitor wait for a full recompute.
-const CACHE_SECONDS = 60 * 60;
+// The refresh pipeline runs on an irregular schedule (hourly most of the
+// day, but sometimes paused 5-6 hours overnight) — a flat TTL is the wrong
+// tool here: short enough to be safe overnight wastes most of its potential
+// speed during the day, long enough to be fast during the day risks serving
+// stale data for hours if a refresh gets delayed. Instead, every cacheable
+// endpoint is cached under a URL that includes `?v=<data_last_updated>`
+// (appended by the frontend, see each page's getDataVersion()/withVersion()
+// helpers) — a fundamentally different cache key per data version, so the
+// cache can live essentially forever (VERSIONED_CACHE_SECONDS) with zero
+// staleness risk: an old version's URL is simply never requested again once
+// the frontend picks up a new version string, so there's nothing to expire.
+// site_meta itself (the thing that tells everyone what the current version
+// IS) is the one endpoint that still needs a real, short TTL — see its own
+// handler for why.
+const VERSIONED_CACHE_SECONDS = 60 * 60 * 24 * 365; // 1 year
+
+// This is the ONE endpoint that still needs a real, short TTL — it's the
+// thing every page checks to find out whether the version they should be
+// appending to every other request has changed. This bounds "how long could
+// it possibly take for a real data update to start being noticed" to about
+// a minute, independent of how the versioned caching above behaves.
+const SITE_META_CACHE_SECONDS = 60;
 
 // cacheSeconds: for endpoints whose result is identical for every visitor
-// and only changes when the data-refresh pipeline runs (never per-request,
-// never per-user) — sets Vercel's CDN cache header so most requests are
-// served instantly from the edge instead of re-running an expensive
-// full-table aggregation every time. NEVER pass this for anything scoped to
-// a specific wallet, or anything intentionally live (Sweet listings/prices —
-// see fetchSweetListings's own "don't store, fetch on demand" reasoning,
-// which is the opposite tradeoff made on purpose for a different reason).
-function sendJson(res, status, body, { cacheSeconds } = {}) {
+// (for a given set of params) and only changes when the data-refresh
+// pipeline runs (never per-request, never per-user) — sets a CDN cache
+// header so most requests are served instantly from the edge instead of
+// re-running an expensive full-table aggregation every time. NEVER pass
+// this for anything intentionally live (Sweet listings/prices — see
+// fetchSweetListings's own "don't store, fetch on demand" reasoning, the
+// opposite tradeoff made on purpose for a different reason).
+// immutable: pair with VERSIONED_CACHE_SECONDS for endpoints whose caller
+// appends `?v=` — tells the CDN/browser this exact URL's content will NEVER
+// change, so it never needs to even ask. Omit for site_meta itself (short,
+// ordinary TTL instead — see its handler).
+function sendJson(res, status, body, { cacheSeconds, immutable } = {}) {
   const headers = {
     'Content-Type': 'application/json',
     // Public read-only data — permissive CORS is harmless, and keeps local
@@ -1789,12 +1812,15 @@ function sendJson(res, status, body, { cacheSeconds } = {}) {
     'Access-Control-Allow-Origin': '*',
   };
   if (cacheSeconds) {
-    // public: Vercel's CDN may cache it, not just the visitor's own browser.
-    // stale-while-revalidate: a visitor hitting it right as it expires still
-    // gets the (slightly stale) cached response instantly, while Vercel
-    // refetches in the background for the next request — never makes anyone
-    // wait for a full recompute.
-    headers['Cache-Control'] = `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 2}`;
+    headers['Cache-Control'] = immutable
+      // A versioned URL's content is fixed forever — no revalidation, ever.
+      ? `public, max-age=${cacheSeconds}, immutable`
+      // public: Vercel's CDN may cache it, not just the visitor's own
+      // browser. stale-while-revalidate: a visitor hitting it right as it
+      // expires still gets the (slightly stale) cached response instantly,
+      // while Vercel refetches in the background for the next request —
+      // never makes anyone wait for a full recompute.
+      : `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 2}`;
   }
   res.writeHead(status, headers);
   res.end(JSON.stringify(body));
