@@ -17,7 +17,7 @@
     .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 640px; }
     .controls-row { display: flex; gap: 0.5rem; }
     .wallet-input-wrap { position: relative; flex: 1; }
-    .wallet-input { width: 100%; }
+    .wallet-input { width: 100%; padding-right: 2.1rem; }
     /* Suggestion dropdown reuses global.css's .cb-panel/.cb-item (same look
        as every other type-to-search combo site-wide) — just anchored to
        this plain text input instead of a .cb-combo wrapper. */
@@ -227,6 +227,7 @@
       <div class="controls-row">
         <div class="wallet-input-wrap">
           <input class="wallet-input" id="walletInput" type="text" placeholder="Username or wallet address (0x...)" spellcheck="false" autocomplete="off" />
+          <button type="button" class="cb-dropdown-clear" id="walletInputClear" style="display:none" title="Clear">✕</button>
           <div class="cb-panel" id="walletSuggestPanel"></div>
         </div>
         <button class="lookup-btn" id="lookupBtn">Look Up</button>
@@ -1597,10 +1598,20 @@ async function lookupWallet(query, initialTab, initialSetName) {
 
 /* ══════════════════ Search suggestions (username/address type-ahead) ══════════════════ */
 const walletInputEl = document.getElementById('walletInput');
+const walletInputClearBtn = document.getElementById('walletInputClear');
 const suggestPanel = document.getElementById('walletSuggestPanel');
 let suggestItems = [];
 let suggestActiveIndex = -1;
 let suggestSeq = 0; // discards a stale response if a newer request already landed
+
+function updateWalletInputClear() { walletInputClearBtn.style.display = walletInputEl.value ? '' : 'none'; }
+walletInputClearBtn.addEventListener('mousedown', e => e.preventDefault()); // keep focus so blur/suggestion-close doesn't fire first
+walletInputClearBtn.addEventListener('click', () => {
+  walletInputEl.value = '';
+  updateWalletInputClear();
+  closeSuggestions();
+  walletInputEl.focus();
+});
 
 function closeSuggestions() {
   suggestPanel.classList.remove('open');
@@ -1628,6 +1639,7 @@ function renderSuggestions() {
 
 function selectSuggestion(item) {
   walletInputEl.value = item.username || item.wallet_address;
+  updateWalletInputClear();
   closeSuggestions();
   lookupWallet(item.wallet_address);
 }
@@ -1635,6 +1647,7 @@ function selectSuggestion(item) {
 let _suggestT = null;
 walletInputEl.addEventListener('input', () => {
   clearTimeout(_suggestT);
+  updateWalletInputClear();
   const q = walletInputEl.value.trim();
   if (q.length < 2) { closeSuggestions(); return; }
   _suggestT = setTimeout(async () => {
@@ -1687,6 +1700,7 @@ walletInputEl.addEventListener('keydown', e => {
   const initWallet = params.get('wallet') || '';
   if (initWallet) {
     walletInputEl.value = initWallet;
+    updateWalletInputClear();
     lookupWallet(initWallet, params.get('tab'), params.get('set'));
   }
 })();
