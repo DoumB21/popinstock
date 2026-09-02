@@ -223,7 +223,12 @@
 // local IIS testing (which can't run serverless functions at all). CORS is
 // already open on the API, so this absolute URL works identically from
 // localhost, IIS, Vercel previews, and production itself.
-const API_BASE = 'https://www.hoardio.com';
+// On localhost specifically, point at the local dev-server instead
+// (`npm run dev:nhlbreakaway`, port 8877 by default) so this page can be
+// tested end-to-end against unpushed backend changes without pushing.
+const API_BASE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? 'http://localhost:8877'
+  : 'https://www.hoardio.com';
 const PAGE_SIZE = 100;
 
 // The backend caches its cacheable endpoints effectively forever, keyed on

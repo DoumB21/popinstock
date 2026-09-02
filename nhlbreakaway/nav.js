@@ -20,13 +20,18 @@ const SECTION_NAME = 'NHL Breakaway';
 // local IIS testing (which can't run serverless functions at all). CORS is
 // already open on the API, so this absolute URL works identically from
 // localhost, IIS, Vercel previews, and production itself.
+// On localhost specifically, point at the local dev-server instead
+// (`npm run dev:nhlbreakaway`, port 8877 by default) so pages can be tested
+// end-to-end against unpushed backend changes without hitting production.
 // Named NAV_API_BASE, not API_BASE — top-level `const` in separate classic
 // <script> tags on the same page share one scope, so reusing the name each
 // page's own inline script already uses collided and threw a SyntaxError
 // that silently killed this entire script (nav disappeared everywhere
 // except the hub, the one page with no API_BASE of its own). Never reuse a
 // page-level const name here.
-const NAV_API_BASE = 'https://www.hoardio.com';
+const NAV_API_BASE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? 'http://localhost:8877'
+  : 'https://www.hoardio.com';
 // Same key/shape every page's own getDataVersion()/withVersion() cache-
 // busting helper uses — whichever of the two runs first on a given page
 // load is the only one that actually hits the network, the other just
