@@ -23,7 +23,8 @@
     { "source": "/schema/:collection/:name", "destination": "/schema?collection_name=:collection&schema_name=:name" },
     { "source": "/sale/:id", "destination": "/sale?sale_id=:id" },
     { "source": "/profile/:tab", "destination": "/profile?tab=:tab" },
-    { "source": "/nhlbreakaway/holders/:id", "destination": "/nhlbreakaway/holders?moment_uuid=:id" }
+    { "source": "/nhlbreakaway/holders/:id", "destination": "/nhlbreakaway/holders?moment_uuid=:id" },
+    { "source": "/api/:path*", "destination": "/api/route" }
   ],
   "functions": {
     "api/og-page/collection.js": { "includeFiles": "collection.html" },

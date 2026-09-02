@@ -99,6 +99,21 @@
     // the only form that works under both. See nav.js's matching _p logic.
     var _needsPrefix = /\/nhlbreakaway$/.test(location.pathname);
     document.write('<scr' + 'ipt src="' + (_needsPrefix ? 'nhlbreakaway/' : '') + 'nav.js"></scr' + 'ipt>');
+
+    // Same fix, applied to this page's own tool cards above — they're plain
+    // hardcoded relative hrefs ("pack-stats", "sets", etc.), not generated
+    // through nav.js's own _p logic, so they never got this prefix and were
+    // silently broken in production: clicking "Pack Stats" from here landed
+    // on https://www.hoardio.com/pack-stats instead of .../nhlbreakaway/
+    // pack-stats. Invisible in local .html-file testing (an explicit
+    // "index.html" segment in the URL gives relative links a real directory
+    // boundary that Vercel's clean "/nhlbreakaway" URL doesn't have).
+    if (_needsPrefix) {
+      document.querySelectorAll('.features .card[href]').forEach(function (a) {
+        var href = a.getAttribute('href');
+        if (!/^https?:\/\//.test(href)) a.setAttribute('href', 'nhlbreakaway/' + href);
+      });
+    }
   </script>
 </body>
 </html>
