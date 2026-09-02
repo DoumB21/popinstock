@@ -492,9 +492,17 @@ Real per-type semantics, confirmed against one sample row of each type:
              purchase — from_username is a real seller, not a system/store account)
   trade:     both populated, no amount — direct wallet-to-wallet trade
   gift:      both populated, no amount
-  pack_open: from_username == to_username == the SAME wallet (the opener) — opening a
-             pack is modeled as a self-transfer. Use to_username (or from_username,
-             identical) for a "most packs opened" leaderboard.
+  pack_open: from_username == to_username == the SAME wallet (the opener) for 97% of
+             rows (155,926/160,750) — opening a pack is modeled as a self-transfer. Use
+             to_username (or from_username, identical) for a "most packs opened"
+             leaderboard. The other 3% (4,824/160,750, verified 2026-09-02) are ALL
+             from_username = "NHL" (the platform/brand account, same one seen on some
+             'promo' rows) with to_username = the recipient — a promotional/granted pack
+             the platform itself issued and opened directly to a wallet, not the
+             collector opening one they acquired themselves. Both cases still correctly
+             attribute the resulting cards' ownership via to_username; the "NHL" ones
+             just shouldn't be miscounted as the recipient having "chosen" to open a
+             pack if that distinction ever matters for a feature.
   promo:     from_username can be a literal brand string like "NHL", not a real user —
              exclude promo rows' from_username from any "top senders" leaderboard, it's
              not a collector.

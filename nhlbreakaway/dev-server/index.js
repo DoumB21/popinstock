@@ -769,7 +769,21 @@ async function handleWalletMintRankings(url, res) {
 // token_uri not currently in `cards`), not a bug to chase — it just shows
 // as blank item/player fields. `item_name`/`is_pack` in the response tell
 // the frontend whether to link into a Highlights moment or a pack design.
-const WALLET_ACTIVITY_TYPES = new Set(['purchase', 'trade', 'gift', 'pack_open', 'promo', 'transfer']);
+// A raw 'purchase' row records BOTH sides of one sale at once (from_username
+// = seller, to_username = buyer, amount = the sale price) — Sweet's API has
+// no separate 'sale' transaction_type at the source (confirmed in
+// NHL_BREAKAWAY_DATA_HANDOFF.txt's "Top spenders / Top sellers" note: a
+// wallet's purchase is logically the other wallet's sale, same row).
+// Relative to the wallet being viewed, the SAME row is a real purchase
+// (money out) when this wallet is the buyer, and a sale (money in) when
+// this wallet is the seller — always derive it this way, never trust the
+// raw literal type value for display. Positional $1 assumes username is
+// always the first param pushed in buildActivityWhere below.
+const ACTIVITY_EFFECTIVE_TYPE_SQL = `CASE
+       WHEN s.transaction_type = 'purchase' AND s.from_username = $1 THEN 'sale'
+       WHEN s.transaction_type = 'purchase' AND s.to_username = $1 THEN 'purchase'
+       ELSE s.transaction_type END`;
+const WALLET_ACTIVITY_TYPES = new Set(['purchase', 'sale', 'trade', 'gift', 'pack_open', 'promo', 'transfer']);
 const WALLET_ACTIVITY_SORT_COLUMNS = {
   date: 's.transaction_datetime',
   amount: 's.amount',
@@ -780,8 +794,13 @@ const WALLET_ACTIVITY_SORT_COLUMNS = {
 function buildActivityWhere(q, username) {
   const where = ['(s.from_username = $1 OR s.to_username = $1)'];
   const params = [username];
-  if (WALLET_ACTIVITY_TYPES.has(q.get('type'))) {
-    params.push(q.get('type'));
+  const typeFilter = q.get('type');
+  if (typeFilter === 'purchase') {
+    where.push(`(s.transaction_type = 'purchase' AND s.to_username = $1)`);
+  } else if (typeFilter === 'sale') {
+    where.push(`(s.transaction_type = 'purchase' AND s.from_username = $1)`);
+  } else if (WALLET_ACTIVITY_TYPES.has(typeFilter)) {
+    params.push(typeFilter);
     where.push(`s.transaction_type = $${params.length}`);
   }
   const addEqFilter = (col, val) => {
@@ -848,7 +867,7 @@ async function handleWalletActivity(url, res) {
   params.push(limit, offset);
 
   const { rows } = await pool.query(
-    `SELECT s.transaction_type, s.transaction_datetime, s.edition, s.amount, s.currency,
+    `SELECT ${ACTIVITY_EFFECTIVE_TYPE_SQL} AS transaction_type, s.transaction_datetime, s.edition, s.amount, s.currency,
        s.from_username, s.to_username, s.explorer_url,
        COALESCE(c.set_name, p.pack_name) AS item_name,
        COALESCE(c.series_label, p.series_label) AS series_label,
@@ -900,12 +919,12 @@ async function handleWalletActivitySummary(url, res) {
 
   const { where, params } = buildActivityWhere(q, username);
   const { rows } = await pool.query(
-    `SELECT s.transaction_type, COUNT(*) AS count, SUM(s.amount) AS total_amount
+    `SELECT ${ACTIVITY_EFFECTIVE_TYPE_SQL} AS transaction_type, COUNT(*) AS count, SUM(s.amount) AS total_amount
      FROM sweet_transaction_history s
      LEFT JOIN cards c ON c.token_uri = s.token_uri
      LEFT JOIN packs p ON p.token_uri = s.token_uri
      WHERE ${where.join(' AND ')}
-     GROUP BY s.transaction_type
+     GROUP BY 1
      ORDER BY count DESC`,
     params
   );
