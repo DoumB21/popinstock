@@ -1019,7 +1019,11 @@ async function handleHighlights(url, res) {
       top_holder_count: r.th_wallet ? Number(r.th_count) : null,
     };
   });
-  sendJson(res, 200, { highlights, has_more: hasMore });
+  // Same reasoning as handleSets/handleLeaderboard: entirely derived from
+  // moments/cards/teams (no live Sweet API call, unlike Holders), so it's
+  // identical for every visitor with the same filters and only actually
+  // changes when the data-refresh pipeline runs.
+  sendJson(res, 200, { highlights, has_more: hasMore }, { cacheSeconds: 300 });
 }
 
 function sortRarities(rarities) {
