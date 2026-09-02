@@ -21,6 +21,14 @@ right way to resolve a transaction to a player/highlight name (verified: 99.97% 
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
 
+UPDATE 2026-09-02 (same day, later still): found and documented a real KNOWN LIMITATION
+(see the new section below) — the bare-series aggregate endpoint this whole table was
+built from is missing some real transactions on high-volume/heavily-shared series (~84%
+of the catalog by card count), confirmed via live spot-checks against Sweet's own more-
+complete per-edition endpoint. Decided NOT to fix via a full re-scrape (would cost
+4-5 days of continuous fetching) — accepted as a documented limitation instead, given
+the feature's fun-leaderboard/activity-feed use case rather than financial reconciliation.
+
 CONTEXT
 The user is building fan leaderboards/tools for NHL Breakaway (nhlbreakaway.com, a
 Sweet.io-powered officially-licensed NHL digital collectibles platform), separate from
@@ -599,6 +607,40 @@ EXAMPLE QUERIES
     ORDER BY h.transaction_datetime DESC
     LIMIT 100
   ($1 = the username resolved from the looked-up wallet_address.)
+
+KNOWN LIMITATION — INCOMPLETE ON HIGH-VOLUME SERIES, VERIFIED 2026-09-02, ACCEPTED AS-IS
+The bare-series aggregate endpoint used for the whole backfill (`/distribution/history/
+{bare series URL}`) does NOT return 100% of that series' real transactions — verified
+directly against Sweet's OWN per-edition endpoint (`/distribution/history/{that specific
+card's own token_uri}`), which has more complete data than the aggregate view for the
+same series. Found via a real user report: a trade showed only its "sent" leg in our
+table (Kent Johnson -> gbeyond) but not the "received" leg (Cole Caufield <- gbeyond) —
+confirmed the received leg is a real, separate on-chain transaction (different tx_hash
+entirely, same timestamp) that Sweet's per-edition endpoint returns but the bare-series
+endpoint never did, across a FULL clean pagination of that series (35,499 rows, ended
+naturally on a sub-500 last page, no errors/truncation on our end).
+Quantified via live spot-checks (compared this table's stored tx_hash set per card
+against a fresh live call to that same card's per-edition endpoint):
+  - Random sample across the whole catalog (30 cards, mixed series): 0 gaps found.
+  - Targeted sample of ONE specific high-volume series, BjqGw7qp/"Base" (20 cards): 2/20
+    cards (10%) had a missing transaction, one of them missing 2 of 3 real trades.
+  - The high-volume/heavily-shared series (>10,000 cards each, 16 of them: ebWVvd1G,
+    QqBmkGRA, gb04X2bA, BjqGw7qp, AqkW0kq6, QRvZmARw, NbnnQzbW, LRgw7JR6, zqlMjN1N,
+    rb2kx7Rd, V1P88Z1d, yRzEN8bP, r1JoM3bv, j1ZJjx1K, 5RNBByRM, YqrMgPRJ) together account
+    for ~961,000 of the ~1.14M total cards (~84% of the whole catalog) — because heavy
+    sharing is what MAKES a series high-volume, "the big series" effectively means "most
+    of the catalog," not a small corner of it.
+DECISION, 2026-09-02: accepted as a known limitation, NOT worth fixing via a full re-
+scrape. A complete fix would mean querying the PER-EDITION endpoint once per individual
+card instead of once per series — for the ~961K affected cards, at the same ~400ms/
+request politeness pace used everywhere else in this pipeline, that's roughly 4-5 DAYS
+of continuous fetching, a completely different scale of effort than the 281-request
+series-level backfill this feature was actually built on. Given the feature's real use
+case (fun leaderboards, activity feeds — not financial reconciliation), an estimated
+~90%-complete picture on high-volume series was judged good enough. If you build
+anything that displays trade/activity history, don't present it as a guaranteed-complete
+record — a wallet's real activity may include occasional gaps, especially on Base/heavily-
+shared sets, and that's expected, not a bug to chase.
 
 STORAGE / SCALE NOTE
 445MB with its 4 indexes (series_id, transaction_type, to_username, from_username) for

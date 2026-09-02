@@ -132,6 +132,13 @@
     .set-link { color: inherit; text-decoration: none; }
     .set-link:hover { color: var(--accent-light); text-decoration: underline; }
     .cell-series { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Activity tab's From/To — one combined column instead of two, freeing
+       up width for the rest of the table (Item/Player especially). The
+       header itself carries the From/To labels (2 lines) so each row's
+       cell doesn't need to repeat them. */
+    .cell-from-to-line { font-size: 0.82rem; white-space: nowrap; }
+    .cell-from-to-line + .cell-from-to-line { margin-top: 2px; }
     .pct-complete { font-weight: 700; font-variant-numeric: tabular-nums; }
     .pct-complete--full { color: #4caf50; }
 
@@ -551,6 +558,17 @@ function fmtNum(n) {
 }
 function fmtUsd(n) {
   return n === null || n === undefined ? '—' : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+// Activity's From/To only — a real username passes through unchanged; a raw
+// 0x address (the ~1.6% of sweet_transaction_history rows with no cached
+// username, per NHL_BREAKAWAY_DATA_HANDOFF.txt) gets shortened so one long
+// row doesn't force the whole table wider. Deliberately local to this one
+// dense list — doesn't apply to any single-wallet identity display
+// elsewhere on the site, where the full address stays required for
+// verification/search.
+function prettyWallet(val) {
+  if (!val) return val;
+  return /^0x[0-9a-fA-F]{40}$/.test(val) ? `${val.slice(0, 6)}…${val.slice(-4)}` : val;
 }
 // Wallet profile fields (display_name/username) come from Sweet's own
 // backfill, not this codebase's controlled catalog data — unlike player/set
@@ -1323,8 +1341,7 @@ const ACTIVITY_COLUMNS_DETAILED = [
   { key: 'item',   label: 'Item' },
   { key: 'edition', label: 'Edition', num: true },
   { key: 'amount', label: 'Amount', sortable: true, num: true },
-  { key: 'from',   label: 'From' },
-  { key: 'to',     label: 'To' },
+  { key: 'from_to', label: 'From<br>To' },
   { key: 'link',   label: '' },
 ];
 const ACTIVITY_COLUMNS_SUMMARY = [
@@ -1485,8 +1502,10 @@ function renderActivityBody() {
       </td>
       <td class="col-r">${a.edition != null ? fmtNum(a.edition) : '—'}</td>
       <td class="col-r">${fmtUsd(a.amount)}</td>
-      <td>${escHtml(a.from_username || '—')}</td>
-      <td>${escHtml(a.to_username || '—')}</td>
+      <td>
+        <div class="cell-from-to-line" title="${escHtml(a.from_username || '')}">${escHtml(prettyWallet(a.from_username) || '—')}</div>
+        <div class="cell-from-to-line" title="${escHtml(a.to_username || '')}">${escHtml(prettyWallet(a.to_username) || '—')}</div>
+      </td>
       <td>${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}</td>
     </tr>
   `).join('');
