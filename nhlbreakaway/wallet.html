@@ -554,13 +554,30 @@ function renderSetsHead() {
   });
 }
 
+// Same-page URL (tab=cards&set=<name>, wallet preserved) — a real href so
+// middle-click/open-in-new-tab still lands correctly (init() below restores
+// the `set` filter same as it already does for `tab`), but the normal
+// left-click path is intercepted (see setsBody's click listener) to switch
+// tabs and apply the filter instantly, without a page reload.
+// Built from cardsState.wallet, NOT location.href — this renders as part of
+// fetchWalletSets(), which runs before lookupWallet() gets around to writing
+// ?wallet= into the real URL (that happens only after every tab's initial
+// fetch resolves), so location.href here would still be missing it.
+function cardsTabHref(setName) {
+  const url = new URL(location.pathname, location.origin);
+  url.searchParams.set('wallet', cardsState.wallet);
+  url.searchParams.set('tab', 'cards');
+  url.searchParams.set('set', setName);
+  return url.pathname + url.search;
+}
+
 function renderSetsBody() {
   const rows = filteredSortedSets();
   document.getElementById('setsBody').innerHTML = rows.map(s => `
     <tr>
       <td>
         <div class="cell-set-name">${s.collection_key
-          ? `<a class="set-link" href="highlights?set=${encodeURIComponent(s.collection_key)}">${s.set_name}</a>`
+          ? `<a class="set-link" href="${cardsTabHref(s.set_name)}" data-set-name="${escHtml(s.set_name)}">${s.set_name}</a>`
           : s.set_name}</div>
         <div class="cell-series">${s.series_label}</div>
       </td>
@@ -574,6 +591,20 @@ function renderSetsBody() {
   `).join('');
   document.getElementById('setsCount').innerHTML = `<strong>${fmtNum(rows.length)}</strong> set${rows.length === 1 ? '' : 's'}`;
 }
+
+// Clicking a set name jumps to the Highlights tab pre-filtered to that set,
+// staying on this same page — explicit user request, replacing the old
+// behavior of navigating away to the sitewide Highlights browse page.
+document.getElementById('setsBody').addEventListener('click', e => {
+  const link = e.target.closest('.set-link');
+  if (!link) return;
+  e.preventDefault();
+  cardsState.set_name = link.dataset.setName;
+  syncComboDisplay(document.getElementById('setCombo'));
+  setActiveTab('cards');
+  history.replaceState(null, '', link.getAttribute('href'));
+  fetchCardsPage(true);
+});
 
 async function fetchWalletSets(wallet) {
   const version = await getDataVersion();
@@ -1213,7 +1244,7 @@ document.getElementById('walletTabs').addEventListener('click', e => {
 // `initialTab` is only ever passed from init() restoring a ?tab= deep link —
 // every other caller (search box, suggestion click) omits it so a fresh
 // lookup always lands back on the first tab, per normal expectations.
-async function lookupWallet(query, initialTab) {
+async function lookupWallet(query, initialTab, initialSetName) {
   const btn = document.getElementById('lookupBtn');
   const errorEl = document.getElementById('walletError');
   const emptyEl = document.getElementById('walletEmpty');
@@ -1286,7 +1317,7 @@ async function lookupWallet(query, initialTab) {
     setActiveTab(initialTab || TAB_NAMES[0]);
 
     renderSetsHead();
-    cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = ''; cardsState.rarity = ''; cardsState.team = '';
+    cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = initialSetName || ''; cardsState.rarity = ''; cardsState.team = '';
     cardsState.view = 'count'; cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
     document.getElementById('playerSearch').value = '';
     playerSearchWidget.reset();
@@ -1415,7 +1446,7 @@ walletInputEl.addEventListener('keydown', e => {
   const initWallet = params.get('wallet') || '';
   if (initWallet) {
     walletInputEl.value = initWallet;
-    lookupWallet(initWallet, params.get('tab'));
+    lookupWallet(initWallet, params.get('tab'), params.get('set'));
   }
 })();
 
