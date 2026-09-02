@@ -214,12 +214,12 @@
 <script>
 'use strict';
 
-// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
-// index.js), which already queries the live production database directly
-// (no separate dev/prod split). Swap this for a real deployed API endpoint
-// once one exists; nothing else on this page needs to change beyond this
-// line.
-const API_BASE = 'http://localhost:8877';
+// Same-origin production API — served by api/[...route].js (a Vercel
+// function reusing nhlbreakaway/dev-server/index.js's routeRequest()
+// verbatim). Empty string, not localhost: a real visitor's browser has no
+// idea what "localhost" means, so this must always resolve relative to
+// whatever domain the page itself is loaded from.
+const API_BASE = '';
 const PAGE_SIZE = 100;
 
 const EDITION_BADGE_ITEMS = [

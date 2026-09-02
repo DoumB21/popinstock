@@ -11,17 +11,18 @@ const NAV_LINKS = [
 
 const SECTION_NAME = 'NHL Breakaway';
 
-// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
-// index.js), which already queries the live production database directly
-// (no separate dev/prod split). Swap this for a real deployed API endpoint
-// once one exists; nothing else here needs to change beyond this line.
-// Named differently from every page's own API_BASE (not NAV_API_BASE) —
-// top-level `const` in separate classic <script> tags on the same page
-// share one scope, so reusing that name here collided with each page's own
-// declaration and threw a SyntaxError that silently killed this entire
-// script (nav disappeared everywhere except pages with no API_BASE of
-// their own, i.e. only the hub). Never reuse a page-level const name here.
-const NAV_API_BASE = 'http://localhost:8877';
+// Same-origin production API — served by api/[...route].js (a Vercel
+// function reusing nhlbreakaway/dev-server/index.js's routeRequest()
+// verbatim). Empty string, not localhost: a real visitor's browser has no
+// idea what "localhost" means, so this must always resolve relative to
+// whatever domain the page itself is loaded from.
+// Named NAV_API_BASE, not API_BASE — top-level `const` in separate classic
+// <script> tags on the same page share one scope, so reusing the name each
+// page's own inline script already uses collided and threw a SyntaxError
+// that silently killed this entire script (nav disappeared everywhere
+// except the hub, the one page with no API_BASE of its own). Never reuse a
+// page-level const name here.
+const NAV_API_BASE = '';
 const FRESHNESS_CACHE_KEY = 'nhlbreakaway_data_last_updated';
 const FRESHNESS_CACHE_TTL_MS = 5 * 60 * 1000; // avoid re-querying on every page nav within a visit
 

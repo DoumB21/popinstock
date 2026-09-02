@@ -1,11 +1,17 @@
-// TEMPORARY dev-only API — talks to the local Postgres `nhlbreakaway` DB
-// while the real Turso database isn't provisioned yet (see
-// ../../NHL_BREAKAWAY_DATA_HANDOFF.txt). Delete this whole folder once the
-// frontend is switched to Turso's own HTTP API — nothing else in the repo
-// depends on it. Run with `npm run dev:nhlbreakaway` (reads ../../.env via
-// Node's --env-file flag; `pg` picks up PGHOST/PGPORT/PGUSER/PGPASSWORD/
-// PGDATABASE from process.env automatically, no config object needed).
+// NHL Breakaway API — all query/handler logic for this section lives here.
+// This file has TWO consumers, both importing/running the exact same code:
+//  1. Standalone local dev server (`npm run dev:nhlbreakaway`, reads .env via
+//     Node's --env-file flag) — for hand-testing queries against production
+//     data without deploying.
+//  2. api/[...route].js — the real Vercel serverless function that serves
+//     this section to actual site visitors. It imports routeRequest() from
+//     here; nothing is duplicated there.
+// Both talk to the SAME live production Postgres (hosted on Raff
+// Technologies) — there is no separate dev/prod database. `pg` picks up
+// PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE from process.env automatically
+// (Vercel: Project Settings → Environment Variables; local: .env).
 import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 const PORT = process.env.NHLBREAKAWAY_DEV_PORT || 8877;
@@ -1742,15 +1748,22 @@ async function handleSiteMeta(res) {
 function sendJson(res, status, body) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    // Dev-only, local, read-only data — permissive CORS keeps this simple
-    // while the frontend and this server run on different local ports.
+    // Public read-only data — permissive CORS is harmless, and keeps local
+    // dev simple (frontend and this dev server run on different local ports;
+    // in production the Vercel function is same-origin so this header is
+    // just unused, not unsafe).
     'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(body));
 }
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+// Shared by both entry points at the bottom of this file: the standalone
+// local dev server (plain `node`, for hand-testing against production data)
+// and api/[...route].js, the real Vercel serverless function that serves
+// this section in production. Keeping the routing/handlers in exactly one
+// place means a fix here is a fix everywhere — never duplicate this dispatch
+// or any handler function into the Vercel function file itself.
+export async function routeRequest(url, res) {
   try {
     if (url.pathname === '/api/sets') {
       await handleSets(res);
@@ -1809,12 +1822,27 @@ const server = createServer(async (req, res) => {
     console.error(err);
     sendJson(res, 500, { error: err.message });
   }
-});
+}
 
-Promise.all([ensureHighlightsIndexes(), ensureWalletIndexes(), ensureLeaderboardIndexes()])
-  .catch(err => console.error('Failed to ensure indexes:', err))
-  .finally(() => {
-    server.listen(PORT, () => {
-      console.log(`nhlbreakaway dev API on http://localhost:${PORT} (temporary — see file header)`);
-    });
+// Only start a standalone listener + run the index-ensuring migrations when
+// this file is executed directly (`npm run dev:nhlbreakaway`) — NOT when
+// api/[...route].js imports routeRequest() for the deployed Vercel function.
+// A serverless function cold start has no business opening its own TCP
+// listener, and the indexes only ever need creating once against the real
+// database (already done, since this always talks to the same production
+// Postgres regardless of who's running it — see NHL Breakaway project memory).
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMainModule) {
+  const server = createServer(async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    await routeRequest(url, res);
   });
+
+  Promise.all([ensureHighlightsIndexes(), ensureWalletIndexes(), ensureLeaderboardIndexes()])
+    .catch(err => console.error('Failed to ensure indexes:', err))
+    .finally(() => {
+      server.listen(PORT, () => {
+        console.log(`nhlbreakaway dev API on http://localhost:${PORT}`);
+      });
+    });
+}
