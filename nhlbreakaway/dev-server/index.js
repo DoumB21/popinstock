@@ -757,14 +757,18 @@ async function handleWalletMintRankings(url, res) {
 // case, same "no username = no data for this feature" limitation the
 // handoff note describes.
 //
-// series_id has no player/team/rarity columns of its own and is shared
-// across every moment in a collapsed set (e.g. all 32 Ice Nation player
-// templates share one series_id) — confirmed live that series_id maps to
-// exactly ONE (set_name/pack_name, rarity, series_label) combo, and every
-// transaction row's series_id matches EITHER moments OR pack_moments, never
-// both, never neither — so a LEFT JOIN to both + COALESCE is safe with no
-// duplication or gap risk. `item_name`/`is_pack` in the response tell the
-// frontend whether to link into a Highlights moment or a pack design.
+// Resolves each transaction to its exact card/pack via token_uri (the
+// SPECIFIC edition, PK on both `cards` and `packs`) — NOT series_id, which
+// is shared across every moment in a collapsed set (e.g. all 32 Ice Nation
+// player templates share one series_id) and would return an arbitrary/wrong
+// player for those. Verified against the live table: 754,331/754,573 rows
+// (99.97%) exact-match cards.token_uri or packs.token_uri, never both — see
+// NHL_BREAKAWAY_DATA_HANDOFF.txt's "token_uri gotcha" for the full story
+// (an earlier version of that doc, and this code, wrongly joined series_id
+// instead). The ~0.03% miss on both sides is a known small gap (a dead/edge
+// token_uri not currently in `cards`), not a bug to chase — it just shows
+// as blank item/player fields. `item_name`/`is_pack` in the response tell
+// the frontend whether to link into a Highlights moment or a pack design.
 const WALLET_ACTIVITY_TYPES = new Set(['purchase', 'trade', 'gift', 'pack_open', 'promo', 'transfer']);
 const WALLET_ACTIVITY_SORT_COLUMNS = {
   date: 's.transaction_datetime',
@@ -798,9 +802,9 @@ async function handleWalletActivity(url, res) {
     params.push(val);
     where.push(`${col} = $${params.length}`);
   };
-  addEqFilter('COALESCE(m.series_label, pm.series_label)', q.get('series_label'));
-  addEqFilter('COALESCE(m.set_name, pm.pack_name)', q.get('set_name'));
-  addEqFilter('COALESCE(m.rarity, pm.rarity)', q.get('rarity'));
+  addEqFilter('COALESCE(c.series_label, p.series_label)', q.get('series_label'));
+  addEqFilter('COALESCE(c.set_name, p.pack_name)', q.get('set_name'));
+  addEqFilter('COALESCE(c.rarity, p.rarity)', q.get('rarity'));
   const minAmount = parseFloat(q.get('min_amount'));
   const maxAmount = parseFloat(q.get('max_amount'));
   if (Number.isFinite(minAmount)) { params.push(minAmount); where.push(`s.amount >= $${params.length}`); }
@@ -828,14 +832,15 @@ async function handleWalletActivity(url, res) {
   const { rows } = await pool.query(
     `SELECT s.transaction_type, s.transaction_datetime, s.edition, s.amount, s.currency,
        s.from_username, s.to_username, s.explorer_url,
-       COALESCE(m.set_name, pm.pack_name) AS item_name,
-       COALESCE(m.series_label, pm.series_label) AS series_label,
-       COALESCE(m.rarity, pm.rarity) AS rarity,
-       (pm.series_id IS NOT NULL) AS is_pack,
+       COALESCE(c.set_name, p.pack_name) AS item_name,
+       COALESCE(c.series_label, p.series_label) AS series_label,
+       COALESCE(c.rarity, p.rarity) AS rarity,
+       c.player,
+       (p.token_uri IS NOT NULL) AS is_pack,
        COUNT(*) OVER() AS total_count
      FROM sweet_transaction_history s
-     LEFT JOIN (SELECT DISTINCT series_id, set_name, series_label, rarity FROM moments) m ON m.series_id = s.series_id
-     LEFT JOIN (SELECT DISTINCT series_id, pack_name, series_label, rarity FROM pack_moments) pm ON pm.series_id = s.series_id
+     LEFT JOIN cards c ON c.token_uri = s.token_uri
+     LEFT JOIN packs p ON p.token_uri = s.token_uri
      WHERE ${where.join(' AND ')}
      ORDER BY ${sortSql} ${dir}${nullsClause}
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -854,6 +859,7 @@ async function handleWalletActivity(url, res) {
     item_name: r.item_name,
     series_label: r.series_label,
     rarity: r.rarity,
+    player: r.player,
     is_pack: r.is_pack,
   }));
   sendJson(res, 200, { activity, total, has_more: offset + activity.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
@@ -874,12 +880,12 @@ async function handleWalletActivityFilters(url, res) {
   if (!username) return sendJson(res, 200, { series: [], sets: [], rarities: [] }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 
   const { rows } = await pool.query(
-    `SELECT DISTINCT COALESCE(m.series_label, pm.series_label) AS series_label,
-       COALESCE(m.set_name, pm.pack_name) AS set_name,
-       COALESCE(m.rarity, pm.rarity) AS rarity
+    `SELECT DISTINCT COALESCE(c.series_label, p.series_label) AS series_label,
+       COALESCE(c.set_name, p.pack_name) AS set_name,
+       COALESCE(c.rarity, p.rarity) AS rarity
      FROM sweet_transaction_history s
-     LEFT JOIN (SELECT DISTINCT series_id, set_name, series_label, rarity FROM moments) m ON m.series_id = s.series_id
-     LEFT JOIN (SELECT DISTINCT series_id, pack_name, series_label, rarity FROM pack_moments) pm ON pm.series_id = s.series_id
+     LEFT JOIN cards c ON c.token_uri = s.token_uri
+     LEFT JOIN packs p ON p.token_uri = s.token_uri
      WHERE (s.from_username = $1 OR s.to_username = $1)`,
     [username]
   );

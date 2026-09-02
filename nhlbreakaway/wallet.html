@@ -1269,6 +1269,7 @@ const ACTIVITY_TYPE_LABELS = {
 const ACTIVITY_COLUMNS = [
   { key: 'type',   label: 'Type' },
   { key: 'date',   label: 'Date', sortable: true },
+  { key: 'player', label: 'Player' },
   { key: 'item',   label: 'Item' },
   { key: 'edition', label: 'Edition', num: true },
   { key: 'amount', label: 'Amount', sortable: true, num: true },
@@ -1370,6 +1371,7 @@ function renderActivityBody() {
     <tr>
       <td>${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</td>
       <td>${fmtActivityDate(a.transaction_datetime)}</td>
+      <td>${a.player ? escHtml(a.player) : '—'}</td>
       <td>
         <div class="cell-set-name">${a.item_name || '—'}</div>
         <div class="cell-series">${[a.series_label, a.rarity].filter(Boolean).join(' · ')}</div>

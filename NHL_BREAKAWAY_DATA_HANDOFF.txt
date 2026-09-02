@@ -15,6 +15,12 @@ history (purchases, trades, gifts, pack opens, promos, transfers), hourly-refres
 `mint_rankings` FRESHNESS note, which was stale — it's been on the hourly schedule since
 2026-09-01, not a manual-only script anymore.
 
+UPDATE 2026-09-02 (same day, later): CORRECTED the new section's token_uri description —
+it's NOT opaque, it's the exact same value as cards.token_uri/packs.token_uri and is the
+right way to resolve a transaction to a player/highlight name (verified: 99.97% exact-
+match). The example queries were wrong to only join series_id — fixed to join token_uri
+directly, with an explanation of why series_id alone is ambiguous for a shared series.
+
 CONTEXT
 The user is building fan leaderboards/tools for NHL Breakaway (nhlbreakaway.com, a
 Sweet.io-powered officially-licensed NHL digital collectibles platform), separate from
@@ -437,10 +443,24 @@ SCHEMA — table `sweet_transaction_history`, PRIMARY KEY (tx_hash, token_uri)
   tx_hash               TEXT    -- parsed from explorer_url, NOT returned as its own
                                     field by Sweet's API
   token_uri             TEXT    -- the SPECIFIC EDITION's token_uri (series URL + a long
-                                    numeric suffix) — NOT the same as moments.token_uri
-                                    or cards.token_uri, which are bare series/card URLs;
-                                    treat this as an opaque per-transaction id, don't
-                                    join it against those columns
+                                    numeric suffix) — CORRECTED 2026-09-02, this note
+                                    used to wrongly call it opaque: it IS the exact same
+                                    value as cards.token_uri / packs.token_uri for that
+                                    specific card/pack. Verified directly: 754,331 of
+                                    754,573 rows (99.97%) exact-match one or the other
+                                    (423,987 -> cards, 330,344 -> packs). This is the
+                                    RIGHT way to resolve a transaction to a highlight
+                                    name/player/team/set — NOT series_id+edition (series_id
+                                    is shared across every moment in a collapsed set, see
+                                    the collections/moments section above, so series_id+
+                                    edition alone returns one row PER SHARED MOMENT, e.g.
+                                    32 different players for one Ice Nation edition
+                                    number — genuinely ambiguous, verified live). The
+                                    ~0.03% that don't resolve are a real, small, known gap
+                                    (one repeated token_uri observed, likely a dead/edge-
+                                    case moment not currently in `cards` — not investigated
+                                    further, treat a LEFT JOIN miss as "highlight unknown"
+                                    for display, don't treat it as a bug to chase)
   transaction_type      TEXT    -- 'purchase' | 'trade' | 'gift' | 'pack_open' | 'promo'
                                     | 'transfer' — exact values, verified against real
                                     rows of each (see GOTCHA below for what each really
@@ -499,19 +519,31 @@ username/address string Sweet's API returned. If you need to go username -> wall
 that mapping is separate and NOT guaranteed to cover every value seen here (see above).
 
 EXAMPLE QUERIES
-- Sitewide recent activity feed (resolves open question #1 below):
-    SELECT transaction_type, transaction_datetime, series_id, edition, amount, currency,
-           from_username, to_username, explorer_url
-    FROM sweet_transaction_history
-    ORDER BY transaction_datetime DESC
+- Sitewide recent activity feed, WITH the player/highlight name resolved (resolves open
+  question #1 below) — join token_uri directly, NOT series_id (see the token_uri gotcha
+  above for why series_id alone is ambiguous for shared-series sets):
+    SELECT h.transaction_type, h.transaction_datetime, h.edition, h.amount, h.currency,
+           h.from_username, h.to_username, h.explorer_url,
+           c.player, c.team, c.rarity, c.set_name  -- NULL if it was a pack, use p.* instead
+    FROM sweet_transaction_history h
+    LEFT JOIN cards c ON c.token_uri = h.token_uri
+    ORDER BY h.transaction_datetime DESC
     LIMIT 50
-  (Join series_id back to moments/pack_moments for player/set display metadata — this
-  table has no player/team columns of its own.)
-- Per-highlight/per-pack activity tab (the thing nhlbreakaway.com's own series page
-  shows, e.g. nhlbreakaway.com/series/X1OvMnqm) — same query, add `WHERE series_id = $1`.
-  Remember series_id is shared across every moment in a collapsed set (see [[project-
-  sweet-api-data-model]]-style sharing noted above) — this feed is per-SERIES, not
-  strictly per-individual-highlight when a set shares one series_id.
+  For a feed that also covers pack transactions, LEFT JOIN packs p ON p.token_uri =
+  h.token_uri too and COALESCE the display fields (pack_moments has pack_name/rarity,
+  not player/team). A row where both joins miss (the ~0.03% gap noted above) should just
+  show "Unknown item," not be dropped or treated as an error.
+- Per-highlight activity tab for ONE specific card design (the thing nhlbreakaway.com's
+  own series page shows, e.g. nhlbreakaway.com/series/X1OvMnqm) — resolve the target
+  moment's OWN token_uris first (a shared series_id means you can't just filter
+  `WHERE series_id = ?`, that would pull in every other moment sharing it too):
+    SELECT h.* FROM sweet_transaction_history h
+    WHERE h.token_uri IN (SELECT token_uri FROM cards WHERE moment_uuid = $1)
+    ORDER BY h.transaction_datetime DESC
+    LIMIT 100
+  (For a whole SET's combined activity feed instead of one highlight, filtering by
+  series_id directly is fine and intentional — that's the "everything sharing this
+  series" scope, e.g. all 32 Ice Nation players' combined history.)
 - "Who's opened the most packs" leaderboard:
     SELECT to_username, COUNT(*) AS packs_opened
     FROM sweet_transaction_history
@@ -538,10 +570,13 @@ EXAMPLE QUERIES
     LIMIT 25
 - Per-wallet activity page (this is the "wallet activity history" feature nhlba.com and
   thefifthlinecode.onrender.com show, e.g. nhlba.com/accounts/activity/{address}) — go
-  address -> username via wallet_usernames first, since this table has no address column:
-    SELECT * FROM sweet_transaction_history
-    WHERE from_username = $1 OR to_username = $1
-    ORDER BY transaction_datetime DESC
+  address -> username via wallet_usernames first, since this table has no address column,
+  then join token_uri for the highlight name the same way as the activity feed above:
+    SELECT h.*, c.player, c.team, c.set_name
+    FROM sweet_transaction_history h
+    LEFT JOIN cards c ON c.token_uri = h.token_uri
+    WHERE h.from_username = $1 OR h.to_username = $1
+    ORDER BY h.transaction_datetime DESC
     LIMIT 100
   ($1 = the username resolved from the looked-up wallet_address.)
 
