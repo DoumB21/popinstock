@@ -642,6 +642,26 @@ anything that displays trade/activity history, don't present it as a guaranteed-
 record — a wallet's real activity may include occasional gaps, especially on Base/heavily-
 shared sets, and that's expected, not a bug to chase.
 
+ALSO CONSIDERED AND DECLINED, SAME DAY: an Alchemy-based hybrid fix (full on-chain
+`alchemy_getAssetTransfers` per contract — already used for burn detection in
+`detect-burns.js` — dedup by tx_hash against this table, add whatever Alchemy sees that
+Sweet doesn't). Investigated seriously, not just theoretical: verified the missing
+Cole Caufield transaction directly on-chain via Alchemy (confirmed `tokenId` maps exactly
+to `sequence_number`, `to` address matched the real wallet, timestamp matched), and
+measured real scale (one 75K-card contract alone had 242,421 total on-chain transfers —
+extrapolated to ~4-4.5M across the whole catalog, feasible in ~30-45 min of fetching, NOT
+a scale blocker on its own). Declined anyway for two reasons the user raised directly:
+(1) most of that volume (~1.3M) is MINT events, which would need to go somewhere other
+than this table to avoid pushing Raff too close to its 2GB cap even after separating
+mints from real gap-filling transfers; (2) an on-chain-only-recovered transfer has NO
+way to distinguish gift vs. trade vs. private purchase — that categorization is Sweet's
+own off-chain business logic, not present in a raw Transfer event, so any row rescued
+this way would need an honest 'unknown category' label rather than a guessed one. Given
+the added complexity for a fun-stats feature (not financial reconciliation), the user's
+call was to stop here and keep the existing Sweet-only pipeline as the final state — if
+this idea resurfaces later, this paragraph is the prior art, not a reason to assume it
+wasn't considered.
+
 STORAGE / SCALE NOTE
 445MB with its 4 indexes (series_id, transaction_type, to_username, from_username) for
 754K rows on Raff — pushed there in full (not pre-compiled into leaderboards), the

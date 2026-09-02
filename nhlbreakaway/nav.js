@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { label: 'Wallet Look Up', href: 'wallet' },
   { label: 'Edition Rankings', href: 'edition-rankings' },
   { label: 'Leaderboard', href: 'leaderboard' },
+  { label: 'Activity', href: 'activity-leaderboard' },
 ];
 
 const SECTION_NAME = 'NHL Breakaway';

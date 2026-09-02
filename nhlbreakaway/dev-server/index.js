@@ -963,6 +963,112 @@ async function handleWalletActivityFilters(url, res) {
   }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
+// Sitewide, cross-wallet leaderboard for sweet_transaction_history — "who
+// spent/sold/traded/opened packs the most," one type at a time (each type
+// is a genuinely different metric — count-only for most, count+$ for
+// purchase/sale — so this is never an "all types combined" view, unlike
+// the per-wallet Activity Summary which shows every type at once).
+// groupBy tells the query which side of the row identifies "whose activity
+// this is": 'to' (buyer/opener/recipient), 'from' (seller), or 'either'
+// (both sides count — a trade/gift/transfer has no single "owner" of the
+// event, matching NHL_BREAKAWAY_DATA_HANDOFF.txt's own "Most trades"
+// example query, which UNIONs from_username and to_username). 'sale' has
+// no raw transaction_type of its own — same 'purchase' row, other side.
+const ACTIVITY_LEADERBOARD_TYPES = {
+  purchase:  { rawType: 'purchase',  groupBy: 'to',     hasAmount: true },
+  sale:      { rawType: 'purchase',  groupBy: 'from',   hasAmount: true },
+  trade:     { rawType: 'trade',     groupBy: 'either', hasAmount: false },
+  gift:      { rawType: 'gift',      groupBy: 'either', hasAmount: false },
+  pack_open: { rawType: 'pack_open', groupBy: 'to',     hasAmount: false },
+  promo:     { rawType: 'promo',     groupBy: 'to',     hasAmount: false },
+  transfer:  { rawType: 'transfer',  groupBy: 'either', hasAmount: false },
+};
+
+// Same filter set as buildActivityWhere, minus the wallet-scoping clause —
+// there's no single "viewed wallet" for a sitewide leaderboard.
+function buildActivityLeaderboardWhere(q, rawType) {
+  const where = ['s.transaction_type = $1'];
+  const params = [rawType];
+  const addEqFilter = (col, val) => {
+    if (!val) return;
+    params.push(val);
+    where.push(`${col} = $${params.length}`);
+  };
+  addEqFilter('COALESCE(c.series_label, p.series_label)', q.get('series_label'));
+  addEqFilter('COALESCE(c.set_name, p.pack_name)', q.get('set_name'));
+  addEqFilter('COALESCE(c.rarity, p.rarity)', q.get('rarity'));
+  const playerSearch = (q.get('player') || '').trim();
+  if (playerSearch) {
+    params.push(`%${playerSearch.toLowerCase()}%`);
+    where.push(`LOWER(c.player) LIKE $${params.length}`);
+  }
+  const minAmount = parseFloat(q.get('min_amount'));
+  const maxAmount = parseFloat(q.get('max_amount'));
+  if (Number.isFinite(minAmount)) { params.push(minAmount); where.push(`s.amount >= $${params.length}`); }
+  if (Number.isFinite(maxAmount)) { params.push(maxAmount); where.push(`s.amount <= $${params.length}`); }
+  return { where, params };
+}
+
+async function handleActivityLeaderboard(url, res) {
+  const q = url.searchParams;
+  const config = ACTIVITY_LEADERBOARD_TYPES[q.get('type')];
+  if (!config) return sendJson(res, 400, { error: 'type required' });
+
+  const { where, params } = buildActivityLeaderboardWhere(q, config.rawType);
+  const whereSql = where.join(' AND ');
+  const sortKey = (q.get('sort') === 'amount' && config.hasAmount) ? 'total_amount' : 'count';
+  const dir = q.get('dir') === 'asc' ? 'ASC' : 'DESC';
+  const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
+  const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
+  params.push(limit + 1, offset);
+
+  // Excludes raw 0x-shaped values (no cached username) from the leaderboard
+  // — same convention as the handoff doc's own "Top spenders"/"Most trades"
+  // example queries, since a leaderboard is about recognizable collectors,
+  // not anonymous addresses.
+  const perSideSelect = `
+    SELECT s.from_username, s.to_username, s.amount
+    FROM sweet_transaction_history s
+    LEFT JOIN cards c ON c.token_uri = s.token_uri
+    LEFT JOIN packs p ON p.token_uri = s.token_uri
+    WHERE ${whereSql}`;
+  const fromClause = config.groupBy === 'either'
+    ? `(
+        SELECT from_username AS username, amount FROM (${perSideSelect}) t1
+        UNION ALL
+        SELECT to_username AS username, amount FROM (${perSideSelect}) t2
+      ) combined`
+    : `(SELECT ${config.groupBy === 'from' ? 'from_username' : 'to_username'} AS username, amount FROM (${perSideSelect}) t) combined`;
+
+  // ALSO excludes the literal brand string "NHL" — confirmed via live query
+  // that it appears as from_username on ~118K raw 'purchase' rows (the
+  // platform's own primary-market sales, not a real collector reselling),
+  // which would otherwise top the Sale leaderboard outright. This table has
+  // no wallet_address to join system_wallets against (unlike every other
+  // system-wallet exclusion in this file) — "NHL" is a sentinel string
+  // Sweet's own API returns for platform-originated events, not a real
+  // queryable wallet identity, so a direct string check is the only option
+  // here. Matches the handoff doc's own explicit "NHL" exclusion note for
+  // promo rows, extended here since the same sentinel shows up on purchase
+  // rows too.
+  const sql = `
+    SELECT username, COUNT(*) AS count, SUM(amount) AS total_amount
+    FROM ${fromClause}
+    WHERE username !~ '^0x[0-9a-fA-F]{40}$' AND UPPER(username) <> 'NHL'
+    GROUP BY username
+    ORDER BY ${sortKey} ${dir} NULLS LAST, username ASC
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+  `;
+  const { rows } = await pool.query(sql, params);
+  const hasMore = rows.length > limit;
+  const leaderboard = rows.slice(0, limit).map(r => ({
+    username: r.username,
+    count: Number(r.count),
+    total_amount: r.total_amount === null ? null : Number(r.total_amount),
+  }));
+  sendJson(res, 200, { leaderboard, has_more: hasMore }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
 const WALLET_CARDS_SORT_COLUMNS = {
   player: 'm.player',
   set: 'm.set_name',
@@ -2156,6 +2262,8 @@ export async function routeRequest(url, res) {
       await handleLeaderboardPlayers(url, res);
     } else if (url.pathname === '/api/leaderboard') {
       await handleLeaderboard(url, res);
+    } else if (url.pathname === '/api/activity-leaderboard') {
+      await handleActivityLeaderboard(url, res);
     } else if (url.pathname === '/api/site-meta') {
       await handleSiteMeta(res);
     } else if (url.pathname === '/health') {
