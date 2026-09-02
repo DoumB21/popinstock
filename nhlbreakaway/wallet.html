@@ -194,6 +194,10 @@
       background-clip: padding-box, border-box;
       background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
     }
+    /* Activity tab's Item column packs a series-label + rarity pill onto one
+       line — the pill's own inline-flex box sits flush against the
+       preceding text with just a single space otherwise, reads too tight. */
+    .cell-series .rarity-pill { margin-left: 0.4rem; }
     .rarity-pill-text {
       background-image: var(--rr-text);
       -webkit-background-clip: text; background-clip: text;
