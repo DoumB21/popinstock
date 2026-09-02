@@ -17,13 +17,27 @@
     .filter-bar .cb-combo { min-width: 160px; flex: 1; max-width: 220px; }
     .filter-bar .text-search-wrap { position: relative; min-width: 180px; max-width: 280px; flex: 1.2; }
     .filter-bar .text-search-wrap .search-input { width: 100%; min-width: 0; max-width: none; padding-right: 2.1rem; }
-    .filter-bar .amount-range-input { width: 120px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
     @media (max-width: 700px) {
-      .filter-bar .cb-combo, .filter-bar .text-search-wrap, .filter-bar .amount-range-input { max-width: none; }
+      .filter-bar .cb-combo, .filter-bar .text-search-wrap { max-width: none; }
     }
 
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
     .results-meta strong { color: var(--text-primary); }
+
+    /* ── Find a collector (username/address type-ahead, ported from
+       leaderboard.html) — identified by USERNAME here, not wallet_address:
+       sweet_transaction_history has no wallet_address column at all. ── */
+    .find-collector-wrap { position: relative; flex: 1; max-width: 340px; min-width: 220px; }
+    .find-collector-wrap .search-input { width: 100%; max-width: none; padding-right: 2.1rem; }
+    .suggest-item { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+    .suggest-item-name { font-weight: 600; }
+    .suggest-item-wallet { font-size: 0.72rem; color: var(--text-secondary); }
+    #findCollectorResult { display: inline-flex; align-items: center; }
+    #findCollectorResult strong { color: var(--accent-light); }
+    .exit-spotlight-btn { margin-left: 0.6rem; background: none; border: none; padding: 0; color: var(--accent-light); text-decoration: underline; font-size: 0.8rem; cursor: pointer; }
+    .exit-spotlight-btn:hover { color: var(--text-primary); }
+    .items-table tbody tr.spotlight-row { background: rgba(240,168,64,0.08); }
+    .items-table tbody tr.spotlight-row:hover { background: rgba(240,168,64,0.14); }
 
     /* ── Table — same sortable/rank-tint treatment as wallet.html's Activity
        tab and leaderboard.html's own Collector Leaderboard, merged into one
@@ -90,15 +104,15 @@
         <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
         <div class="cb-panel" id="rarityPanel"></div>
       </div>
-      <div class="text-search-wrap">
-        <input type="text" class="search-input" id="playerSearch" placeholder="Search player" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-dropdown-clear" id="playerSearchClear" style="display:none" title="Clear">✕</button>
-      </div>
     </div>
 
     <div class="filter-bar">
-      <input type="number" class="search-input amount-range-input" id="minAmount" placeholder="Min amount" min="0" step="0.01" inputmode="decimal">
-      <input type="number" class="search-input amount-range-input" id="maxAmount" placeholder="Max amount" min="0" step="0.01" inputmode="decimal">
+      <div class="find-collector-wrap">
+        <input type="text" class="search-input" id="findCollectorInput" placeholder="Find collector by username or wallet (0x...)" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-dropdown-clear" id="findCollectorClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="findCollectorSuggestPanel"></div>
+      </div>
+      <span class="results-meta" id="findCollectorResult"></span>
       <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
     </div>
 
@@ -299,25 +313,28 @@ function activeColumns() {
 }
 
 const state = {
-  type: 'purchase', series_label: '', set_name: '', rarity: '', player: '',
-  min_amount: '', max_amount: '',
+  type: 'purchase', series_label: '', set_name: '', rarity: '',
   sortField: 'amount', sortDir: 'desc',
   leaderboard: [], offset: 0, hasMore: false, busy: false, autoLoadArmed: false,
+  spotlightUsername: null,
 };
 
-function buildQuery() {
+// Shared by the paginated list and the spotlight rank lookup — same filters,
+// same type, same sort (the spotlight always shows this wallet's rank
+// under whatever's currently selected, not a fixed metric).
+function buildFilterParams() {
   const params = new URLSearchParams();
   params.set('type', state.type);
   if (state.series_label) params.set('series_label', state.series_label);
   if (state.set_name) params.set('set_name', state.set_name);
   if (state.rarity) params.set('rarity', state.rarity);
-  if (state.player) params.set('player', state.player);
-  if (TYPE_HAS_AMOUNT[state.type]) {
-    if (state.min_amount !== '') params.set('min_amount', state.min_amount);
-    if (state.max_amount !== '') params.set('max_amount', state.max_amount);
-  }
   params.set('sort', state.sortField);
   params.set('dir', state.sortDir);
+  return params;
+}
+
+function buildQuery() {
+  const params = buildFilterParams();
   params.set('limit', PAGE_SIZE);
   params.set('offset', state.offset);
   return params;
@@ -347,9 +364,47 @@ async function loadChunk() {
   return got;
 }
 
+// While a collector is spotlighted, every filter/sort/type change re-runs
+// the rank lookup instead of the paginated list — same "top-layer filter,
+// always their CURRENT real rank" convention as leaderboard.html's own
+// Find a collector.
+async function loadSpotlight() {
+  if (state.busy) return;
+  state.busy = true;
+  renderLoadMore();
+  try {
+    const params = buildFilterParams();
+    params.set('username', state.spotlightUsername);
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/activity-leaderboard/rank?${params}`, version));
+    const data = await res.json();
+    state.leaderboard = data.found
+      ? [{ username: data.username, count: data.count, total_amount: data.total_amount, rank: data.rank }]
+      : [];
+    state.hasMore = false;
+    renderBody();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load. Please try again shortly.';
+    console.error(err);
+  } finally {
+    state.busy = false;
+    renderLoadMore();
+  }
+}
+
+function exitSpotlight() {
+  state.spotlightUsername = null;
+  findCollectorInputEl.value = '';
+  updateFindCollectorClear();
+  document.getElementById('findCollectorResult').textContent = '';
+  closeFcSuggestions();
+  fetchPage(true);
+}
+
 async function fetchPage(reset) {
   if (reset) { state.offset = 0; state.leaderboard = []; state.autoLoadArmed = false; state.hasMore = false; }
-  await loadChunk();
+  if (state.spotlightUsername) await loadSpotlight();
+  else await loadChunk();
 }
 
 function renderHead() {
@@ -379,12 +434,16 @@ function renderBody() {
   const cols = activeColumns().length;
   const body = document.getElementById('body');
   if (!state.leaderboard.length) {
-    body.innerHTML = `<tr><td colspan="${cols}" style="padding:2rem 1rem; text-align:center; color:var(--text-secondary);">No activity matches these filters.</td></tr>`;
+    const emptyMsg = state.spotlightUsername ? "This collector has no activity matching these filters." : 'No activity matches these filters.';
+    body.innerHTML = `<tr><td colspan="${cols}" style="padding:2rem 1rem; text-align:center; color:var(--text-secondary);">${emptyMsg}</td></tr>`;
   } else {
     body.innerHTML = state.leaderboard.map((r, i) => {
-      const rank = i + 1;
+      // Spotlight mode carries the collector's REAL rank on the row itself
+      // (from /api/activity-leaderboard/rank) rather than its position in
+      // this single-row array.
+      const rank = r.rank != null ? r.rank : i + 1;
       const rankClass = rank <= 3 ? ` cell-rank--${rank}` : '';
-      const rowClass = rank <= 3 ? ` class="rank-row--${rank}"` : '';
+      const rowClass = state.spotlightUsername ? ' class="spotlight-row"' : (rank <= 3 ? ` class="rank-row--${rank}"` : '');
       const wallet = `<a class="holder-link" href="https://nhlbreakaway.com/user/${encodeURIComponent(r.username)}?sort=newest" target="_blank" rel="noopener">${escHtml(r.username)}</a>`;
       return `
         <tr${rowClass}>
@@ -396,14 +455,19 @@ function renderBody() {
       `;
     }).join('');
   }
-  document.getElementById('resultsMeta').innerHTML =
-    `<strong>${fmtNum(state.leaderboard.length)}</strong> wallet${state.leaderboard.length === 1 ? '' : 's'}${state.hasMore ? '+' : ''}`;
+  const meta = document.getElementById('resultsMeta');
+  if (state.spotlightUsername) {
+    meta.innerHTML = `Showing <strong>1</strong> collector only <button type="button" id="exitSpotlightBtn" class="exit-spotlight-btn">✕ Show full leaderboard</button>`;
+    document.getElementById('exitSpotlightBtn').addEventListener('click', exitSpotlight);
+  } else {
+    meta.innerHTML = `<strong>${fmtNum(state.leaderboard.length)}</strong> wallet${state.leaderboard.length === 1 ? '' : 's'}${state.hasMore ? '+' : ''}`;
+  }
 }
 
 function renderLoadMore() {
   const wrap = document.getElementById('loadMoreWrap');
   const btn = document.getElementById('loadMoreBtn');
-  wrap.style.display = state.hasMore ? 'block' : 'none';
+  wrap.style.display = (state.hasMore && !state.spotlightUsername) ? 'block' : 'none';
   btn.disabled = state.busy;
   btn.textContent = state.busy ? 'Loading…' : 'Load more';
 }
@@ -414,12 +478,6 @@ document.getElementById('loadMoreBtn').addEventListener('click', () => {
 new IntersectionObserver(entries => {
   if (entries[0].isIntersecting && state.autoLoadArmed && !state.busy && state.hasMore) fetchPage(false);
 }, { rootMargin: '600px' }).observe(document.getElementById('loadMoreWrap'));
-
-function syncAmountInputsVisibility() {
-  const show = TYPE_HAS_AMOUNT[state.type];
-  document.getElementById('minAmount').style.display = show ? '' : 'none';
-  document.getElementById('maxAmount').style.display = show ? '' : 'none';
-}
 
 function populateTypeCombo() {
   // buildCombo's own renderList always slice(1)s the items array — index 0
@@ -439,7 +497,6 @@ function populateTypeCombo() {
       // have no amount column to sort by at all.
       state.sortField = TYPE_HAS_AMOUNT[v] ? 'amount' : 'count';
       state.sortDir = 'desc';
-      syncAmountInputsVisibility();
     },
     () => { renderHead(); fetchPage(true); });
 }
@@ -459,39 +516,158 @@ async function populateFilters() {
     () => state.rarity, v => state.rarity = v, () => fetchPage(true));
 }
 
-const playerSearchWidget = setupTextSearch({
-  inputId: 'playerSearch', clearId: 'playerSearchClear', debounceMs: 400,
-  applyValue: val => { state.player = val; fetchPage(true); },
-});
-
-let _amountT = null;
-function wireAmountInput(id, stateKey) {
-  document.getElementById(id).addEventListener('input', e => {
-    clearTimeout(_amountT);
-    const val = e.target.value;
-    _amountT = setTimeout(() => { state[stateKey] = val; fetchPage(true); }, 250);
-  });
-}
-wireAmountInput('minAmount', 'min_amount');
-wireAmountInput('maxAmount', 'max_amount');
-
 document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-  state.series_label = ''; state.set_name = ''; state.rarity = ''; state.player = '';
-  state.min_amount = ''; state.max_amount = '';
-  document.getElementById('minAmount').value = '';
-  document.getElementById('maxAmount').value = '';
-  document.getElementById('playerSearch').value = '';
-  playerSearchWidget.reset();
+  state.series_label = ''; state.set_name = ''; state.rarity = '';
   syncComboDisplay(document.getElementById('seriesCombo'));
   syncComboDisplay(document.getElementById('setCombo'));
   syncComboDisplay(document.getElementById('rarityCombo'));
   fetchPage(true);
 });
 
+/* ══════════════════ Find a collector (username/address type-ahead) ══════════════════
+   Ported from leaderboard.html's own — identified by USERNAME here, not
+   wallet_address: sweet_transaction_history has no wallet_address column,
+   so a wallet with no cached username simply cannot appear in this
+   leaderboard at all (a clear message, not a silent empty spotlight). */
+const findCollectorInputEl = document.getElementById('findCollectorInput');
+const findCollectorSuggestPanel = document.getElementById('findCollectorSuggestPanel');
+const findCollectorClearBtn = document.getElementById('findCollectorClear');
+let fcSuggestItems = [];
+let fcSuggestActiveIndex = -1;
+let fcSuggestSeq = 0;
+
+function closeFcSuggestions() {
+  findCollectorSuggestPanel.classList.remove('open');
+  fcSuggestItems = [];
+  fcSuggestActiveIndex = -1;
+}
+
+function updateFindCollectorClear() {
+  findCollectorClearBtn.style.display = findCollectorInputEl.value ? '' : 'none';
+}
+
+function renderFcSuggestions() {
+  if (!fcSuggestItems.length) {
+    findCollectorSuggestPanel.innerHTML = `<div class="cb-empty">No matches</div>`;
+  } else {
+    findCollectorSuggestPanel.innerHTML = fcSuggestItems.map((s, i) => `
+      <div class="cb-item suggest-item${i === fcSuggestActiveIndex ? ' active' : ''}" data-index="${i}">
+        <span class="suggest-item-name">${escHtml(s.username || '(no username)')}</span>
+        <span class="suggest-item-wallet">${escHtml(s.wallet_address)}</span>
+      </div>
+    `).join('');
+    findCollectorSuggestPanel.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('mousedown', e => e.preventDefault());
+      el.addEventListener('click', () => selectFcSuggestion(fcSuggestItems[Number(el.dataset.index)]));
+    });
+  }
+  findCollectorSuggestPanel.classList.add('open');
+}
+
+function selectFcSuggestion(item) {
+  findCollectorInputEl.value = item.username || item.wallet_address;
+  updateFindCollectorClear();
+  closeFcSuggestions();
+  if (!item.username) {
+    document.getElementById('findCollectorResult').textContent = "This wallet has no cached username, so it can't appear in this leaderboard.";
+    return;
+  }
+  spotlightCollector(item.username);
+}
+
+async function spotlightCollector(resolvedUsername) {
+  const query = resolvedUsername || findCollectorInputEl.value.trim();
+  const resultEl = document.getElementById('findCollectorResult');
+  if (!query) { resultEl.textContent = ''; return; }
+  resultEl.textContent = 'Searching…';
+  try {
+    let username = resolvedUsername;
+    if (!username) {
+      const version = await getDataVersion();
+      const resolveRes = await fetch(withVersion(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`, version));
+      if (resolveRes.status === 404) {
+        resultEl.textContent = `No wallet or username found matching "${query}".`;
+        return;
+      }
+      if (!resolveRes.ok) throw new Error(`resolve failed: ${resolveRes.status}`);
+      ({ username } = await resolveRes.json());
+      if (!username) {
+        resultEl.textContent = "This wallet has no cached username, so it can't appear in this leaderboard.";
+        return;
+      }
+    }
+    resultEl.textContent = '';
+    state.spotlightUsername = username;
+    await fetchPage(true);
+  } catch (err) {
+    resultEl.textContent = 'Failed to look up. Please try again shortly.';
+    console.error(err);
+  }
+}
+
+let _fcSuggestT = null;
+findCollectorInputEl.addEventListener('input', () => {
+  clearTimeout(_fcSuggestT);
+  updateFindCollectorClear();
+  const q = findCollectorInputEl.value.trim();
+  document.getElementById('findCollectorResult').textContent = '';
+  // Clearing the box exits the spotlight — there's no other way to get
+  // back to the full leaderboard via this input once spotlighted.
+  if (!q && state.spotlightUsername) { state.spotlightUsername = null; fetchPage(true); return; }
+  if (q.length < 2) { closeFcSuggestions(); return; }
+  _fcSuggestT = setTimeout(async () => {
+    const seq = ++fcSuggestSeq;
+    try {
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`, version));
+      const data = await res.json();
+      if (seq !== fcSuggestSeq) return;
+      fcSuggestItems = data.suggestions;
+      fcSuggestActiveIndex = -1;
+      renderFcSuggestions();
+    } catch (err) {
+      console.error(err);
+    }
+  }, 250);
+});
+
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.find-collector-wrap')) closeFcSuggestions();
+});
+
+findCollectorClearBtn.addEventListener('mousedown', e => e.preventDefault());
+findCollectorClearBtn.addEventListener('click', () => {
+  findCollectorInputEl.value = '';
+  updateFindCollectorClear();
+  document.getElementById('findCollectorResult').textContent = '';
+  closeFcSuggestions();
+  if (state.spotlightUsername) { state.spotlightUsername = null; fetchPage(true); }
+});
+
+findCollectorInputEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && fcSuggestItems.length) {
+    e.preventDefault();
+    fcSuggestActiveIndex = (fcSuggestActiveIndex + 1) % fcSuggestItems.length;
+    renderFcSuggestions();
+  } else if (e.key === 'ArrowUp' && fcSuggestItems.length) {
+    e.preventDefault();
+    fcSuggestActiveIndex = (fcSuggestActiveIndex - 1 + fcSuggestItems.length) % fcSuggestItems.length;
+    renderFcSuggestions();
+  } else if (e.key === 'Enter') {
+    if (fcSuggestActiveIndex >= 0 && fcSuggestItems[fcSuggestActiveIndex]) {
+      selectFcSuggestion(fcSuggestItems[fcSuggestActiveIndex]);
+    } else {
+      closeFcSuggestions();
+      spotlightCollector();
+    }
+  } else if (e.key === 'Escape') {
+    closeFcSuggestions();
+  }
+});
+
 (async function init() {
   document.getElementById('resultsMeta').textContent = 'Loading…';
   populateTypeCombo();
-  syncAmountInputsVisibility();
   renderHead();
   try {
     await Promise.all([populateFilters(), fetchPage(true)]);
