@@ -11,18 +11,22 @@ const NAV_LINKS = [
 
 const SECTION_NAME = 'NHL Breakaway';
 
-// Same-origin production API — served by api/[...route].js (a Vercel
-// function reusing nhlbreakaway/dev-server/index.js's routeRequest()
-// verbatim). Empty string, not localhost: a real visitor's browser has no
-// idea what "localhost" means, so this must always resolve relative to
-// whatever domain the page itself is loaded from.
+// Absolute production URL, not a same-origin relative path — same pattern
+// this site already uses for Supabase/WAX (real public APIs, called
+// directly regardless of what domain the page itself loads from). NHL
+// Breakaway's Postgres database has no browser-safe HTTP interface of its
+// own, so api/route.js on hoardio.com IS that public API; a relative path
+// only resolves correctly when Vercel itself serves the HTML, breaking
+// local IIS testing (which can't run serverless functions at all). CORS is
+// already open on the API, so this absolute URL works identically from
+// localhost, IIS, Vercel previews, and production itself.
 // Named NAV_API_BASE, not API_BASE — top-level `const` in separate classic
 // <script> tags on the same page share one scope, so reusing the name each
 // page's own inline script already uses collided and threw a SyntaxError
 // that silently killed this entire script (nav disappeared everywhere
 // except the hub, the one page with no API_BASE of its own). Never reuse a
 // page-level const name here.
-const NAV_API_BASE = '';
+const NAV_API_BASE = 'https://www.hoardio.com';
 const FRESHNESS_CACHE_KEY = 'nhlbreakaway_data_last_updated';
 const FRESHNESS_CACHE_TTL_MS = 5 * 60 * 1000; // avoid re-querying on every page nav within a visit
 

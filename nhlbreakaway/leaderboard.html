@@ -214,12 +214,16 @@
 <script>
 'use strict';
 
-// Same-origin production API — served by api/[...route].js (a Vercel
-// function reusing nhlbreakaway/dev-server/index.js's routeRequest()
-// verbatim). Empty string, not localhost: a real visitor's browser has no
-// idea what "localhost" means, so this must always resolve relative to
-// whatever domain the page itself is loaded from.
-const API_BASE = '';
+// Absolute production URL, not a same-origin relative path — same pattern
+// this site already uses for Supabase/WAX (real public APIs, called
+// directly regardless of what domain the page itself loads from). NHL
+// Breakaway's Postgres database has no browser-safe HTTP interface of its
+// own, so api/route.js on hoardio.com IS that public API; a relative path
+// only resolves correctly when Vercel itself serves the HTML, breaking
+// local IIS testing (which can't run serverless functions at all). CORS is
+// already open on the API, so this absolute URL works identically from
+// localhost, IIS, Vercel previews, and production itself.
+const API_BASE = 'https://www.hoardio.com';
 const PAGE_SIZE = 100;
 
 const EDITION_BADGE_ITEMS = [
