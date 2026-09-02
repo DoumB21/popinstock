@@ -747,6 +747,149 @@ async function handleWalletMintRankings(url, res) {
   }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
+// Backs Wallet Look Up's "Activity" tab. sweet_transaction_history has no
+// wallet_address column at all (see NHL_BREAKAWAY_DATA_HANDOFF.txt's own
+// SWEET TRANSACTION HISTORY section) — only whichever username/raw-address
+// string Sweet's API returned — so a wallet must be resolved to its
+// username FIRST via wallet_usernames, then matched against from_username/
+// to_username. A wallet with no cached username has no way to be matched
+// here at all; this returns a clean empty result (not an error) for that
+// case, same "no username = no data for this feature" limitation the
+// handoff note describes.
+//
+// series_id has no player/team/rarity columns of its own and is shared
+// across every moment in a collapsed set (e.g. all 32 Ice Nation player
+// templates share one series_id) — confirmed live that series_id maps to
+// exactly ONE (set_name/pack_name, rarity, series_label) combo, and every
+// transaction row's series_id matches EITHER moments OR pack_moments, never
+// both, never neither — so a LEFT JOIN to both + COALESCE is safe with no
+// duplication or gap risk. `item_name`/`is_pack` in the response tell the
+// frontend whether to link into a Highlights moment or a pack design.
+const WALLET_ACTIVITY_TYPES = new Set(['purchase', 'trade', 'gift', 'pack_open', 'promo', 'transfer']);
+const WALLET_ACTIVITY_SORT_COLUMNS = {
+  date: 's.transaction_datetime',
+  amount: 's.amount',
+};
+
+async function handleWalletActivity(url, res) {
+  const q = url.searchParams;
+  const wallet = normalizeWallet(q.get('wallet'));
+  if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
+
+  const { rows: userRows } = await pool.query(
+    `SELECT username FROM wallet_usernames WHERE LOWER(wallet_address) = $1`,
+    [wallet]
+  );
+  const username = userRows[0]?.username;
+  if (!username) {
+    // Not an error — this wallet simply has no username Sweet's own API
+    // would ever report as a from/to value, so it can't match any row.
+    return sendJson(res, 200, { activity: [], total: 0, has_more: false, no_username: true }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  }
+
+  const where = ['(s.from_username = $1 OR s.to_username = $1)'];
+  const params = [username];
+  if (WALLET_ACTIVITY_TYPES.has(q.get('type'))) {
+    params.push(q.get('type'));
+    where.push(`s.transaction_type = $${params.length}`);
+  }
+  const addEqFilter = (col, val) => {
+    if (!val) return;
+    params.push(val);
+    where.push(`${col} = $${params.length}`);
+  };
+  addEqFilter('COALESCE(m.series_label, pm.series_label)', q.get('series_label'));
+  addEqFilter('COALESCE(m.set_name, pm.pack_name)', q.get('set_name'));
+  addEqFilter('COALESCE(m.rarity, pm.rarity)', q.get('rarity'));
+  const minAmount = parseFloat(q.get('min_amount'));
+  const maxAmount = parseFloat(q.get('max_amount'));
+  if (Number.isFinite(minAmount)) { params.push(minAmount); where.push(`s.amount >= $${params.length}`); }
+  if (Number.isFinite(maxAmount)) { params.push(maxAmount); where.push(`s.amount <= $${params.length}`); }
+  const walletSearch = (q.get('wallet_search') || '').trim();
+  if (walletSearch) {
+    params.push(`%${walletSearch.toLowerCase()}%`);
+    where.push(`(LOWER(s.from_username) LIKE $${params.length} OR LOWER(s.to_username) LIKE $${params.length})`);
+  }
+
+  const sortKey = WALLET_ACTIVITY_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'date';
+  const sortSql = WALLET_ACTIVITY_SORT_COLUMNS[sortKey];
+  const dir = q.get('dir') === 'asc' ? 'ASC' : 'DESC';
+  // amount is NULL for every type except 'purchase' — Postgres's default NULL
+  // ordering flips with direction (NULLS FIRST for DESC), which would bury
+  // every real purchase amount under a wall of NULLs on the default "amount
+  // desc" sort. Same gotcha/fix as Highlights' top_holder column elsewhere
+  // in this file. transaction_datetime is never NULL, so this is scoped to
+  // amount only.
+  const nullsClause = sortKey === 'amount' ? ' NULLS LAST' : '';
+  const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
+  const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
+  params.push(limit, offset);
+
+  const { rows } = await pool.query(
+    `SELECT s.transaction_type, s.transaction_datetime, s.edition, s.amount, s.currency,
+       s.from_username, s.to_username, s.explorer_url,
+       COALESCE(m.set_name, pm.pack_name) AS item_name,
+       COALESCE(m.series_label, pm.series_label) AS series_label,
+       COALESCE(m.rarity, pm.rarity) AS rarity,
+       (pm.series_id IS NOT NULL) AS is_pack,
+       COUNT(*) OVER() AS total_count
+     FROM sweet_transaction_history s
+     LEFT JOIN (SELECT DISTINCT series_id, set_name, series_label, rarity FROM moments) m ON m.series_id = s.series_id
+     LEFT JOIN (SELECT DISTINCT series_id, pack_name, series_label, rarity FROM pack_moments) pm ON pm.series_id = s.series_id
+     WHERE ${where.join(' AND ')}
+     ORDER BY ${sortSql} ${dir}${nullsClause}
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const total = rows.length ? Number(rows[0].total_count) : 0;
+  const activity = rows.map(r => ({
+    transaction_type: r.transaction_type,
+    transaction_datetime: r.transaction_datetime,
+    edition: r.edition,
+    amount: r.amount === null ? null : Number(r.amount),
+    currency: r.currency,
+    from_username: r.from_username,
+    to_username: r.to_username,
+    explorer_url: r.explorer_url,
+    item_name: r.item_name,
+    series_label: r.series_label,
+    rarity: r.rarity,
+    is_pack: r.is_pack,
+  }));
+  sendJson(res, 200, { activity, total, has_more: offset + activity.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
+// Filter dropdown options, scoped to THIS wallet's own activity rows (same
+// "don't show a set/rarity the wallet has zero activity in" convention as
+// populateSetsFilters()) — not the whole sitewide catalog.
+async function handleWalletActivityFilters(url, res) {
+  const wallet = normalizeWallet(url.searchParams.get('wallet'));
+  if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
+
+  const { rows: userRows } = await pool.query(
+    `SELECT username FROM wallet_usernames WHERE LOWER(wallet_address) = $1`,
+    [wallet]
+  );
+  const username = userRows[0]?.username;
+  if (!username) return sendJson(res, 200, { series: [], sets: [], rarities: [] }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+
+  const { rows } = await pool.query(
+    `SELECT DISTINCT COALESCE(m.series_label, pm.series_label) AS series_label,
+       COALESCE(m.set_name, pm.pack_name) AS set_name,
+       COALESCE(m.rarity, pm.rarity) AS rarity
+     FROM sweet_transaction_history s
+     LEFT JOIN (SELECT DISTINCT series_id, set_name, series_label, rarity FROM moments) m ON m.series_id = s.series_id
+     LEFT JOIN (SELECT DISTINCT series_id, pack_name, series_label, rarity FROM pack_moments) pm ON pm.series_id = s.series_id
+     WHERE (s.from_username = $1 OR s.to_username = $1)`,
+    [username]
+  );
+  sendJson(res, 200, {
+    series: [...new Set(rows.map(r => r.series_label).filter(Boolean))].sort(),
+    sets: [...new Set(rows.map(r => r.set_name).filter(Boolean))].sort(),
+    rarities: sortRarities([...new Set(rows.map(r => r.rarity).filter(Boolean))]),
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
 const WALLET_CARDS_SORT_COLUMNS = {
   player: 'm.player',
   set: 'm.set_name',
@@ -1908,6 +2051,10 @@ export async function routeRequest(url, res) {
       await handleWalletPacksFilters(res);
     } else if (url.pathname === '/api/wallet/mint-rankings') {
       await handleWalletMintRankings(url, res);
+    } else if (url.pathname === '/api/wallet/activity/filters') {
+      await handleWalletActivityFilters(url, res);
+    } else if (url.pathname === '/api/wallet/activity') {
+      await handleWalletActivity(url, res);
     } else if (url.pathname === '/api/mint-rankings/collections') {
       await handleMintRankingsCollections(res);
     } else if (url.pathname === '/api/mint-rankings/top') {

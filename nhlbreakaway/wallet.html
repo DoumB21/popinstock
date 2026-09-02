@@ -139,6 +139,11 @@
     .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .filter-bar .cb-combo { min-width: 160px; flex: 1; max-width: 220px; }
     .filter-bar .search-input { min-width: 180px; flex: 1.2; max-width: 280px; }
+    /* Activity tab's Min/Max amount — same idea as holders.html's own
+       edition-range-input (a plain min-width on .search-input would
+       otherwise silently win over a smaller explicit width here). */
+    .filter-bar .amount-range-input { width: 120px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
+    @media (max-width: 700px) { .filter-bar .amount-range-input { max-width: none; } }
     /* "Search set/player/pack name" — clear ✕ (reuses global.css's
        .cb-dropdown-clear look) + a suggestions panel (.cb-panel) sourced from
        what THIS WALLET owns. The wrap, not the input, carries the flex
@@ -148,6 +153,10 @@
     .filter-bar .text-search-wrap .search-input { width: 100%; min-width: 0; max-width: none; padding-right: 2.1rem; }
 
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
+    /* Activity tab's Polygonscan link — icon-only, so no underline-on-hover
+       text-decoration convention needed, just a color shift. */
+    .explorer-link { color: var(--text-secondary); text-decoration: none; }
+    .explorer-link:hover { color: var(--accent-light); }
     .results-meta strong { color: var(--text-primary); }
 
     /* ── Cards / Packs table ── */
@@ -258,6 +267,7 @@
         <button type="button" class="wallet-tab-btn" data-tab="cards">Highlights</button>
         <button type="button" class="wallet-tab-btn" data-tab="packs">Packs</button>
         <button type="button" class="wallet-tab-btn" data-tab="rankings">Edition Rankings</button>
+        <button type="button" class="wallet-tab-btn" data-tab="activity">Activity</button>
       </div>
 
       <div class="wallet-tab-panel active" id="tabPanelSets">
@@ -376,6 +386,47 @@
             <thead><tr id="rankingsHeadRow"></tr></thead>
             <tbody id="rankingsBody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="wallet-tab-panel" id="tabPanelActivity">
+        <div class="filter-bar">
+          <div class="cb-combo" id="activityTypeCombo">
+            <input type="text" class="cb-combo-input" id="activityTypeComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityTypeComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityTypePanel"></div>
+          </div>
+          <div class="cb-combo" id="activitySeriesCombo">
+            <input type="text" class="cb-combo-input" id="activitySeriesComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activitySeriesComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activitySeriesPanel"></div>
+          </div>
+          <div class="cb-combo" id="activitySetCombo">
+            <input type="text" class="cb-combo-input" id="activitySetComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activitySetComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activitySetPanel"></div>
+          </div>
+          <div class="cb-combo" id="activityRarityCombo">
+            <input type="text" class="cb-combo-input" id="activityRarityComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityRarityComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityRarityPanel"></div>
+          </div>
+          <input type="number" class="search-input amount-range-input" id="activityMinAmount" placeholder="Min amount" min="0" step="0.01" inputmode="decimal">
+          <input type="number" class="search-input amount-range-input" id="activityMaxAmount" placeholder="Max amount" min="0" step="0.01" inputmode="decimal">
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="activityWalletSearch" placeholder="Search from/to wallet" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="activityWalletSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+        </div>
+        <div class="results-meta" id="activityCount"></div>
+        <div style="overflow-x:auto;">
+          <table class="items-table">
+            <thead><tr id="activityHeadRow"></tr></thead>
+            <tbody id="activityBody"></tbody>
+          </table>
+        </div>
+        <div id="activityLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+          <button type="button" id="activityLoadMoreBtn" class="load-more-btn">Load more</button>
         </div>
       </div>
 
@@ -1210,9 +1261,195 @@ async function fetchWalletMintRankings(wallet) {
   }
 }
 
+/* ══════════════════ Activity table (paginated, filterable) ══════════════════
+   Backed by sweet_transaction_history via /api/wallet/activity — see that
+   handler's own comment in dev-server/index.js for the "resolve wallet to
+   username first, this table has no wallet_address column" reasoning and
+   the from/to-isn't-always-a-username gotcha. A wallet with no cached
+   username gets a clean "no activity" empty state, not an error — there's
+   nothing in this table that could ever match it. */
+const ACTIVITY_TYPE_LABELS = {
+  purchase: 'Purchase', trade: 'Trade', gift: 'Gift',
+  pack_open: 'Pack Open', promo: 'Promo', transfer: 'Transfer',
+};
+const ACTIVITY_COLUMNS = [
+  { key: 'type',   label: 'Type' },
+  { key: 'date',   label: 'Date', sortable: true },
+  { key: 'item',   label: 'Item' },
+  { key: 'edition', label: 'Edition', num: true },
+  { key: 'amount', label: 'Amount', sortable: true, num: true },
+  { key: 'from',   label: 'From' },
+  { key: 'to',     label: 'To' },
+  { key: 'link',   label: '' },
+];
+const activityState = {
+  wallet: '', type: '', series_label: '', set_name: '', rarity: '',
+  min_amount: '', max_amount: '', wallet_search: '',
+  activity: [], sortField: 'date', sortDir: 'desc',
+  offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false, noUsername: false,
+};
+
+function activityQuery() {
+  const params = new URLSearchParams();
+  params.set('wallet', activityState.wallet);
+  if (activityState.type) params.set('type', activityState.type);
+  if (activityState.series_label) params.set('series_label', activityState.series_label);
+  if (activityState.set_name) params.set('set_name', activityState.set_name);
+  if (activityState.rarity) params.set('rarity', activityState.rarity);
+  if (activityState.min_amount !== '') params.set('min_amount', activityState.min_amount);
+  if (activityState.max_amount !== '') params.set('max_amount', activityState.max_amount);
+  if (activityState.wallet_search) params.set('wallet_search', activityState.wallet_search);
+  params.set('sort', activityState.sortField);
+  params.set('dir', activityState.sortDir);
+  params.set('limit', PAGE_SIZE);
+  params.set('offset', activityState.offset);
+  return params;
+}
+
+// UTC-naive per the handoff note (no timezone suffix in the raw string) —
+// appending Z makes the Date object parse it as UTC instead of the
+// browser's local zone, then formats in the visitor's own local time same
+// as nav.js's freshness line.
+function fmtActivityDate(raw) {
+  if (!raw) return '—';
+  const d = new Date(raw + 'Z');
+  if (isNaN(d)) return raw;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d);
+}
+
+async function loadActivityChunk() {
+  if (activityState.busy) return 0;
+  activityState.busy = true;
+  renderActivityLoadMore();
+  let got = 0;
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/wallet/activity?${activityQuery()}`, version));
+    const data = await res.json();
+    activityState.noUsername = !!data.no_username;
+    activityState.activity = [...activityState.activity, ...data.activity];
+    activityState.total = data.total;
+    activityState.hasMore = data.has_more;
+    activityState.offset += data.activity.length;
+    got = data.activity.length;
+    renderActivityBody();
+  } catch (err) {
+    document.getElementById('activityCount').textContent = 'Failed to load activity. Please try again shortly.';
+    console.error(err);
+  } finally {
+    activityState.busy = false;
+    renderActivityLoadMore();
+  }
+  return got;
+}
+
+async function fetchActivityPage(reset) {
+  if (reset) { activityState.offset = 0; activityState.activity = []; activityState.autoLoadArmed = false; }
+  await loadActivityChunk();
+}
+
+function renderActivityHead() {
+  const row = document.getElementById('activityHeadRow');
+  row.innerHTML = ACTIVITY_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = activityState.sortField === col.key;
+    const icon = sorted ? (activityState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (activityState.sortField === field) {
+        activityState.sortDir = activityState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        activityState.sortField = field;
+        activityState.sortDir = 'desc';
+      }
+      renderActivityHead();
+      fetchActivityPage(true);
+    });
+  });
+}
+
+function renderActivityBody() {
+  document.getElementById('activityBody').innerHTML = activityState.activity.map(a => `
+    <tr>
+      <td>${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</td>
+      <td>${fmtActivityDate(a.transaction_datetime)}</td>
+      <td>
+        <div class="cell-set-name">${a.item_name || '—'}</div>
+        <div class="cell-series">${[a.series_label, a.rarity].filter(Boolean).join(' · ')}</div>
+      </td>
+      <td class="col-r">${a.edition != null ? fmtNum(a.edition) : '—'}</td>
+      <td class="col-r">${a.amount != null ? `$${a.amount.toFixed(2)}` : '—'}</td>
+      <td>${escHtml(a.from_username || '—')}</td>
+      <td>${escHtml(a.to_username || '—')}</td>
+      <td>${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}</td>
+    </tr>
+  `).join('');
+  document.getElementById('activityCount').innerHTML = activityState.noUsername
+    ? "This wallet has no known username, so it can't be matched against Sweet's own transaction history yet."
+    : `<strong>${fmtNum(activityState.total)}</strong> transaction${activityState.total === 1 ? '' : 's'}`;
+}
+
+function renderActivityLoadMore() {
+  const wrap = document.getElementById('activityLoadMoreWrap');
+  const btn = document.getElementById('activityLoadMoreBtn');
+  wrap.style.display = activityState.hasMore ? 'block' : 'none';
+  btn.disabled = activityState.busy;
+  btn.textContent = activityState.busy ? 'Loading…' : 'Load more';
+}
+document.getElementById('activityLoadMoreBtn').addEventListener('click', () => {
+  activityState.autoLoadArmed = true;
+  fetchActivityPage(false);
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && activityState.autoLoadArmed && !activityState.busy && activityState.hasMore) fetchActivityPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('activityLoadMoreWrap'));
+
+// Type is a fixed, small, verified-exact vocabulary (see the handoff note)
+// — no endpoint round-trip needed for it, unlike Series/Set/Rarity which
+// are scoped to what THIS WALLET actually has activity in.
+function populateActivityTypeCombo() {
+  buildCombo('activityTypeCombo',
+    [{ value: '', label: 'All types' }, ...Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => ({ value, label }))],
+    () => activityState.type, v => activityState.type = v, () => fetchActivityPage(true));
+}
+
+async function populateActivityFilters() {
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/wallet/activity/filters?wallet=${encodeURIComponent(activityState.wallet)}`, version));
+  const data = await res.json();
+  buildCombo('activitySeriesCombo',
+    [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
+    () => activityState.series_label, v => activityState.series_label = v, () => fetchActivityPage(true));
+  buildCombo('activitySetCombo',
+    [{ value: '', label: 'All sets' }, ...data.sets.map(v => ({ value: v, label: v }))],
+    () => activityState.set_name, v => activityState.set_name = v, () => fetchActivityPage(true));
+  buildCombo('activityRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...data.rarities.map(v => ({ value: v, label: v }))],
+    () => activityState.rarity, v => activityState.rarity = v, () => fetchActivityPage(true));
+}
+
+const activityWalletSearchWidget = setupTextSearch({
+  inputId: 'activityWalletSearch', clearId: 'activityWalletSearchClear', debounceMs: 250,
+  applyValue: val => { activityState.wallet_search = val; fetchActivityPage(true); },
+});
+
+let _activityAmountT = null;
+function wireActivityAmountInput(id, stateKey) {
+  document.getElementById(id).addEventListener('input', e => {
+    clearTimeout(_activityAmountT);
+    const val = e.target.value;
+    _activityAmountT = setTimeout(() => { activityState[stateKey] = val; fetchActivityPage(true); }, 250);
+  });
+}
+wireActivityAmountInput('activityMinAmount', 'min_amount');
+wireActivityAmountInput('activityMaxAmount', 'max_amount');
+
 /* ══════════════════ Tabs (Set Progress / Cards / Packs) ══════════════════ */
-const TAB_NAMES = ['sets', 'cards', 'packs', 'rankings'];
-const TAB_PANEL_IDS = { sets: 'tabPanelSets', cards: 'tabPanelCards', packs: 'tabPanelPacks', rankings: 'tabPanelRankings' };
+const TAB_NAMES = ['sets', 'cards', 'packs', 'rankings', 'activity'];
+const TAB_PANEL_IDS = { sets: 'tabPanelSets', cards: 'tabPanelCards', packs: 'tabPanelPacks', rankings: 'tabPanelRankings', activity: 'tabPanelActivity' };
 
 function setActiveTab(tab, { syncUrl = true } = {}) {
   if (!TAB_NAMES.includes(tab)) tab = TAB_NAMES[0];
@@ -1331,11 +1568,22 @@ async function lookupWallet(query, initialTab, initialSetName) {
     packSearchWidget.reset();
     renderPacksHead();
 
+    activityState.wallet = wallet; activityState.type = ''; activityState.series_label = ''; activityState.set_name = ''; activityState.rarity = '';
+    activityState.min_amount = ''; activityState.max_amount = ''; activityState.wallet_search = '';
+    activityState.sortField = 'date'; activityState.sortDir = 'desc';
+    document.getElementById('activityMinAmount').value = '';
+    document.getElementById('activityMaxAmount').value = '';
+    document.getElementById('activityWalletSearch').value = '';
+    activityWalletSearchWidget.reset();
+    populateActivityTypeCombo();
+    renderActivityHead();
+
     await Promise.all([
       fetchWalletSets(wallet),
       populateCardFilters().then(() => fetchCardsPage(true)),
       populatePacksFilters().then(() => fetchPacksPage(true)),
       fetchWalletMintRankings(wallet),
+      populateActivityFilters().then(() => fetchActivityPage(true)),
     ]);
 
     // Pinned as the resolved ADDRESS, not the raw typed query — stable even

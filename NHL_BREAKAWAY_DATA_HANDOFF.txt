@@ -1,12 +1,19 @@
 NHL BREAKAWAY DATA LAYER — HANDOFF NOTE
-Written 2026-08-25, updated 2026-08-26, by a Claude Code session working in
-C:\Personnel\Projets\NHL Breakaway
+Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02, by a Claude Code session
+working in C:\Personnel\Projets\NHL Breakaway
 Dropped here (PopInStock3.0) only as a file for another session to read — nothing else
 in this project folder was touched or should be touched based on this note.
 
 UPDATE 2026-08-26: the Sets page got built against this data (served locally at
 http://localhost/PopInStock/nhlbreakaway/sets) and was cross-verified live, row by row,
 against nhlba.com. Two corrections below fold in what that build turned up.
+
+UPDATE 2026-09-02: new `sweet_transaction_history` table — full per-series transaction
+history (purchases, trades, gifts, pack opens, promos, transfers), hourly-refreshed,
+754K+ rows already synced to Raff. See the new SWEET TRANSACTION HISTORY section below
+(also resolves both items that used to be in TWO OPEN QUESTIONS). Also corrected the
+`mint_rankings` FRESHNESS note, which was stale — it's been on the hourly schedule since
+2026-09-01, not a manual-only script anymore.
 
 CONTEXT
 The user is building fan leaderboards/tools for NHL Breakaway (nhlbreakaway.com, a
@@ -388,15 +395,14 @@ EXAMPLE QUERIES
     WHERE LOWER(mr.wallet_address) = $1
     ORDER BY mr.rank ASC
 
-FRESHNESS — READ BEFORE BUILDING ANYTHING THAT ASSUMES LIVE DATA
-`mint_rankings` is populated by a STANDALONE script in the NHL Breakaway project
-(`npm run build-mint-rankings`, ~7s for the whole catalog) — it is NOT currently wired
-into that project's hourly `refresh-all.js` pipeline. As of this note (2026-08-30) it
-was run once, manually, so the data reflects that one point in time and will silently
-go stale until it's re-run (by hand or, if the user decides to add it, on the hourly
-schedule). Mention this to the user if staleness would matter for whatever UI you build
-(e.g. a "last updated" timestamp using MAX(computed_at) is a cheap, honest thing to
-surface rather than implying this is as fresh as everything else on the Sets page).
+FRESHNESS — UPDATED 2026-09-02: NOW ON THE HOURLY SCHEDULE
+`mint_rankings` was originally a standalone, manually-run script (see the now-outdated
+note this replaced). As of 2026-09-01 `build-mint-rankings.js` is a permanent phase in
+the NHL Breakaway project's hourly `refresh-all.js` — it does a full recompute of every
+collection on every run (no incremental gating yet, ~5-10s), so this table is exactly as
+fresh as everything else on the Sets page (i.e. up to ~1 hour stale). A "last updated"
+timestamp using MAX(computed_at) is still a cheap, honest thing to surface, but it's no
+longer a staleness warning — treat it the same as any other live-refreshed table.
 
 SUGGESTED SHAPE (not prescriptive — same "you own the UI design" latitude as the Sets
 page before this): a per-collection leaderboard page (reachable from the Sets page, same
@@ -406,15 +412,168 @@ edition/complete-set count, with each row expandable to the editions_used breakd
 for that moment_uuid). A wallet's own best sets are worth surfacing on the wallet
 profile page too, since total_complete_sets and set_number are already there for free.
 
-TWO OPEN QUESTIONS, NOT YET RESOLVED
-1. No solved approach yet for a sitewide "recent activity" feed or daily sales-volume
-   chart across the whole catalog (the per-card on-demand approach above works fine for
-   one card at a time, not for an aggregate global view — would need either a bulk
-   endpoint that hasn't been found yet, or a background aggregation job, which
-   contradicts the "don't poll/store" price decision above).
-2. Whether `build-mint-rankings.js` should be added to the NHL Breakaway project's
-   hourly `refresh-all.js` routine (see above) — raised to the user 2026-08-30, not yet
-   answered as of this note.
+SWEET TRANSACTION HISTORY — NEW 2026-09-02, BUILT, BACKFILLED, SYNCED TO RAFF, HOURLY
+This directly resolves open question #1 below (sitewide activity feed) — a bulk-ish
+per-series history endpoint was found and the "don't poll/store" reasoning from the
+PRICE/SALE HISTORY section above does NOT apply here: this data isn't a live listing
+price, it's an immutable historical fact (a transaction that already happened never
+changes), so storing and syncing it in full has no staleness/correctness downside the
+way live prices would.
+
+WHAT IT IS
+Sweet's own per-series transaction history (found via network-inspecting
+nhlbreakaway.com's own site — same technique as the existing "Listed" state above),
+already wrapped as getDistributionHistory() in lib/sweetClient.js in the NHL Breakaway
+project. One row per on-chain transaction: purchase (secondary-market sale, with a real
+USD amount), trade, gift, pack_open, promo, and transfer. Backfilled ONCE across all 281
+distinct series_id (96 covering all 1,965 card moments via heavy sharing — e.g. all 32
+Ice Nation player templates share one series_id — plus 185-and-growing 1:1 for pack
+templates), 754,429 rows total as of the backfill. Kept current from here on by a new
+hourly phase, `sync-sweet-history.js`, in `refresh-all.js` (see FRESHNESS below) —
+UNLIKE mint_rankings' old staleness caveat, this table was designed hourly-fresh from
+day one, no transition period.
+
+SCHEMA — table `sweet_transaction_history`, PRIMARY KEY (tx_hash, token_uri)
+  tx_hash               TEXT    -- parsed from explorer_url, NOT returned as its own
+                                    field by Sweet's API
+  token_uri             TEXT    -- the SPECIFIC EDITION's token_uri (series URL + a long
+                                    numeric suffix) — NOT the same as moments.token_uri
+                                    or cards.token_uri, which are bare series/card URLs;
+                                    treat this as an opaque per-transaction id, don't
+                                    join it against those columns
+  transaction_type      TEXT    -- 'purchase' | 'trade' | 'gift' | 'pack_open' | 'promo'
+                                    | 'transfer' — exact values, verified against real
+                                    rows of each (see GOTCHA below for what each really
+                                    means in from/to terms)
+  transaction_datetime  TEXT    -- ISO-8601-like but NAIVE (no timezone suffix, e.g.
+                                    "2026-09-02T13:21:19") — assume UTC. String-sortable
+                                    (ORDER BY works correctly as text) but don't display
+                                    it as if it already has a timezone.
+  series_id             TEXT    -- joins to moments.series_id / pack_moments.series_id
+  edition               INTEGER -- the edition number this transaction was for — joins
+                                    to cards.edition_number / packs equivalent alongside
+                                    series_id
+  amount                REAL    -- ONLY populated on 'purchase' rows (secondary-market
+                                    sale price); NULL on every other type
+  currency              TEXT    -- ONLY populated alongside amount, observed value
+                                    "usd" so far
+  from_username         TEXT    -- see GOTCHA below — not always a real username
+  to_username           TEXT    -- see GOTCHA below — not always a real username
+  explorer_url          TEXT    -- https://polygonscan.com/tx/{tx_hash}, safe to link
+                                    directly
+  scraped_at            TEXT    -- when OUR pipeline pulled this row, not when the
+                                    transaction happened — use transaction_datetime for
+                                    display/sort, scraped_at only for pipeline debugging
+
+GOTCHA — from_username/to_username ARE NOT ALWAYS RESOLVED USERNAMES, VERIFIED 2026-09-02
+Real per-type semantics, confirmed against one sample row of each type:
+  purchase:  from_username = seller, to_username = buyer, amount/currency populated
+             (this is a peer-to-peer secondary-market sale, not a primary Sweet-store
+             purchase — from_username is a real seller, not a system/store account)
+  trade:     both populated, no amount — direct wallet-to-wallet trade
+  gift:      both populated, no amount
+  pack_open: from_username == to_username == the SAME wallet (the opener) — opening a
+             pack is modeled as a self-transfer. Use to_username (or from_username,
+             identical) for a "most packs opened" leaderboard.
+  promo:     from_username can be a literal brand string like "NHL", not a real user —
+             exclude promo rows' from_username from any "top senders" leaderboard, it's
+             not a collector.
+  transfer:  from_username is a real username, but to_username is FREQUENTLY a raw 0x
+             wallet address instead of a username (822/866 = 95% of all 'transfer' rows,
+             819 of those an exact match to a KNOWN system_wallets entry — this type is
+             mostly cards moving INTO a system wallet, e.g. crafting turn-ins, not
+             regular user-to-user activity).
+Broader finding, not just 'transfer': across the WHOLE table, 12,361 rows (~1.6%) have a
+raw 0x-address string in from_username or to_username instead of a resolved username.
+Only 819 of those 12,361 match a known system_wallets entry — the rest are NOT resolvable
+via wallet_usernames either (checked directly, 0 matches), meaning Sweet's own API
+returns the raw address for wallets that simply have no public username set. Before
+using from_username/to_username as a display name or a leaderboard grouping key, check
+it doesn't match a 0x-address shape (regex `^0x[0-9a-fA-F]{40}$` in Postgres: `to_username
+~ '^0x[0-9a-fA-F]{40}$'`) and decide per-feature whether to exclude those rows, label them
+"Unknown wallet", or show the truncated address — there's no username to fall back to for
+most of them.
+Note this table does NOT store wallet_address as its own column at all — only whichever
+username/address string Sweet's API returned. If you need to go username -> wallet_address
+(e.g. to link into an existing wallet profile page), join wallet_usernames on username;
+that mapping is separate and NOT guaranteed to cover every value seen here (see above).
+
+EXAMPLE QUERIES
+- Sitewide recent activity feed (resolves open question #1 below):
+    SELECT transaction_type, transaction_datetime, series_id, edition, amount, currency,
+           from_username, to_username, explorer_url
+    FROM sweet_transaction_history
+    ORDER BY transaction_datetime DESC
+    LIMIT 50
+  (Join series_id back to moments/pack_moments for player/set display metadata — this
+  table has no player/team columns of its own.)
+- Per-highlight/per-pack activity tab (the thing nhlbreakaway.com's own series page
+  shows, e.g. nhlbreakaway.com/series/X1OvMnqm) — same query, add `WHERE series_id = $1`.
+  Remember series_id is shared across every moment in a collapsed set (see [[project-
+  sweet-api-data-model]]-style sharing noted above) — this feed is per-SERIES, not
+  strictly per-individual-highlight when a set shares one series_id.
+- "Who's opened the most packs" leaderboard:
+    SELECT to_username, COUNT(*) AS packs_opened
+    FROM sweet_transaction_history
+    WHERE transaction_type = 'pack_open' AND to_username !~ '^0x[0-9a-fA-F]{40}$'
+    GROUP BY to_username
+    ORDER BY packs_opened DESC
+    LIMIT 25
+- "Most trades" leaderboard (a wallet can appear as either side of a trade):
+    SELECT username, COUNT(*) AS trades FROM (
+      SELECT from_username AS username FROM sweet_transaction_history WHERE transaction_type = 'trade'
+      UNION ALL
+      SELECT to_username AS username FROM sweet_transaction_history WHERE transaction_type = 'trade'
+    ) x
+    WHERE username !~ '^0x[0-9a-fA-F]{40}$'
+    GROUP BY username
+    ORDER BY trades DESC
+    LIMIT 25
+- "Top spenders" (secondary-market purchases only, real USD amounts):
+    SELECT to_username AS buyer, COUNT(*) AS purchases, SUM(amount) AS total_spent_usd
+    FROM sweet_transaction_history
+    WHERE transaction_type = 'purchase' AND currency = 'usd'
+    GROUP BY to_username
+    ORDER BY total_spent_usd DESC
+    LIMIT 25
+- Per-wallet activity page (this is the "wallet activity history" feature nhlba.com and
+  thefifthlinecode.onrender.com show, e.g. nhlba.com/accounts/activity/{address}) — go
+  address -> username via wallet_usernames first, since this table has no address column:
+    SELECT * FROM sweet_transaction_history
+    WHERE from_username = $1 OR to_username = $1
+    ORDER BY transaction_datetime DESC
+    LIMIT 100
+  ($1 = the username resolved from the looked-up wallet_address.)
+
+STORAGE / SCALE NOTE
+445MB with its 4 indexes (series_id, transaction_type, to_username, from_username) for
+754K rows on Raff — pushed there in full (not pre-compiled into leaderboards), the
+user's explicit call: Raff has no per-row-write billing (unlike the abandoned Turso, see
+[[project-turso-infrastructure]]) and 2GB of free-tier storage headroom, so there's no
+cost reason to avoid giving the site direct query access to the raw rows. Raff's total
+usage after this table landed: ~1.18GB of 2GB — comfortably under, but don't assume
+unlimited room for a much bigger future addition without checking current usage first.
+
+FRESHNESS
+`sync-sweet-history.js` runs every hour as part of `refresh-all.js`, right before
+`build-mint-rankings.js`/`sync-to-raff.js`. It does NOT re-walk full history each time —
+per series, it checks only the newest page and stops as soon as a page is fully
+duplicate, so a routine run only adds genuinely new transactions (verified live: found
+73 new rows on its first post-backfill run, 2 more on an immediate re-run, 12 more in a
+full `refresh-all.js` dry run — each consistent with real ongoing trading activity, not
+a bug). New series (e.g. a newly-discovered pack template) are picked up automatically
+next run since it queries `moments`/`pack_moments` for the current distinct series_id
+list fresh every time, not a fixed one baked in at backfill time.
+
+TWO OPEN QUESTIONS, ORIGINALLY NOT RESOLVED — BOTH NOW CLOSED AS OF 2026-09-02
+1. RESOLVED — see SWEET TRANSACTION HISTORY above. The "no bulk endpoint, no background
+   job" blocker no longer applies: a per-series bulk endpoint was found, and unlike a
+   live listing price, transaction history is immutable once it happens, so storing and
+   incrementally syncing it in full has none of the staleness/correctness risk the price
+   decision above was protecting against.
+2. RESOLVED 2026-09-01 — `build-mint-rankings.js` was added to the hourly `refresh-all.js`
+   routine (see the FRESHNESS section above `mint_rankings`' schema, which was updated
+   in place to reflect this).
 
 NOT YET DONE, WORTH DOING BEFORE REAL TRAFFIC
 Materializing per-moment/per-pack stats (circulating/burned/holder-count) into the
