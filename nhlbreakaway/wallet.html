@@ -801,7 +801,7 @@ function renderCardsBody() {
         : '—'}</td>
       ${counting
         ? `<td class="col-r">${fmtNum(c.owned_count)}</td>
-           <td class="col-r">${(c.lowest_editions || []).map(n => `#${fmtNum(n)}`).join(', ') || '—'}</td>`
+           <td class="col-r">${(c.lowest_editions || []).map(n => fmtNum(n)).join(', ') || '—'}</td>`
         : `<td class="col-r">${fmtNum(c.edition_number)}</td>`}
       <td>${c.team
         ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
