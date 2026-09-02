@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wallet Look Up — NHL Breakaway — Hoardio</title>
-  <meta name="description" content="Search any username or wallet address to explore their NHL Breakaway collection stats, set completion, and individual cards and packs." />
+  <meta name="description" content="Search any username or wallet address to explore their NHL Breakaway collection stats, set completion, and individual highlights and packs." />
   <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway/wallet" />
   <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
   <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
@@ -225,7 +225,7 @@
     </div>
 
     <div id="walletError"></div>
-    <div id="walletEmpty">This wallet doesn't hold any NHL Breakaway cards or packs yet.</div>
+    <div id="walletEmpty">This wallet doesn't hold any NHL Breakaway highlights or packs yet.</div>
 
     <div id="walletContent">
 
@@ -245,7 +245,7 @@
 
       <div class="stats-grid">
         <div class="stat-card stat-card--total"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Total Held</div></div>
-        <div class="stat-card stat-card--cards"><div class="stat-value" id="statCards">—</div><div class="stat-label">Cards Held</div></div>
+        <div class="stat-card stat-card--cards"><div class="stat-value" id="statCards">—</div><div class="stat-label">Editions Held</div></div>
         <div class="stat-card stat-card--packs"><div class="stat-value" id="statPacks">—</div><div class="stat-label">Packs Held</div></div>
         <div class="stat-card stat-card--highlights"><div class="stat-value" id="statMoments">—</div><div class="stat-label">Unique Highlights</div></div>
         <div class="stat-card stat-card--sets"><div class="stat-value" id="statSets">—</div><div class="stat-label">Sets Represented</div></div>
@@ -316,6 +316,10 @@
             <input type="text" class="cb-combo-input" id="teamComboInput" autocomplete="off" spellcheck="false">
             <button type="button" class="cb-combo-clear" id="teamComboClear" style="display:none" title="Clear">✕</button>
             <div class="cb-panel" id="teamPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="cardsViewToggle">
+            <button type="button" class="tpc-toggle-btn" data-view="edition">By Edition</button>
+            <button type="button" class="tpc-toggle-btn active" data-view="count">By Count</button>
           </div>
         </div>
         <div class="results-meta" id="cardsResultsMeta"></div>
@@ -390,7 +394,7 @@
       <b>Total assets</b> — non-burned, non-system-held editions across every highlight in this collection (its real circulating supply).<br>
       <b>Sum of editions</b> — sum of your lowest-owned edition number for each highlight in this complete set.<br>
       <b>Edition size</b> — number of highlights that make up one complete set.<br><br>
-      Lower editions = higher rating. Max is 100 (every card at edition&nbsp;#1) — it can go negative on a bad pull in a large set.
+      Lower editions = higher rating. Max is 100 (every highlight at edition&nbsp;#1) — it can go negative on a bad pull in a large set.
     </div>
   </div>
 </div>
@@ -649,17 +653,34 @@ document.getElementById('setsCompletionToggle').addEventListener('click', e => {
   renderSetsBody();
 });
 
-/* ══════════════════ Cards table (paginated, filterable) ══════════════════ */
-const CARDS_COLUMNS = [
+/* ══════════════════ Cards table (paginated, filterable) ══════════════════
+   Two view modes, toggled via #cardsViewToggle:
+   - "edition" (default): one row per owned edition — a wallet with 13 of the
+     same highlight shows 13 rows.
+   - "count": one row per highlight, with an Owned count and the 3 lowest
+     edition numbers owned — for seeing "what do I have the most of" instead
+     of a long flat list of duplicates. Backed by the same /api/wallet/cards
+     endpoint via a `group=count` param (see handleWalletCards in
+     dev-server/index.js) — filters are identical in both modes, only the
+     columns/aggregation differ. */
+const CARDS_COLUMNS_EDITION = [
   { key: 'player',  label: 'Player',  sortable: true },
   { key: 'set',     label: 'Set',     sortable: true },
   { key: 'rarity',  label: 'Rarity',  sortable: true },
   { key: 'edition', label: 'Edition', sortable: true, num: true },
   { key: 'team',    label: 'Team',    sortable: true },
 ];
+const CARDS_COLUMNS_COUNT = [
+  { key: 'player',  label: 'Player',  sortable: true },
+  { key: 'set',     label: 'Set',     sortable: true },
+  { key: 'rarity',  label: 'Rarity',  sortable: true },
+  { key: 'count',   label: 'Owned',   sortable: true, num: true },
+  { key: 'lowest',  label: 'Lowest Edition', num: true },
+  { key: 'team',    label: 'Team',    sortable: true },
+];
 const cardsState = {
   wallet: '', cards: [], player: '', series_label: '', set_name: '', rarity: '', team: '',
-  sortField: 'player', sortDir: 'asc', offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false,
+  view: 'count', sortField: 'player', sortDir: 'asc', offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false,
 };
 
 function cardsQuery() {
@@ -670,6 +691,7 @@ function cardsQuery() {
   if (cardsState.set_name) params.set('set_name', cardsState.set_name);
   if (cardsState.rarity) params.set('rarity', cardsState.rarity);
   if (cardsState.team) params.set('team', cardsState.team);
+  if (cardsState.view === 'count') params.set('group', 'count');
   params.set('sort', cardsState.sortField);
   params.set('dir', cardsState.sortDir);
   params.set('limit', PAGE_SIZE);
@@ -693,7 +715,7 @@ async function loadCardsChunk() {
     got = data.cards.length;
     renderCardsBody();
   } catch (err) {
-    document.getElementById('cardsResultsMeta').textContent = 'Failed to load cards.';
+    document.getElementById('cardsResultsMeta').textContent = cardsState.view === 'count' ? 'Failed to load highlights.' : 'Failed to load editions.';
     console.error(err);
   } finally {
     cardsState.busy = false;
@@ -707,9 +729,13 @@ async function fetchCardsPage(reset) {
   await loadCardsChunk();
 }
 
+function activeCardsColumns() {
+  return cardsState.view === 'count' ? CARDS_COLUMNS_COUNT : CARDS_COLUMNS_EDITION;
+}
+
 function renderCardsHead() {
   const row = document.getElementById('cardsHeadRow');
-  row.innerHTML = CARDS_COLUMNS.map(col => {
+  row.innerHTML = activeCardsColumns().map(col => {
     if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
     const sorted = cardsState.sortField === col.key;
     const icon = sorted ? (cardsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
@@ -722,7 +748,7 @@ function renderCardsHead() {
         cardsState.sortDir = cardsState.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         cardsState.sortField = field;
-        cardsState.sortDir = field === 'edition' ? 'desc' : 'asc';
+        cardsState.sortDir = (field === 'edition' || field === 'count') ? 'desc' : 'asc';
       }
       renderCardsHead();
       fetchCardsPage(true);
@@ -731,6 +757,7 @@ function renderCardsHead() {
 }
 
 function renderCardsBody() {
+  const counting = cardsState.view === 'count';
   document.getElementById('cardsBody').innerHTML = cardsState.cards.map(c => `
     <tr>
       <td><a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a></td>
@@ -741,14 +768,18 @@ function renderCardsBody() {
       <td>${c.rarity
         ? `<span class="rarity-pill rarity-pill--${c.rarity.toLowerCase()}"><span class="rarity-pill-text">${c.rarity}</span></span>`
         : '—'}</td>
-      <td class="col-r">${fmtNum(c.edition_number)}</td>
+      ${counting
+        ? `<td class="col-r">${fmtNum(c.owned_count)}</td>
+           <td class="col-r">${(c.lowest_editions || []).map(n => `#${fmtNum(n)}`).join(', ') || '—'}</td>`
+        : `<td class="col-r">${fmtNum(c.edition_number)}</td>`}
       <td>${c.team
         ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
         : '—'}</td>
     </tr>
   `).join('');
-  document.getElementById('cardsResultsMeta').innerHTML =
-    `<strong>${fmtNum(cardsState.total)}</strong> card${cardsState.total === 1 ? '' : 's'}`;
+  document.getElementById('cardsResultsMeta').innerHTML = counting
+    ? `<strong>${fmtNum(cardsState.total)}</strong> highlight${cardsState.total === 1 ? '' : 's'}`
+    : `<strong>${fmtNum(cardsState.total)}</strong> edition${cardsState.total === 1 ? '' : 's'}`;
 }
 
 function renderCardsLoadMore() {
@@ -765,6 +796,19 @@ document.getElementById('cardsLoadMoreBtn').addEventListener('click', () => {
 new IntersectionObserver(entries => {
   if (entries[0].isIntersecting && cardsState.autoLoadArmed && !cardsState.busy && cardsState.hasMore) fetchCardsPage(false);
 }, { rootMargin: '600px' }).observe(document.getElementById('cardsLoadMoreWrap'));
+
+document.getElementById('cardsViewToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  cardsState.view = btn.dataset.view;
+  // Player/asc is the default sort for both views — switching views doesn't
+  // change what you were sorted by.
+  cardsState.sortField = 'player';
+  cardsState.sortDir = 'asc';
+  document.querySelectorAll('#cardsViewToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderCardsHead();
+  fetchCardsPage(true);
+});
 
 const playerSearchWidget = setupTextSearch({
   inputId: 'playerSearch', clearId: 'playerSearchClear', debounceMs: 400,
@@ -1243,9 +1287,12 @@ async function lookupWallet(query, initialTab) {
 
     renderSetsHead();
     cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = ''; cardsState.rarity = ''; cardsState.team = '';
-    cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
+    cardsState.view = 'count'; cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
     document.getElementById('playerSearch').value = '';
     playerSearchWidget.reset();
+    document.querySelectorAll('#cardsViewToggle .tpc-toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === cardsState.view);
+    });
     renderCardsHead();
     packsState.wallet = wallet; packsState.pack_name = ''; packsState.series_label = ''; packsState.rarity = '';
     packsState.sortField = 'pack'; packsState.sortDir = 'asc';

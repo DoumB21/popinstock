@@ -755,10 +755,25 @@ const WALLET_CARDS_SORT_COLUMNS = {
   team: 'm.team',
 };
 
+// "By Count" view (group=count) — one row per highlight instead of one row
+// per owned edition, for a wallet holding many duplicates of the same
+// highlight (e.g. 13 rows collapsing into 1 row showing "13"). `count` sorts
+// by how many are owned; `edition` doesn't apply here (there's no single
+// edition per row anymore) so it's replaced with `count` as the new
+// "interesting" default sort direction (desc = most-owned first).
+const WALLET_CARDS_GROUPED_SORT_COLUMNS = {
+  player: 'm.player',
+  set: 'm.set_name',
+  rarity: rarityRankSqlCase('m.rarity'),
+  count: 'COUNT(*)',
+  team: 'm.team',
+};
+
 async function handleWalletCards(url, res) {
   const q = url.searchParams;
   const wallet = normalizeWallet(q.get('wallet'));
   if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
+  const grouped = q.get('group') === 'count';
 
   const where = ['LOWER(c.owner_wallet) = $1', 'c.burned = 0'];
   const params = [wallet];
@@ -773,12 +788,51 @@ async function handleWalletCards(url, res) {
   addFilter('m.series_label', q.get('series_label'));
   addFilter('m.team', q.get('team'));
 
-  const sortKey = WALLET_CARDS_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'player';
-  const sortSql = WALLET_CARDS_SORT_COLUMNS[sortKey];
+  const sortColumns = grouped ? WALLET_CARDS_GROUPED_SORT_COLUMNS : WALLET_CARDS_SORT_COLUMNS;
+  const defaultSort = grouped ? 'count' : 'player';
+  const sortKey = sortColumns[q.get('sort')] ? q.get('sort') : defaultSort;
+  const sortSql = sortColumns[sortKey];
   const dir = q.get('dir') === 'desc' ? 'DESC' : 'ASC';
   const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
   params.push(limit, offset);
+
+  if (grouped) {
+    // One row per moment_uuid — COUNT(*) is how many editions of it this
+    // wallet owns, lowest_editions is the 3 lowest edition numbers owned
+    // (ARRAY_AGG ordered ascending, sliced to the first 3 — cheap, no
+    // separate subquery needed). COUNT(*) OVER() here counts GROUPED rows
+    // (evaluated after GROUP BY collapses them), giving the real total
+    // number of distinct highlights alongside the page in one query, same
+    // "no second round-trip" reasoning as the ungrouped query below.
+    const sql = `
+      SELECT c.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url AS team_logo_url,
+        COUNT(*) AS owned_count,
+        (ARRAY_AGG(c.edition_number ORDER BY c.edition_number ASC))[1:3] AS lowest_editions,
+        COUNT(*) OVER() AS total_count
+      FROM cards c
+      JOIN moments m ON m.moment_uuid = c.moment_uuid
+      LEFT JOIN teams t ON t.team_name = m.team
+      WHERE ${where.join(' AND ')}
+      GROUP BY c.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url
+      ORDER BY ${sortSql} ${dir}, c.moment_uuid ASC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `;
+    const { rows } = await pool.query(sql, params);
+    const total = rows.length ? Number(rows[0].total_count) : 0;
+    const cards = rows.map(r => ({
+      moment_uuid: r.moment_uuid,
+      player: r.player,
+      set_name: r.set_name,
+      series_label: r.series_label,
+      rarity: r.rarity,
+      team: r.team,
+      team_logo_url: r.team_logo_url || null,
+      owned_count: Number(r.owned_count),
+      lowest_editions: r.lowest_editions,
+    }));
+    return sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  }
 
   // COUNT(*) OVER() is evaluated over every row matching WHERE, before
   // LIMIT/OFFSET clip the result set — gives the real total alongside the

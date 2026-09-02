@@ -191,7 +191,7 @@
 
     <div class="page-header">
       <div class="page-title">NHL Breakaway <span class="accent">Edition Rankings</span></div>
-      <div class="page-subtitle">Collector leaderboards ranked by the edition numbers in their complete sets. Pick a set to see who's assembled the lowest-edition versions of every card in it.</div>
+      <div class="page-subtitle">Collector leaderboards ranked by the edition numbers in their complete sets. Pick a set to see who's assembled the lowest-edition versions of every highlight in it.</div>
     </div>
 
     <div class="filter-bar">
@@ -254,7 +254,7 @@
       <b>Total assets</b> — non-burned, non-system-held editions across every highlight in this collection (its real circulating supply).<br>
       <b>Sum of editions</b> — sum of your lowest-owned edition number for each highlight in this complete set.<br>
       <b>Edition size</b> — number of highlights that make up one complete set.<br><br>
-      Lower editions = higher rating. Max is 100 (every card at edition&nbsp;#1) — it can go negative on a bad pull in a large set.
+      Lower editions = higher rating. Max is 100 (every highlight at edition&nbsp;#1) — it can go negative on a bad pull in a large set.
     </div>
   </div>
 </div>
@@ -562,7 +562,7 @@ function expandRowHtml(row) {
   if (entry === 'loading') {
     body = `<div class="mr-expand-loading">Loading highlights…</div>`;
   } else if (entry === 'error') {
-    body = `<div class="mr-expand-error">Failed to load this set's cards.</div>`;
+    body = `<div class="mr-expand-error">Failed to load this set's highlights.</div>`;
   } else if (Array.isArray(entry)) {
     // Worst 5 = the 5 highest raw edition_number values in THIS exact
     // complete set — the ones hurting the rating most (the formula uses raw
