@@ -391,7 +391,16 @@ function exitSpotlight() {
 }
 
 async function fetchPage(reset) {
-  if (reset) { state.offset = 0; state.leaders = []; state.autoLoadArmed = false; }
+  if (reset) {
+    state.offset = 0; state.leaders = []; state.autoLoadArmed = false;
+    // Show a loading state IMMEDIATELY, before the (possibly slow, several-
+    // second) fetch even starts — otherwise the old results/count just sit
+    // there unchanged while a filter change is loading, and it reads as
+    // stalled rather than working, tempting someone to keep clicking filters.
+    document.getElementById('leaderboardBody').innerHTML =
+      `<tr><td colspan="3" class="state-empty" style="padding:2rem 1rem; text-align:center; color:var(--text-secondary);">Loading…</td></tr>`;
+    document.getElementById('resultsMeta').textContent = 'Loading…';
+  }
   if (state.spotlightWallet) {
     await loadSpotlight();
   } else {

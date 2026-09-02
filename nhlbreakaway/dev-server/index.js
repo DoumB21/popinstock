@@ -283,7 +283,8 @@ async function handlePacks(res) {
       pct_left: pct(collected, distributed),
     };
   });
-  sendJson(res, 200, { packs });
+  // Same shape/cost as handleSets' aggregation, same reasoning for caching.
+  sendJson(res, 200, { packs }, { cacheSeconds: 300 });
 }
 
 async function handleSets(res) {
@@ -322,7 +323,10 @@ async function handleSets(res) {
       holders_pct: pct(holders, editions),
     };
   });
-  sendJson(res, 200, { sets });
+  // Full aggregation over all 1.14M cards rows on every call, ~7-12s
+  // uncached — cache it, since this result is identical for every visitor
+  // and only actually changes when the data-refresh pipeline runs.
+  sendJson(res, 200, { sets }, { cacheSeconds: 300 });
 }
 
 // Wallet Look Up. Ethereum/Polygon addresses have no existence check the way
@@ -601,7 +605,9 @@ async function handleMintRankings(url, res) {
 // collection with zero rows.
 async function handleMintRankingsCollections(res) {
   const { rows } = await pool.query(`SELECT DISTINCT collection_key FROM mint_rankings`);
-  sendJson(res, 200, { collection_keys: rows.map(r => r.collection_key) });
+  // mint_rankings is a precompute-batch table, refreshed even less often
+  // than the live cards data — very safe to cache.
+  sendJson(res, 200, { collection_keys: rows.map(r => r.collection_key) }, { cacheSeconds: 300 });
 }
 
 // The landing state (no set picked yet) shows a "Top 5 best" teaser instead
@@ -647,7 +653,7 @@ async function handleMintRankingsTop(url, res) {
       rarity: r.rarity,
       image_url: r.image_url,
     })),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 // Expands one specific ranked row's `editions_used` JSON (moment_uuid/
@@ -1046,7 +1052,7 @@ async function handleHighlightsFilters(res) {
     sets: setsRes.rows.map(r => r.set_name),
     rarities: sortRarities(raritiesRes.rows.map(r => r.rarity)),
     teams: teamsRes.rows.map(r => r.team),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 // "Listed" is deliberately NOT stored in our DB — a listing can appear or
@@ -1494,7 +1500,7 @@ async function handleLeaderboardFilters(res) {
     rarities: sortRarities(raritiesRes.rows.map(r => r.rarity)),
     teams: teamsRes.rows.map(r => r.team),
     highlight_badges: badgesRes.rows.map(r => r.badge_name),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 // Query-param convention for multi-select filters (matches inventory.html's
@@ -1660,7 +1666,12 @@ async function handleLeaderboard(url, res) {
     holder_username: r.wu_username || r.card_username || null,
     cards_owned: Number(r.cards_owned),
   }));
-  sendJson(res, 200, { leaders, has_more: hasMore });
+  // Cached per exact query string (Vercel's CDN cache key includes it) — the
+  // common no-filter default view gets the full benefit; a rare filter
+  // combo just won't hit cache often, no downside either way. Same
+  // "identical for everyone, only changes when the pipeline refreshes"
+  // reasoning as handleSets.
+  sendJson(res, 200, { leaders, has_more: hasMore }, { cacheSeconds: 300 });
 }
 
 // "Find a collector" — a specific wallet's rank within the CURRENT filtered
@@ -1745,15 +1756,32 @@ async function handleSiteMeta(res) {
   sendJson(res, 200, { data_last_updated: rows[0]?.value ?? null });
 }
 
-function sendJson(res, status, body) {
-  res.writeHead(status, {
+// cacheSeconds: for endpoints whose result is identical for every visitor
+// and only changes when the data-refresh pipeline runs (never per-request,
+// never per-user) — sets Vercel's CDN cache header so most requests are
+// served instantly from the edge instead of re-running an expensive
+// full-table aggregation every time. NEVER pass this for anything scoped to
+// a specific wallet, or anything intentionally live (Sweet listings/prices —
+// see fetchSweetListings's own "don't store, fetch on demand" reasoning,
+// which is the opposite tradeoff made on purpose for a different reason).
+function sendJson(res, status, body, { cacheSeconds } = {}) {
+  const headers = {
     'Content-Type': 'application/json',
     // Public read-only data — permissive CORS is harmless, and keeps local
     // dev simple (frontend and this dev server run on different local ports;
     // in production the Vercel function is same-origin so this header is
     // just unused, not unsafe).
     'Access-Control-Allow-Origin': '*',
-  });
+  };
+  if (cacheSeconds) {
+    // public: Vercel's CDN may cache it, not just the visitor's own browser.
+    // stale-while-revalidate: a visitor hitting it right as it expires still
+    // gets the (slightly stale) cached response instantly, while Vercel
+    // refetches in the background for the next request — never makes anyone
+    // wait for a full recompute.
+    headers['Cache-Control'] = `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 2}`;
+  }
+  res.writeHead(status, headers);
   res.end(JSON.stringify(body));
 }
 
