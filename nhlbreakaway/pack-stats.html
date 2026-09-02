@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pack Stats — NHL Breakaway — Hoardio</title>
+  <meta name="description" content="Browse every NHL Breakaway pack — moments, editions, opened, collected, and percent-remaining stats. Filter by series and rarity." />
+  <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway/pack-stats" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 1.25rem; }
+    .page-header { margin-bottom: 0; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .filter-bar .cb-combo { min-width: 180px; flex: 1; max-width: 280px; }
+    .filter-bar .search-input {
+      flex: 1; min-width: 180px; max-width: 320px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-primary); padding: 0.5rem 0.75rem; font-size: 0.85rem;
+    }
+    .filter-bar .search-input:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Results meta ── */
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
+    .results-meta strong { color: var(--text-primary); }
+
+    /* ── Packs table ── */
+    .packs-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .packs-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .packs-table thead th.col-r { text-align: right; }
+    .packs-table thead th.sortable { cursor: pointer; user-select: none; }
+    .packs-table thead th.sortable:hover { color: var(--text-primary); }
+    .packs-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .packs-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    .packs-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .packs-table tbody tr:last-child { border-bottom: none; }
+    .packs-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .packs-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .packs-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cell-pack-name { font-weight: 600; color: var(--text-primary); }
+    /* Uncapped pack design (pack_moments.total_editions IS NULL — mints
+       progressively, no fixed cap) — same live "so far" treatment as
+       sets.html/highlights.html's .editions-growing, applied to the same
+       live-distributed-total concept here. */
+    .editions-growing { color: var(--accent-light); font-weight: 700; cursor: help; }
+    .cell-series { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .cell-pct { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ── Rarity pills — identical to sets.html's, kept in sync by hand (see
+       reference_nhlbreakaway_rarity_colors memory for the source colors). ── */
+    .rarity-pill {
+      --rr-border: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35));
+      --rr-text: linear-gradient(91.27deg, #fff 6.06%, #e7f1f4 47.93%, #fff 87.27%);
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid transparent;
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
+    }
+    .rarity-pill-text {
+      background-image: var(--rr-text);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+    }
+    .rarity-pill--fandom    { --rr-border: linear-gradient(91deg, #824424, #8a6441 30%, #7b4c2e 90%); --rr-text: linear-gradient(91deg, #d1713e 6.06%, #f3ac6c 47.93%, #d28e62 87.27%); }
+    .rarity-pill--rare      { --rr-border: linear-gradient(92deg, #4e7fff, #2f52d6 30%, #4e7fff 90%); --rr-text: linear-gradient(93.83deg, #68aeff -0.71%, #c4dfff 45.06%, #68aeff 99.14%); }
+    .rarity-pill--limited   { --rr-border: linear-gradient(91deg, #646464, #303030 30%, #646464 90%); --rr-text: linear-gradient(91.27deg, #a5b4ae 6.06%, #e6edea 31.44%, #bdc2c0 47.51%, #d9d9d9 63.58%, #c5d2ce 87.27%); }
+    .rarity-pill--legendary { --rr-border: linear-gradient(92.71deg, #bd8800 -7.25%, #633b00 16.42%, #bd8800 36.23%, #633b00 54.94%, #bd8800 76.96%, #633b00 98.42%); --rr-text: linear-gradient(91.27deg, #ffb800 6.06%, #ffebb8 47.93%, #ffcf55 87.27%); }
+    .rarity-pill--epic      { --rr-border: linear-gradient(92deg, #007770, #350da7 10%, #89068b 30%, #350da7 70%, #007770 95%); --rr-text: linear-gradient(99.88deg, #23ffa3 0.36%, #5177ff 24.51%, #f364ff 46.15%, #748aff 71.31%, #28ffcb 96.55%); }
+    .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
+    .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
+
+    @media (max-width: 700px) {
+      .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
+      .packs-table { font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">NHL Breakaway <span class="accent">Pack Stats</span></div>
+      <div class="page-subtitle">Highlights, editions, opened, and collected stats for every pack.</div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" class="search-input" id="nameSearch" placeholder="Search pack name…" autocomplete="off" spellcheck="false">
+      <div class="cb-combo" id="seriesCombo">
+        <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="seriesPanel"></div>
+      </div>
+      <div class="cb-combo" id="rarityCombo">
+        <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="rarityPanel"></div>
+      </div>
+    </div>
+
+    <div class="results-meta" id="resultsMeta"></div>
+
+    <div style="overflow-x:auto;">
+      <table class="packs-table">
+        <thead>
+          <tr id="packsHeadRow"></tr>
+        </thead>
+        <tbody id="packsBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script src="rarity-order.js"></script>
+<script>
+'use strict';
+
+// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
+// index.js), which already queries the live production database directly
+// (no separate dev/prod split). Swap this for a real deployed API endpoint
+// once one exists; nothing else on this page needs to change beyond this
+// line and fetchPacks() below.
+const API_BASE = 'http://localhost:8877';
+
+const COLUMNS = [
+  { key: 'name',        label: 'Pack Name',  sortable: true },
+  { key: 'rarity',      label: 'Rarity',     sortable: true },
+  { key: 'moments',     label: 'Highlights', sortable: true, num: true },
+  { key: 'editions',    label: 'Editions',   sortable: true, num: true },
+  { key: 'opened',      label: 'Opened',     sortable: true, num: true },
+  { key: 'collected',   label: 'Collected',  sortable: true, num: true },
+  { key: 'distributed', label: 'Distributed', sortable: true, num: true },
+  { key: 'pct_left',    label: '% Left',     sortable: true, num: true },
+];
+
+const state = {
+  packs: [],
+  name: '',
+  series: '',
+  rarity: '',
+  sortField: 'name',
+  sortDir: 'asc',
+};
+
+async function fetchPacks() {
+  const res = await fetch(`${API_BASE}/api/packs`);
+  const data = await res.json();
+  state.packs = data.packs;
+}
+
+function filteredSortedPacks() {
+  let rows = state.packs;
+  const q = state.name.trim().toLowerCase();
+  if (q) rows = rows.filter(p => p.pack_name.toLowerCase().includes(q));
+  if (state.series) rows = rows.filter(p => p.series_label === state.series);
+  if (state.rarity) rows = rows.filter(p => p.rarity === state.rarity);
+
+  const dir = state.sortDir === 'asc' ? 1 : -1;
+  const field = state.sortField;
+  rows = [...rows].sort((a, b) => {
+    let av, bv;
+    if (field === 'name') { av = a.pack_name; bv = b.pack_name; }
+    else { av = a[field]; bv = b[field]; }
+    if (av === null || av === undefined) av = typeof bv === 'number' ? -Infinity : '';
+    if (bv === null || bv === undefined) bv = typeof av === 'number' ? -Infinity : '';
+    if (typeof av === 'string') return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+  return rows;
+}
+
+function renderHead() {
+  const row = document.getElementById('packsHeadRow');
+  row.innerHTML = COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = state.sortField === col.key;
+    const icon = sorted ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (state.sortField === field) {
+        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortField = field;
+        state.sortDir = field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+      }
+      renderHead();
+      renderBody();
+    });
+  });
+}
+
+function fmtNum(n) {
+  return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+
+function fmtPct(p) {
+  return p === null || p === undefined ? '' : `${p.toFixed(2)}%`;
+}
+
+function renderBody() {
+  const rows = filteredSortedPacks();
+  const body = document.getElementById('packsBody');
+  body.innerHTML = rows.map(p => `
+    <tr>
+      <td>
+        <div class="cell-pack-name">${p.pack_name}</div>
+        <div class="cell-series">${p.series_label}</div>
+      </td>
+      <td>${p.rarity
+        ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">${fmtNum(p.moments)}</td>
+      <td class="col-r">${p.editions === null
+        ? `<span class="editions-growing" title="Uncapped — mints progressively, no fixed cap">${fmtNum(p.editions_live_sum)}+</span>`
+        : fmtNum(p.editions)}</td>
+      <td class="col-r">${fmtNum(p.opened)}<span class="cell-pct">${fmtPct(p.opened_pct)}</span></td>
+      <td class="col-r">${fmtNum(p.collected)}<span class="cell-pct">${fmtPct(p.collected_pct)}</span></td>
+      <td class="col-r">${fmtNum(p.distributed)}</td>
+      <td class="col-r">${fmtPct(p.pct_left) || '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('resultsMeta').innerHTML = `<strong>${rows.length}</strong> pack${rows.length === 1 ? '' : 's'}`;
+}
+
+/* ── Shared cb-combo wiring (Series / Rarity) — identical to sets.html's ── */
+function closeAllCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.classList.remove('open');
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    if (combo._items) syncComboDisplay(combo);
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-combo')) closeAllCombos();
+});
+
+function syncComboDisplay(combo) {
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._items[0];
+  const active = combo._items.find(i => i.value === combo._getValue()) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function buildCombo(comboId, items, getValue, setValue) {
+  const combo = document.getElementById(comboId);
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  combo._items = items;
+  combo._getValue = getValue;
+  syncComboDisplay(combo);
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const pick = val => {
+    closeAllCombos();
+    setValue(val);
+    syncComboDisplay(combo);
+    renderBody();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._items.slice(1);
+    const filtered = q ? options.filter(i => i.label.toLowerCase().includes(q)) : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === getValue() ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCombos();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); input.blur(); closeAllCombos(); }
+    else if (e.key === 'Enter') { e.preventDefault(); panel.querySelector('.cb-item')?.click(); }
+  });
+  input.addEventListener('blur', () => {
+    // Close only THIS combo, not every combo — see sets.html's identical
+    // comment for the reason (a different combo the user just opened
+    // shouldn't get clobbered by this one's delayed blur handler).
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncComboDisplay(combo);
+      }
+    }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { pick(''); input.blur(); });
+}
+
+function populateFilters() {
+  const seriesValues = [...new Set(state.packs.map(p => p.series_label))].sort();
+  const rarityValues = sortByRarityOrder([...new Set(state.packs.map(p => p.rarity).filter(Boolean))]);
+
+  buildCombo('seriesCombo',
+    [{ value: '', label: 'All series' }, ...seriesValues.map(v => ({ value: v, label: v }))],
+    () => state.series, v => state.series = v);
+
+  buildCombo('rarityCombo',
+    [{ value: '', label: 'All rarities' }, ...rarityValues.map(v => ({ value: v, label: v }))],
+    () => state.rarity, v => state.rarity = v);
+}
+
+document.getElementById('nameSearch').addEventListener('input', e => {
+  state.name = e.target.value;
+  renderBody();
+});
+
+(async function init() {
+  renderHead();
+  document.getElementById('resultsMeta').textContent = 'Loading…';
+  try {
+    await fetchPacks();
+    populateFilters();
+    renderBody();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load packs. Please try again shortly.';
+    console.error(err);
+  }
+})();
+</script>
+
+<script src="nav.js"></script>
+</body>
+</html>

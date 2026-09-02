@@ -829,6 +829,32 @@ body::before {
   color: var(--accent-light);
 }
 
+/* ── "Coming soon" card — planned tool, no page behind it yet ── */
+.card--soon {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.card--soon:hover {
+  background: var(--bg-card);
+  border-color: var(--border);
+  transform: none;
+  box-shadow: none;
+}
+
+.card-soon-tag {
+  align-self: flex-end;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+}
+
 
 /* ── Announcements ── */
 .announcements {

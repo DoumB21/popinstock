@@ -26,6 +26,7 @@
       --x:       #e7e7e7;
       --topps:   #e31837;
       --wombat:  #a259ff;
+      --nhl:     #22d3ee;
     }
 
     /* ── Ambient color orbs bleeding from page corners ── */
@@ -171,6 +172,9 @@
     .card--funko   { background: linear-gradient(145deg, #13131d 35%, rgba(50, 130, 220, 0.09) 100%); border-top: 2px solid rgba(50, 130, 220, 0.4); }
     .card--topps   { background: linear-gradient(145deg, #13131d 35%, rgba(227, 24, 55, 0.09) 100%); border-top: 2px solid rgba(227, 24, 55, 0.4); }
     .card--wombat  { background: linear-gradient(145deg, #13131d 35%, rgba(162, 89, 255, 0.09) 100%); border-top: 2px solid rgba(162, 89, 255, 0.4); }
+    .card--nhl     { background: linear-gradient(145deg, #13131d 35%, rgba(34, 211, 238, 0.09) 100%);  border-top: 2px solid rgba(34, 211, 238, 0.4); }
+    .card--nhl     .card-icon { width: auto; height: auto; justify-content: flex-start; align-self: flex-start; background: none; box-shadow: none; border-radius: 0; }
+    .card--nhl     .card-icon img { height: 34px; width: auto; object-fit: contain; }
     .card--explore { background: linear-gradient(145deg, #13131d 35%, rgba(20, 184, 166, 0.09) 100%); border-top: 2px solid rgba(20, 184, 166, 0.4); }
     .card--explore .card-icon { background: rgba(20, 184, 166, 0.2); box-shadow: 0 0 18px rgba(20, 184, 166, 0.2); }
     .card--explore .card-icon svg { fill: #14b8a6; }
@@ -188,6 +192,7 @@
     .card--funko:hover   { background: linear-gradient(145deg, #1a1a2a 35%, rgba(50, 130, 220, 0.16) 100%); border-color: rgba(50, 130, 220, 0.55);  box-shadow: 0 14px 55px rgba(50, 130, 220, 0.24); }
     .card--topps:hover   { background: linear-gradient(145deg, #1a1a2a 35%, rgba(227, 24, 55, 0.16) 100%); border-color: rgba(227, 24, 55, 0.55);   box-shadow: 0 14px 55px rgba(227, 24, 55, 0.24); }
     .card--wombat:hover  { background: linear-gradient(145deg, #1a1a2a 35%, rgba(162, 89, 255, 0.16) 100%); border-color: rgba(162, 89, 255, 0.55);  box-shadow: 0 14px 55px rgba(162, 89, 255, 0.24); }
+    .card--nhl:hover     { background: linear-gradient(145deg, #1a1a2a 35%, rgba(34, 211, 238, 0.16) 100%);  border-color: rgba(34, 211, 238, 0.55);  box-shadow: 0 14px 55px rgba(34, 211, 238, 0.24); }
     .card--explore:hover { background: linear-gradient(145deg, #1a1a2a 35%, rgba(20, 184, 166, 0.16) 100%); border-color: rgba(20, 184, 166, 0.55);  box-shadow: 0 14px 55px rgba(20, 184, 166, 0.24); }
     .card--inventory:hover { background: linear-gradient(145deg, #1a1a2a 35%, rgba(240, 168, 64, 0.16) 100%); border-color: rgba(240, 168, 64, 0.55); box-shadow: 0 14px 55px rgba(240, 168, 64, 0.24); }
     .card--trade:hover { background: linear-gradient(145deg, #1a1a2a 35%, rgba(74, 222, 128, 0.16) 100%); border-color: rgba(74, 222, 128, 0.55); box-shadow: 0 14px 55px rgba(74, 222, 128, 0.24); }
@@ -198,6 +203,7 @@
     .card--funko:hover   .card-arrow { color: rgb(50, 130, 220); }
     .card--topps:hover   .card-arrow { color: var(--topps); }
     .card--wombat:hover  .card-arrow { color: var(--wombat); }
+    .card--nhl:hover     .card-arrow { color: var(--nhl); }
     .card--explore:hover .card-arrow { color: #14b8a6; }
     .card--inventory:hover .card-arrow { color: #f0a840; }
     .card--trade:hover .card-arrow { color: #4ade80; }
@@ -329,6 +335,26 @@
             <div class="card-body">
               <div class="card-title">Wombat Dungeon Master</div>
               <div class="card-desc">Tools and stats for Wombat Dungeon Master collectors.</div>
+            </div>
+            <div class="card-arrow">↗</div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- Other Networks — collector tools for platforms outside WAX -->
+      <div class="section">
+        <div class="section-heading">Other Networks</div>
+        <div class="grid">
+
+          <!-- NHL Breakaway -->
+          <a href="nhlbreakaway" class="card card--nhl">
+            <div class="card-icon">
+              <img src="images/nhlbreakaway.svg" alt="NHL Breakaway" />
+            </div>
+            <div class="card-body">
+              <div class="card-title">NHL Breakaway</div>
+              <div class="card-desc">Officially-licensed NHL digital collectibles on Sweet. Set stats, wallet lookups, and collector leaderboards.</div>
             </div>
             <div class="card-arrow">↗</div>
           </a>

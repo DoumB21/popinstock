@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Holders — NHL Breakaway — Hoardio</title>
+  <meta name="description" content="Every edition of an NHL Breakaway highlight — current holder, in-packs, and burned status per edition." />
+  <!-- holders.html's pretty clean URL ("/nhlbreakaway/holders/:momentUuid", a
+       vercel.json rewrite) is one segment DEEPER than this file's own flat
+       location — the opposite of collection.html's case, but the same
+       principle (see its matching comment): detect path shape, emit a
+       RELATIVE prefix (never a leading-slash absolute one, which would drop
+       a local subpath-hosted dev server's own mount prefix), and write the
+       affected tags via document.write so the preload scanner never sees an
+       unprefixed href to begin with. -->
+  <script>
+    // Named _assetPrefix, not _p — nav.js (loaded later, same global scope,
+    // both non-module scripts) declares its own top-level `const _p` for the
+    // same purpose; a same-named `var` here collided with it ("Identifier
+    // '_p' has already been declared", confirmed in testing).
+    var _assetPrefix = /\/nhlbreakaway\/holders\/[^/]+\/?$/.test(location.pathname) ? '../../' : '../';
+    document.write(
+      '<link rel="icon" href="' + _assetPrefix + 'images/Hoardio_fav.ico" sizes="any" />' +
+      '<link rel="icon" href="' + _assetPrefix + 'images/Hoardio_fav.png" type="image/png" />' +
+      '<link rel="stylesheet" href="' + _assetPrefix + 'shared/global.css" />'
+    );
+  </script>
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+    .back-link {
+      display: inline-block; font-size: 0.85rem; color: var(--text-secondary);
+      text-decoration: none; margin-bottom: 0.25rem;
+    }
+    .back-link:hover { color: var(--accent-light); }
+
+    /* .holder-header holds the tight title/meta group plus each Section
+       (Edition Size Breakdown / Additional Status / Badges) as siblings —
+       matching funko/drop.html's pattern (a compact header block, then
+       generously-gapped .section blocks) rather than one uniformly-tight
+       column. */
+    .holder-header { display: flex; flex-direction: column; gap: 2rem; }
+    .holder-title-block { display: flex; flex-direction: column; gap: 0.5rem; }
+    .holder-header .page-title { margin-bottom: 0; display: flex; align-items: center; flex-wrap: wrap; }
+    /* Jersey number and team share a muted color, distinct from the player's
+       own name (which keeps the default bold/bright page-title color), so
+       the name stays the visual focal point. */
+    .title-jersey, .title-team { color: var(--text-secondary); font-weight: 500; }
+    .title-dot { color: var(--text-secondary); opacity: 0.5; font-weight: 400; margin: 0 0.4rem; }
+    .title-team-logo { height: 2.5rem; width: auto; vertical-align: middle; margin-left: 0.4rem; }
+    .header-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+    .header-meta .meta-sep { opacity: 0.5; }
+    /* Set/Series get a subtle tag/chip treatment (same idea as .badge-chip
+       below) instead of plain text, so the meta line reads a bit richer. */
+    .meta-tag {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px; border-radius: 999px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;
+    }
+
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; margin-bottom: 0.75rem; }
+    .results-meta strong { color: var(--text-primary); }
+
+    /* ── Status breakdown (counts across ALL editions, not just loaded ones) ──
+       Every tile is the same fixed size regardless of label length — the two
+       longest labels ("Used For Crafting", "Removed From Circulation") wrap
+       their last word onto a 2nd line (via an explicit <br>, not relying on
+       natural wrap at this width), and .status-stat-label reserves 2 lines'
+       worth of height so a 1-line label still leaves every tile the same
+       height. */
+    .status-breakdown { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .status-stat {
+      display: flex; flex-direction: column; align-items: flex-start;
+      width: 125px; box-sizing: border-box;
+      padding: 0.5rem 0.75rem; border-radius: 10px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+    .status-stat:hover { border-color: var(--border-hover, rgba(255,255,255,0.25)); }
+    .status-stat.active { background: rgba(240,168,64,0.08); border-color: var(--accent-light); }
+    .status-stat-count { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+    .status-stat-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-secondary); margin-top: 2px; line-height: 1.25; min-height: 2.5em;
+    }
+    .status-stat-sub { font-size: 0.78rem; color: var(--text-secondary); margin-top: 3px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+    .status-stat--held .status-stat-count { color: #7ba3ff; }
+    .status-stat--other .status-stat-count { color: #b98eff; }
+    .status-stat--used_for_crafting .status-stat-count { color: #f0a840; }
+    .status-stat--removed_from_circulation .status-stat-count { color: #ff6b4d; }
+    /* Frozen/Listed aren't part of the 5-way filterable split (different
+       data sources — a periodic snapshot table, and a live external API
+       call — see the header fetch code), so they're display-only: no
+       pointer cursor, no hover/active feedback, not included in the
+       tile-click wiring below. */
+    .status-stat--static { cursor: default; }
+    .status-stat--static:hover { border-color: var(--border); }
+    .status-stat--frozen .status-stat-count { color: #68aeff; }
+    .status-stat--listed .status-stat-count { color: #3ddc97; }
+
+    /* ── Highlight-level badges (moment_badges) ── */
+    .header-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .badge-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px 4px 6px; border-radius: 999px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      font-size: 0.75rem; color: var(--text-secondary);
+    }
+    .badge-chip img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+    /* The "Edition Badges" chip is the one clickable badge-chip — filters
+       the editions list to just the (at most 3) badge-carrying rows. Same
+       active/hover treatment as .status-stat so it reads as part of the
+       same filter system despite being visually a chip, not a tile. */
+    .badge-chip--filter { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .badge-chip--filter:hover { border-color: var(--border-hover, rgba(255,255,255,0.25)); }
+    .badge-chip--filter.active { background: rgba(240,168,64,0.08); border-color: var(--accent-light); color: var(--accent-light); }
+    /* One icon+label pair per applicable badge type, inside the single
+       "Edition Badges" chip (not separate chips per badge). */
+    .badge-chip-prefix { opacity: 0.75; }
+    .badge-chip-item { display: inline-flex; align-items: center; gap: 4px; }
+    .badge-chip-item img { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+    .badge-chip-sep { opacity: 0.4; margin: 0 2px; }
+
+    /* ── Per-edition computed badges (fixed icon set, see EDITION_BADGES) ── */
+    .edition-badges { display: flex; gap: 4px; }
+    .edition-badges img { width: 20px; height: 20px; object-fit: contain; }
+    /* Perfect Edition on a growing (uncapped) moment is provisional — it's
+       "currently the newest", not permanent, since the next crafted copy can
+       take its place. Same accent treatment as .editions-growing on the
+       Highlights page, applied to the icon since this one isn't plain text. */
+    .edition-badges img.badge-provisional {
+      border-radius: 50%;
+      outline: 2px solid var(--accent-light);
+      outline-offset: 1px;
+    }
+
+    .state-empty, .state-error {
+      padding: 2.5rem 1rem; text-align: center; color: var(--text-secondary); font-size: 0.9rem;
+    }
+
+    /* ── Editions table ── */
+    .editions-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .editions-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .editions-table thead th.col-r { text-align: right; }
+    .editions-table thead th.sortable { cursor: pointer; user-select: none; }
+    .editions-table thead th.sortable:hover { color: var(--text-primary); }
+    .editions-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .editions-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    .editions-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .editions-table tbody tr:last-child { border-bottom: none; }
+    .editions-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    /* Any row carrying a special badge (#1/Perfect/Jersey Match Edition) gets
+       a distinct tint so it's easy to spot while scanning the list. */
+    .editions-table tbody tr.row-has-badge { background: rgba(240,168,64,0.07); }
+    .editions-table tbody tr.row-has-badge:hover { background: rgba(240,168,64,0.13); }
+    .editions-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .editions-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cell-edition { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .cell-sub { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .status-pill {
+      display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+      text-decoration: none;
+    }
+    a.status-pill { cursor: pointer; transition: filter 0.15s; }
+    a.status-pill:hover { filter: brightness(1.25); }
+    .status-pill--held { background: rgba(78,127,255,0.12); color: #7ba3ff; }
+    .status-pill--in_packs { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+    .status-pill--other { background: rgba(185,142,255,0.12); color: #b98eff; }
+    .status-pill--used_for_crafting { background: rgba(240,168,64,0.12); color: #f0a840; }
+    .status-pill--removed_from_circulation, .status-pill--burned { background: rgba(255,38,0,0.12); color: #ff6b4d; }
+    .status-pill--listed { background: rgba(61,220,151,0.12); color: #3ddc97; }
+
+    .polyscan-link { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; white-space: nowrap; }
+    .polyscan-link:hover { color: var(--accent-light); }
+    /* External link (nhlbreakaway.com's own user profile) — accent color at
+       rest per site convention, not a hover-reveal. */
+    .holder-link { color: var(--accent-light); text-decoration: none; }
+    .holder-link:hover { text-decoration: underline; }
+    .media-link { color: var(--accent-light); text-decoration: none; font-weight: 600; }
+    .media-link:hover { text-decoration: underline; }
+
+    /* ── Rarity pills — same exact gradients as highlights.html's ── */
+    .rarity-pill {
+      --rr-border: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35));
+      --rr-text: linear-gradient(91.27deg, #fff 6.06%, #e7f1f4 47.93%, #fff 87.27%);
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid transparent;
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
+    }
+    .rarity-pill-text {
+      background-image: var(--rr-text);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+    }
+    .rarity-pill--fandom    { --rr-border: linear-gradient(91deg, #824424, #8a6441 30%, #7b4c2e 90%); --rr-text: linear-gradient(91deg, #d1713e 6.06%, #f3ac6c 47.93%, #d28e62 87.27%); }
+    .rarity-pill--rare      { --rr-border: linear-gradient(92deg, #4e7fff, #2f52d6 30%, #4e7fff 90%); --rr-text: linear-gradient(93.83deg, #68aeff -0.71%, #c4dfff 45.06%, #68aeff 99.14%); }
+    .rarity-pill--limited   { --rr-border: linear-gradient(91deg, #646464, #303030 30%, #646464 90%); --rr-text: linear-gradient(91.27deg, #a5b4ae 6.06%, #e6edea 31.44%, #bdc2c0 47.51%, #d9d9d9 63.58%, #c5d2ce 87.27%); }
+    .rarity-pill--legendary { --rr-border: linear-gradient(92.71deg, #bd8800 -7.25%, #633b00 16.42%, #bd8800 36.23%, #633b00 54.94%, #bd8800 76.96%, #633b00 98.42%); --rr-text: linear-gradient(91.27deg, #ffb800 6.06%, #ffebb8 47.93%, #ffcf55 87.27%); }
+    .rarity-pill--epic      { --rr-border: linear-gradient(92deg, #007770, #350da7 10%, #89068b 30%, #350da7 70%, #007770 95%); --rr-text: linear-gradient(99.88deg, #23ffa3 0.36%, #5177ff 24.51%, #f364ff 46.15%, #748aff 71.31%, #28ffcb 96.55%); }
+    .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
+    .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
+
+    @media (max-width: 700px) {
+      .editions-table { font-size: 0.78rem; }
+    }
+
+    /* ── Combinable filters (Holder search / Edition range) ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .filter-bar .search-input { min-width: 200px; flex: 1.4; max-width: 320px; }
+    .filter-bar .edition-range-input { width: 80px; flex: 0 0 auto; }
+    @media (max-width: 700px) {
+      .filter-bar .search-input, .filter-bar .edition-range-input { max-width: none; }
+    }
+
+    /* ── Tabs (Editions / Top Holders) — same pattern as wallet.html's own
+       Set Completion/Highlights/Packs tabs. ── */
+    .holders-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+    .holders-tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.65rem 0.1rem; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+      color: var(--text-secondary); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .holders-tab-btn:hover { color: var(--text-primary); }
+    .holders-tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); }
+    .holders-tab-panel { display: none; }
+    .holders-tab-panel.active { display: block; margin-top: 1.25rem; }
+
+    /* ── Top Holders table ── */
+    .top-holders-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .top-holders-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .top-holders-table thead th.col-r { text-align: right; }
+    .top-holders-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .top-holders-table tbody tr:last-child { border-bottom: none; }
+    .top-holders-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .top-holders-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .top-holders-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <a class="back-link" id="backLink" href="highlights">← Back to Highlights</a>
+
+    <div class="holder-header" id="holderHeader">
+      <div class="page-title">Loading…</div>
+    </div>
+
+    <div id="editionsSection" style="display:none;">
+      <div class="holders-tabs" id="holdersTabs">
+        <button type="button" class="holders-tab-btn active" data-tab="editions">Editions</button>
+        <button type="button" class="holders-tab-btn" data-tab="top_holders">Top Holders</button>
+      </div>
+
+      <div class="holders-tab-panel active" id="tabPanelEditions">
+        <div class="filter-bar">
+          <input type="text" class="search-input" id="holderSearchInput" placeholder="Search holder" autocomplete="off" spellcheck="false">
+          <input type="number" class="search-input edition-range-input" id="editionMinInput" placeholder="Min edition" min="1" inputmode="numeric">
+          <input type="number" class="search-input edition-range-input" id="editionMaxInput" placeholder="Max edition" min="1" inputmode="numeric">
+          <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+        </div>
+        <div class="results-meta" id="resultsMeta"></div>
+        <div style="overflow-x:auto;">
+          <table class="editions-table">
+            <thead>
+              <tr id="editionsHeadRow"></tr>
+            </thead>
+            <tbody id="editionsBody"></tbody>
+          </table>
+        </div>
+        <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+          <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
+        </div>
+      </div>
+
+      <div class="holders-tab-panel" id="tabPanelTopHolders">
+        <div class="results-meta" id="topHoldersResultsMeta"></div>
+        <div style="overflow-x:auto;">
+          <table class="top-holders-table">
+            <thead>
+              <tr>
+                <th>Holder</th>
+                <th class="col-r">Total</th>
+                <th class="col-r">%</th>
+              </tr>
+            </thead>
+            <tbody id="topHoldersBody"></tbody>
+          </table>
+        </div>
+        <div id="topHoldersLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+          <button type="button" id="topHoldersLoadMoreBtn" class="load-more-btn">Load more</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="emptyState" class="state-empty" style="display:none;">
+      This highlight hasn't been minted yet — no editions exist on-chain.
+    </div>
+
+    <div id="errorState" class="state-error" style="display:none;">
+      Highlight not found.
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
+// index.js), which already queries the live production database directly
+// (no separate dev/prod split). Swap this for a real deployed API endpoint
+// once one exists; nothing else on this page needs to change beyond this
+// line.
+const API_BASE = 'http://localhost:8877';
+const PAGE_SIZE = 100;
+
+// A server-side rewrite (vercel.json / web.config) is invisible to the
+// browser — the address bar, and therefore location.search, still shows the
+// ORIGINAL pretty "/nhlbreakaway/holders/:id" URL with no query string at
+// all, even though the server actually served this page via its
+// ?moment_uuid= form behind the scenes. So this must try BOTH, exactly like
+// collection.html/template.html do: the query string (only ever populated
+// when someone hits the flat nhlbreakaway/holders.html?moment_uuid=X form
+// directly, e.g. local dev testing) and a location.pathname regex fallback
+// for the pretty-path form (what a real rewrite — Vercel prod or the local
+// IIS web.config mirror — actually leaves in the browser's address bar).
+const _pathMomentUuid = (location.pathname.match(/\/nhlbreakaway\/holders\/([^/]+)\/?$/) || [])[1];
+const MOMENT_UUID = new URLSearchParams(location.search).get('moment_uuid')
+  || (_pathMomentUuid ? decodeURIComponent(_pathMomentUuid) : null);
+
+const state = {
+  editions: [],
+  offset: 0,
+  hasMore: false,
+  busy: false,
+  autoLoadArmed: false,
+  status: '', // '' = all; otherwise one of the 5 status keys, set by clicking a status-stat tile
+  // Independent, combinable on top of `status` (and each other) — per
+  // explicit product decision, Listed / Edition Badges / Holder search /
+  // Edition range all AND together rather than acting as a single exclusive
+  // filter like the status tiles do.
+  listedOnly: false,
+  editionBadgesOnly: false,
+  holderSearch: '',
+  editionMin: null,
+  editionMax: null,
+  sortField: 'edition',
+  sortDir: 'asc',
+};
+
+// Shared by every filter/sort control: rewind pagination and re-fetch from
+// scratch. Whatever combination of state.status/listedOnly/editionBadgesOnly/
+// holderSearch/editionMin/editionMax is active gets sent together as one
+// combined query — see loadEditionsChunk().
+function resetAndReload() {
+  state.offset = 0;
+  state.editions = [];
+  state.hasMore = false;
+  state.autoLoadArmed = false;
+  loadEditionsChunk();
+}
+
+const EDITIONS_COLUMNS = [
+  { key: 'edition', label: 'Edition', sortable: true },
+  { key: 'badges',  label: 'Badges',  sortable: false },
+  { key: 'holder',  label: 'Holder',  sortable: true },
+  { key: 'status',  label: 'Status',  sortable: true },
+  { key: 'link',    label: 'Link',    sortable: false, num: true },
+];
+
+function renderEditionsHead() {
+  const row = document.getElementById('editionsHeadRow');
+  row.innerHTML = EDITIONS_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = state.sortField === col.key;
+    const icon = sorted ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (state.sortField === field) {
+        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortField = field;
+        state.sortDir = 'asc';
+      }
+      renderEditionsHead();
+      resetAndReload();
+    });
+  });
+}
+
+// Set once the header response arrives (see init()) — total_editions/
+// jersey_number are needed per-row below, not just for display.
+let HEADER = null;
+
+// Computed per-edition badges — deliberately NOT sourced from moment_badges
+// (Sweet's API returns these three unreliably per-edition, confirmed
+// earlier), so they're derived client-side from data already on hand: the
+// row's own edition_number plus total_editions/jersey_number from the header
+// fetched once. Icon URLs are fixed/reusable per badge type (verified
+// identical across every sampled card), safe to hardcode.
+const EDITION_BADGES = [
+  {
+    label: '#1 Edition',
+    icon: 'https://nft.nhlbreakaway.com/collectible_icon/original/ef88c6f2-1866-4952-9493-6399c25de60b.png',
+    number: () => 1,
+  },
+  {
+    label: 'Jersey Match Edition',
+    icon: 'https://nft.nhlbreakaway.com/collectible_icon/original/9f36c26e-8921-43dd-abae-65cf1271b31e.png',
+    number: () => HEADER.jersey_number,
+  },
+  {
+    label: 'Perfect Edition',
+    icon: 'https://nft.nhlbreakaway.com/collectible_icon/original/0860bc55-4e28-455a-835d-069e3f8743bc.png',
+    // Growing (uncapped) moments have total_editions === null, so this falls
+    // back to whichever edition is CURRENTLY the highest-numbered
+    // (HEADER.current_max_edition, computed server-side over every cards
+    // row for this moment, not just whatever page happens to be loaded).
+    // These moments mint sequentially with no gaps, so that's a reliable
+    // "newest so far" — see project_nhlbreakaway_highlights_holders memory.
+    number: () => HEADER.total_editions ?? HEADER.current_max_edition,
+    // Only meaningful for Perfect Edition: on a growing moment this badge is
+    // provisional (can move to a new card the next time one is crafted),
+    // unlike on a fixed-cap set where it's permanent.
+    provisional: () => HEADER.total_editions == null,
+  },
+];
+// .test() derives from .number() for every entry — one place decides which
+// edition number qualifies for a badge, shared by both per-row rendering
+// (below) and the "Edition Badges" header filter chip (see
+// applicableEditionBadges()/badgeFilterEditionNumbers()).
+EDITION_BADGES.forEach(b => {
+  b.test = (editionNumber) => {
+    const n = b.number();
+    return n != null && editionNumber === n;
+  };
+});
+
+// Which of the 3 badge types actually apply to THIS highlight (e.g. Jersey
+// Match Edition doesn't apply at all when jersey_number is null) — powers
+// the "Edition Badges" filter chip's label and its filter-by-edition-number
+// list. Computed client-side, no extra request needed.
+function applicableEditionBadges() {
+  if (!HEADER) return [];
+  return EDITION_BADGES.map(b => ({ label: b.label, icon: b.icon, num: b.number() })).filter(b => b.num != null);
+}
+function badgeFilterEditionNumbers() {
+  return [...new Set(applicableEditionBadges().map(b => b.num))];
+}
+
+function fmtNum(n) {
+  return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? s : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Links a holder to their official nhlbreakaway.com profile, pre-filtered to
+// this exact highlight (player/set/series), e.g.:
+// https://nhlbreakaway.com/user/allinkmemorabilia?sort=newest&set=Hoist+the+Cup+2024&q=Aaron+Ekblad&series=Series+1
+// Only valid for a real Sweet username (the backend's separate
+// `holder_username` field, not `holder`'s owner_name/wallet fallback) —
+// those aren't real usernames on nhlbreakaway.com, so there's nothing to
+// link to for a fallback holder.
+function nhlBreakawayUserUrl(username) {
+  if (!username || !HEADER) return null;
+  const params = new URLSearchParams({
+    sort: 'newest',
+    set: HEADER.set_name || '',
+    q: HEADER.player || '',
+    series: HEADER.series_label || '',
+  });
+  return `https://nhlbreakaway.com/user/${encodeURIComponent(username)}?${params}`;
+}
+
+// Links a Listed pill to the highlight's own official marketplace page, e.g.:
+// https://nhlbreakaway.com/series/gb04X2bA/highlight/b5c8ae77b99b0000ab8f000000000000
+// Needs series_id (from the header response) + this page's own MOMENT_UUID —
+// both constant for every row on this page, so this takes no arguments.
+function sweetHighlightUrl() {
+  if (!HEADER || !HEADER.series_id) return null;
+  return `https://nhlbreakaway.com/series/${encodeURIComponent(HEADER.series_id)}/highlight/${encodeURIComponent(MOMENT_UUID)}`;
+}
+
+function renderHeader(h) {
+  document.getElementById('holderHeader').innerHTML = `
+    <div class="holder-title-block">
+      <div class="page-title">
+        ${h.jersey_number != null ? `<span class="title-jersey">#${h.jersey_number}</span><span class="title-dot">·</span>` : ''}
+        ${h.player || 'Unknown player'}
+        <span class="title-dot">·</span>
+        <span class="title-team">${h.team || '—'}</span>
+        ${h.team_logo_url ? `<img class="title-team-logo" src="${h.team_logo_url}" alt="${h.team || ''}" loading="lazy">` : ''}
+      </div>
+      <div class="header-meta">
+        <span class="meta-tag">${h.set_name || '—'}</span>
+        <span class="meta-sep">·</span>
+        <span class="meta-tag">${h.series_label || '—'}</span>
+        <span class="meta-sep">·</span>
+        ${h.rarity ? `<span class="rarity-pill rarity-pill--${h.rarity.toLowerCase()}"><span class="rarity-pill-text">${h.rarity}</span></span>` : '<span class="meta-tag">—</span>'}
+        ${h.media_url ? `<span class="meta-sep">·</span><a class="media-link" href="${h.media_url}" target="_blank" rel="noopener">Watch media ↗</a>` : ''}
+      </div>
+    </div>
+    ${h.status_counts ? (() => {
+      const allCount = h.status_counts.held + h.status_counts.in_packs + h.status_counts.other
+        + h.status_counts.used_for_crafting + h.status_counts.removed_from_circulation;
+      return `
+      <div class="section">
+        <div class="section-heading">Edition Size Breakdown <span class="section-count">Click on status to filter</span></div>
+        <div class="status-breakdown" id="statusBreakdown">
+          <div class="status-stat status-stat--all active" data-status="" title="Click to show all">
+            <div class="status-stat-count">${fmtNum(allCount)}</div>
+            <div class="status-stat-label">All</div>
+          </div>
+          <div class="status-stat status-stat--held" data-status="held" title="Click to filter">
+            <div class="status-stat-count">${fmtNum(h.status_counts.held)}</div>
+            <div class="status-stat-label">Held</div>
+          </div>
+          <div class="status-stat status-stat--in_packs" data-status="in_packs" title="Click to filter">
+            <div class="status-stat-count">${fmtNum(h.status_counts.in_packs)}</div>
+            <div class="status-stat-label">In Packs</div>
+          </div>
+          <div class="status-stat status-stat--other" data-status="other" title="Click to filter">
+            <div class="status-stat-count">${fmtNum(h.status_counts.other)}</div>
+            <div class="status-stat-label">Other</div>
+          </div>
+          <div class="status-stat status-stat--used_for_crafting" data-status="used_for_crafting" title="Click to filter">
+            <div class="status-stat-count">${fmtNum(h.status_counts.used_for_crafting)}</div>
+            <div class="status-stat-label">Used For<br>Crafting</div>
+          </div>
+          <div class="status-stat status-stat--removed_from_circulation" data-status="removed_from_circulation" title="Click to filter">
+            <div class="status-stat-count">${fmtNum(h.status_counts.removed_from_circulation)}</div>
+            <div class="status-stat-label">Removed From<br>Circulation</div>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-heading">Additional Status</div>
+        <div class="status-breakdown">
+          <div class="status-stat status-stat--static status-stat--frozen" title="From a periodic snapshot — may lag slightly behind live">
+            <div class="status-stat-count">${fmtNum(h.status_counts.frozen)}</div>
+            <div class="status-stat-label">Frozen</div>
+          </div>
+          <div class="status-stat status-stat--listed" data-toggle="listed" title="Click to filter — combines with other filters">
+            <div class="status-stat-count">${fmtNum(h.status_counts.listed)}</div>
+            <div class="status-stat-label">Listed</div>
+            ${h.status_counts.listed_lowest_ask != null ? `<div class="status-stat-sub">Lowest ask $${h.status_counts.listed_lowest_ask.toFixed(2)}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `; })() : ''}
+    ${(() => {
+      const applicable = applicableEditionBadges();
+      const hasMomentBadges = h.badges && h.badges.length;
+      if (!hasMomentBadges && !applicable.length) return '';
+      return `
+      <div class="section">
+        <div class="section-heading">Badges</div>
+        <div class="header-badges">
+          ${applicable.length ? `
+            <span class="badge-chip badge-chip--filter" data-toggle="edition_badges" title="Click to show only editions with a badge — combines with other filters">
+              <span class="badge-chip-prefix">Edition Badges:</span>
+              ${applicable.map(b => `
+                <span class="badge-chip-item">
+                  ${b.icon ? `<img src="${b.icon}" alt="" loading="lazy">` : ''}
+                  ${b.label}
+                </span>
+              `).join('<span class="badge-chip-sep">·</span>')}
+            </span>
+          ` : ''}
+          ${hasMomentBadges ? h.badges.map(b => `
+            <span class="badge-chip">
+              ${b.badge_image_url ? `<img src="${b.badge_image_url}" alt="" loading="lazy">` : ''}
+              ${b.badge_name}
+            </span>
+          `).join('') : ''}
+        </div>
+      </div>
+    `; })()}
+  `;
+  // Status breakdown tiles (Held/In Packs/Other/Used For Crafting/Removed
+  // From Circulation/All) are a single-select group — click one to filter,
+  // click the active one again (or click "All") to clear back to "All".
+  // Frozen has no data-status at all (stays display-only — no way to
+  // identify which specific edition is frozen, only a total count from the
+  // snapshot table). "All" has data-status="" (present, just empty), so
+  // it's still included here.
+  document.querySelectorAll('#holderHeader [data-status]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      setStatusFilter(state.status === tile.dataset.status ? '' : tile.dataset.status);
+    });
+  });
+  // Listed / Edition Badges are INDEPENDENT toggles, not part of the
+  // single-select status group above — each combines (ANDs) with whichever
+  // status tile, and with each other, and with the Holder/Edition-range
+  // filters below. See toggleFilter().
+  document.querySelectorAll('#holderHeader [data-toggle]').forEach(el => {
+    el.addEventListener('click', () => toggleFilter(el.dataset.toggle));
+  });
+}
+
+// Single source of truth for the (single-select) status filter — called by
+// the status-stat tile clicks in renderHeader above.
+function setStatusFilter(status) {
+  state.status = status;
+  document.querySelectorAll('#holderHeader [data-status]').forEach(tile => {
+    tile.classList.toggle('active', tile.dataset.status === status);
+  });
+  resetAndReload();
+}
+
+// Maps a data-toggle value to its state field — used by the independent,
+// combinable Listed / Edition Badges toggles (as opposed to the single-select
+// status tiles above).
+const TOGGLE_STATE_KEY = { listed: 'listedOnly', edition_badges: 'editionBadgesOnly' };
+function toggleFilter(toggleKey) {
+  const stateKey = TOGGLE_STATE_KEY[toggleKey];
+  state[stateKey] = !state[stateKey];
+  document.querySelectorAll(`#holderHeader [data-toggle="${toggleKey}"]`).forEach(el => {
+    el.classList.toggle('active', state[stateKey]);
+  });
+  resetAndReload();
+}
+
+// Resets every combinable filter (status tile, Listed/Edition Badges toggles,
+// Holder search, Edition range) back to default in one shot — a single
+// resetAndReload() call instead of chaining setStatusFilter()/toggleFilter(),
+// which would each trigger their own redundant fetch.
+function clearAllFilters() {
+  state.status = '';
+  state.listedOnly = false;
+  state.editionBadgesOnly = false;
+  state.holderSearch = '';
+  state.editionMin = null;
+  state.editionMax = null;
+  document.querySelectorAll('#holderHeader [data-status]').forEach(tile => {
+    tile.classList.toggle('active', tile.dataset.status === '');
+  });
+  document.querySelectorAll('#holderHeader [data-toggle]').forEach(el => {
+    el.classList.remove('active');
+  });
+  document.getElementById('holderSearchInput').value = '';
+  document.getElementById('editionMinInput').value = '';
+  document.getElementById('editionMaxInput').value = '';
+  resetAndReload();
+}
+document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
+
+// 5-way role-based split (see dev-server's SETS_SQL comment for the full
+// rationale) plus a 'burned' fallback that's confirmed never fires on this
+// dataset today but is kept so a genuine holder-initiated burn — if the data
+// ever has one — shows as plain "Burned" instead of silently vanishing into
+// one of the platform-specific buckets.
+const STATUS_LABEL = {
+  held: 'Held',
+  in_packs: 'In Packs',
+  other: 'Other',
+  used_for_crafting: 'Used for Crafting',
+  removed_from_circulation: 'Removed from Circulation',
+  burned: 'Burned',
+};
+const BURNED_STATUSES = new Set(['used_for_crafting', 'removed_from_circulation', 'burned']);
+
+function renderEditionsBody() {
+  const body = document.getElementById('editionsBody');
+  if (state.editions.length === 0) {
+    // Only reachable once a status filter has narrowed the list to zero —
+    // the "highlight hasn't been minted yet" empty state is a separate,
+    // page-level state handled in init(), before this section (and its
+    // filter tiles) is even shown.
+    body.innerHTML = `<tr><td colspan="5" class="state-empty">No editions match this filter.</td></tr>`;
+    return;
+  }
+  body.innerHTML = state.editions.map(e => {
+    let holderCell, statusCell;
+    if (e.status === 'held') {
+      const profileUrl = nhlBreakawayUserUrl(e.holder_username);
+      holderCell = e.holder
+        ? (profileUrl ? `<a class="holder-link" href="${profileUrl}" target="_blank" rel="noopener">${e.holder}</a>` : e.holder)
+        : '—';
+      // Ownership-wise a listed card is still just "Held" (per the handoff
+      // note) — this is an extra pill to the right of the regular status
+      // (the pills are left-aligned, so "right" keeps Held anchored in the
+      // same spot whether or not a row is also listed), not a separate
+      // status bucket, sourced from the same live Sweet call that backs the
+      // header's "Listed" count. The price is baked directly into the pill
+      // text ("Listed for $X.XX", auto-uppercased by .status-pill's own
+      // CSS like every other pill) rather than a separate line underneath.
+      const listedUrl = e.listed_price_usd != null ? sweetHighlightUrl() : null;
+      const listedLabel = `Listed for $${e.listed_price_usd != null ? e.listed_price_usd.toFixed(2) : ''}`;
+      const listedPill = e.listed_price_usd != null
+        ? (listedUrl
+            ? ` <a class="status-pill status-pill--listed" href="${listedUrl}" target="_blank" rel="noopener">${listedLabel}</a>`
+            : ` <span class="status-pill status-pill--listed">${listedLabel}</span>`)
+        : '';
+      statusCell = `<span class="status-pill status-pill--held">${STATUS_LABEL.held}</span>${listedPill}${e.owned_since ? `<div class="cell-sub">since ${fmtDate(e.owned_since)}</div>` : ''}`;
+    } else if (BURNED_STATUSES.has(e.status)) {
+      holderCell = '—';
+      statusCell = `<span class="status-pill status-pill--${e.status}">${STATUS_LABEL[e.status]}</span>${e.burned_at ? `<div class="cell-sub">${fmtDate(e.burned_at)}${e.burned_by ? ` by ${e.burned_by}` : ''}</div>` : ''}`;
+    } else {
+      // 'in_packs' or 'other' — both unburned, both system-held, neither a
+      // real collector.
+      holderCell = '—';
+      statusCell = `<span class="status-pill status-pill--${e.status}">${STATUS_LABEL[e.status]}</span>`;
+    }
+    const link = e.polygonscan_url
+      ? `<a class="polyscan-link" href="${e.polygonscan_url}" target="_blank" rel="noopener">Polygonscan ↗</a>`
+      : '';
+    const badges = EDITION_BADGES.filter(b => b.test(e.edition_number));
+    const badgesCell = badges.length
+      ? `<div class="edition-badges">${badges.map(b => {
+          const isProvisional = b.provisional && b.provisional();
+          const title = isProvisional ? `${b.label} — currently the newest, may change` : b.label;
+          return `<img src="${b.icon}" alt="${b.label}" title="${title}" loading="lazy"${isProvisional ? ' class="badge-provisional"' : ''}>`;
+        }).join('')}</div>`
+      : '';
+    return `
+      <tr${badges.length ? ' class="row-has-badge"' : ''}>
+        <td class="cell-edition">#${fmtNum(e.edition_number)}</td>
+        <td>${badgesCell}</td>
+        <td>${holderCell}</td>
+        <td>${statusCell}</td>
+        <td class="col-r">${link}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderLoadMore() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn = document.getElementById('loadMoreBtn');
+  wrap.style.display = state.hasMore ? 'block' : 'none';
+  btn.disabled = state.busy;
+  btn.textContent = state.busy ? 'Loading…' : 'Load more';
+}
+
+async function loadEditionsChunk() {
+  if (state.busy) return;
+  state.busy = true;
+  renderLoadMore();
+  try {
+    const params = new URLSearchParams({
+      moment_uuid: MOMENT_UUID, limit: PAGE_SIZE, offset: state.offset,
+      sort: state.sortField, dir: state.sortDir,
+    });
+    // All of these combine (AND) server-side now — see handleHoldersEditions.
+    if (state.status) params.set('status', state.status);
+    if (state.listedOnly) params.set('listed', '1');
+    // "Edition Badges" isn't a status the backend can filter by SQL — the
+    // client already knows exactly which edition numbers qualify (see
+    // badgeFilterEditionNumbers()), so it sends that explicit list instead.
+    if (state.editionBadgesOnly) params.set('editions', badgeFilterEditionNumbers().join(','));
+    if (state.holderSearch) params.set('holder', state.holderSearch);
+    if (state.editionMin != null) params.set('edition_min', state.editionMin);
+    if (state.editionMax != null) params.set('edition_max', state.editionMax);
+    const res = await fetch(`${API_BASE}/api/holders/editions?${params}`);
+    const data = await res.json();
+    state.editions = [...state.editions, ...data.editions];
+    state.hasMore = data.has_more;
+    state.offset += data.editions.length;
+    renderEditionsBody();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load editions. Please try again shortly.';
+    console.error(err);
+  } finally {
+    state.busy = false;
+    renderLoadMore();
+  }
+}
+
+function onLoadMoreClick() {
+  state.autoLoadArmed = true;
+  loadEditionsChunk();
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+/* ══════════════════ Tabs (Editions / Top Holders) ══════════════════ */
+const topHoldersState = { holders: [], offset: 0, hasMore: false, busy: false, autoLoadArmed: false, loaded: false };
+
+function fmtPct(p) {
+  return p === null || p === undefined ? '—' : `${p.toFixed(2)}%`;
+}
+
+// % denominator matches the Perfect Edition badge's own rule (EDITION_BADGES
+// above) — the fixed cap, or for a growing/uncapped moment (total_editions
+// IS NULL), whichever edition is currently the highest-numbered.
+function topHoldersPctDenominator() {
+  return HEADER ? (HEADER.total_editions ?? HEADER.current_max_edition) : null;
+}
+
+function renderTopHoldersBody() {
+  const denom = topHoldersPctDenominator();
+  const body = document.getElementById('topHoldersBody');
+  if (topHoldersState.holders.length === 0) {
+    body.innerHTML = `<tr><td colspan="3" class="state-empty">No holders yet.</td></tr>`;
+  } else {
+    body.innerHTML = topHoldersState.holders.map(h => {
+      const profileUrl = nhlBreakawayUserUrl(h.holder_username);
+      const holderCell = profileUrl
+        ? `<a class="holder-link" href="${profileUrl}" target="_blank" rel="noopener">${h.holder}</a>`
+        : h.holder;
+      const pct = denom ? (h.held_count / denom) * 100 : null;
+      return `
+        <tr>
+          <td>${holderCell}</td>
+          <td class="col-r">${fmtNum(h.held_count)}</td>
+          <td class="col-r">${fmtPct(pct)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+  document.getElementById('topHoldersResultsMeta').innerHTML =
+    `<strong>${topHoldersState.holders.length}</strong> holder${topHoldersState.holders.length === 1 ? '' : 's'}${topHoldersState.hasMore ? '+' : ''}`;
+}
+
+function renderTopHoldersLoadMore() {
+  const wrap = document.getElementById('topHoldersLoadMoreWrap');
+  const btn = document.getElementById('topHoldersLoadMoreBtn');
+  wrap.style.display = topHoldersState.hasMore ? 'block' : 'none';
+  btn.disabled = topHoldersState.busy;
+  btn.textContent = topHoldersState.busy ? 'Loading…' : 'Load more';
+}
+
+async function loadTopHoldersChunk() {
+  if (topHoldersState.busy) return;
+  topHoldersState.busy = true;
+  renderTopHoldersLoadMore();
+  try {
+    const params = new URLSearchParams({ moment_uuid: MOMENT_UUID, limit: PAGE_SIZE, offset: topHoldersState.offset });
+    const res = await fetch(`${API_BASE}/api/holders/top-holders?${params}`);
+    const data = await res.json();
+    topHoldersState.holders = [...topHoldersState.holders, ...data.holders];
+    topHoldersState.hasMore = data.has_more;
+    topHoldersState.offset += data.holders.length;
+    renderTopHoldersBody();
+  } catch (err) {
+    document.getElementById('topHoldersResultsMeta').textContent = 'Failed to load top holders. Please try again shortly.';
+    console.error(err);
+  } finally {
+    topHoldersState.busy = false;
+    renderTopHoldersLoadMore();
+  }
+}
+document.getElementById('topHoldersLoadMoreBtn').addEventListener('click', () => {
+  topHoldersState.autoLoadArmed = true;
+  loadTopHoldersChunk();
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && topHoldersState.autoLoadArmed && !topHoldersState.busy && topHoldersState.hasMore) loadTopHoldersChunk();
+}, { rootMargin: '600px' }).observe(document.getElementById('topHoldersLoadMoreWrap'));
+
+const HOLDERS_TAB_PANEL_IDS = { editions: 'tabPanelEditions', top_holders: 'tabPanelTopHolders' };
+function setHoldersTab(tab) {
+  document.querySelectorAll('.holders-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  Object.entries(HOLDERS_TAB_PANEL_IDS).forEach(([name, id]) => {
+    document.getElementById(id).classList.toggle('active', name === tab);
+  });
+  // Lazy-loaded on first activation only — same idea as profile.html's old
+  // per-tab lazy init — so a visitor who never opens Top Holders never pays
+  // for its query at all.
+  if (tab === 'top_holders' && !topHoldersState.loaded) {
+    topHoldersState.loaded = true;
+    loadTopHoldersChunk();
+  }
+}
+document.getElementById('holdersTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.holders-tab-btn');
+  if (btn) setHoldersTab(btn.dataset.tab);
+});
+
+/* ── Holder search (debounced) ── */
+let _holderSearchT = null;
+document.getElementById('holderSearchInput').addEventListener('input', e => {
+  clearTimeout(_holderSearchT);
+  _holderSearchT = setTimeout(() => {
+    state.holderSearch = e.target.value.trim();
+    resetAndReload();
+  }, 400);
+});
+
+/* ── Edition number min/max range (debounced) ── */
+let _editionRangeT = null;
+function onEditionRangeInput() {
+  clearTimeout(_editionRangeT);
+  _editionRangeT = setTimeout(() => {
+    const minVal = document.getElementById('editionMinInput').value;
+    const maxVal = document.getElementById('editionMaxInput').value;
+    state.editionMin = minVal ? parseInt(minVal, 10) : null;
+    state.editionMax = maxVal ? parseInt(maxVal, 10) : null;
+    resetAndReload();
+  }, 400);
+}
+document.getElementById('editionMinInput').addEventListener('input', onEditionRangeInput);
+document.getElementById('editionMaxInput').addEventListener('input', onEditionRangeInput);
+
+// "Click once to arm" infinite scroll — same pattern as highlights.html/explore.html.
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && state.autoLoadArmed && !state.busy && state.hasMore) loadEditionsChunk();
+}, { rootMargin: '600px' }).observe(document.getElementById('loadMoreWrap'));
+
+// If we arrived from the Highlights page, its own URL (captured via
+// document.referrer) already encodes the exact filters/sort/loaded-count it
+// had — point the back link there instead of a bare reset "highlights" so
+// the user returns to where they left off. See highlights.html's syncUrl()/
+// restoreChunks() for the other half of this.
+function wireBackLink() {
+  try {
+    if (!document.referrer) return;
+    const ref = new URL(document.referrer);
+    if (ref.origin === location.origin && /\/highlights(\/|$|\.html)/.test(ref.pathname)) {
+      document.getElementById('backLink').href = document.referrer;
+    }
+  } catch {}
+}
+
+(async function init() {
+  wireBackLink();
+  if (!MOMENT_UUID) {
+    document.getElementById('holderHeader').innerHTML = '';
+    document.getElementById('errorState').style.display = 'block';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/holders/header?moment_uuid=${encodeURIComponent(MOMENT_UUID)}`);
+    if (!res.ok) {
+      document.getElementById('holderHeader').innerHTML = '';
+      document.getElementById('errorState').style.display = 'block';
+      return;
+    }
+    const header = await res.json();
+    HEADER = header;
+    renderHeader(header);
+    renderEditionsHead();
+    await loadEditionsChunk();
+    if (state.editions.length === 0) {
+      document.getElementById('emptyState').style.display = 'block';
+    } else {
+      document.getElementById('editionsSection').style.display = 'block';
+    }
+  } catch (err) {
+    document.getElementById('holderHeader').innerHTML = '';
+    document.getElementById('errorState').textContent = 'Failed to load. Please try again shortly.';
+    document.getElementById('errorState').style.display = 'block';
+    console.error(err);
+  }
+})();
+</script>
+
+<script>
+  // Same path-shape detection as the <head> block above, for nav.js —
+  // one directory level up from this page when loaded via the nested pretty
+  // route, same directory when loaded via the flat query-string form.
+  var _needsPrefix = /\/nhlbreakaway\/holders\/[^/]+\/?$/.test(location.pathname);
+  document.write('<scr' + 'ipt src="' + (_needsPrefix ? '../' : '') + 'nav.js"></scr' + 'ipt>');
+</script>
+</body>
+</html>

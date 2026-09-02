@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NHL Breakaway Collector Tools — Hoardio</title>
+  <meta name="description" content="Fan tools for NHL Breakaway collectors — set stats, wallet lookups, edition rankings, and collector leaderboards." />
+  <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/nhlbreakaway" />
+  <meta property="og:title" content="NHL Breakaway Collector Tools — Hoardio" />
+  <meta property="og:description" content="Fan tools for NHL Breakaway collectors — set stats, wallet lookups, edition rankings, and collector leaderboards." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="NHL Breakaway Collector Tools — Hoardio" />
+  <meta name="twitter:description" content="Fan tools for NHL Breakaway collectors — set stats, wallet lookups, edition rankings, and collector leaderboards." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-banner.png" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+  <div class="page">
+    <section class="hero">
+      <div class="hero-label">Sweet &middot; NHL Digital Collectibles</div>
+      <h1>NHL Breakaway<br /><span>Collector Tools</span></h1>
+      <p>Read-only tools powered by Sweet and Polygon.</p>
+    </section>
+
+    <section class="features">
+      <div class="grid">
+
+        <a href="pack-stats" class="card">
+          <div class="card-number">Tool 01</div>
+          <div class="card-title">Pack Stats</div>
+          <div class="card-desc">Opened, collected, and percent-remaining stats for every pack.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+        <a href="sets" class="card">
+          <div class="card-number">Tool 02</div>
+          <div class="card-title">Sets</div>
+          <div class="card-desc">Moments, editions, distributed supply, in-packs, and holder counts per set.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+        <a href="highlights" class="card">
+          <div class="card-number">Tool 03</div>
+          <div class="card-title">Highlights</div>
+          <div class="card-desc">Browse every highlight by player, set, rarity, editions, and team.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+        <a href="wallet" class="card">
+          <div class="card-number">Tool 04</div>
+          <div class="card-title">Wallet Look Up</div>
+          <div class="card-desc">Browse any wallet's NHL Breakaway collection and set progress.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+        <a href="edition-rankings" class="card">
+          <div class="card-number">Tool 05</div>
+          <div class="card-title">Edition Rankings</div>
+          <div class="card-desc">Per-set leaderboards ranked by the edition numbers in a collector's complete sets.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+        <a href="leaderboard" class="card">
+          <div class="card-number">Tool 06</div>
+          <div class="card-title">Collector Leaderboard</div>
+          <div class="card-desc">Who owns the most highlights — filter by series, set, rarity, team, player, edition range, and badges.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+        <a href="https://x.com/Hoardio" target="_blank" rel="noopener" class="card">
+          <div class="card-number">More ...?</div>
+          <div class="card-title">Want More Tools?</div>
+          <div class="card-desc">Reach out on X or Discord and let me know which tools would be useful.</div>
+          <div class="card-arrow">↗</div>
+        </a>
+
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // This hub file is index.html, so its clean URL is "/nhlbreakaway" — one
+    // segment shallower than its real path. Whether that URL needs
+    // "nhlbreakaway/" spelled out before a same-folder sibling (like nav.js)
+    // depends on whether the CURRENT request ends in a trailing slash — a
+    // server that auto-redirects a directory request to add one (e.g. IIS
+    // serving this repo under a local subpath) already matches real depth
+    // and needs no prefix; a server that serves the bare path as-is (e.g.
+    // Vercel, or `serve` locally) does not, and needs the prefix. Detecting
+    // this per-request (rather than hardcoding one or forcing a redirect) is
+    // the only form that works under both. See nav.js's matching _p logic.
+    var _needsPrefix = /\/nhlbreakaway$/.test(location.pathname);
+    document.write('<scr' + 'ipt src="' + (_needsPrefix ? 'nhlbreakaway/' : '') + 'nav.js"></scr' + 'ipt>');
+  </script>
+</body>
+</html>

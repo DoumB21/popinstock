@@ -540,7 +540,17 @@ function populateCollections(rows) {
     }
   });
   input.addEventListener('blur', () => {
-    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllDd(); }, 150);
+    // Close only THIS combo, not every dropdown — closeAllDd() here would
+    // also clobber a different dropdown the user just clicked into and
+    // opened in the meantime (this fires 150ms after blur, well after that
+    // other dropdown's own focus handler already ran).
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncCollectionComboDisplay();
+      }
+    }, 150);
   });
   clear.addEventListener('mousedown', e => e.preventDefault());
   clear.addEventListener('click', () => {

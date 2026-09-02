@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sets — NHL Breakaway — Hoardio</title>
+  <meta name="description" content="Browse every NHL Breakaway set — moments, editions, distributed supply, in-packs, and unique holders. Filter by series, set, and rarity." />
+  <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway/sets" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 1.25rem; }
+    .page-header { margin-bottom: 0; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .filter-bar .cb-combo { min-width: 180px; flex: 1; max-width: 280px; }
+
+    /* ── Results meta ── */
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
+    .results-meta strong { color: var(--text-primary); }
+
+    /* ── Sets table ── */
+    .sets-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .sets-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .sets-table thead th.col-r { text-align: right; }
+    .sets-table thead th.sortable { cursor: pointer; user-select: none; }
+    .sets-table thead th.sortable:hover { color: var(--text-primary); }
+    .sets-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .sets-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    .sets-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .sets-table tbody tr:last-child { border-bottom: none; }
+    .sets-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .sets-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .sets-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cell-set-name { font-weight: 600; color: var(--text-primary); }
+    .set-link { color: inherit; text-decoration: none; }
+    .set-link:hover { color: var(--accent-light); text-decoration: underline; }
+    /* Only rendered for collection_keys that actually have Edition Rankings
+       data (a set needs at least one wallet with a full complete set to
+       produce any rows) — see rankedCollectionKeys, fetched once on load. */
+    .rankings-link { font-size: 0.68rem; color: var(--text-secondary); text-decoration: none; margin-top: 2px; display: inline-block; }
+    .rankings-link:hover { color: var(--accent-light); text-decoration: underline; }
+    /* Uncapped collection (collections.total_supply IS NULL — the
+       "Signature X" sets) — live sum of its moments' own displayed edition
+       counts, same treatment as highlights.html's .editions-growing so "so
+       far" reads consistently across both pages. */
+    .editions-growing { color: var(--accent-light); font-weight: 700; cursor: help; }
+    .cell-series { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .cell-pct { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ── Rarity pills — gradient text + gradient border, exact colors pulled
+       from nhlbreakaway.com's own stylesheet (see reference_nhlbreakaway_
+       rarity_colors memory). Border uses the classic "double background"
+       trick (a solid inner layer + gradient outer layer, clipped to
+       padding-box/border-box) since border-image doesn't respect
+       border-radius — needed for these fully-rounded pills. Core is the
+       fallback/default (plain border, near-white text) since it has no
+       border gradient on the real site either. ── */
+    .rarity-pill {
+      --rr-border: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35));
+      --rr-text: linear-gradient(91.27deg, #fff 6.06%, #e7f1f4 47.93%, #fff 87.27%);
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid transparent;
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
+    }
+    .rarity-pill-text {
+      background-image: var(--rr-text);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+    }
+    .rarity-pill--fandom    { --rr-border: linear-gradient(91deg, #824424, #8a6441 30%, #7b4c2e 90%); --rr-text: linear-gradient(91deg, #d1713e 6.06%, #f3ac6c 47.93%, #d28e62 87.27%); }
+    .rarity-pill--rare      { --rr-border: linear-gradient(92deg, #4e7fff, #2f52d6 30%, #4e7fff 90%); --rr-text: linear-gradient(93.83deg, #68aeff -0.71%, #c4dfff 45.06%, #68aeff 99.14%); }
+    .rarity-pill--limited   { --rr-border: linear-gradient(91deg, #646464, #303030 30%, #646464 90%); --rr-text: linear-gradient(91.27deg, #a5b4ae 6.06%, #e6edea 31.44%, #bdc2c0 47.51%, #d9d9d9 63.58%, #c5d2ce 87.27%); }
+    .rarity-pill--legendary { --rr-border: linear-gradient(92.71deg, #bd8800 -7.25%, #633b00 16.42%, #bd8800 36.23%, #633b00 54.94%, #bd8800 76.96%, #633b00 98.42%); --rr-text: linear-gradient(91.27deg, #ffb800 6.06%, #ffebb8 47.93%, #ffcf55 87.27%); }
+    .rarity-pill--epic      { --rr-border: linear-gradient(92deg, #007770, #350da7 10%, #89068b 30%, #350da7 70%, #007770 95%); --rr-text: linear-gradient(99.88deg, #23ffa3 0.36%, #5177ff 24.51%, #f364ff 46.15%, #748aff 71.31%, #28ffcb 96.55%); }
+    .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
+    .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
+
+    @media (max-width: 700px) {
+      .filter-bar .cb-combo { max-width: none; }
+      .sets-table { font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">NHL Breakaway <span class="accent">Sets</span></div>
+      <div class="page-subtitle">Moments, editions, distribution, and holders for every set.</div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="cb-combo" id="seriesCombo">
+        <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="seriesPanel"></div>
+      </div>
+      <div class="cb-combo" id="setCombo">
+        <input type="text" class="cb-combo-input" id="setComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="setComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="setPanel"></div>
+      </div>
+      <div class="cb-combo" id="rarityCombo">
+        <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="rarityPanel"></div>
+      </div>
+    </div>
+
+    <div class="results-meta" id="resultsMeta"></div>
+
+    <div style="overflow-x:auto;">
+      <table class="sets-table">
+        <thead>
+          <tr id="setsHeadRow"></tr>
+        </thead>
+        <tbody id="setsBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script src="rarity-order.js"></script>
+<script>
+'use strict';
+
+// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
+// index.js), which already queries the live production database directly
+// (no separate dev/prod split). Swap this for a real deployed API endpoint
+// once one exists; nothing else on this page needs to change beyond this
+// line and fetchSets() below.
+const API_BASE = 'http://localhost:8877';
+
+const COLUMNS = [
+  { key: 'name',        label: 'Name',        sortable: true },
+  { key: 'rarity',      label: 'Rarity',      sortable: true },
+  { key: 'moments',     label: 'Highlights',  sortable: true, num: true },
+  { key: 'editions',    label: 'Editions',    sortable: true, num: true },
+  { key: 'distributed', label: 'Distributed', sortable: true, num: true },
+  { key: 'in_packs',    label: 'In Packs',    sortable: true, num: true },
+  { key: 'other',       label: 'Other',       sortable: true, num: true },
+  { key: 'used_for_crafting',        label: 'Used for Crafting',        sortable: true, num: true },
+  { key: 'removed_from_circulation', label: 'Removed from Circulation', sortable: true, num: true },
+  { key: 'holders',     label: 'Unique Holders', sortable: true, num: true },
+];
+
+const state = {
+  sets: [],
+  series: '',
+  set: '',
+  rarity: '',
+  sortField: 'name',
+  sortDir: 'asc',
+  rankedCollectionKeys: new Set(),
+};
+
+async function fetchSets() {
+  const [setsRes, rankingsRes] = await Promise.all([
+    fetch(`${API_BASE}/api/sets`).then(r => r.json()),
+    // Edition Rankings only has rows for collections where at least one wallet
+    // has assembled a full complete set (73 of 93 as of the first build) —
+    // fetched once so the per-row link below only ever appears where it'll
+    // actually resolve to real data.
+    fetch(`${API_BASE}/api/mint-rankings/collections`).then(r => r.json()),
+  ]);
+  state.sets = setsRes.sets;
+  state.rankedCollectionKeys = new Set(rankingsRes.collection_keys);
+}
+
+function filteredSortedSets() {
+  let rows = state.sets;
+  if (state.series) rows = rows.filter(s => s.series_label === state.series);
+  if (state.set) rows = rows.filter(s => s.set_name === state.set);
+  if (state.rarity) rows = rows.filter(s => s.rarity === state.rarity);
+
+  const dir = state.sortDir === 'asc' ? 1 : -1;
+  const field = state.sortField;
+  rows = [...rows].sort((a, b) => {
+    let av, bv;
+    if (field === 'name') { av = a.set_name; bv = b.set_name; }
+    else { av = a[field]; bv = b[field]; }
+    if (av === null || av === undefined) av = typeof bv === 'number' ? -Infinity : '';
+    if (bv === null || bv === undefined) bv = typeof av === 'number' ? -Infinity : '';
+    if (typeof av === 'string') return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+  return rows;
+}
+
+function renderHead() {
+  const row = document.getElementById('setsHeadRow');
+  row.innerHTML = COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = state.sortField === col.key;
+    const icon = sorted ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (state.sortField === field) {
+        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortField = field;
+        state.sortDir = field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+      }
+      renderHead();
+      renderBody();
+    });
+  });
+}
+
+function fmtNum(n) {
+  return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+
+function fmtPct(p) {
+  return p === null || p === undefined ? '' : `${p.toFixed(2)}%`;
+}
+
+function renderBody() {
+  const rows = filteredSortedSets();
+  const body = document.getElementById('setsBody');
+  body.innerHTML = rows.map(s => `
+    <tr>
+      <td>
+        <div class="cell-set-name">${s.collection_key
+          ? `<a class="set-link" href="highlights?set=${encodeURIComponent(s.collection_key)}">${s.set_name}</a>`
+          : s.set_name}</div>
+        <div class="cell-series">${s.series_label}</div>
+        ${s.collection_key && state.rankedCollectionKeys.has(s.collection_key)
+          ? `<a class="rankings-link" href="edition-rankings?set=${encodeURIComponent(s.collection_key)}">🏆 Edition Rankings</a>`
+          : ''}
+      </td>
+      <td>${s.rarity
+        ? `<span class="rarity-pill rarity-pill--${s.rarity.toLowerCase()}"><span class="rarity-pill-text">${s.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">${fmtNum(s.moments)}</td>
+      <td class="col-r">${s.editions === null
+        ? `<span class="editions-growing" title="Uncapped — grows every time a collector crafts a new copy">${fmtNum(s.editions_live_sum)}+</span>`
+        : fmtNum(s.editions)}</td>
+      <td class="col-r">${fmtNum(s.distributed)}</td>
+      <td class="col-r">${fmtNum(s.in_packs)}<span class="cell-pct">${fmtPct(s.in_packs_pct)}</span></td>
+      <td class="col-r">${fmtNum(s.other)}<span class="cell-pct">${fmtPct(s.other_pct)}</span></td>
+      <td class="col-r">${fmtNum(s.used_for_crafting)}<span class="cell-pct">${fmtPct(s.used_for_crafting_pct)}</span></td>
+      <td class="col-r">${fmtNum(s.removed_from_circulation)}<span class="cell-pct">${fmtPct(s.removed_from_circulation_pct)}</span></td>
+      <td class="col-r">${fmtNum(s.holders)}<span class="cell-pct">${fmtPct(s.holders_pct)}</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('resultsMeta').innerHTML = `<strong>${rows.length}</strong> set${rows.length === 1 ? '' : 's'}`;
+}
+
+/* ── Shared cb-combo wiring (Series / Set / Rarity) ── */
+function closeAllCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.classList.remove('open');
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    if (combo._items) syncComboDisplay(combo);
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-combo')) closeAllCombos();
+});
+
+function syncComboDisplay(combo) {
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._items[0];
+  const active = combo._items.find(i => i.value === combo._getValue()) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function buildCombo(comboId, items, getValue, setValue) {
+  const combo = document.getElementById(comboId);
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  combo._items = items;
+  combo._getValue = getValue;
+  syncComboDisplay(combo);
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const pick = val => {
+    closeAllCombos();
+    setValue(val);
+    syncComboDisplay(combo);
+    renderBody();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._items.slice(1);
+    const filtered = q ? options.filter(i => i.label.toLowerCase().includes(q)) : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === getValue() ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCombos();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); input.blur(); closeAllCombos(); }
+    else if (e.key === 'Enter') { e.preventDefault(); panel.querySelector('.cb-item')?.click(); }
+  });
+  input.addEventListener('blur', () => {
+    // Close only THIS combo, not every combo — closeAllCombos() here would
+    // also clobber a different combo the user just clicked into and opened
+    // in the meantime (this fires 150ms after blur, well after that other
+    // combo's own focus handler already ran).
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncComboDisplay(combo);
+      }
+    }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { pick(''); input.blur(); });
+}
+
+function populateFilters() {
+  const seriesValues = [...new Set(state.sets.map(s => s.series_label))].sort();
+  const setValues = [...new Set(state.sets.map(s => s.set_name))].sort();
+  const rarityValues = sortByRarityOrder([...new Set(state.sets.map(s => s.rarity).filter(Boolean))]);
+
+  buildCombo('seriesCombo',
+    [{ value: '', label: 'All series' }, ...seriesValues.map(v => ({ value: v, label: v }))],
+    () => state.series, v => state.series = v);
+
+  buildCombo('setCombo',
+    [{ value: '', label: 'All sets' }, ...setValues.map(v => ({ value: v, label: v }))],
+    () => state.set, v => state.set = v);
+
+  buildCombo('rarityCombo',
+    [{ value: '', label: 'All rarities' }, ...rarityValues.map(v => ({ value: v, label: v }))],
+    () => state.rarity, v => state.rarity = v);
+}
+
+(async function init() {
+  renderHead();
+  document.getElementById('resultsMeta').textContent = 'Loading…';
+  try {
+    await fetchSets();
+    populateFilters();
+    renderBody();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load sets. Please try again shortly.';
+    console.error(err);
+  }
+})();
+</script>
+
+<script src="nav.js"></script>
+</body>
+</html>

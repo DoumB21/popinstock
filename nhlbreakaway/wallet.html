@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Look Up — NHL Breakaway — Hoardio</title>
+  <meta name="description" content="Search any username or wallet address to explore their NHL Breakaway collection stats, set completion, and individual cards and packs." />
+  <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway/wallet" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 2rem; }
+    .page-header { margin-bottom: 0; }
+
+    /* ── Controls ── */
+    .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 640px; }
+    .controls-row { display: flex; gap: 0.5rem; }
+    .wallet-input-wrap { position: relative; flex: 1; }
+    .wallet-input { width: 100%; }
+    /* Suggestion dropdown reuses global.css's .cb-panel/.cb-item (same look
+       as every other type-to-search combo site-wide) — just anchored to
+       this plain text input instead of a .cb-combo wrapper. */
+    .suggest-item { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+    .suggest-item-name { font-weight: 600; }
+    .suggest-item-wallet { font-size: 0.72rem; color: var(--text-secondary); }
+
+    /* ── Wallet content ── */
+    #walletContent { display: none; flex-direction: column; gap: 2rem; }
+    .wallet-header { display: flex; align-items: center; gap: 0.9rem; }
+    .wallet-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+    .wallet-header-text { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+    .wallet-header-name-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .wallet-address { font-size: clamp(1rem, 2.6vw, 1.3rem); font-weight: 800; color: var(--accent-light); letter-spacing: -0.3px; word-break: break-all; }
+    /* Links the headline username to the wallet's official nhlbreakaway.com
+       profile — only rendered when a real Sweet username exists. Inherits
+       .wallet-address's own size/weight/color, just adds the hover underline. */
+    .wallet-username-link { color: inherit; font-weight: inherit; text-decoration: none; }
+    .wallet-username-link:hover { text-decoration: underline; }
+    .wallet-address-sub { font-size: 0.78rem; color: var(--text-secondary); word-break: break-all; }
+    /* "___ Fan" badge — favorite_team, same idea as nhlbreakaway.com's own
+       profile "Fan Club" chip. Only shown once the backfill has populated it
+       (null until then, see handleWalletResolve's PROFILE_COLUMNS comment). */
+    .wallet-fan-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 999px;
+      padding: 3px 10px 3px 6px; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);
+    }
+    .wallet-fan-badge img { width: 25px; height: 25px; object-fit: contain; }
+
+    /* Wider than global.css's default 140px minmax — "Sets Represented" and
+       "Unique Highlights" labels were wrapping to 2 lines at 140px. */
+    .stats-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+    /* ── Wallet-wide edition badges (#1 Edition / Perfect Edition / Jersey
+       Match Edition) — same 3 badge types as holders.html's EDITION_BADGES,
+       aggregated across every card this wallet holds instead of one moment. ── */
+    .badges-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .badge-card { display: flex; align-items: center; gap: 0.65rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; }
+    .badge-card-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+    .badge-card-count { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .badge-card-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+
+    /* ── Stat card accent colors — same pattern as funko/wallet.html's own
+       per-stat coloring, distinct hues so the row reads at a glance. ── */
+    .stat-card--total .stat-value { color: var(--accent-light); }
+    .stat-card--cards .stat-value { color: #4e7fff; }
+    .stat-card--highlights .stat-value { color: #a855f7; }
+    .stat-card--sets .stat-value { color: #4caf50; }
+    .stat-card--packs .stat-value { color: #2dd4bf; }
+
+    #walletEmpty, #walletError { display: none; padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 0.88rem; color: var(--text-secondary); }
+    #walletError { color: #e74c3c; border-color: rgba(231,76,60,0.3); }
+
+    /* ── Edition Rankings tab — one row per collection this wallet has
+       completed at least once, showing its BEST (lowest-numbered) rank —
+       see collapseRankingsByCollection(). ── */
+    .cell-rank--1 { color: #ffd700; font-weight: 700; }
+    .cell-rank--2 { color: #c0c0c0; font-weight: 700; }
+    .cell-rank--3 { color: #cd7f32; font-weight: 700; }
+    .cell-rating--negative { color: #f87171; }
+    .rankings-set-link { color: inherit; text-decoration: none; }
+    .rankings-set-link:hover { color: var(--accent-light); text-decoration: underline; }
+
+    /* ── Rating formula info tooltip/modal — same pattern as funko/drop.html's
+       own Rating column and edition-rankings.html's own copy of it. ── */
+    .info-tip { display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer; vertical-align: middle; }
+    .info-tip-icon { font-size: 0.78rem; color: var(--text-secondary); opacity: 0.55; transition: opacity 0.2s; line-height: 1; }
+    .info-tip:hover .info-tip-icon { opacity: 1; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #1a1a2a; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 1.5rem 1.75rem; max-width: 420px; width: 90%; position: relative; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .modal-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.85rem; }
+    .modal-body { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; }
+    .modal-body code { font-family: monospace; color: var(--accent-light); background: rgba(255,255,255,0.05); padding: 2px 5px; border-radius: 4px; font-size: 0.82rem; }
+    .modal-close { position: absolute; top: 0.85rem; right: 1rem; background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; line-height: 1; transition: color 0.2s; }
+    .modal-close:hover { color: var(--text-primary); }
+
+    /* ── Tabs (Set Progress / Cards / Packs) — avoids the massive scroll of
+       stacking all three sections; only the active one renders. ── */
+    .wallet-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+    .wallet-tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.65rem 0.1rem; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+      color: var(--text-secondary); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .wallet-tab-btn:hover { color: var(--text-primary); }
+    .wallet-tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); }
+    .wallet-tab-panel { display: none; flex-direction: column; gap: 0.9rem; }
+    .wallet-tab-panel.active { display: flex; }
+
+    /* ── Set completion table ── */
+    .sets-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .sets-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .sets-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .sets-table thead th.col-r { text-align: right; }
+    .sets-table thead th.sortable { cursor: pointer; user-select: none; }
+    .sets-table thead th.sortable:hover { color: var(--text-primary); }
+    .sets-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .sets-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    .sets-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .sets-table tbody tr:last-child { border-bottom: none; }
+    .sets-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .sets-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .sets-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .cell-set-name { font-weight: 600; color: var(--text-primary); }
+    .set-link { color: inherit; text-decoration: none; }
+    .set-link:hover { color: var(--accent-light); text-decoration: underline; }
+    .cell-series { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .pct-complete { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .pct-complete--full { color: #4caf50; }
+
+    /* ── Filter bar (cards table) ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .filter-bar .cb-combo { min-width: 160px; flex: 1; max-width: 220px; }
+    .filter-bar .search-input { min-width: 180px; flex: 1.2; max-width: 280px; }
+    /* "Search set/player/pack name" — clear ✕ (reuses global.css's
+       .cb-dropdown-clear look) + a suggestions panel (.cb-panel) sourced from
+       what THIS WALLET owns. The wrap, not the input, carries the flex
+       sizing — .search-input's own min-width would otherwise silently beat a
+       narrower width set here (bit us once already in leaderboard.html). */
+    .filter-bar .text-search-wrap { position: relative; min-width: 180px; max-width: 280px; flex: 1.2; }
+    .filter-bar .text-search-wrap .search-input { width: 100%; min-width: 0; max-width: none; padding-right: 2.1rem; }
+
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
+    .results-meta strong { color: var(--text-primary); }
+
+    /* ── Cards / Packs table ── */
+    .items-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .items-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .items-table thead th.col-r { text-align: right; }
+    .items-table thead th.sortable { cursor: pointer; user-select: none; }
+    .items-table thead th.sortable:hover { color: var(--text-primary); }
+    .items-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .items-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    .items-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .items-table tbody tr:last-child { border-bottom: none; }
+    .items-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .items-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .items-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .cell-player { font-weight: 600; color: var(--text-primary); text-decoration: none; }
+    .cell-player:hover { color: var(--accent-light); text-decoration: underline; }
+    .cell-team { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .cell-team-logo { height: 1.2rem; width: auto; flex-shrink: 0; }
+
+    /* ── Rarity pills — same exact gradients as sets.html's ── */
+    .rarity-pill {
+      --rr-border: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35));
+      --rr-text: linear-gradient(91.27deg, #fff 6.06%, #e7f1f4 47.93%, #fff 87.27%);
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid transparent;
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
+    }
+    .rarity-pill-text {
+      background-image: var(--rr-text);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+    }
+    .rarity-pill--fandom    { --rr-border: linear-gradient(91deg, #824424, #8a6441 30%, #7b4c2e 90%); --rr-text: linear-gradient(91deg, #d1713e 6.06%, #f3ac6c 47.93%, #d28e62 87.27%); }
+    .rarity-pill--rare      { --rr-border: linear-gradient(92deg, #4e7fff, #2f52d6 30%, #4e7fff 90%); --rr-text: linear-gradient(93.83deg, #68aeff -0.71%, #c4dfff 45.06%, #68aeff 99.14%); }
+    .rarity-pill--limited   { --rr-border: linear-gradient(91deg, #646464, #303030 30%, #646464 90%); --rr-text: linear-gradient(91.27deg, #a5b4ae 6.06%, #e6edea 31.44%, #bdc2c0 47.51%, #d9d9d9 63.58%, #c5d2ce 87.27%); }
+    .rarity-pill--legendary { --rr-border: linear-gradient(92.71deg, #bd8800 -7.25%, #633b00 16.42%, #bd8800 36.23%, #633b00 54.94%, #bd8800 76.96%, #633b00 98.42%); --rr-text: linear-gradient(91.27deg, #ffb800 6.06%, #ffebb8 47.93%, #ffcf55 87.27%); }
+    .rarity-pill--epic      { --rr-border: linear-gradient(92deg, #007770, #350da7 10%, #89068b 30%, #350da7 70%, #007770 95%); --rr-text: linear-gradient(99.88deg, #23ffa3 0.36%, #5177ff 24.51%, #f364ff 46.15%, #748aff 71.31%, #28ffcb 96.55%); }
+    .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
+    .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
+
+    @media (max-width: 700px) {
+      .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
+      .sets-table, .items-table { font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">NHL Breakaway <span class="accent">Wallet Look Up</span></div>
+      <div class="page-subtitle">Search any username or wallet address to explore their collection stats, set completion, and individual highlights.</div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <div class="wallet-input-wrap">
+          <input class="wallet-input" id="walletInput" type="text" placeholder="Username or wallet address (0x...)" spellcheck="false" autocomplete="off" />
+          <div class="cb-panel" id="walletSuggestPanel"></div>
+        </div>
+        <button class="lookup-btn" id="lookupBtn">Look Up</button>
+      </div>
+    </div>
+
+    <div id="walletError"></div>
+    <div id="walletEmpty">This wallet doesn't hold any NHL Breakaway cards or packs yet.</div>
+
+    <div id="walletContent">
+
+      <div class="wallet-header">
+        <img class="wallet-avatar" id="walletAvatar" alt="" style="display:none">
+        <div class="wallet-header-text">
+          <div class="wallet-header-name-row">
+            <div class="wallet-address" id="walletDisplayName"></div>
+            <span class="wallet-fan-badge" id="walletFanBadge" style="display:none">
+              <img id="walletFanLogo" alt="">
+              <span id="walletFanLabel"></span>
+            </span>
+          </div>
+          <div class="wallet-address-sub" id="walletAddressSub"></div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card stat-card--total"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Total Held</div></div>
+        <div class="stat-card stat-card--cards"><div class="stat-value" id="statCards">—</div><div class="stat-label">Cards Held</div></div>
+        <div class="stat-card stat-card--packs"><div class="stat-value" id="statPacks">—</div><div class="stat-label">Packs Held</div></div>
+        <div class="stat-card stat-card--highlights"><div class="stat-value" id="statMoments">—</div><div class="stat-label">Unique Highlights</div></div>
+        <div class="stat-card stat-card--sets"><div class="stat-value" id="statSets">—</div><div class="stat-label">Sets Represented</div></div>
+      </div>
+
+      <div class="badges-grid" id="badgesGrid"></div>
+
+      <div class="wallet-tabs" id="walletTabs">
+        <button type="button" class="wallet-tab-btn active" data-tab="sets">Set Completion</button>
+        <button type="button" class="wallet-tab-btn" data-tab="cards">Highlights</button>
+        <button type="button" class="wallet-tab-btn" data-tab="packs">Packs</button>
+        <button type="button" class="wallet-tab-btn" data-tab="rankings">Edition Rankings</button>
+      </div>
+
+      <div class="wallet-tab-panel active" id="tabPanelSets">
+        <div class="filter-bar">
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="setsNameSearch" placeholder="Search set name" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="setsNameSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+          <div class="cb-combo" id="setsSeriesCombo">
+            <input type="text" class="cb-combo-input" id="setsSeriesComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="setsSeriesComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="setsSeriesPanel"></div>
+          </div>
+          <div class="cb-combo" id="setsRarityCombo">
+            <input type="text" class="cb-combo-input" id="setsRarityComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="setsRarityComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="setsRarityPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="setsCompletionToggle">
+            <button type="button" class="tpc-toggle-btn active" data-completion="all">All</button>
+            <button type="button" class="tpc-toggle-btn" data-completion="complete">100%</button>
+            <button type="button" class="tpc-toggle-btn" data-completion="incomplete">Incomplete</button>
+          </div>
+        </div>
+        <div class="results-meta" id="setsCount"></div>
+        <div class="sets-table-wrap">
+          <table class="sets-table">
+            <thead><tr id="setsHeadRow"></tr></thead>
+            <tbody id="setsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="wallet-tab-panel" id="tabPanelCards">
+        <div class="filter-bar">
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="playerSearch" placeholder="Search player name" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="playerSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+          <div class="cb-combo" id="seriesCombo">
+            <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="seriesPanel"></div>
+          </div>
+          <div class="cb-combo" id="setCombo">
+            <input type="text" class="cb-combo-input" id="setComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="setComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="setPanel"></div>
+          </div>
+          <div class="cb-combo" id="rarityCombo">
+            <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="rarityPanel"></div>
+          </div>
+          <div class="cb-combo" id="teamCombo">
+            <input type="text" class="cb-combo-input" id="teamComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="teamComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="teamPanel"></div>
+          </div>
+        </div>
+        <div class="results-meta" id="cardsResultsMeta"></div>
+        <div style="overflow-x:auto;">
+          <table class="items-table">
+            <thead><tr id="cardsHeadRow"></tr></thead>
+            <tbody id="cardsBody"></tbody>
+          </table>
+        </div>
+        <div id="cardsLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+          <button type="button" id="cardsLoadMoreBtn" class="load-more-btn">Load more</button>
+        </div>
+      </div>
+
+      <div class="wallet-tab-panel" id="tabPanelPacks">
+        <div class="filter-bar">
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="packSearch" placeholder="Search pack name" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="packSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+          <div class="cb-combo" id="packSeriesCombo">
+            <input type="text" class="cb-combo-input" id="packSeriesComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="packSeriesComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="packSeriesPanel"></div>
+          </div>
+          <div class="cb-combo" id="packRarityCombo">
+            <input type="text" class="cb-combo-input" id="packRarityComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="packRarityComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="packRarityPanel"></div>
+          </div>
+        </div>
+        <div class="results-meta" id="packsCount"></div>
+        <div style="overflow-x:auto;">
+          <table class="items-table">
+            <thead><tr id="packsHeadRow"></tr></thead>
+            <tbody id="packsBody"></tbody>
+          </table>
+        </div>
+        <div id="packsLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+          <button type="button" id="packsLoadMoreBtn" class="load-more-btn">Load more</button>
+        </div>
+      </div>
+
+      <div class="wallet-tab-panel" id="tabPanelRankings">
+        <div class="filter-bar">
+          <div class="text-search-wrap">
+            <input type="text" class="search-input" id="rankingsNameSearch" placeholder="Search set name" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="rankingsNameSearchClear" style="display:none" title="Clear">✕</button>
+          </div>
+        </div>
+        <div class="results-meta" id="rankingsCount"></div>
+        <div style="overflow-x:auto;">
+          <table class="items-table">
+            <thead><tr id="rankingsHeadRow"></tr></thead>
+            <tbody id="rankingsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="ratingModal">
+  <div class="modal-box">
+    <button class="modal-close" id="ratingModalClose">&times;</button>
+    <div class="modal-title">Rating Formula</div>
+    <div class="modal-body">
+      <code>(total assets &minus; sum of editions + edition size) &divide; total assets &times; 100</code>
+      <br><br>
+      <b>Total assets</b> — non-burned, non-system-held editions across every highlight in this collection (its real circulating supply).<br>
+      <b>Sum of editions</b> — sum of your lowest-owned edition number for each highlight in this complete set.<br>
+      <b>Edition size</b> — number of highlights that make up one complete set.<br><br>
+      Lower editions = higher rating. Max is 100 (every card at edition&nbsp;#1) — it can go negative on a bad pull in a large set.
+    </div>
+  </div>
+</div>
+
+<script src="rarity-order.js"></script>
+<script>
+'use strict';
+
+// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
+// index.js), which already queries the live production database directly
+// (no separate dev/prod split). Swap this for a real deployed API endpoint
+// once one exists; nothing else on this page needs to change beyond this
+// line.
+const API_BASE = 'http://localhost:8877';
+const PAGE_SIZE = 100;
+
+function fmtNum(n) {
+  return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+// Wallet profile fields (display_name/username) come from Sweet's own
+// backfill, not this codebase's controlled catalog data — unlike player/set
+// names elsewhere on this site, escape before any innerHTML use.
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtPct(p) {
+  return p === null || p === undefined ? '—' : `${p.toFixed(2)}%`;
+}
+
+/* ══════════════════ Wallet-wide edition badges ══════════════════ */
+// Same 3 fixed icon URLs as holders.html's EDITION_BADGES (confirmed
+// identical across every sampled card there, safe to reuse here) — this
+// block aggregates counts across the whole wallet instead of one moment.
+const WALLET_BADGES = [
+  { key: 'first_edition',   label: '#1 Edition',            icon: 'https://nft.nhlbreakaway.com/collectible_icon/original/ef88c6f2-1866-4952-9493-6399c25de60b.png' },
+  { key: 'jersey_match',    label: 'Jersey Match Edition',   icon: 'https://nft.nhlbreakaway.com/collectible_icon/original/9f36c26e-8921-43dd-abae-65cf1271b31e.png' },
+  { key: 'perfect_edition', label: 'Perfect Edition',        icon: 'https://nft.nhlbreakaway.com/collectible_icon/original/0860bc55-4e28-455a-835d-069e3f8743bc.png' },
+];
+
+function renderBadges(badges) {
+  document.getElementById('badgesGrid').innerHTML = WALLET_BADGES.map(b => `
+    <div class="badge-card">
+      <img class="badge-card-icon" src="${b.icon}" alt="" loading="lazy">
+      <div>
+        <div class="badge-card-count">${fmtNum(badges[b.key])}</div>
+        <div class="badge-card-label">${b.label}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ══════════════════ Set Progress table ══════════════════ */
+const SETS_COLUMNS = [
+  { key: 'name',           label: 'Set',       sortable: true },
+  { key: 'rarity',         label: 'Rarity',    sortable: true },
+  { key: 'moments_owned',  label: 'Progress', sortable: true, num: true },
+  { key: 'cards_owned',    label: 'Highlights Owned', sortable: true, num: true },
+  { key: 'pct_complete',   label: 'Complete',  sortable: true, num: true },
+];
+const setsState = {
+  sets: [], sortField: 'name', sortDir: 'asc',
+  nameSearch: '', series_label: '', rarity: '', completion: 'all',
+};
+
+function filteredSortedSets() {
+  let rows = setsState.sets;
+  // Plain substring text search (not an exact-match dropdown) — deliberately
+  // lets "Base" match "Base", "Base 2023-24", "Base 2024-25", etc. all at
+  // once, per explicit user request (multiple sets sharing a core name).
+  const q = setsState.nameSearch.trim().toLowerCase();
+  if (q) rows = rows.filter(s => s.set_name.toLowerCase().includes(q));
+  if (setsState.series_label) rows = rows.filter(s => s.series_label === setsState.series_label);
+  if (setsState.rarity) rows = rows.filter(s => s.rarity === setsState.rarity);
+  if (setsState.completion === 'complete') rows = rows.filter(s => s.pct_complete === 100);
+  else if (setsState.completion === 'incomplete') rows = rows.filter(s => s.pct_complete !== 100);
+
+  const dir = setsState.sortDir === 'asc' ? 1 : -1;
+  const field = setsState.sortField;
+  return [...rows].sort((a, b) => {
+    let av, bv;
+    if (field === 'name') { av = a.set_name; bv = b.set_name; }
+    else { av = a[field]; bv = b[field]; }
+    if (av === null || av === undefined) av = typeof bv === 'number' ? -Infinity : '';
+    if (bv === null || bv === undefined) bv = typeof av === 'number' ? -Infinity : '';
+    if (typeof av === 'string') return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+}
+
+function renderSetsHead() {
+  const row = document.getElementById('setsHeadRow');
+  row.innerHTML = SETS_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = setsState.sortField === col.key;
+    const icon = sorted ? (setsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (setsState.sortField === field) {
+        setsState.sortDir = setsState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        setsState.sortField = field;
+        setsState.sortDir = field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+      }
+      renderSetsHead();
+      renderSetsBody();
+    });
+  });
+}
+
+function renderSetsBody() {
+  const rows = filteredSortedSets();
+  document.getElementById('setsBody').innerHTML = rows.map(s => `
+    <tr>
+      <td>
+        <div class="cell-set-name">${s.collection_key
+          ? `<a class="set-link" href="highlights?set=${encodeURIComponent(s.collection_key)}">${s.set_name}</a>`
+          : s.set_name}</div>
+        <div class="cell-series">${s.series_label}</div>
+      </td>
+      <td>${s.rarity
+        ? `<span class="rarity-pill rarity-pill--${s.rarity.toLowerCase()}"><span class="rarity-pill-text">${s.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">${fmtNum(s.moments_owned)}${s.moments_total !== null ? ` / ${fmtNum(s.moments_total)}` : ''}</td>
+      <td class="col-r">${fmtNum(s.cards_owned)}</td>
+      <td class="col-r"><span class="pct-complete${s.pct_complete === 100 ? ' pct-complete--full' : ''}">${fmtPct(s.pct_complete)}</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('setsCount').innerHTML = `<strong>${fmtNum(rows.length)}</strong> set${rows.length === 1 ? '' : 's'}`;
+}
+
+async function fetchWalletSets(wallet) {
+  const res = await fetch(`${API_BASE}/api/wallet/sets?wallet=${encodeURIComponent(wallet)}`);
+  const data = await res.json();
+  setsState.sets = data.sets;
+  setsState.sortField = 'name'; setsState.sortDir = 'asc';
+  setsState.nameSearch = ''; setsState.series_label = ''; setsState.rarity = ''; setsState.completion = 'all';
+  document.getElementById('setsNameSearch').value = '';
+  setsNameSearchWidget.reset();
+  document.querySelectorAll('#setsCompletionToggle .tpc-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.completion === 'all');
+  });
+  renderSetsHead();
+  populateSetsFilters();
+  renderSetsBody();
+}
+
+// Options are derived from THIS wallet's own owned sets (unlike the Highlights
+// tab's Set/Rarity dropdowns, which list every value in the whole catalog via
+// /api/highlights/filters) — a set/rarity the wallet owns nothing in isn't a
+// useful filter choice here.
+function populateSetsFilters() {
+  const seriesValues = [...new Set(setsState.sets.map(s => s.series_label))].sort();
+  const rarityValues = sortByRarityOrder([...new Set(setsState.sets.map(s => s.rarity).filter(Boolean))]);
+
+  buildCombo('setsSeriesCombo',
+    [{ value: '', label: 'All series' }, ...seriesValues.map(v => ({ value: v, label: v }))],
+    () => setsState.series_label, v => setsState.series_label = v, renderSetsBody);
+
+  buildCombo('setsRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...rarityValues.map(v => ({ value: v, label: v }))],
+    () => setsState.rarity, v => setsState.rarity = v, renderSetsBody);
+}
+
+/* ══════════════════ Reusable text-search input: clear ✕ only ══════════════════
+   Shared by "Search set/player/pack name" — a plain debounced filter input
+   (typing narrows results via substring match) plus a clear ✕ matching every
+   .cb-combo/.cb-dropdown's own clear button. A suggestions panel sourced from
+   wallet-owned values was tried here and explicitly reverted per user
+   feedback ("I prefer just the previous behavior... without suggestions") —
+   don't re-add it without being asked. */
+function setupTextSearch({ inputId, clearId, debounceMs = 250, applyValue }) {
+  const input = document.getElementById(inputId);
+  const clearBtn = document.getElementById(clearId);
+  let t = null;
+
+  function updateClear() { clearBtn.style.display = input.value ? '' : 'none'; }
+
+  input.addEventListener('input', () => {
+    clearTimeout(t);
+    updateClear();
+    const val = input.value.trim();
+    t = setTimeout(() => applyValue(val), debounceMs);
+  });
+
+  clearBtn.addEventListener('mousedown', e => e.preventDefault());
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    updateClear();
+    applyValue('');
+  });
+
+  return { reset: updateClear };
+}
+
+const setsNameSearchWidget = setupTextSearch({
+  inputId: 'setsNameSearch', clearId: 'setsNameSearchClear', debounceMs: 150,
+  applyValue: val => { setsState.nameSearch = val; renderSetsBody(); },
+});
+
+document.getElementById('setsCompletionToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn) return;
+  setsState.completion = btn.dataset.completion;
+  document.querySelectorAll('#setsCompletionToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderSetsBody();
+});
+
+/* ══════════════════ Cards table (paginated, filterable) ══════════════════ */
+const CARDS_COLUMNS = [
+  { key: 'player',  label: 'Player',  sortable: true },
+  { key: 'set',     label: 'Set',     sortable: true },
+  { key: 'rarity',  label: 'Rarity',  sortable: true },
+  { key: 'edition', label: 'Edition', sortable: true, num: true },
+  { key: 'team',    label: 'Team',    sortable: true },
+];
+const cardsState = {
+  wallet: '', cards: [], player: '', series_label: '', set_name: '', rarity: '', team: '',
+  sortField: 'player', sortDir: 'asc', offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false,
+};
+
+function cardsQuery() {
+  const params = new URLSearchParams();
+  params.set('wallet', cardsState.wallet);
+  if (cardsState.player) params.set('player', cardsState.player);
+  if (cardsState.series_label) params.set('series_label', cardsState.series_label);
+  if (cardsState.set_name) params.set('set_name', cardsState.set_name);
+  if (cardsState.rarity) params.set('rarity', cardsState.rarity);
+  if (cardsState.team) params.set('team', cardsState.team);
+  params.set('sort', cardsState.sortField);
+  params.set('dir', cardsState.sortDir);
+  params.set('limit', PAGE_SIZE);
+  params.set('offset', cardsState.offset);
+  return params;
+}
+
+async function loadCardsChunk() {
+  if (cardsState.busy) return 0;
+  cardsState.busy = true;
+  renderCardsLoadMore();
+  let got = 0;
+  try {
+    const res = await fetch(`${API_BASE}/api/wallet/cards?${cardsQuery()}`);
+    const data = await res.json();
+    cardsState.cards = [...cardsState.cards, ...data.cards];
+    cardsState.total = data.total;
+    cardsState.hasMore = data.has_more;
+    cardsState.offset += data.cards.length;
+    got = data.cards.length;
+    renderCardsBody();
+  } catch (err) {
+    document.getElementById('cardsResultsMeta').textContent = 'Failed to load cards.';
+    console.error(err);
+  } finally {
+    cardsState.busy = false;
+    renderCardsLoadMore();
+  }
+  return got;
+}
+
+async function fetchCardsPage(reset) {
+  if (reset) { cardsState.offset = 0; cardsState.cards = []; cardsState.autoLoadArmed = false; }
+  await loadCardsChunk();
+}
+
+function renderCardsHead() {
+  const row = document.getElementById('cardsHeadRow');
+  row.innerHTML = CARDS_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = cardsState.sortField === col.key;
+    const icon = sorted ? (cardsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (cardsState.sortField === field) {
+        cardsState.sortDir = cardsState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        cardsState.sortField = field;
+        cardsState.sortDir = field === 'edition' ? 'desc' : 'asc';
+      }
+      renderCardsHead();
+      fetchCardsPage(true);
+    });
+  });
+}
+
+function renderCardsBody() {
+  document.getElementById('cardsBody').innerHTML = cardsState.cards.map(c => `
+    <tr>
+      <td><a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a></td>
+      <td>
+        <div class="cell-set-name">${c.set_name || '—'}</div>
+        <div class="cell-series">${c.series_label || ''}</div>
+      </td>
+      <td>${c.rarity
+        ? `<span class="rarity-pill rarity-pill--${c.rarity.toLowerCase()}"><span class="rarity-pill-text">${c.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">${fmtNum(c.edition_number)}</td>
+      <td>${c.team
+        ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
+        : '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('cardsResultsMeta').innerHTML =
+    `<strong>${fmtNum(cardsState.total)}</strong> card${cardsState.total === 1 ? '' : 's'}`;
+}
+
+function renderCardsLoadMore() {
+  const wrap = document.getElementById('cardsLoadMoreWrap');
+  const btn = document.getElementById('cardsLoadMoreBtn');
+  wrap.style.display = cardsState.hasMore ? 'block' : 'none';
+  btn.disabled = cardsState.busy;
+  btn.textContent = cardsState.busy ? 'Loading…' : 'Load more';
+}
+document.getElementById('cardsLoadMoreBtn').addEventListener('click', () => {
+  cardsState.autoLoadArmed = true;
+  fetchCardsPage(false);
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && cardsState.autoLoadArmed && !cardsState.busy && cardsState.hasMore) fetchCardsPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('cardsLoadMoreWrap'));
+
+const playerSearchWidget = setupTextSearch({
+  inputId: 'playerSearch', clearId: 'playerSearchClear', debounceMs: 400,
+  applyValue: val => { cardsState.player = val; fetchCardsPage(true); },
+});
+
+const packSearchWidget = setupTextSearch({
+  inputId: 'packSearch', clearId: 'packSearchClear', debounceMs: 400,
+  applyValue: val => { packsState.pack_name = val; fetchPacksPage(true); },
+});
+
+// Sitewide (not wallet-scoped) distinct values, same convention as
+// populateCardFilters() — pack_moments is a small design catalog, not
+// millions of owned rows, so this is cheap regardless of collection size.
+async function populatePacksFilters() {
+  const res = await fetch(`${API_BASE}/api/wallet/packs/filters`);
+  const data = await res.json();
+  buildCombo('packSeriesCombo',
+    [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
+    () => packsState.series_label, v => packsState.series_label = v, () => fetchPacksPage(true));
+  buildCombo('packRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...sortByRarityOrder(data.rarities).map(v => ({ value: v, label: v }))],
+    () => packsState.rarity, v => packsState.rarity = v, () => fetchPacksPage(true));
+}
+
+/* ══════════════════ Packs table (paginated) ══════════════════ */
+const PACKS_COLUMNS = [
+  { key: 'pack',    label: 'Pack Name', sortable: true },
+  { key: 'series',  label: 'Series',    sortable: true },
+  { key: 'rarity',  label: 'Rarity',    sortable: true },
+  { key: 'edition', label: 'Edition',   sortable: true, num: true },
+];
+const packsState = {
+  wallet: '', packs: [], pack_name: '', series_label: '', rarity: '',
+  sortField: 'pack', sortDir: 'asc', offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false,
+};
+
+function packsQuery() {
+  const params = new URLSearchParams();
+  params.set('wallet', packsState.wallet);
+  if (packsState.pack_name) params.set('pack_name', packsState.pack_name);
+  if (packsState.series_label) params.set('series_label', packsState.series_label);
+  if (packsState.rarity) params.set('rarity', packsState.rarity);
+  params.set('sort', packsState.sortField);
+  params.set('dir', packsState.sortDir);
+  params.set('limit', PAGE_SIZE);
+  params.set('offset', packsState.offset);
+  return params;
+}
+
+async function loadPacksChunk() {
+  if (packsState.busy) return 0;
+  packsState.busy = true;
+  renderPacksLoadMore();
+  let got = 0;
+  try {
+    const res = await fetch(`${API_BASE}/api/wallet/packs?${packsQuery()}`);
+    const data = await res.json();
+    packsState.packs = [...packsState.packs, ...data.packs];
+    packsState.total = data.total;
+    packsState.hasMore = data.has_more;
+    packsState.offset += data.packs.length;
+    got = data.packs.length;
+    renderPacksBody();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    packsState.busy = false;
+    renderPacksLoadMore();
+  }
+  return got;
+}
+
+async function fetchPacksPage(reset) {
+  if (reset) { packsState.offset = 0; packsState.packs = []; packsState.autoLoadArmed = false; }
+  await loadPacksChunk();
+}
+
+function renderPacksHead() {
+  const row = document.getElementById('packsHeadRow');
+  row.innerHTML = PACKS_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = packsState.sortField === col.key;
+    const icon = sorted ? (packsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (packsState.sortField === field) {
+        packsState.sortDir = packsState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        packsState.sortField = field;
+        packsState.sortDir = field === 'edition' ? 'desc' : 'asc';
+      }
+      renderPacksHead();
+      fetchPacksPage(true);
+    });
+  });
+}
+
+function renderPacksBody() {
+  document.getElementById('packsBody').innerHTML = packsState.packs.map(p => `
+    <tr>
+      <td>${p.pack_name || '—'}</td>
+      <td>${p.series_label || '—'}</td>
+      <td>${p.rarity
+        ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">${fmtNum(p.edition_number)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('packsCount').innerHTML =
+    `<strong>${fmtNum(packsState.total)}</strong> pack${packsState.total === 1 ? '' : 's'}`;
+}
+
+function renderPacksLoadMore() {
+  const wrap = document.getElementById('packsLoadMoreWrap');
+  const btn = document.getElementById('packsLoadMoreBtn');
+  wrap.style.display = packsState.hasMore ? 'block' : 'none';
+  btn.disabled = packsState.busy;
+  btn.textContent = packsState.busy ? 'Loading…' : 'Load more';
+}
+document.getElementById('packsLoadMoreBtn').addEventListener('click', () => {
+  packsState.autoLoadArmed = true;
+  fetchPacksPage(false);
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && packsState.autoLoadArmed && !packsState.busy && packsState.hasMore) fetchPacksPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('packsLoadMoreWrap'));
+
+/* ══════════════════ Shared cb-combo wiring (Set / Rarity) ══════════════════ */
+function closeAllCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.classList.remove('open');
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    if (combo._items) syncComboDisplay(combo);
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-combo')) closeAllCombos();
+});
+
+function syncComboDisplay(combo) {
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._items[0];
+  const active = combo._items.find(i => i.value === combo._getValue()) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function buildCombo(comboId, items, getValue, setValue, onPick) {
+  const combo = document.getElementById(comboId);
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  combo._items = items;
+  combo._getValue = getValue;
+  syncComboDisplay(combo);
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const pick = val => {
+    closeAllCombos();
+    setValue(val);
+    syncComboDisplay(combo);
+    onPick();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._items.slice(1);
+    const filtered = q ? options.filter(i => i.label.toLowerCase().includes(q)) : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === getValue() ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCombos();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); input.blur(); closeAllCombos(); }
+    else if (e.key === 'Enter') { e.preventDefault(); panel.querySelector('.cb-item')?.click(); }
+  });
+  input.addEventListener('blur', () => {
+    // Close only THIS combo — see sets.html/highlights.html's identical
+    // comment for the reason (avoids clobbering a different combo the user
+    // just opened before this one's delayed blur handler fires).
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncComboDisplay(combo);
+      }
+    }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { pick(''); input.blur(); });
+}
+
+// Reuses the Highlights page's own filter-options endpoint — these dropdowns
+// list every set/rarity in the whole catalog (not just ones this wallet
+// owns), same convention as Highlights' own filter bar.
+async function populateCardFilters() {
+  const res = await fetch(`${API_BASE}/api/highlights/filters`);
+  const data = await res.json();
+  buildCombo('seriesCombo',
+    [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
+    () => cardsState.series_label, v => cardsState.series_label = v, () => fetchCardsPage(true));
+  buildCombo('setCombo',
+    [{ value: '', label: 'All sets' }, ...data.sets.map(name => ({ value: name, label: name }))],
+    () => cardsState.set_name, v => cardsState.set_name = v, () => fetchCardsPage(true));
+  buildCombo('rarityCombo',
+    [{ value: '', label: 'All rarities' }, ...sortByRarityOrder(data.rarities).map(v => ({ value: v, label: v }))],
+    () => cardsState.rarity, v => cardsState.rarity = v, () => fetchCardsPage(true));
+  buildCombo('teamCombo',
+    [{ value: '', label: 'All teams' }, ...data.teams.map(v => ({ value: v, label: v }))],
+    () => cardsState.team, v => cardsState.team = v, () => fetchCardsPage(true));
+}
+
+/* ══════════════════ Edition Rankings tab ══════════════════ */
+const RANKINGS_COLUMNS = [
+  { key: 'name',                label: 'Set',           sortable: true },
+  { key: 'rank',                label: 'Best Rank',     sortable: true, num: true },
+  { key: 'avg_edition',         label: 'Avg Edition',   sortable: true, num: true },
+  { key: 'rating',              label: 'Rating',        sortable: true, num: true, infoTip: true },
+  { key: 'total_complete_sets', label: 'Complete Sets', sortable: true, num: true },
+];
+// Default sort direction per column on first click — rank/avg_edition are
+// "lower is better" (ascending shows the best first), rating/complete_sets
+// are "higher is better" (descending shows the best first); name is
+// alphabetical. Same idea as SETS_COLUMNS's own name/rarity-get-asc rule,
+// just spelled out per-column here since more than one column needs the
+// non-default direction.
+const RANKINGS_DEFAULT_DIR = { name: 'asc', rank: 'asc', rating: 'desc', avg_edition: 'asc', total_complete_sets: 'desc' };
+const rankingsState = { rows: [], sortField: 'rank', sortDir: 'asc', nameSearch: '' };
+
+// One row per collection is friendlier than one row per complete set — a
+// heavy collector can hold dozens of complete sets of the same collection
+// (see the handoff note's explicit "a wallet CAN hold multiple top ranks at
+// once" design), which would otherwise make this tab's table hundreds of
+// rows long. Collapses to each collection's BEST (lowest-numbered) rank;
+// `total_complete_sets`/`sum_of_editions`/`avg_edition` shown alongside are
+// that same best row's own values, not an aggregate across every set.
+function collapseRankingsByCollection(sets) {
+  const byCollection = new Map();
+  for (const s of sets) {
+    const existing = byCollection.get(s.collection_key);
+    if (!existing || s.rank < existing.rank) byCollection.set(s.collection_key, s);
+  }
+  return [...byCollection.values()];
+}
+
+function sortedRankings() {
+  let rows = rankingsState.rows;
+  // Plain substring text search, same convention as Set Completion's own
+  // "Search set name" — lets "Base" match "Base"/"Base 2023-24"/etc. at once.
+  const q = rankingsState.nameSearch.trim().toLowerCase();
+  if (q) rows = rows.filter(s => s.set_name.toLowerCase().includes(q));
+
+  const dir = rankingsState.sortDir === 'asc' ? 1 : -1;
+  const field = rankingsState.sortField;
+  return [...rows].sort((a, b) => {
+    let av, bv;
+    if (field === 'name') { av = a.set_name; bv = b.set_name; }
+    else { av = a[field]; bv = b[field]; }
+    if (av === null || av === undefined) av = typeof bv === 'number' ? -Infinity : '';
+    if (bv === null || bv === undefined) bv = typeof av === 'number' ? -Infinity : '';
+    if (typeof av === 'string') return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+}
+
+function renderRankingsHead() {
+  const row = document.getElementById('rankingsHeadRow');
+  // stopPropagation on the info-tip's click keeps it from also toggling the
+  // column sort — the whole <th> is a click target for that (see the
+  // th.sortable listener below), and this icon sits inside it.
+  const infoTipHtml = `<span class="info-tip" onclick="event.stopPropagation(); document.getElementById('ratingModal').classList.add('open')"><span class="info-tip-icon">ⓘ</span></span>`;
+  row.innerHTML = RANKINGS_COLUMNS.map(col => {
+    const label = col.label + (col.infoTip ? ` ${infoTipHtml}` : '');
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${label}</th>`;
+    const sorted = rankingsState.sortField === col.key;
+    const icon = sorted ? (rankingsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (rankingsState.sortField === field) {
+        rankingsState.sortDir = rankingsState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        rankingsState.sortField = field;
+        rankingsState.sortDir = RANKINGS_DEFAULT_DIR[field] || 'asc';
+      }
+      renderRankingsHead();
+      renderRankingsBody();
+    });
+  });
+}
+
+function renderRankingsBody() {
+  const rows = sortedRankings();
+  document.getElementById('rankingsBody').innerHTML = rows.map(s => `
+    <tr>
+      <td>
+        <div class="cell-set-name"><a class="rankings-set-link" href="edition-rankings?set=${encodeURIComponent(s.collection_key)}">${escHtml(s.set_name)}</a></div>
+        <div class="cell-series">${escHtml(s.series_label)}${s.rarity ? ` · ${escHtml(s.rarity)}` : ''}</div>
+      </td>
+      <td class="col-r${s.rank <= 3 ? ` cell-rank--${s.rank}` : ''}">#${fmtNum(s.rank)}</td>
+      <td class="col-r">${s.avg_edition.toFixed(2)}</td>
+      <td class="col-r${s.rating < 0 ? ' cell-rating--negative' : ''}">${s.rating.toFixed(2)}</td>
+      <td class="col-r">${fmtNum(s.total_complete_sets)}</td>
+    </tr>
+  `).join('');
+  // Reflects the FILTERED count (matches Set Completion's own setsCount
+  // behavior) — only reached once at least one collection exists, since the
+  // true-empty case is handled separately in fetchWalletMintRankings.
+  document.getElementById('rankingsCount').innerHTML = `<strong>${fmtNum(rows.length)}</strong> collection${rows.length === 1 ? '' : 's'} completed`;
+}
+
+const rankingsNameSearchWidget = setupTextSearch({
+  inputId: 'rankingsNameSearch', clearId: 'rankingsNameSearchClear', debounceMs: 150,
+  applyValue: val => { rankingsState.nameSearch = val; renderRankingsBody(); },
+});
+
+async function fetchWalletMintRankings(wallet) {
+  const countEl = document.getElementById('rankingsCount');
+  const bodyEl = document.getElementById('rankingsBody');
+  rankingsState.rows = [];
+  rankingsState.sortField = 'rank'; rankingsState.sortDir = 'asc'; rankingsState.nameSearch = '';
+  document.getElementById('rankingsNameSearch').value = '';
+  rankingsNameSearchWidget.reset();
+  renderRankingsHead();
+  countEl.textContent = 'Loading…';
+  bodyEl.innerHTML = '';
+  try {
+    const res = await fetch(`${API_BASE}/api/wallet/mint-rankings?wallet=${encodeURIComponent(wallet)}`);
+    const data = await res.json();
+
+    if (!data.sets.length) {
+      countEl.textContent = "This wallet hasn't completed a full set of any collection yet.";
+      return;
+    }
+    rankingsState.rows = collapseRankingsByCollection(data.sets);
+    renderRankingsBody();
+  } catch (err) {
+    countEl.textContent = 'Failed to load Edition Rankings. Please try again shortly.';
+    console.error(err);
+  }
+}
+
+/* ══════════════════ Tabs (Set Progress / Cards / Packs) ══════════════════ */
+const TAB_NAMES = ['sets', 'cards', 'packs', 'rankings'];
+const TAB_PANEL_IDS = { sets: 'tabPanelSets', cards: 'tabPanelCards', packs: 'tabPanelPacks', rankings: 'tabPanelRankings' };
+
+function setActiveTab(tab, { syncUrl = true } = {}) {
+  if (!TAB_NAMES.includes(tab)) tab = TAB_NAMES[0];
+  document.querySelectorAll('.wallet-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  TAB_NAMES.forEach(name => {
+    document.getElementById(TAB_PANEL_IDS[name]).classList.toggle('active', name === tab);
+  });
+  if (syncUrl) {
+    const url = new URL(location.href);
+    url.searchParams.set('tab', tab);
+    history.replaceState(null, '', url);
+  }
+}
+
+document.getElementById('walletTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.wallet-tab-btn');
+  if (btn) setActiveTab(btn.dataset.tab);
+});
+
+/* ══════════════════ Wallet lookup orchestration ══════════════════ */
+// The search box accepts either a raw 0x address or a Sweet username — most
+// people don't know their own wallet address, only their username. Every
+// lookup resolves through /api/wallet/resolve first (backed by the
+// wallet_usernames table) and everything downstream uses the resolved
+// address, never the raw typed query.
+//
+// `initialTab` is only ever passed from init() restoring a ?tab= deep link —
+// every other caller (search box, suggestion click) omits it so a fresh
+// lookup always lands back on the first tab, per normal expectations.
+async function lookupWallet(query, initialTab) {
+  const btn = document.getElementById('lookupBtn');
+  const errorEl = document.getElementById('walletError');
+  const emptyEl = document.getElementById('walletEmpty');
+  const contentEl = document.getElementById('walletContent');
+  closeSuggestions();
+  errorEl.style.display = 'none';
+  emptyEl.style.display = 'none';
+  contentEl.style.display = 'none';
+
+  if (!query) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Looking up…';
+  try {
+    const resolveRes = await fetch(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`);
+    if (resolveRes.status === 404) {
+      errorEl.textContent = `No wallet or username found matching "${query}".`;
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (!resolveRes.ok) throw new Error(`resolve failed: ${resolveRes.status}`);
+    const resolved = await resolveRes.json();
+    const { wallet_address: wallet, username, avatar_url, favorite_team, favorite_team_name, favorite_team_logo_url } = resolved;
+
+    const res = await fetch(`${API_BASE}/api/wallet/summary?wallet=${encodeURIComponent(wallet)}`);
+    const summary = await res.json();
+
+    if (summary.cards_held === 0 && summary.packs_held === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    // display_name (Sweet's "D.J. S."-style profile name) is NOT actually
+    // public data on nhlbreakaway.com — it was only ever incidental data we
+    // had access to, not something the site itself displays — so it's no
+    // longer used here at all. The headline is now username (falling back to
+    // the raw address only when no username exists), and the headline itself
+    // is the profile link — only a real Sweet username is a valid
+    // nhlbreakaway.com profile slug, same rule as holders.html's holder-link.
+    const primary = username || wallet;
+    const profileUrl = username ? `https://nhlbreakaway.com/user/${encodeURIComponent(username)}?sort=newest` : null;
+    document.getElementById('walletDisplayName').innerHTML = profileUrl
+      ? `<a class="wallet-username-link" href="${profileUrl}" target="_blank" rel="noopener">${escHtml(primary)} ↗</a>`
+      : escHtml(primary);
+    document.getElementById('walletAddressSub').textContent = primary !== wallet ? wallet : '';
+
+    const avatarEl = document.getElementById('walletAvatar');
+    avatarEl.src = avatar_url || '';
+    avatarEl.style.display = avatar_url ? '' : 'none';
+
+    // favorite_team/display_name/avatar_url are null until a separate
+    // enrichment backfill reaches this wallet (see handleWalletResolve's own
+    // comment) — not an error, just "not backfilled yet or never set".
+    const fanBadge = document.getElementById('walletFanBadge');
+    if (favorite_team) {
+      document.getElementById('walletFanLogo').src = favorite_team_logo_url || '';
+      document.getElementById('walletFanLabel').textContent = `${favorite_team_name || favorite_team} Fan`;
+      fanBadge.style.display = '';
+    } else {
+      fanBadge.style.display = 'none';
+    }
+    document.getElementById('statTotal').textContent = fmtNum(summary.cards_held + summary.packs_held);
+    document.getElementById('statCards').textContent = fmtNum(summary.cards_held);
+    document.getElementById('statMoments').textContent = fmtNum(summary.moments_held);
+    document.getElementById('statSets').textContent = fmtNum(summary.sets_represented);
+    document.getElementById('statPacks').textContent = fmtNum(summary.packs_held);
+    renderBadges(summary.badges);
+    contentEl.style.display = 'flex';
+    setActiveTab(initialTab || TAB_NAMES[0]);
+
+    renderSetsHead();
+    cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = ''; cardsState.rarity = ''; cardsState.team = '';
+    cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
+    document.getElementById('playerSearch').value = '';
+    playerSearchWidget.reset();
+    renderCardsHead();
+    packsState.wallet = wallet; packsState.pack_name = ''; packsState.series_label = ''; packsState.rarity = '';
+    packsState.sortField = 'pack'; packsState.sortDir = 'asc';
+    document.getElementById('packSearch').value = '';
+    packSearchWidget.reset();
+    renderPacksHead();
+
+    await Promise.all([
+      fetchWalletSets(wallet),
+      populateCardFilters().then(() => fetchCardsPage(true)),
+      populatePacksFilters().then(() => fetchPacksPage(true)),
+      fetchWalletMintRankings(wallet),
+    ]);
+
+    // Pinned as the resolved ADDRESS, not the raw typed query — stable even
+    // if the username is later renamed, and consistent with every other
+    // ?wallet= link/deep-link elsewhere in this codebase.
+    const url = new URL(location.href);
+    url.searchParams.set('wallet', wallet);
+    history.replaceState(null, '', url);
+  } catch (err) {
+    errorEl.textContent = 'Failed to load wallet. Please try again shortly.';
+    errorEl.style.display = 'block';
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Look Up';
+  }
+}
+
+/* ══════════════════ Search suggestions (username/address type-ahead) ══════════════════ */
+const walletInputEl = document.getElementById('walletInput');
+const suggestPanel = document.getElementById('walletSuggestPanel');
+let suggestItems = [];
+let suggestActiveIndex = -1;
+let suggestSeq = 0; // discards a stale response if a newer request already landed
+
+function closeSuggestions() {
+  suggestPanel.classList.remove('open');
+  suggestItems = [];
+  suggestActiveIndex = -1;
+}
+
+function renderSuggestions() {
+  if (!suggestItems.length) {
+    suggestPanel.innerHTML = `<div class="cb-empty">No matches</div>`;
+  } else {
+    suggestPanel.innerHTML = suggestItems.map((s, i) => `
+      <div class="cb-item suggest-item${i === suggestActiveIndex ? ' active' : ''}" data-index="${i}">
+        <span class="suggest-item-name">${s.username || '(no username)'}</span>
+        <span class="suggest-item-wallet">${s.wallet_address}</span>
+      </div>
+    `).join('');
+    suggestPanel.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('mousedown', e => e.preventDefault()); // keep focus so blur doesn't close before click registers
+      el.addEventListener('click', () => selectSuggestion(suggestItems[Number(el.dataset.index)]));
+    });
+  }
+  suggestPanel.classList.add('open');
+}
+
+function selectSuggestion(item) {
+  walletInputEl.value = item.username || item.wallet_address;
+  closeSuggestions();
+  lookupWallet(item.wallet_address);
+}
+
+let _suggestT = null;
+walletInputEl.addEventListener('input', () => {
+  clearTimeout(_suggestT);
+  const q = walletInputEl.value.trim();
+  if (q.length < 2) { closeSuggestions(); return; }
+  _suggestT = setTimeout(async () => {
+    const seq = ++suggestSeq;
+    try {
+      const res = await fetch(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (seq !== suggestSeq) return; // a newer keystroke's request already won
+      suggestItems = data.suggestions;
+      suggestActiveIndex = -1;
+      renderSuggestions();
+    } catch (err) {
+      console.error(err);
+    }
+  }, 250);
+});
+
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.wallet-input-wrap')) closeSuggestions();
+});
+
+document.getElementById('lookupBtn').addEventListener('click', () => {
+  closeSuggestions();
+  lookupWallet(walletInputEl.value.trim());
+});
+walletInputEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && suggestItems.length) {
+    e.preventDefault();
+    suggestActiveIndex = (suggestActiveIndex + 1) % suggestItems.length;
+    renderSuggestions();
+  } else if (e.key === 'ArrowUp' && suggestItems.length) {
+    e.preventDefault();
+    suggestActiveIndex = (suggestActiveIndex - 1 + suggestItems.length) % suggestItems.length;
+    renderSuggestions();
+  } else if (e.key === 'Enter') {
+    if (suggestActiveIndex >= 0 && suggestItems[suggestActiveIndex]) {
+      selectSuggestion(suggestItems[suggestActiveIndex]);
+    } else {
+      closeSuggestions();
+      lookupWallet(e.target.value.trim());
+    }
+  } else if (e.key === 'Escape') {
+    closeSuggestions();
+  }
+});
+
+(function init() {
+  const params = new URLSearchParams(location.search);
+  const initWallet = params.get('wallet') || '';
+  if (initWallet) {
+    walletInputEl.value = initWallet;
+    lookupWallet(initWallet, params.get('tab'));
+  }
+})();
+
+const ratingModal = document.getElementById('ratingModal');
+document.getElementById('ratingModalClose').addEventListener('click', () => ratingModal.classList.remove('open'));
+ratingModal.addEventListener('click', e => { if (e.target === ratingModal) ratingModal.classList.remove('open'); });
+</script>
+
+<script src="nav.js"></script>
+</body>
+</html>

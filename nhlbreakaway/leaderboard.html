@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collector Leaderboard — NHL Breakaway — Hoardio</title>
+  <meta name="description" content="See who owns the most NHL Breakaway highlights, filtered by series, set, rarity, team, player, edition range, and badges." />
+  <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway/leaderboard" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 1.25rem; }
+    .page-header { margin-bottom: 0; }
+
+    /* ── Filter bar — multi-select .cb-dropdown (checkbox) for attribute
+       filters, matching the sitewide component already used on
+       inventory.html/prizepool.html/schema.html/etc. (see
+       populateCbDropdown() there) — not the single-select searchable
+       .cb-combo used elsewhere in this section. ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; }
+    .filter-bar .cb-dropdown { min-width: 160px; flex: 1; max-width: 220px; }
+    .filter-bar .search-input { min-width: 180px; flex: 1.2; max-width: 260px; }
+    /* Values here are at most 5 digits — sized to fit the "Min/Max edition"
+       placeholder text itself (the actual constraint), not to leave room for
+       a wider number that will never appear. Also shares the .search-input
+       class (for consistent input styling), whose own min-width: 180px would
+       otherwise win over this width and silently keep the box wide. */
+    .filter-bar .edition-range-input { width: 108px; min-width: 0; max-width: 108px; flex: 0 0 auto; }
+    .player-search-wrap { position: relative; flex: 1.2; min-width: 180px; max-width: 260px; }
+    .player-search-wrap .search-input { width: 100%; max-width: none; }
+    /* Both text-search inputs reuse .cb-dropdown-clear's exact look (same ✕,
+       same positioning trick within a position:relative wrap) for the
+       clear-to-empty button, rather than inventing a second style. */
+    .player-search-wrap .search-input, .find-collector-wrap .search-input { padding-right: 2.1rem; }
+    @media (max-width: 700px) {
+      .filter-bar .cb-dropdown, .filter-bar .search-input, .filter-bar .edition-range-input,
+      .player-search-wrap { max-width: none; }
+    }
+
+    /* Controls that only make sense for Highlights (not Packs, which has no
+       player/set/team/badge data) — dimmed and inert in "Only Packs" mode. */
+    [data-highlights-only].is-disabled { opacity: 0.4; pointer-events: none; }
+    /* Locked to "Only Highlights" while the Highlight picker has a selection
+       — see syncAssetTypeLock(). */
+    .tpc-toggle-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── "Highlight" filter — a searchable multi-select picker (type to find
+       a specific highlight by player/set, click to add). Distinct from every
+       other filter here: not a fixed checkbox list, since there are ~1,960
+       real highlights — too many to list without search. ── */
+    .highlight-picker-selected { display: flex; flex-direction: column; gap: 2px; padding: 0.3rem; border-top: 1px solid rgba(255,255,255,0.08); max-height: 140px; overflow-y: auto; }
+    .highlight-chip { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.3rem 0.5rem; border-radius: 6px; font-size: 0.78rem; background: rgba(255,255,255,0.04); }
+    .highlight-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .highlight-chip-remove { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.78rem; flex-shrink: 0; padding: 0 0.2rem; }
+    .highlight-chip-remove:hover { color: var(--accent-light); }
+
+    /* ── Find a collector (username/address type-ahead, ported from wallet.html) ── */
+    .find-collector-wrap { position: relative; flex: 1; max-width: 340px; }
+    .find-collector-wrap .search-input { width: 100%; max-width: none; }
+    .suggest-item { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+    .suggest-item-name { font-weight: 600; }
+    .suggest-item-wallet { font-size: 0.72rem; color: var(--text-secondary); }
+    #findCollectorResult { display: inline-flex; align-items: center; }
+    #findCollectorResult strong { color: var(--accent-light); }
+
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
+    .results-meta strong { color: var(--text-primary); }
+    .exit-spotlight-btn { margin-left: 0.6rem; background: none; border: none; padding: 0; color: var(--accent-light); text-decoration: underline; font-size: 0.8rem; cursor: pointer; }
+    .exit-spotlight-btn:hover { color: var(--text-primary); }
+    .leaderboard-table tbody tr.spotlight-row { background: rgba(240,168,64,0.08); }
+    .leaderboard-table tbody tr.spotlight-row:hover { background: rgba(240,168,64,0.14); }
+    /* Same gold/silver/bronze hues as .cell-rank--N's text, dimmed into a
+       full-row tint rather than just coloring the rank cell. */
+    .leaderboard-table tbody tr.rank-row--1 { background: rgba(255,215,0,0.10); }
+    .leaderboard-table tbody tr.rank-row--1:hover { background: rgba(255,215,0,0.16); }
+    .leaderboard-table tbody tr.rank-row--2 { background: rgba(192,192,192,0.09); }
+    .leaderboard-table tbody tr.rank-row--2:hover { background: rgba(192,192,192,0.15); }
+    .leaderboard-table tbody tr.rank-row--3 { background: rgba(205,127,50,0.10); }
+    .leaderboard-table tbody tr.rank-row--3:hover { background: rgba(205,127,50,0.16); }
+
+    /* ── Leaderboard table ── */
+    .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .leaderboard-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .leaderboard-table thead th.col-r { text-align: right; }
+    .leaderboard-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .leaderboard-table tbody tr:last-child { border-bottom: none; }
+    .leaderboard-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .leaderboard-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .leaderboard-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .cell-rank { color: var(--text-secondary); font-variant-numeric: tabular-nums; width: 1%; }
+    .cell-rank--1 { color: #ffd700; font-weight: 700; }
+    .cell-rank--2 { color: #c0c0c0; font-weight: 700; }
+    .cell-rank--3 { color: #cd7f32; font-weight: 700; }
+    .cell-cards-owned { font-weight: 700; color: var(--text-primary); }
+    .holder-link { color: var(--accent-light); text-decoration: none; }
+    .holder-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">NHL Breakaway <span class="accent">Collector Leaderboard</span></div>
+      <div class="page-subtitle">Who owns the most — highlights, packs, or both — filtered by series, set, rarity, team, player, edition range, and badges. Duplicate editions all count.</div>
+    </div>
+
+    <div class="tpc-toggle-group" id="assetTypeToggle">
+      <button type="button" class="tpc-toggle-btn active" data-asset-type="all">All</button>
+      <button type="button" class="tpc-toggle-btn" data-asset-type="highlights">Only Highlights</button>
+      <button type="button" class="tpc-toggle-btn" data-asset-type="packs">Only Packs</button>
+    </div>
+
+    <div class="filter-bar">
+      <div class="cb-dropdown" id="seriesDd">
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Series</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel"></div>
+      </div>
+
+      <div class="cb-dropdown" id="setDd" data-highlights-only>
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Set</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel"></div>
+      </div>
+
+      <div class="cb-dropdown" id="rarityDd">
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Rarity</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel"></div>
+      </div>
+
+      <div class="cb-dropdown" id="teamDd" data-highlights-only>
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Team</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel"></div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="player-search-wrap" data-highlights-only>
+        <input type="text" class="search-input" id="playerSearch" placeholder="Search player name" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-dropdown-clear" id="playerSearchClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="playerSuggestPanel"></div>
+      </div>
+
+      <div class="cb-dropdown" id="highlightsDd" data-highlights-only style="max-width:280px;">
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Highlight</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel cb-panel--searchable">
+          <div class="cb-search-wrap"><input type="text" class="cb-search-input" id="highlightsDdSearch" placeholder="Search player" autocomplete="off" spellcheck="false"></div>
+          <div class="cb-items" id="highlightsDdItems"></div>
+          <div class="highlight-picker-selected" id="highlightsDdSelected"></div>
+        </div>
+      </div>
+
+      <div class="cb-dropdown" id="highlightBadgesDd" data-highlights-only>
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Highlight Badges</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel"></div>
+      </div>
+
+      <input type="number" class="search-input edition-range-input" id="editionMinInput" placeholder="Min edition" min="1" inputmode="numeric">
+      <input type="number" class="search-input edition-range-input" id="editionMaxInput" placeholder="Max edition" min="1" inputmode="numeric">
+    </div>
+
+    <div class="filter-bar">
+      <div class="find-collector-wrap">
+        <input type="text" class="search-input" id="findCollectorInput" placeholder="Find collector by username or wallet (0x...)" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-dropdown-clear" id="findCollectorClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="findCollectorSuggestPanel"></div>
+      </div>
+      <span class="results-meta" id="findCollectorResult"></span>
+
+      <div class="cb-dropdown" id="editionBadgesDd" data-highlights-only>
+        <button class="cb-dropdown-btn" type="button"><span class="cb-label">Edition Badges</span><span class="cb-arrow">▾</span></button>
+        <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel"></div>
+      </div>
+
+      <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
+    </div>
+
+    <div class="results-meta" id="resultsMeta"></div>
+
+    <div style="overflow-x:auto;">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Holder</th>
+            <th class="col-r">Collectibles Owned</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody"></tbody>
+      </table>
+    </div>
+
+    <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+      <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="rarity-order.js"></script>
+<script>
+'use strict';
+
+// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
+// index.js), which already queries the live production database directly
+// (no separate dev/prod split). Swap this for a real deployed API endpoint
+// once one exists; nothing else on this page needs to change beyond this
+// line.
+const API_BASE = 'http://localhost:8877';
+const PAGE_SIZE = 100;
+
+const EDITION_BADGE_ITEMS = [
+  { value: 'first',   label: '#1 Edition' },
+  { value: 'jersey',   label: 'Jersey Match Edition' },
+  { value: 'perfect', label: 'Perfect Edition' },
+];
+
+const state = {
+  leaders: [],
+  assetType: 'all', // 'all' | 'highlights' | 'packs'
+  player: '',
+  series: new Set(),
+  set_name: new Set(),
+  rarity: new Set(),
+  team: new Set(),
+  edition_badges: new Set(),
+  highlight_badges: new Set(),
+  highlights: new Map(), // moment_uuid -> display label, for the Highlight picker's chips
+  editionMin: null,
+  editionMax: null,
+  offset: 0,
+  hasMore: false,
+  busy: false,
+  autoLoadArmed: false,
+  spotlightWallet: null, // when set, the table shows ONLY this wallet's real-rank row instead of the paginated list
+};
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtNum(n) {
+  return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+
+// Shared by the paginated list fetch AND the "find a collector" rank lookup
+// — both must query with the exact same active filters to stay consistent.
+function buildFilterParams() {
+  const params = new URLSearchParams();
+  params.set('asset_type', state.assetType);
+  if (state.player) params.set('player', state.player);
+  if (state.series.size) params.set('series', [...state.series].join(','));
+  if (state.set_name.size) params.set('set_name', [...state.set_name].join(','));
+  if (state.rarity.size) params.set('rarity', [...state.rarity].join(','));
+  if (state.team.size) params.set('team', [...state.team].join(','));
+  if (state.edition_badges.size) params.set('edition_badges', [...state.edition_badges].join(','));
+  if (state.highlight_badges.size) params.set('highlight_badges', [...state.highlight_badges].join(','));
+  if (state.highlights.size) params.set('highlight', [...state.highlights.keys()].join(','));
+  if (state.editionMin != null) params.set('edition_min', state.editionMin);
+  if (state.editionMax != null) params.set('edition_max', state.editionMax);
+  return params;
+}
+
+function buildQuery() {
+  const params = buildFilterParams();
+  params.set('limit', PAGE_SIZE);
+  params.set('offset', state.offset);
+  return params;
+}
+
+function renderBody() {
+  const body = document.getElementById('leaderboardBody');
+  if (state.leaders.length === 0) {
+    const emptyMsg = state.spotlightWallet ? "This collector doesn't own any assets matching these filters." : 'No collectors match these filters.';
+    body.innerHTML = `<tr><td colspan="3" class="state-empty" style="padding:2rem 1rem; text-align:center; color:var(--text-secondary);">${emptyMsg}</td></tr>`;
+  } else {
+    body.innerHTML = state.leaders.map((h, i) => {
+      // Spotlight mode carries the collector's REAL rank on the row itself
+      // (from /api/leaderboard/rank) rather than its position in this
+      // single-row array — that's the whole point of "show only this
+      // collector, with their actual rank, not repositioned to #1".
+      const rank = h.rank != null ? h.rank : i + 1;
+      const rankClass = rank <= 3 ? ` cell-rank--${rank}` : '';
+      // Spotlight mode keeps its own accent regardless of rank (a single
+      // highlighted row IS the point there); otherwise a top-3 row gets the
+      // same gold/silver/bronze hue as its rank cell, tinted across the row.
+      const rowClass = state.spotlightWallet ? 'spotlight-row' : (rank <= 3 ? `rank-row--${rank}` : '');
+      const holderCell = h.holder_username
+        ? `<a class="holder-link" href="https://nhlbreakaway.com/user/${encodeURIComponent(h.holder_username)}?sort=newest" target="_blank" rel="noopener">${escHtml(h.holder)}</a>`
+        : escHtml(h.holder);
+      return `
+        <tr${rowClass ? ` class="${rowClass}"` : ''}>
+          <td class="cell-rank${rankClass}">#${fmtNum(rank)}</td>
+          <td>${holderCell}</td>
+          <td class="col-r cell-cards-owned">${fmtNum(h.cards_owned)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+  const meta = document.getElementById('resultsMeta');
+  if (state.spotlightWallet) {
+    meta.innerHTML = `Showing <strong>1</strong> collector only <button type="button" id="exitSpotlightBtn" class="exit-spotlight-btn">✕ Show full leaderboard</button>`;
+    document.getElementById('exitSpotlightBtn').addEventListener('click', exitSpotlight);
+  } else {
+    meta.innerHTML = `<strong>${state.leaders.length}</strong> collector${state.leaders.length === 1 ? '' : 's'}${state.hasMore ? '+' : ''}`;
+  }
+}
+
+function renderLoadMore() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn = document.getElementById('loadMoreBtn');
+  wrap.style.display = (state.hasMore && !state.spotlightWallet) ? 'block' : 'none';
+  btn.disabled = state.busy;
+  btn.textContent = state.busy ? 'Loading…' : 'Load more';
+}
+
+async function loadChunk() {
+  if (state.busy) return 0;
+  state.busy = true;
+  renderLoadMore();
+  let got = 0;
+  try {
+    const res = await fetch(`${API_BASE}/api/leaderboard?${buildQuery()}`);
+    const data = await res.json();
+    state.leaders = [...state.leaders, ...data.leaders];
+    state.hasMore = data.has_more;
+    state.offset += data.leaders.length;
+    got = data.leaders.length;
+    renderBody();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load leaderboard. Please try again shortly.';
+    console.error(err);
+  } finally {
+    state.busy = false;
+    renderLoadMore();
+  }
+  return got;
+}
+
+// While a collector is spotlighted, every filter change (series, rarity,
+// asset type, etc.) re-runs the rank lookup instead of the paginated list —
+// the spotlight acts as a "top-layer filter" that stays locked to that one
+// wallet until explicitly cleared, always showing their CURRENT real rank
+// under whatever filters are active.
+async function loadSpotlight() {
+  if (state.busy) return;
+  state.busy = true;
+  renderLoadMore();
+  try {
+    const rankParams = buildFilterParams();
+    rankParams.set('wallet', state.spotlightWallet);
+    const res = await fetch(`${API_BASE}/api/leaderboard/rank?${rankParams}`);
+    const data = await res.json();
+    state.leaders = data.found
+      ? [{ holder: data.holder, holder_username: data.holder_username, cards_owned: data.cards_owned, rank: data.rank }]
+      : [];
+    state.hasMore = false;
+    renderBody();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load. Please try again shortly.';
+    console.error(err);
+  } finally {
+    state.busy = false;
+    renderLoadMore();
+  }
+}
+
+function exitSpotlight() {
+  state.spotlightWallet = null;
+  findCollectorInputEl.value = '';
+  updateFindCollectorClear();
+  document.getElementById('findCollectorResult').textContent = '';
+  closeFcSuggestions();
+  fetchPage(true);
+}
+
+async function fetchPage(reset) {
+  if (reset) { state.offset = 0; state.leaders = []; state.autoLoadArmed = false; }
+  if (state.spotlightWallet) {
+    await loadSpotlight();
+  } else {
+    await loadChunk();
+  }
+}
+
+document.getElementById('loadMoreBtn').addEventListener('click', () => {
+  state.autoLoadArmed = true;
+  fetchPage(false);
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && state.autoLoadArmed && !state.busy && state.hasMore) fetchPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('loadMoreWrap'));
+
+// NOTE: player filtering is applied ONLY via picking a real suggestion (see
+// the Player name suggestions section below) — per explicit request, to make
+// sure a typo can't silently filter to zero results. There's deliberately no
+// free-text debounced apply-on-type handler here anymore (an earlier version
+// had one; it raced with the suggestion click and could re-apply the raw
+// typed text after a suggestion was already picked).
+
+/* ── Edition min/max (debounced) ── */
+let _editionRangeT = null;
+function onEditionRangeInput() {
+  clearTimeout(_editionRangeT);
+  _editionRangeT = setTimeout(() => {
+    const minVal = document.getElementById('editionMinInput').value;
+    const maxVal = document.getElementById('editionMaxInput').value;
+    state.editionMin = minVal ? parseInt(minVal, 10) : null;
+    state.editionMax = maxVal ? parseInt(maxVal, 10) : null;
+    fetchPage(true);
+  }, 400);
+}
+document.getElementById('editionMinInput').addEventListener('input', onEditionRangeInput);
+document.getElementById('editionMaxInput').addEventListener('input', onEditionRangeInput);
+
+/* ══════════════════ Multi-select .cb-dropdown (checkbox) plumbing ══════════════════
+   Same component/behavior as inventory.html's populateCbDropdown() — ported
+   here rather than shared via a <script src>, since that file's version is
+   entangled with inventory-specific globals (_filterCol, dynamic attrs, etc).
+   Keep this in sync BY HAND if the shared component's behavior ever changes. */
+function refreshCbLabel(container, selectedSet, allLabel) {
+  const labelEl = container.querySelector('.cb-label');
+  if (!labelEl) return;
+  // value !== label for items like Edition Badges ({value:'first', label:'#1
+  // Edition'}) — the single-selection case must show the LABEL, not the raw
+  // filter value, or picking "#1 Edition" displayed as "first" instead.
+  const labelMap = container._cbLabelMap;
+  const soleValue = selectedSet.size === 1 ? [...selectedSet][0] : null;
+  labelEl.textContent = selectedSet.size === 0 ? allLabel
+    : selectedSet.size === 1 ? (labelMap?.get(soleValue) ?? soleValue)
+    : `${selectedSet.size} selected`;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', selectedSet.size > 0);
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (clearBtn) clearBtn.style.display = selectedSet.size > 0 ? '' : 'none';
+}
+
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
+});
+document.querySelectorAll('.cb-dropdown').forEach(container => {
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = container.querySelector('.cb-panel');
+    const isOpen = panel.classList.contains('open');
+    closeAllCbDropdowns();
+    if (!isOpen) {
+      panel.classList.add('open');
+      container.querySelector('.cb-dropdown-btn').classList.add('open');
+    }
+  });
+});
+
+function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange) {
+  const container = document.getElementById(containerId);
+  const panel = container.querySelector('.cb-panel');
+  container._cbLabelMap = new Map(items.map(v => {
+    const value = typeof v === 'string' ? v : v.value;
+    const label = typeof v === 'string' ? v : v.label;
+    return [value, label];
+  }));
+  panel.innerHTML = items.length
+    ? items.map(v => {
+        const value = typeof v === 'string' ? v : v.value;
+        const label = typeof v === 'string' ? v : v.label;
+        return `<label class="cb-item"><input type="checkbox" value="${escHtml(value)}"${selectedSet.has(value) ? ' checked' : ''}><span>${escHtml(label)}</span></label>`;
+      }).join('')
+    : `<div class="cb-empty">No options</div>`;
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedSet.add(cb.value); else selectedSet.delete(cb.value);
+      refreshCbLabel(container, selectedSet, allLabel);
+      onChange();
+    });
+  });
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (clearBtn && !clearBtn._wired) {
+    clearBtn._wired = true;
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const set = clearBtn._selectedSet;
+      if (!set || set.size === 0) return;
+      set.clear();
+      panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = false; });
+      refreshCbLabel(container, set, clearBtn._allLabel);
+      clearBtn._onChange();
+    });
+  }
+  if (clearBtn) { clearBtn._selectedSet = selectedSet; clearBtn._allLabel = allLabel; clearBtn._onChange = onChange; }
+  refreshCbLabel(container, selectedSet, allLabel);
+}
+
+async function populateFilters() {
+  const res = await fetch(`${API_BASE}/api/leaderboard/filters`);
+  const data = await res.json();
+
+  // Set/Team/Edition Badges/Highlight Badges are highlight-only concepts (see
+  // syncAssetTypeLock) — their onChange re-checks the toggle lock on every
+  // change, not just fetchPage. Series/Rarity apply to packs too, so they
+  // don't affect the lock.
+  populateCbDropdown('seriesDd', data.series, state.series, 'Series', () => fetchPage(true));
+  populateCbDropdown('setDd', data.sets, state.set_name, 'Set', () => { syncAssetTypeLock(); fetchPage(true); });
+  populateCbDropdown('rarityDd', sortByRarityOrder([...data.rarities]), state.rarity, 'Rarity', () => fetchPage(true));
+  populateCbDropdown('teamDd', data.teams, state.team, 'Team', () => { syncAssetTypeLock(); fetchPage(true); });
+  populateCbDropdown('editionBadgesDd', EDITION_BADGE_ITEMS, state.edition_badges, 'Edition Badges', () => { syncAssetTypeLock(); fetchPage(true); });
+  populateCbDropdown('highlightBadgesDd', data.highlight_badges, state.highlight_badges, 'Highlight Badges', () => { syncAssetTypeLock(); fetchPage(true); });
+}
+
+function renderHighlightPickerLabel() {
+  const container = document.getElementById('highlightsDd');
+  container._cbLabelMap = new Map(state.highlights);
+  refreshCbLabel(container, new Set(state.highlights.keys()), 'Highlight');
+}
+
+// The closed dropdown's own ✕ (refreshCbLabel already shows/hides it based on
+// selection count, same as every checkbox .cb-dropdown) clears every
+// selected highlight at once — a faster path than removing each chip one by
+// one. Each chip's own ✕ (renderHighlightPickerSelected) still removes just
+// that one highlight; the two controls are complementary, not a replacement.
+function clearAllHighlights() {
+  if (state.highlights.size === 0) return;
+  state.highlights.clear();
+  renderHighlightPickerSelected();
+  renderHighlightPickerLabel();
+  syncAssetTypeLock();
+  fetchPage(true);
+}
+document.querySelector('#highlightsDd .cb-dropdown-clear').addEventListener('click', e => {
+  e.stopPropagation();
+  clearAllHighlights();
+});
+
+function renderHighlightPickerSelected() {
+  const wrap = document.getElementById('highlightsDdSelected');
+  wrap.innerHTML = [...state.highlights.entries()].map(([uuid, label]) => `
+    <div class="highlight-chip" data-uuid="${escHtml(uuid)}">
+      <span class="highlight-chip-label" title="${escHtml(label)}">${escHtml(label)}</span>
+      <button type="button" class="highlight-chip-remove" data-uuid="${escHtml(uuid)}">✕</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.highlight-chip-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.highlights.delete(btn.dataset.uuid);
+      renderHighlightPickerSelected();
+      renderHighlightPickerLabel();
+      syncAssetTypeLock();
+      fetchPage(true);
+    });
+  });
+}
+
+// Packs have none of this data — Set/Team/Player/Highlight Badges/Edition
+// Badges/the Highlight picker are all highlight-only concepts. While ANY of
+// them is active, force the toggle to "Only Highlights" (matches the
+// backend's own hasHighlightOnlyFilter guard, which excludes packs from
+// "All" the moment one of these is set). Originally this only checked the
+// Highlight picker; a live bug report ("All" + "#1 Edition" was still
+// counting every unfiltered pack, wildly inflating the total) showed the
+// same silent-mismatch problem applies to every filter in this list, not
+// just the Highlight picker — surfacing it as a locked toggle everywhere
+// instead of a per-filter special case.
+function syncAssetTypeLock() {
+  const toggle = document.getElementById('assetTypeToggle');
+  const locked = state.highlights.size > 0 || state.set_name.size > 0 || state.team.size > 0
+    || state.highlight_badges.size > 0 || state.edition_badges.size > 0 || !!state.player;
+  if (locked) {
+    if (state.assetType === 'packs') setAssetType('highlights', { skipFetch: true });
+    toggle.querySelectorAll('.tpc-toggle-btn').forEach(btn => {
+      btn.disabled = btn.dataset.assetType !== 'highlights';
+    });
+  } else {
+    toggle.querySelectorAll('.tpc-toggle-btn').forEach(btn => { btn.disabled = false; });
+  }
+}
+
+let _highlightSearchT = null;
+document.getElementById('highlightsDdSearch').addEventListener('input', e => {
+  clearTimeout(_highlightSearchT);
+  const q = e.target.value.trim();
+  const itemsEl = document.getElementById('highlightsDdItems');
+  if (q.length < 2) { itemsEl.innerHTML = ''; return; }
+  _highlightSearchT = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/highlights?player=${encodeURIComponent(q)}&limit=8`);
+      const data = await res.json();
+      itemsEl.innerHTML = data.highlights.length
+        ? data.highlights.map(h => `
+            <div class="cb-item" data-uuid="${escHtml(h.moment_uuid)}">
+              <span>${escHtml(h.player)} — ${escHtml(h.set_name)} (${escHtml(h.rarity)})</span>
+            </div>
+          `).join('')
+        : `<div class="cb-empty">No matches</div>`;
+      itemsEl.querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const h = data.highlights.find(x => x.moment_uuid === item.dataset.uuid);
+          if (!h) return;
+          state.highlights.set(h.moment_uuid, `${h.player} — ${h.set_name} (${h.rarity})`);
+          renderHighlightPickerSelected();
+          renderHighlightPickerLabel();
+          syncAssetTypeLock();
+          fetchPage(true);
+        });
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }, 300);
+});
+
+/* ══════════════════ Asset type toggle (All / Only Highlights / Only Packs) ══════════════════ */
+function setAssetType(assetType, { skipFetch } = {}) {
+  state.assetType = assetType;
+  document.querySelectorAll('#assetTypeToggle .tpc-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.assetType === assetType);
+  });
+  // Set/Team/Player/Edition Badges/Highlight Badges/Highlight picker are all
+  // highlight-only concepts — packs have none of that data, so those
+  // controls do nothing in "Only Packs" mode. Dimmed + inert rather than
+  // hidden, so the layout doesn't jump when switching modes.
+  document.querySelectorAll('[data-highlights-only]').forEach(el => {
+    el.classList.toggle('is-disabled', assetType === 'packs');
+  });
+  if (!skipFetch) fetchPage(true);
+}
+document.getElementById('assetTypeToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (btn && !btn.disabled) setAssetType(btn.dataset.assetType);
+});
+
+/* ══════════════════ Player name suggestions ══════════════════ */
+let _playerSuggestT = null;
+let _playerSuggestItems = [];
+const playerSearchEl = document.getElementById('playerSearch');
+const playerSearchClearBtn = document.getElementById('playerSearchClear');
+function closePlayerSuggestions() {
+  document.getElementById('playerSuggestPanel').classList.remove('open');
+  _playerSuggestItems = [];
+}
+function updatePlayerSearchClear() {
+  playerSearchClearBtn.style.display = playerSearchEl.value ? '' : 'none';
+}
+playerSearchEl.addEventListener('input', () => {
+  clearTimeout(_playerSuggestT);
+  updatePlayerSearchClear();
+  const val = playerSearchEl.value.trim();
+  // Clearing the box (not just typing a short partial) also clears the
+  // active filter — otherwise there'd be no way to remove a picked player
+  // short of "Clear filters", since typing alone no longer applies anything.
+  if (!val && state.player) { state.player = ''; syncAssetTypeLock(); fetchPage(true); }
+  if (val.length < 2) { closePlayerSuggestions(); return; }
+  _playerSuggestT = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/leaderboard/players?q=${encodeURIComponent(val)}`);
+      const data = await res.json();
+      _playerSuggestItems = data.players;
+      const panel = document.getElementById('playerSuggestPanel');
+      panel.innerHTML = _playerSuggestItems.length
+        ? _playerSuggestItems.map(p => `<div class="cb-item" data-player="${escHtml(p)}"><span>${escHtml(p)}</span></div>`).join('')
+        : `<div class="cb-empty">No matches</div>`;
+      panel.querySelectorAll('.cb-item').forEach(item => {
+        item.addEventListener('mousedown', e => e.preventDefault());
+        item.addEventListener('click', () => {
+          playerSearchEl.value = item.dataset.player;
+          updatePlayerSearchClear();
+          state.player = item.dataset.player;
+          closePlayerSuggestions();
+          syncAssetTypeLock();
+          fetchPage(true);
+        });
+      });
+      panel.classList.add('open');
+    } catch (err) {
+      console.error(err);
+    }
+  }, 300);
+});
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.player-search-wrap')) closePlayerSuggestions();
+});
+playerSearchClearBtn.addEventListener('mousedown', e => e.preventDefault());
+playerSearchClearBtn.addEventListener('click', () => {
+  playerSearchEl.value = '';
+  updatePlayerSearchClear();
+  closePlayerSuggestions();
+  if (state.player) { state.player = ''; syncAssetTypeLock(); fetchPage(true); }
+});
+
+/* ══════════════════ Find a collector (username/address type-ahead) ══════════════════
+   Ported from wallet.html's search-box suggestions — suggest-as-you-type via
+   /api/wallet/suggest, no separate "Find" button; picking a suggestion (or a
+   raw address that resolves) SPOTLIGHTS that collector: the table swaps from
+   the paginated leaderboard to showing only their row, at their real rank
+   (see loadSpotlight()/exitSpotlight() above) — not a separate inline
+   sentence, which got cramped/hard to read next to the filter bar. */
+const findCollectorInputEl = document.getElementById('findCollectorInput');
+const findCollectorSuggestPanel = document.getElementById('findCollectorSuggestPanel');
+const findCollectorClearBtn = document.getElementById('findCollectorClear');
+let fcSuggestItems = [];
+let fcSuggestActiveIndex = -1;
+let fcSuggestSeq = 0;
+
+function closeFcSuggestions() {
+  findCollectorSuggestPanel.classList.remove('open');
+  fcSuggestItems = [];
+  fcSuggestActiveIndex = -1;
+}
+
+function updateFindCollectorClear() {
+  findCollectorClearBtn.style.display = findCollectorInputEl.value ? '' : 'none';
+}
+
+function renderFcSuggestions() {
+  if (!fcSuggestItems.length) {
+    findCollectorSuggestPanel.innerHTML = `<div class="cb-empty">No matches</div>`;
+  } else {
+    findCollectorSuggestPanel.innerHTML = fcSuggestItems.map((s, i) => `
+      <div class="cb-item suggest-item${i === fcSuggestActiveIndex ? ' active' : ''}" data-index="${i}">
+        <span class="suggest-item-name">${escHtml(s.username || '(no username)')}</span>
+        <span class="suggest-item-wallet">${escHtml(s.wallet_address)}</span>
+      </div>
+    `).join('');
+    findCollectorSuggestPanel.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('mousedown', e => e.preventDefault());
+      el.addEventListener('click', () => selectFcSuggestion(fcSuggestItems[Number(el.dataset.index)]));
+    });
+  }
+  findCollectorSuggestPanel.classList.add('open');
+}
+
+function selectFcSuggestion(item) {
+  findCollectorInputEl.value = item.username || item.wallet_address;
+  updateFindCollectorClear();
+  closeFcSuggestions();
+  spotlightCollector(item.wallet_address);
+}
+
+async function spotlightCollector(resolvedWallet) {
+  const query = resolvedWallet || findCollectorInputEl.value.trim();
+  const resultEl = document.getElementById('findCollectorResult');
+  if (!query) { resultEl.textContent = ''; return; }
+  resultEl.textContent = 'Searching…';
+  try {
+    let wallet = resolvedWallet;
+    if (!wallet) {
+      const resolveRes = await fetch(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`);
+      if (resolveRes.status === 404) {
+        resultEl.textContent = `No wallet or username found matching "${query}".`;
+        return;
+      }
+      if (!resolveRes.ok) throw new Error(`resolve failed: ${resolveRes.status}`);
+      ({ wallet_address: wallet } = await resolveRes.json());
+    }
+    resultEl.textContent = '';
+    state.spotlightWallet = wallet;
+    await fetchPage(true);
+  } catch (err) {
+    resultEl.textContent = 'Failed to look up. Please try again shortly.';
+    console.error(err);
+  }
+}
+
+let _fcSuggestT = null;
+findCollectorInputEl.addEventListener('input', () => {
+  clearTimeout(_fcSuggestT);
+  updateFindCollectorClear();
+  const q = findCollectorInputEl.value.trim();
+  document.getElementById('findCollectorResult').textContent = '';
+  // Clearing the box exits the spotlight, same convention as the Player
+  // search box — there's no other way to get back to the full leaderboard
+  // via this input once a collector is spotlighted.
+  if (!q && state.spotlightWallet) { state.spotlightWallet = null; fetchPage(true); return; }
+  if (q.length < 2) { closeFcSuggestions(); return; }
+  _fcSuggestT = setTimeout(async () => {
+    const seq = ++fcSuggestSeq;
+    try {
+      const res = await fetch(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (seq !== fcSuggestSeq) return;
+      fcSuggestItems = data.suggestions;
+      fcSuggestActiveIndex = -1;
+      renderFcSuggestions();
+    } catch (err) {
+      console.error(err);
+    }
+  }, 250);
+});
+
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.find-collector-wrap')) closeFcSuggestions();
+});
+
+findCollectorClearBtn.addEventListener('mousedown', e => e.preventDefault());
+findCollectorClearBtn.addEventListener('click', () => {
+  findCollectorInputEl.value = '';
+  updateFindCollectorClear();
+  document.getElementById('findCollectorResult').textContent = '';
+  closeFcSuggestions();
+  if (state.spotlightWallet) { state.spotlightWallet = null; fetchPage(true); }
+});
+
+findCollectorInputEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && fcSuggestItems.length) {
+    e.preventDefault();
+    fcSuggestActiveIndex = (fcSuggestActiveIndex + 1) % fcSuggestItems.length;
+    renderFcSuggestions();
+  } else if (e.key === 'ArrowUp' && fcSuggestItems.length) {
+    e.preventDefault();
+    fcSuggestActiveIndex = (fcSuggestActiveIndex - 1 + fcSuggestItems.length) % fcSuggestItems.length;
+    renderFcSuggestions();
+  } else if (e.key === 'Enter') {
+    if (fcSuggestActiveIndex >= 0 && fcSuggestItems[fcSuggestActiveIndex]) {
+      selectFcSuggestion(fcSuggestItems[fcSuggestActiveIndex]);
+    } else {
+      closeFcSuggestions();
+      spotlightCollector();
+    }
+  } else if (e.key === 'Escape') {
+    closeFcSuggestions();
+  }
+});
+
+function clearAllFilters() {
+  state.spotlightWallet = null;
+  state.player = ''; state.editionMin = null; state.editionMax = null;
+  state.series.clear(); state.set_name.clear(); state.rarity.clear(); state.team.clear();
+  state.edition_badges.clear(); state.highlight_badges.clear(); state.highlights.clear();
+  document.getElementById('playerSearch').value = '';
+  updatePlayerSearchClear();
+  document.getElementById('editionMinInput').value = '';
+  document.getElementById('editionMaxInput').value = '';
+  document.getElementById('highlightsDdSearch').value = '';
+  document.getElementById('highlightsDdItems').innerHTML = '';
+  document.querySelectorAll('.cb-dropdown').forEach(container => {
+    container.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  });
+  refreshCbLabel(document.getElementById('seriesDd'), state.series, 'Series');
+  refreshCbLabel(document.getElementById('setDd'), state.set_name, 'Set');
+  refreshCbLabel(document.getElementById('rarityDd'), state.rarity, 'Rarity');
+  refreshCbLabel(document.getElementById('teamDd'), state.team, 'Team');
+  refreshCbLabel(document.getElementById('editionBadgesDd'), state.edition_badges, 'Edition Badges');
+  refreshCbLabel(document.getElementById('highlightBadgesDd'), state.highlight_badges, 'Highlight Badges');
+  renderHighlightPickerSelected();
+  renderHighlightPickerLabel();
+  syncAssetTypeLock();
+  document.getElementById('findCollectorInput').value = '';
+  updateFindCollectorClear();
+  document.getElementById('findCollectorResult').textContent = '';
+  closeFcSuggestions();
+  fetchPage(true);
+}
+document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
+
+(async function init() {
+  document.getElementById('resultsMeta').textContent = 'Loading…';
+  try {
+    await Promise.all([populateFilters(), fetchPage(true)]);
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load leaderboard. Please try again shortly.';
+    console.error(err);
+  }
+})();
+</script>
+
+<script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Highlights — NHL Breakaway — Hoardio</title>
+  <meta name="description" content="Browse every NHL Breakaway highlight — player, set, rarity, editions, and team. Filter by player, set, series, rarity, and team." />
+  <link rel="canonical" href="https://www.hoardio.com/nhlbreakaway/highlights" />
+  <link rel="icon" href="../images/Hoardio_fav.ico" sizes="any" />
+  <link rel="icon" href="../images/Hoardio_fav.png" type="image/png" />
+  <link rel="stylesheet" href="../shared/global.css" />
+  <style>
+    .content { display: flex; flex-direction: column; gap: 1.25rem; }
+    .page-header { margin-bottom: 0; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .filter-bar .cb-combo { min-width: 180px; flex: 1; max-width: 260px; }
+    .filter-bar .search-input { min-width: 200px; flex: 1.4; max-width: 320px; }
+
+    /* ── Results meta ── */
+    .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
+    .results-meta strong { color: var(--text-primary); }
+
+    /* ── Highlights table ── */
+    .highlights-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .highlights-table thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); background: var(--bg-card);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .highlights-table thead th.col-r { text-align: right; }
+    .highlights-table thead th.sortable { cursor: pointer; user-select: none; }
+    .highlights-table thead th.sortable:hover { color: var(--text-primary); }
+    .highlights-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
+    .highlights-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    .highlights-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+    .highlights-table tbody tr:last-child { border-bottom: none; }
+    .highlights-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .highlights-table tbody td { padding: 8px 12px; vertical-align: middle; }
+    .highlights-table tbody td.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .cell-player { font-weight: 600; color: var(--text-primary); text-decoration: none; }
+    .cell-player:hover { color: var(--accent-light); text-decoration: underline; }
+    .cell-team { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .cell-team-logo { height: 1.2rem; width: auto; flex-shrink: 0; }
+    .cell-set-name { color: var(--text-primary); }
+    .cell-series { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .cell-pct { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+    /* Top Holder — count on top, holder name (link when a real username
+       exists) underneath, same stacked-line idea as .cell-pct above. */
+    .cell-holder-name { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+    .holder-link { color: var(--accent-light); text-decoration: none; }
+    .holder-link:hover { text-decoration: underline; }
+    /* Uncapped highlight (moments.total_editions IS NULL) — a live, growing
+       count, not a fixed total. Styled distinctly so "3" here reads as
+       "3 so far" rather than "exactly 3, ever". */
+    .editions-growing { color: var(--accent-light); font-weight: 700; cursor: help; }
+
+    /* ── Rarity pills — same exact gradients as sets.html's ── */
+    .rarity-pill {
+      --rr-border: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35));
+      --rr-text: linear-gradient(91.27deg, #fff 6.06%, #e7f1f4 47.93%, #fff 87.27%);
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid transparent;
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
+    }
+    .rarity-pill-text {
+      background-image: var(--rr-text);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+    }
+    .rarity-pill--fandom    { --rr-border: linear-gradient(91deg, #824424, #8a6441 30%, #7b4c2e 90%); --rr-text: linear-gradient(91deg, #d1713e 6.06%, #f3ac6c 47.93%, #d28e62 87.27%); }
+    .rarity-pill--rare      { --rr-border: linear-gradient(92deg, #4e7fff, #2f52d6 30%, #4e7fff 90%); --rr-text: linear-gradient(93.83deg, #68aeff -0.71%, #c4dfff 45.06%, #68aeff 99.14%); }
+    .rarity-pill--limited   { --rr-border: linear-gradient(91deg, #646464, #303030 30%, #646464 90%); --rr-text: linear-gradient(91.27deg, #a5b4ae 6.06%, #e6edea 31.44%, #bdc2c0 47.51%, #d9d9d9 63.58%, #c5d2ce 87.27%); }
+    .rarity-pill--legendary { --rr-border: linear-gradient(92.71deg, #bd8800 -7.25%, #633b00 16.42%, #bd8800 36.23%, #633b00 54.94%, #bd8800 76.96%, #633b00 98.42%); --rr-text: linear-gradient(91.27deg, #ffb800 6.06%, #ffebb8 47.93%, #ffcf55 87.27%); }
+    .rarity-pill--epic      { --rr-border: linear-gradient(92deg, #007770, #350da7 10%, #89068b 30%, #350da7 70%, #007770 95%); --rr-text: linear-gradient(99.88deg, #23ffa3 0.36%, #5177ff 24.51%, #f364ff 46.15%, #748aff 71.31%, #28ffcb 96.55%); }
+    .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
+    .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
+
+    @media (max-width: 700px) {
+      .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
+      .highlights-table { font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="content">
+
+    <div class="page-header">
+      <div class="page-title">NHL Breakaway <span class="accent">Highlights</span></div>
+      <div class="page-subtitle">Every highlight — player, set, rarity, editions, and team.</div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" class="search-input" id="playerSearch" placeholder="Search player name" autocomplete="off" spellcheck="false">
+      <div class="cb-combo" id="setCombo">
+        <input type="text" class="cb-combo-input" id="setComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="setComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="setPanel"></div>
+      </div>
+      <div class="cb-combo" id="rarityCombo">
+        <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="rarityPanel"></div>
+      </div>
+      <div class="cb-combo" id="seriesCombo">
+        <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="seriesPanel"></div>
+      </div>
+      <div class="cb-combo" id="teamCombo">
+        <input type="text" class="cb-combo-input" id="teamComboInput" autocomplete="off" spellcheck="false">
+        <button type="button" class="cb-combo-clear" id="teamComboClear" style="display:none" title="Clear">✕</button>
+        <div class="cb-panel" id="teamPanel"></div>
+      </div>
+    </div>
+
+    <div class="results-meta" id="resultsMeta"></div>
+
+    <div style="overflow-x:auto;">
+      <table class="highlights-table">
+        <thead>
+          <tr id="highlightsHeadRow"></tr>
+        </thead>
+        <tbody id="highlightsBody"></tbody>
+      </table>
+    </div>
+
+    <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+      <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="rarity-order.js"></script>
+<script>
+'use strict';
+
+// TEMPORARY — points at the local dev-server (nhlbreakaway/dev-server/
+// index.js), which already queries the live production database directly
+// (no separate dev/prod split). Swap this for a real deployed API endpoint
+// once one exists; nothing else on this page needs to change beyond this
+// line and fetchPage() below.
+const API_BASE = 'http://localhost:8877';
+const PAGE_SIZE = 100;
+
+const COLUMNS = [
+  { key: 'player',   label: 'Player',   sortable: true },
+  { key: 'set',      label: 'Set',      sortable: true },
+  { key: 'rarity',   label: 'Rarity',   sortable: true },
+  { key: 'editions', label: 'Editions', sortable: true, num: true },
+  { key: 'holders',  label: 'Holders',  sortable: true, num: true },
+  { key: 'in_packs', label: 'In Packs', sortable: true, num: true },
+  { key: 'top_holder', label: 'Top Holder', sortable: true, num: true },
+  { key: 'team',     label: 'Team',     sortable: true },
+];
+
+const state = {
+  highlights: [],
+  player: '',
+  // The "Set" dropdown filters by set_name — deduplicated by name, not
+  // set_uuid, since a themed set gives each rarity its own set_uuid (see
+  // handleHighlightsFilters' dedup comment in dev-server/index.js).
+  set_name: '',
+  // Deep-link filter from the Sets page's "collection_key" column (query
+  // param `set`, kept as its own state field distinct from the Set dropdown
+  // above, since they're independent filter mechanisms).
+  collection_key: '',
+  series_label: '',
+  rarity: '',
+  team: '',
+  sortField: 'player',
+  sortDir: 'asc',
+  offset: 0,
+  hasMore: false,
+  busy: false,
+  autoLoadArmed: false,
+};
+
+function buildQuery(extra) {
+  const params = new URLSearchParams();
+  if (state.player) params.set('player', state.player);
+  if (state.set_name) params.set('set_name', state.set_name);
+  if (state.collection_key) params.set('set', state.collection_key);
+  if (state.series_label) params.set('series_label', state.series_label);
+  if (state.rarity) params.set('rarity', state.rarity);
+  if (state.team) params.set('team', state.team);
+  params.set('sort', state.sortField);
+  params.set('dir', state.sortDir);
+  params.set('limit', PAGE_SIZE);
+  params.set('offset', state.offset);
+  return params;
+}
+
+// ── View-state in the URL, so a "Back to Highlights" link from the Holders
+// page (which captures document.referrer — see holders.html) round-trips
+// back to the exact filters/sort/loaded-count the user had, instead of a
+// reset list. Only non-default values are written, to keep bare URLs clean.
+function syncUrl() {
+  const params = buildQuery();
+  // buildQuery()'s limit is a fetch-only concern, not part of the persisted
+  // view state — the restored offset is what matters for "how much was loaded".
+  params.delete('limit');
+  // A single default page load already leaves state.offset === PAGE_SIZE —
+  // only persist it once MORE than that has been loaded (a real "Load more"
+  // click/scroll happened), or a bare/default visit would immediately pick
+  // up a stray ?offset=100 the moment its first chunk finishes loading.
+  if (state.offset <= PAGE_SIZE) params.delete('offset');
+  if (state.sortField === 'player') params.delete('sort');
+  if (state.sortDir === 'asc') params.delete('dir');
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? `${location.pathname}?${qs}` : location.pathname);
+}
+
+function paramsToState(sp) {
+  state.player = sp.get('player') || '';
+  state.set_name = sp.get('set_name') || '';
+  state.collection_key = sp.get('set') || '';
+  state.series_label = sp.get('series_label') || '';
+  state.rarity = sp.get('rarity') || '';
+  state.team = sp.get('team') || '';
+  state.sortField = sp.get('sort') || 'player';
+  state.sortDir = sp.get('dir') || 'asc';
+  return parseInt(sp.get('offset'), 10) || 0;
+}
+
+// Fetches exactly one PAGE_SIZE chunk starting at the current state.offset
+// and appends it. Returns how many rows came back (0 on error/no more).
+async function loadChunk() {
+  if (state.busy) return 0;
+  state.busy = true;
+  renderLoadMore();
+  let got = 0;
+  try {
+    const res = await fetch(`${API_BASE}/api/highlights?${buildQuery()}`);
+    const data = await res.json();
+    state.highlights = [...state.highlights, ...data.highlights];
+    state.hasMore = data.has_more;
+    state.offset += data.highlights.length;
+    got = data.highlights.length;
+    renderBody();
+    syncUrl();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load highlights. Please try again shortly.';
+    console.error(err);
+  } finally {
+    state.busy = false;
+    renderLoadMore();
+  }
+  return got;
+}
+
+async function fetchPage(reset) {
+  if (reset) { state.offset = 0; state.highlights = []; state.autoLoadArmed = false; }
+  await loadChunk();
+}
+
+// Used only on init, to reload however many rows were loaded before the user
+// left (via a URL that came from syncUrl() above) — loops one PAGE_SIZE chunk
+// at a time rather than assuming a bigger single fetch, since the backend
+// clamps limit at 200.
+async function restoreChunks(targetOffset) {
+  state.offset = 0; state.highlights = []; state.autoLoadArmed = false;
+  let got;
+  do {
+    got = await loadChunk();
+  } while (got > 0 && state.hasMore && state.offset < targetOffset);
+}
+
+function renderHead() {
+  const row = document.getElementById('highlightsHeadRow');
+  row.innerHTML = COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = state.sortField === col.key;
+    const icon = sorted ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (state.sortField === field) {
+        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortField = field;
+        state.sortDir = (field === 'editions' || field === 'holders' || field === 'in_packs' || field === 'top_holder') ? 'desc' : 'asc';
+      }
+      renderHead();
+      fetchPage(true);
+    });
+  });
+}
+
+function fmtNum(n) {
+  return n === null || n === undefined ? '—' : n.toLocaleString();
+}
+function fmtPct(p) {
+  return p === null || p === undefined ? '' : `${p.toFixed(2)}%`;
+}
+
+// Links a Top Holder to their official nhlbreakaway.com profile, pre-filtered
+// to this exact highlight — same URL shape as holders.html's own
+// nhlBreakawayUserUrl(). Only valid for a real Sweet username (the backend's
+// separate top_holder_username field, not top_holder's own owner_name/wallet
+// fallback) — those aren't real usernames on nhlbreakaway.com.
+function nhlBreakawayUserUrl(username, h) {
+  if (!username) return null;
+  const params = new URLSearchParams({
+    sort: 'newest',
+    set: h.set_name || '',
+    q: h.player || '',
+    series: h.series_label || '',
+  });
+  return `https://nhlbreakaway.com/user/${encodeURIComponent(username)}?${params}`;
+}
+
+function renderBody() {
+  const body = document.getElementById('highlightsBody');
+  body.innerHTML = state.highlights.map(h => `
+    <tr>
+      <td><a class="cell-player" href="holders/${encodeURIComponent(h.moment_uuid)}">${h.player || '—'}</a></td>
+      <td>
+        <div class="cell-set-name">${h.set_name || '—'}</div>
+        <div class="cell-series">${h.series_label || ''}</div>
+      </td>
+      <td>${h.rarity
+        ? `<span class="rarity-pill rarity-pill--${h.rarity.toLowerCase()}"><span class="rarity-pill-text">${h.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">${h.editions_is_growing
+        ? `<span class="editions-growing" title="Uncapped — grows every time a collector crafts a new copy">${fmtNum(h.editions)}+</span>`
+        : fmtNum(h.editions)}</td>
+      <td class="col-r">${fmtNum(h.holders)}</td>
+      <td class="col-r">${fmtNum(h.in_packs)}<span class="cell-pct">${fmtPct(h.in_packs_pct)}</span></td>
+      <td class="col-r">${h.top_holder ? `${fmtNum(h.top_holder_count)}<span class="cell-holder-name">${
+        nhlBreakawayUserUrl(h.top_holder_username, h)
+          ? `<a class="holder-link" href="${nhlBreakawayUserUrl(h.top_holder_username, h)}" target="_blank" rel="noopener">${h.top_holder}</a>`
+          : h.top_holder
+      }</span>` : '—'}</td>
+      <td>${h.team
+        ? `<span class="cell-team">${h.team_logo_url ? `<img class="cell-team-logo" src="${h.team_logo_url}" alt="" loading="lazy">` : ''}${h.team}</span>`
+        : '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('resultsMeta').innerHTML =
+    `<strong>${state.highlights.length}</strong> highlight${state.highlights.length === 1 ? '' : 's'}${state.hasMore ? '+' : ''}`;
+}
+
+function renderLoadMore() {
+  const wrap = document.getElementById('loadMoreWrap');
+  const btn = document.getElementById('loadMoreBtn');
+  wrap.style.display = state.hasMore ? 'block' : 'none';
+  btn.disabled = state.busy;
+  btn.textContent = state.busy ? 'Loading…' : 'Load more';
+}
+
+function onLoadMoreClick() {
+  state.autoLoadArmed = true;
+  fetchPage(false);
+}
+document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
+
+// "Click once to arm" infinite scroll — same pattern as explore.html/inventory.html:
+// the first page beyond what's shown needs a manual click, but once armed,
+// scrolling the Load More button back into view auto-loads the next chunk.
+// A fresh filter/sort disarms it (see fetchPage's reset branch above).
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && state.autoLoadArmed && !state.busy && state.hasMore) fetchPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('loadMoreWrap'));
+
+/* ── Player search (debounced) ── */
+let _playerT = null;
+document.getElementById('playerSearch').addEventListener('input', e => {
+  clearTimeout(_playerT);
+  _playerT = setTimeout(() => {
+    state.player = e.target.value.trim();
+    fetchPage(true);
+  }, 400);
+});
+
+/* ── Shared cb-combo wiring (Set / Rarity / Series / Team) ── */
+function closeAllCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.classList.remove('open');
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    if (combo._items) syncComboDisplay(combo);
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-combo')) closeAllCombos();
+});
+
+function syncComboDisplay(combo) {
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._items[0];
+  const active = combo._items.find(i => i.value === combo._getValue()) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function buildCombo(comboId, items, getValue, setValue) {
+  const combo = document.getElementById(comboId);
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  combo._items = items;
+  combo._getValue = getValue;
+  syncComboDisplay(combo);
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const pick = val => {
+    closeAllCombos();
+    setValue(val);
+    // A manual filter pick means the user is now driving the page directly —
+    // the Sets-page deep link's collection_key (a silent, one-shot arrival
+    // filter with no visible UI of its own) must not keep combining with it,
+    // or picking e.g. a different Set/Rarity while it's still active
+    // produces a confusing, over-narrowed intersection of both.
+    state.collection_key = '';
+    syncComboDisplay(combo);
+    fetchPage(true);
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._items.slice(1);
+    const filtered = q ? options.filter(i => i.label.toLowerCase().includes(q)) : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === getValue() ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCombos();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); input.blur(); closeAllCombos(); }
+    else if (e.key === 'Enter') { e.preventDefault(); panel.querySelector('.cb-item')?.click(); }
+  });
+  input.addEventListener('blur', () => {
+    // Close only THIS combo, not every combo — see matching comment in
+    // sets.html / feedback_cbcombo_blur_close_race memory.
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncComboDisplay(combo);
+      }
+    }, 150);
+  });
+  clear.addEventListener('mousedown', e => e.preventDefault());
+  clear.addEventListener('click', () => { pick(''); input.blur(); });
+}
+
+async function populateFilters() {
+  const res = await fetch(`${API_BASE}/api/highlights/filters`);
+  const data = await res.json();
+
+  buildCombo('setCombo',
+    [{ value: '', label: 'All sets' }, ...data.sets.map(name => ({ value: name, label: name }))],
+    () => state.set_name, v => state.set_name = v);
+
+  buildCombo('rarityCombo',
+    [{ value: '', label: 'All rarities' }, ...data.rarities.map(v => ({ value: v, label: v }))],
+    () => state.rarity, v => state.rarity = v);
+
+  buildCombo('seriesCombo',
+    [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
+    () => state.series_label, v => state.series_label = v);
+
+  buildCombo('teamCombo',
+    [{ value: '', label: 'All teams' }, ...data.teams.map(v => ({ value: v, label: v }))],
+    () => state.team, v => state.team = v);
+}
+
+// ── Best-effort scroll restore when actually returning from a Holders page
+// (not on a fresh/direct visit — only when document.referrer proves that's
+// where the user came from). Paired with holders.html's own back-link,
+// which captures this page's full URL (filters/sort/loaded-count) as its
+// href, so this and syncUrl() together are what make "browse Highlights,
+// drill into several Holders pages, come back each time to the same spot"
+// work without any server-side session state.
+const SCROLL_KEY = 'nhlbreakaway_highlights_scroll';
+window.addEventListener('pagehide', () => {
+  try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY)); } catch {}
+});
+function restoreScrollIfReturning() {
+  try {
+    if (!document.referrer) return;
+    const ref = new URL(document.referrer);
+    if (ref.origin !== location.origin || !/\/holders(\/|$|\.html)/.test(ref.pathname)) return;
+    const y = sessionStorage.getItem(SCROLL_KEY);
+    if (y !== null) requestAnimationFrame(() => window.scrollTo(0, parseInt(y, 10) || 0));
+  } catch {}
+}
+
+(async function init() {
+  const initialOffset = paramsToState(new URLSearchParams(location.search));
+  document.getElementById('playerSearch').value = state.player;
+  renderHead();
+  document.getElementById('resultsMeta').textContent = 'Loading…';
+  try {
+    await Promise.all([populateFilters(), restoreChunks(initialOffset)]);
+    restoreScrollIfReturning();
+  } catch (err) {
+    document.getElementById('resultsMeta').textContent = 'Failed to load highlights. Please try again shortly.';
+    console.error(err);
+  }
+})();
+</script>
+
+<script src="nav.js"></script>
+</body>
+</html>

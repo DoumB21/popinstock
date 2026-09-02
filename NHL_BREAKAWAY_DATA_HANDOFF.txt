@@ -1,0 +1,434 @@
+NHL BREAKAWAY DATA LAYER — HANDOFF NOTE
+Written 2026-08-25, updated 2026-08-26, by a Claude Code session working in
+C:\Personnel\Projets\NHL Breakaway
+Dropped here (PopInStock3.0) only as a file for another session to read — nothing else
+in this project folder was touched or should be touched based on this note.
+
+UPDATE 2026-08-26: the Sets page got built against this data (served locally at
+http://localhost/PopInStock/nhlbreakaway/sets) and was cross-verified live, row by row,
+against nhlba.com. Two corrections below fold in what that build turned up.
+
+CONTEXT
+The user is building fan leaderboards/tools for NHL Breakaway (nhlbreakaway.com, a
+Sweet.io-powered officially-licensed NHL digital collectibles platform), separate from
+this PopInStock project. A different Claude session (in the "NHL Breakaway" project
+folder) has spent a long session validating a full data pipeline and designing the query
+layer for a fuller community platform (holder lookups, wallet inventory, set completion,
+pack stats — comparable to fan sites nhlba.com and thefifthlinecode.onrender.com, but
+more accurate). This note is the data/query-layer summary from that session, for
+whichever session/codebase ends up building the actual website.
+
+DATABASE
+Local Postgres, DB name `nhlbreakaway`. (Dual-backend code exists for Turso too, but
+Postgres is what's actually live right now.) Ask the user for connection details if
+you need to query it directly — they were not included here on purpose.
+
+CORE TABLES (all already built, populated, and validated against live ground truth)
+- dead_moments — NEW 2026-08-26. moment_uuid (PK), reason, confirmed_at. 3 rows —
+  moment_uuids that still show up in Sweet's own catalog search (so they exist in
+  `moments`, and build-moments.js keeps re-discovering them on every rebuild) but
+  whose token never resolves (confirmed 404 on Sweet's API across multiple runs) and
+  which have zero rows in `cards`. NOT the same as a moment that's simply "not minted
+  yet" (e.g. a 1/1 nobody's claimed) — those resolve fine, just with 0 current cards;
+  a dead_moments entry never resolves at all. Two of the three were exact-duplicate
+  phantom entries alongside a real, working moment for the same highlight (same
+  player/play/date/rarity/edition-count, different series_id) — this is what caused
+  "Hometown History: Chicago Blackhawks" to show 5 highlights across 3 rarities
+  instead of the correct 3 (1 each), confirmed against two other fan sites.
+  IMPORTANT: the Highlights page (and any other query that lists individual moments,
+  not just the already-fixed `collections` aggregate) must exclude these:
+    WHERE moment_uuid NOT IN (SELECT moment_uuid FROM dead_moments)
+  Do not hardcode these 3 UUIDs anywhere else — the one place they're allowed to be
+  literal strings is scripts/seed-dead-moments.js in the NHL Breakaway project.
+
+- collection_key — NEW 2026-08-26, CORRECTED same day. A single opaque column on
+  BOTH `moments` and `collections`, identical value on both sides. Currently ==
+  set_uuid under the hood (an earlier version of this column was
+  series_label+set_name+rarity — that was wrong, see below; the column NAME and
+  usage pattern haven't changed, only what it's computed from).
+  Why set_uuid and not the label triple: verified 2026-08-26 that set_uuid never
+  spans more than one (series_label, set_name, rarity) label — but the reverse
+  isn't true. A few themed sets ("Hometown History: ...") give each individual
+  highlight its own distinct set_uuid rather than sharing one per collection.
+  Grouping by the label triple alone over-merges those — "Hometown History:
+  Detroit Red Wings" (Core) has 2 real different players (Lidstrom, Yzerman), which
+  must be 2 separate collections/rows, not one row claiming "2 moments". set_uuid is
+  the true grain of "one real collection" both ways: real multi-card collections
+  (Ice Nation, Base, etc.) still correctly stay merged under one set_uuid, while
+  themed one-off sets correctly split into one row per highlight. `collections` now
+  has 93 rows (was 90 under the label-triple version, 84 originally).
+  Use case unchanged: Sets page row -> click -> Highlights page pre-filtered to that
+  exact collection, passing this ONE value (e.g. as a URL param):
+    Sets page:       SELECT collection_key, ... FROM collections
+    Highlights page: SELECT ... FROM moments
+                      WHERE collection_key = ?
+                        AND moment_uuid NOT IN (SELECT moment_uuid FROM dead_moments)
+  Never parse this value apart — treat it as a fully opaque string, just store it,
+  pass it in the URL (normal URL-encode it, no special handling needed), and match
+  it exactly. Both filters (collection_key AND the dead_moments exclusion) are
+  required together — collection_key alone still returns the 2 dead Chicago
+  Blackhawks duplicates since dead_moments is a separate, independent filter.
+- moments — one row per distinct card design.
+  Columns: moment_uuid (PK), series_id, series_label, set_name, set_uuid, rarity,
+  player, team, play, game_date, total_editions, token_uri, sequence_number,
+  collection_key (NEW 2026-08-26 — see below), scraped_at,
+  jersey_number (NEW 2026-08-26), badges_fetched_at (NEW 2026-08-26, internal
+  resumability marker for scripts/backfill-badges.js — ignore for querying)
+- moment_badges — NEW 2026-08-26, backfilled and verified. One row per (moment,
+  badge) — a moment can have several (4,079 rows across 1,960/1,963 moments, 3
+  moments failed with a dead 404 token_uri and will self-heal next backfill run).
+  Columns: moment_uuid, badge_name, badge_image_url. These are nhlbreakaway.com's
+  own "Badges" — help.nhlbreakaway.com article 8141339 explains the concept, but
+  its badge names are marketing copy, NOT what the API actually returns; use the
+  real observed names below for dropdown options/filters, not the help article's:
+    Series Debut (827), Curator Badge (740), Breakaway Debut (560),
+    Rookie Status (417), Award Year (229) [article calls this "Trophy Year"],
+    Multi-Highlight (197) [article: "Multi Highlight", no hyphen],
+    Signature Quest I..XI Badge (roman-numeral-specific, 38-144 each — the
+    article's generic "Signature Quest Badge" doesn't exist as a literal value),
+    Career Milestone (97), Collector Badge (87), Record Breaker (30),
+    Seasonal Milestone (26), Commentary Audio (8), Player Audio (5)
+      [Commentary Audio / Player Audio aren't in the help article at all —
+      cosmetic/feature badges, not achievement ones, but stored the same way].
+  To filter the Highlights page by badge: JOIN/WHERE EXISTS against moment_badges
+  on moment_uuid, using badge_name values from the list above (exact match).
+  IMPORTANT — three badge types are deliberately NOT in this table, because Sweet's
+  API returns them identically for every edition of a moment regardless of which
+  edition was actually queried (verified 2026-08-26 by fetching 3 different editions
+  of the same 250-edition moment and getting "#1 Edition"/"Perfect Edition" on all
+  three, including editions that were neither #1 nor last). Compute these live per
+  CARD instead, never trust a stored value for them:
+    #1 Edition            -> cards.edition_number = 1
+    Perfect Edition        -> cards.edition_number = moments.total_editions
+    Jersey Match Edition   -> cards.edition_number = moments.jersey_number
+  (moments.jersey_number is itself a frozen fact about that specific historical
+  highlight, same category as team/game_date — a later real-life trade/number
+  change should NOT retroactively change it; inferred with high confidence from
+  the data's shape, not lab-verified against a real number-change case.)
+- collections — one row per (series_label, set_name, rarity) — NOTE: rarity joined
+  the primary key 2026-08-26 (was just series_label+set_name). Reason: a handful of
+  set_name values are reused across genuinely different rarity tiers with their own
+  distinct set_uuid — "Hometown History: Chicago Blackhawks"/Dallas Stars/Detroit Red
+  Wings and "Hanging from the Rafters" are each actually 2-3 separate collections
+  (Core/Limited/Rare), not one. The old grouping silently merged them under one
+  MAX(rarity)-picked label with wrong totals — caught 2026-08-26 by cross-checking
+  against two other fan sites, which correctly show these as separate sets. 91 rows
+  total now (was 84).
+  Columns: series_label, set_name, set_uuid, rarity, template_count, total_supply,
+  image_url, in_set_completion_challenge, challenge_active_until,
+  challenge_requirement_count, updated_at
+  UI note: it's fine for the Sets page's "Set" filter dropdown to still show one
+  entry per distinct set_name (deduplicated) — but the grid/table itself must NOT
+  re-group by set_name when rendering rows. Query `collections` directly
+  (`SELECT * FROM collections WHERE set_name = ?` naturally returns 2-3 rows now,
+  one per rarity) rather than aggregating again in the display query.
+- pack_moments — pack template catalog, same idea as moments but for packs.
+  Columns: pack_uuid (PK), series_id, series_label, pack_name, rarity,
+  highlights_in_pack, total_editions, token_uri, sequence_number, scraped_at
+- cards — one row per individually owned or burned card edition (~1.14M rows).
+  Columns: token_uri (PK), moment_uuid, series_id, series_label, set_name, rarity,
+  player, team, play, game_date, edition_number, total_editions, owner_username,
+  owner_name, owner_wallet, owned_since, scraped_at, burned (0/1), burned_by_wallet,
+  burned_at, crafting_turn_in (NEW 2026-08-26 — 0/1/NULL; only populated for cards
+  held unburned by the crafting_processing system wallet, see Used for Crafting
+  formula below; NULL means not yet checked, safe to treat as 0/"not turned in" for
+  display but will be filled in by a future scripts/sync-crafting-turn-ins.js run)
+- packs — same shape as cards, for packs, keyed to pack_uuid instead of moment_uuid
+  (~177K rows)
+- wallet_usernames — wallet_address -> username cache (wallet_address PK, username,
+  updated_at)
+- teams — NEW 2026-08-26. team_name (PK, matches moments.team/cards.team exactly),
+  team_key, abbreviation, logo_url, updated_at. 37 rows — the 32 current NHL teams
+  plus 5 historical/relocated franchises that appear on older highlights (Hartford
+  Whalers, Quebec Nordiques, Minnesota North Stars, Phoenix Coyotes, Arizona
+  Coyotes), each with its own real, distinct logo (verified live, not a guess at the
+  URL pattern — every logo_url returns a real 200 image/png). Join directly:
+  `LEFT JOIN teams ON teams.team_name = moments.team` (or cards.team). logo_url is a
+  public, permanent asset URL (https://nhl-static.assets.sweet.io/team-logo/{team_key}.png)
+  — safe to hotlink directly in an <img> tag, no proxying needed.
+- system_wallets — wallet_address (PK), label, evidence, confirmed_at, role (NEW
+  2026-08-26). NEVER hardcode either wallet address in a query — JOIN system_wallets
+  and filter/CASE on `role` instead, e.g.:
+    LEFT JOIN system_wallets sw ON sw.wallet_address = cards.owner_wallet
+    ... CASE sw.role WHEN 'pack_escrow' THEN 'In Packs' WHEN 'crafting_processing'
+        THEN 'Other' ELSE 'Held' END
+  role = 'pack_escrow' for the primary wallet, 'crafting_processing' for the
+  secondary — see below for what each actually means. 2 confirmed
+  platform-operated (non-collector) wallets — but they are NOT interchangeable, and
+  treating them as one bucket is a bug that shipped and was later found + fixed
+  (2026-08-26). Verified on 2 independent moments by cross-checking against
+  nhlbreakaway.com's own "Collectible Stats" block, which breaks platform-held cards
+  into more categories than Hoardio originally did:
+    0x610123c1F5E34974C63343c84973cd5603b08e7c ("primary") — genuine pack escrow.
+      Unburned holdings = official's "In Packs". Burns performed by this wallet
+      (burned_by_wallet) = official's "Removed from circulation" (exact match: 7190/7190
+      on the Ice Nation Lukas Dostal moment). This wallet accounts for 303K+ burns
+      campaign-wide, overwhelmingly concentrated in Ice Nation — a mass
+      never-claimed-editions removal, not routine crafting.
+    0xdd47609a05f892a9870406381fe74EDe905F071B ("secondary") — despite the generic
+      label, this is NOT pack escrow. It's a crafting-turn-in processing wallet.
+      Unburned holdings = official's "Other" bucket (exact match: 32/32 and 90/90 on
+      two independent moments; exact meaning of "Other" still unconfirmed, ask before
+      relabeling it to anything more specific than "Other"). Burns performed by this
+      wallet = official's "Used for Crafting" (exact match: 9/9 and confirmed live via
+      Sweet's own crafting_turn_in=true flag on a burned token from this wallet).
+  IMPORTANT: any query counting real collectors/holders/distributed-supply still
+  excludes BOTH wallets (LEFT JOIN system_wallets ON wallet_address = owner_wallet
+  WHERE wallet_address IS NULL) — that part was already correct. What changed is that
+  "In Packs" must now mean the primary wallet ONLY, not "either system wallet" — see
+  VERIFIED QUERY FORMULAS below for the corrected 5-way split. Do not hardcode these
+  addresses anywhere else — the one place they're allowed to be literal strings is
+  scripts/seed-system-wallets.js in the NHL Breakaway project, the authoritative source
+  for this table.
+
+VERIFIED QUERY FORMULAS (each cross-checked today against a real fan site and/or the
+official nhlbreakaway.com site, not just theoretical)
+- Per-moment holder list/count: cards WHERE moment_uuid = X AND burned = 0, excluding
+  system_wallets.
+- Per-set stats (Hoardio's Sets page was built and verified against this, 2026-08-26):
+  Moments = collections.template_count (stored)
+  Editions = collections.total_supply (stored) — used ONLY as the % denominator below,
+    never as a stand-in for "this many rows exist" (see CORRECTED FORMULA note below)
+  Distributed = COUNT(*) FROM cards WHERE burned=0 AND owner NOT a system wallet
+  In Packs = COUNT(*) FROM cards WHERE burned=0 AND owner_wallet = the wallet whose
+    system_wallets.role = 'pack_escrow' (join, don't hardcode — see system_wallets
+    entry above). This used to say "either of the two confirmed ones", which is the
+    2026-08-26 bug — the crafting_processing wallet's unburned holdings are a
+    different bucket, "Other", not In Packs.
+  Other = COUNT(*) FROM cards WHERE burned=0 AND owner_wallet = the wallet whose
+    role = 'crafting_processing' AND crafting_turn_in IS NOT 1 — NEW 2026-08-26, was
+    previously silently merged into In Packs
+  Used for Crafting = COUNT(*) FROM cards WHERE
+    (burned=1 AND burned_by_wallet = the 'crafting_processing' wallet)
+    OR (burned=0 AND owner_wallet = the 'crafting_processing' wallet AND crafting_turn_in = 1)
+    — NEW 2026-08-26, was previously just "Burned". The second half of this OR is
+    itself a 2026-08-26 fix: a card gets submitted/locked into crafting
+    (crafting_turn_in=true on Sweet's live _tokendata) before the on-chain burn
+    executes — confirmed via scripts/sync-crafting-turn-ins.js that 23,028 of the
+    43,108 cards then sitting in "Other" were actually already mid-crafting. This is
+    the ONLY column that needs a live per-token check (crafting_turn_in isn't in the
+    bulk search index) — cards.crafting_turn_in is a stored, synced column, not
+    computed live at query time.
+  Removed from circulation = COUNT(*) FROM cards WHERE burned=1 AND burned_by_wallet
+    = the 'pack_escrow' wallet — NEW 2026-08-26, was previously just "Burned"
+  Holders = COUNT(DISTINCT owner_wallet) excluding both system_wallets (unchanged —
+    this part was always correct)
+  In Packs % = In Packs / Editions.  Holders % = Holders / Editions.
+  Same primary/secondary split applies to the Holders page's per-edition status label
+  (was previously a blanket "In Packs" for both wallets, unburned) and to any other
+  page showing a breakdown of where a moment's editions currently sit.
+- "Listed" state — NEW 2026-08-26, not stored in the DB, fetch live per page view (same
+  decision already made for price/sale history below — a listing can appear/get
+  cancelled independent of our sync cadence). `getOpenListings(momentUuid)` in
+  lib/sweetClient.js in the NHL Breakaway project wraps
+  GET /catalog/listing/moments?campaign_id=826&scroll=true&limit=100&collapse=false
+  &offers=true&sweet_is_seller=false&offer_type=fixed-price&sort=price.asc&uuid={moment_uuid}
+  — public, no login needed (unlike the per-owner lock endpoint below). Returns every
+  currently-open fixed-price listing for that moment, cheapest first; each hit has
+  attributes['edition-number'] (join key to cards.edition_number for that moment),
+  sequence_number, and current_offers[0].price_usd/listing_id/status. limit=100 in one
+  call is enough — verified real listing counts top out well under that (41 on a busy
+  3,000-edition moment) — so no scroll_id pagination needed in practice. On the Holders
+  page, a card with an open listing here is still "Held" ownership-wise, just add a
+  "Listed — $X" indicator on that row instead of a separate status bucket.
+  CORRECTED FORMULA, found 2026-08-26 while building this exact page: do NOT compute
+  Distributed/In Packs by subtracting from Editions (e.g. "Distributed = total_supply -
+  in_packs_count"). That silently assumes every theoretical edition already exists as
+  some row, which breaks for a moment that hasn't been minted on-chain yet — found via
+  the "895" set (Alex Ovechkin, Mythic, 1/1: zero cards rows exist for it at all, not
+  even burned, so the subtraction-based formula wrongly showed Distributed=1 when the
+  true value is 0). Always compute both as direct COUNT(*) over real cards rows, never
+  by subtracting from Editions/total_supply.
+- Per-pack stats (matches nhlba.com's Packs page exactly):
+  Moments = pack_moments.highlights_in_pack (stored)
+  Opened = COUNT(*) WHERE burned = 1 (opening a pack burns/consumes it)
+  Collected = COUNT(*) WHERE burned = 0 AND owner not a system wallet
+  Distributed = Opened + Collected (NOTE: packs mint progressively over time, unlike
+  cards where the full total_editions cap is usually already minted — do NOT assume
+  Distributed = total_editions - system_wallet_holdings for packs the way it works
+  for cards/sets; it's simply every row that currently exists in the packs table)
+  % Left = Collected / Distributed
+- Burned-per-moment: not a stored column, derive via GROUP BY moment_uuid on
+  cards.burned — cheap, was live-tested and correct.
+
+SET_UUID IS NOT A CONTRACT ADDRESS, AND NOT THE SAME AS nhlba.com's "P." COLUMN
+collections.set_uuid / moments.set_uuid (a long hex string like
+cd2f47fea54500000000000000000000) is a Sweet catalog-side identifier, not an on-chain
+contract. A real contract address (series_contracts.contract_address) is a standard
+40-hex-char 0x address. nhlba.com's own "P." index column is almost certainly just
+their internal database row order, not derived from anything in Sweet's data — spot
+checked and it does not match Sweet's own real set_id field. Don't try to replicate it.
+set_uuid is still useful as a routing key (URL-safe single value) and for building a
+conditional link to nhlbreakaway.com/play/{series_id}/sets/{set_uuid} — but that page
+only exists for the ~49/84 sets actually enrolled in the Set Completion Challenge
+(collections.in_set_completion_challenge), so check that flag before linking. A real
+Polygonscan link needs series_contracts.contract_address + cards.sequence_number (per
+specific edition) — set_uuid can't be used for that, and a "set" has no single token to
+link to in the first place, so that kind of link belongs on a per-edition row, not here.
+
+CRITICAL GOTCHA
+Wallet address string comparisons MUST be case-insensitive. This DB stores addresses
+in mixed/checksummed case; other sources (URLs, some APIs) normalize to all-lowercase.
+A plain `=` comparison will silently return zero rows instead of erroring if the case
+doesn't match — always use LOWER(a) = LOWER(b) or ILIKE for any wallet address lookup
+that didn't originate from this project's own pipeline.
+
+PRICE / SALE HISTORY — DELIBERATELY NOT STORED, FETCH LIVE PER PAGE VIEW
+Sweet's public API has a per-card transaction history endpoint (already wrapped as
+getDistributionHistory() in lib/sweetClient.js in the NHL Breakaway project) that
+returns: transaction_type, transaction_datetime, edition, amount, currency,
+from_username, to_username, explorer_url — per moment/template, one call. Decision made
+this session: call this live when a visitor views a specific card's page, don't store
+or poll it in the background. Reasoning: unlike ownership (which barely changes and is
+cheap to keep in bulk via Alchemy), a live "current listing price" has zero on-chain
+footprint and no bulk-fetch endpoint, so keeping it fresh would mean endless per-card
+polling with no natural staleness floor. Live current-listing-price/FMV display is
+explicitly out of scope / deferred for now, by the user's own choice.
+
+MINT RANKINGS / "EDITION RATINGS" LEADERBOARD — NEW 2026-08-30, BUILT AND POPULATED
+This is the feature the two open questions below used to describe as unresolved/not
+built — it now is. A new table, `mint_rankings`, is populated and ready to query; no
+schema/query design work is needed on your end, just build the UI + API route(s).
+
+WHAT IT IS
+For every collection (a `collections` row, keyed by set_uuid/collection_key) and every
+real wallet that owns at least one non-burned edition of EVERY template (moment_uuid)
+in that collection, this table has one row per "complete set" that wallet can assemble
+— a wallet owning 3+ copies of every template in a collection gets 3 rows (set_number
+1/2/3), each independently ranked on that collection's leaderboard (a wallet CAN hold
+multiple top ranks of the same collection at once — this was an explicit user decision,
+not an oversight). set_number 1 always uses each template's single lowest-owned
+edition; set_number 2 uses each template's next-lowest; etc — never the same physical
+edition reused across two of a wallet's own complete sets.
+
+SCHEMA — table `mint_rankings`, PRIMARY KEY (collection_key, wallet_address, set_number)
+  collection_key       TEXT     -- == collections.set_uuid, join the same way the Sets/
+                                    Highlights pages already do
+  wallet_address        TEXT     -- case-INSENSITIVE, same gotcha as everywhere else —
+                                    always LOWER() when comparing/joining
+  owner_username         TEXT    -- denormalized, may be NULL (same caveat as elsewhere:
+                                    resolve-usernames.js coverage isn't 100%)
+  set_number             INTEGER -- 1 = this wallet's best complete set of this
+                                    collection, 2 = their 2nd, etc.
+  total_complete_sets    INTEGER -- how many complete sets this wallet owns of this
+                                    collection (same value repeated across all its rows)
+  set_size               INTEGER -- template_count for this collection at compute time
+                                    (should match collections.template_count, but this
+                                    column is the frozen value used for THIS row's math)
+  sum_of_editions        INTEGER -- sum of the edition_number used per template for
+                                    this specific complete set
+  avg_edition             REAL   -- sum_of_editions / set_size
+  total_assets            INTEGER -- sum of each template's cap (total_editions) across
+                                    this collection (falls back to a live COUNT(*) for
+                                    the handful of uncapped "Signature X" growing
+                                    series, same editions_live_sum convention the Sets
+                                    page already uses). Same value repeated across every
+                                    row of one collection. CORRECTED 2026-08-31 — this
+                                    used to be a COUNT(*) of currently-held-by-a-real-
+                                    collector cards (matching the Sets page's
+                                    "Distributed" concept), which produced ratings as
+                                    low as -2612 for any set still mostly sitting
+                                    unopened in pack escrow, since a real holder's
+                                    edition_number can land anywhere in the full cap
+                                    regardless of how much of the print run has been
+                                    distributed yet. total_assets is now the rating
+                                    formula's denominator only — do NOT reuse it as a
+                                    substitute for a real "how many are currently held"
+                                    count anywhere else (same warning this file already
+                                    gives for collections.total_supply above).
+  rating                  REAL   -- (total_assets - sum_of_editions + set_size) /
+                                    total_assets * 100. RAW edition_number, deliberately
+                                    NOT normalized per template's own print-run cap
+                                    (explicit user call 2026-08-30 — matches a formula
+                                    ported from their other, WAX-based project). Lower
+                                    mints = higher rating; max is exactly 100 (every
+                                    card at mint #1). Mathematically guaranteed to stay
+                                    in (0, 100] now that total_assets is defined
+                                    correctly (see above) — worst case every owned
+                                    edition equals its own template's cap, which makes
+                                    rating bottom out at set_size/total_assets*100
+                                    (small, positive), never negative. If you ever see a
+                                    negative or >100 value here, that's a real bug to
+                                    report back, not expected behavior.
+  rank                     INTEGER -- this row's position on the COLLECTION's
+                                    leaderboard (1 = best), computed across every
+                                    wallet's every complete set for that collection —
+                                    i.e. ORDER BY rating DESC already baked in, just
+                                    ORDER BY rank ASC to display
+  editions_used             TEXT   -- JSON array (json-encoded string, needs
+                                    JSON.parse), one entry per template in this specific
+                                    complete set: [{moment_uuid, edition_number,
+                                    total_editions}, ...]. Does NOT include player
+                                    name/image — join each entry's moment_uuid back to
+                                    `moments` for display metadata (player, team, rarity,
+                                    series_id + sequence_number for a media_url the same
+                                    way handleHoldersHeader already builds one).
+  computed_at                TEXT
+
+INDEXES ALREADY IN PLACE: (collection_key, rank) and (wallet_address) — a per-collection
+leaderboard query (`WHERE collection_key = $1 ORDER BY rank ASC LIMIT/OFFSET`) and a
+per-wallet "your complete sets across every collection" query (`WHERE LOWER(wallet_address)
+= $1`) are both index-backed already, no new index work needed.
+
+EXAMPLE QUERIES
+- Leaderboard for one collection (the main "Edition Ratings" page for a given Set):
+    SELECT wallet_address, owner_username, set_number, total_complete_sets, avg_edition,
+           sum_of_editions, set_size, total_assets, rating, rank, editions_used
+    FROM mint_rankings
+    WHERE collection_key = $1
+    ORDER BY rank ASC
+    LIMIT $2 OFFSET $3
+  (Same collection_key value the Sets/Highlights pages already use — this reuses that
+  existing routing convention, no new key to plumb through.)
+- One wallet's Mint Rankings across every collection (a section on the existing wallet
+  profile/Wallet Look Up pages, next to handleWalletSets):
+    SELECT mr.*, col.series_label, col.set_name, col.rarity, col.image_url
+    FROM mint_rankings mr
+    JOIN collections col ON col.set_uuid = mr.collection_key
+    WHERE LOWER(mr.wallet_address) = $1
+    ORDER BY mr.rank ASC
+
+FRESHNESS — READ BEFORE BUILDING ANYTHING THAT ASSUMES LIVE DATA
+`mint_rankings` is populated by a STANDALONE script in the NHL Breakaway project
+(`npm run build-mint-rankings`, ~7s for the whole catalog) — it is NOT currently wired
+into that project's hourly `refresh-all.js` pipeline. As of this note (2026-08-30) it
+was run once, manually, so the data reflects that one point in time and will silently
+go stale until it's re-run (by hand or, if the user decides to add it, on the hourly
+schedule). Mention this to the user if staleness would matter for whatever UI you build
+(e.g. a "last updated" timestamp using MAX(computed_at) is a cheap, honest thing to
+surface rather than implying this is as fresh as everything else on the Sets page).
+
+SUGGESTED SHAPE (not prescriptive — same "you own the UI design" latitude as the Sets
+page before this): a per-collection leaderboard page (reachable from the Sets page, same
+way Sets links into Highlights via collection_key) showing rank/wallet/rating/avg
+edition/complete-set count, with each row expandable to the editions_used breakdown
+(one line per card, its edition #, and a link into the existing Highlights/Holders page
+for that moment_uuid). A wallet's own best sets are worth surfacing on the wallet
+profile page too, since total_complete_sets and set_number are already there for free.
+
+TWO OPEN QUESTIONS, NOT YET RESOLVED
+1. No solved approach yet for a sitewide "recent activity" feed or daily sales-volume
+   chart across the whole catalog (the per-card on-demand approach above works fine for
+   one card at a time, not for an aggregate global view — would need either a bulk
+   endpoint that hasn't been found yet, or a background aggregation job, which
+   contradicts the "don't poll/store" price decision above).
+2. Whether `build-mint-rankings.js` should be added to the NHL Breakaway project's
+   hourly `refresh-all.js` routine (see above) — raised to the user 2026-08-30, not yet
+   answered as of this note.
+
+NOT YET DONE, WORTH DOING BEFORE REAL TRAFFIC
+Materializing per-moment/per-pack stats (circulating/burned/holder-count) into the
+moments/pack_moments tables directly, instead of computing them live via GROUP BY over
+~1.1M cards rows on every page load. Everything above works correctly as live queries
+today; this is a performance optimization for later, not a correctness gap.
+
+WHY THIS DATA IS LIKELY MORE ACCURATE THAN EXISTING FAN SITES
+The NHL Breakaway project's cards/packs tables come from Alchemy on-chain data
+(getOwnersForContract), not Sweet's own search index. Sweet's search index has a
+documented, structural blind spot (misses first-claim/mint events, only sees transfers
+between two already-named owners) that the *old* version of this very project used to
+have before an Alchemy-based rebuild. Concrete evidence, not just theory: cross-checking
+nhlba.com's own leaderboard today, its #2 real collector shows 7,431 total items; this
+project's DB shows 9,717 for that exact wallet — which matches a number independently
+verified against the official site's own ground-truth endpoint. If building a competing
+or complementary site, this data pipeline is a genuine advantage worth leaning on.

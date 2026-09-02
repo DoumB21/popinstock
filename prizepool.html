@@ -886,7 +886,17 @@ function buildCbCombo(comboId, items, currentValue, onSelect) {
   });
   input.addEventListener('blur', () => {
     // Delayed so a click on a list item (which blurs the input first) still registers before we close.
-    setTimeout(() => { if (!combo.contains(document.activeElement)) closeAllCbDropdowns(); }, 150);
+    // Close only THIS combo, not every dropdown — closeAllCbDropdowns() here
+    // would also clobber a different dropdown the user just clicked into and
+    // opened in the meantime (this fires 150ms after blur, well after that
+    // other dropdown's own focus handler already ran).
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncCbComboDisplay(combo);
+      }
+    }, 150);
   });
   clear.addEventListener('mousedown', e => e.preventDefault()); // don't steal focus away from the input
   clear.addEventListener('click', () => {
