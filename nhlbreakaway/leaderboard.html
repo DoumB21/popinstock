@@ -210,25 +210,13 @@
   </div>
 </div>
 
+<script src="api-base.js"></script>
 <script src="rarity-order.js"></script>
 <script>
 'use strict';
 
-// Absolute production URL, not a same-origin relative path — same pattern
-// this site already uses for Supabase/WAX (real public APIs, called
-// directly regardless of what domain the page itself loads from). NHL
-// Breakaway's Postgres database has no browser-safe HTTP interface of its
-// own, so api/route.js on hoardio.com IS that public API; a relative path
-// only resolves correctly when Vercel itself serves the HTML, breaking
-// local IIS testing (which can't run serverless functions at all). CORS is
-// already open on the API, so this absolute URL works identically from
-// localhost, IIS, Vercel previews, and production itself.
-// On localhost specifically, point at the local dev-server instead
-// (`npm run dev:nhlbreakaway`, port 8877 by default) so this page can be
-// tested end-to-end against unpushed backend changes without pushing.
-const API_BASE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
-  ? 'http://localhost:8877'
-  : 'https://www.hoardio.com';
+// See api-base.js (loaded above) for the localhost-vs-production URL logic.
+const API_BASE = window.NHL_API_BASE;
 const PAGE_SIZE = 100;
 
 // The backend caches its cacheable endpoints effectively forever, keyed on

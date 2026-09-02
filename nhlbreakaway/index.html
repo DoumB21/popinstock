@@ -98,6 +98,9 @@
     // this per-request (rather than hardcoding one or forcing a redirect) is
     // the only form that works under both. See nav.js's matching _p logic.
     var _needsPrefix = /\/nhlbreakaway$/.test(location.pathname);
+    // api-base.js sets window.NHL_API_BASE, which nav.js reads unconditionally
+    // — must load first, same prefix logic since it's nav.js's own sibling.
+    document.write('<scr' + 'ipt src="' + (_needsPrefix ? 'nhlbreakaway/' : '') + 'api-base.js"></scr' + 'ipt>');
     document.write('<scr' + 'ipt src="' + (_needsPrefix ? 'nhlbreakaway/' : '') + 'nav.js"></scr' + 'ipt>');
 
     // Same fix, applied to this page's own tool cards above — they're plain

@@ -15,23 +15,17 @@ const SECTION_NAME = 'NHL Breakaway';
 // this site already uses for Supabase/WAX (real public APIs, called
 // directly regardless of what domain the page itself loads from). NHL
 // Breakaway's Postgres database has no browser-safe HTTP interface of its
-// own, so api/route.js on hoardio.com IS that public API; a relative path
-// only resolves correctly when Vercel itself serves the HTML, breaking
-// local IIS testing (which can't run serverless functions at all). CORS is
-// already open on the API, so this absolute URL works identically from
-// localhost, IIS, Vercel previews, and production itself.
-// On localhost specifically, point at the local dev-server instead
-// (`npm run dev:nhlbreakaway`, port 8877 by default) so pages can be tested
-// end-to-end against unpushed backend changes without hitting production.
+// own, so api/route.js on hoardio.com IS that public API. See
+// nhlbreakaway/api-base.js (loaded before this file on every page) for the
+// actual localhost-vs-production URL logic — window.NHL_API_BASE is the
+// single source of truth every page reads from.
 // Named NAV_API_BASE, not API_BASE — top-level `const` in separate classic
 // <script> tags on the same page share one scope, so reusing the name each
 // page's own inline script already uses collided and threw a SyntaxError
 // that silently killed this entire script (nav disappeared everywhere
 // except the hub, the one page with no API_BASE of its own). Never reuse a
 // page-level const name here.
-const NAV_API_BASE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
-  ? 'http://localhost:8877'
-  : 'https://www.hoardio.com';
+const NAV_API_BASE = window.NHL_API_BASE;
 // Same key/shape every page's own getDataVersion()/withVersion() cache-
 // busting helper uses — whichever of the two runs first on a given page
 // load is the only one that actually hits the network, the other just
