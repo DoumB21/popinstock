@@ -385,7 +385,7 @@ async function handleWalletResolve(url, res) {
       favorite_team: r.favorite_team || null,
       favorite_team_name: r.favorite_team_name || null,
       favorite_team_logo_url: r.favorite_team_logo_url || null,
-    });
+    }, { cacheSeconds: 300 });
   }
 
   // Not address-shaped — must resolve as a username. Case-insensitive exact
@@ -407,7 +407,7 @@ async function handleWalletResolve(url, res) {
     favorite_team: r.favorite_team || null,
     favorite_team_name: r.favorite_team_name || null,
     favorite_team_logo_url: r.favorite_team_logo_url || null,
-  });
+  }, { cacheSeconds: 300 });
 }
 
 // Type-ahead suggestions for the Wallet Look Up search box. A partial 0x
@@ -441,7 +441,7 @@ async function handleWalletSuggest(url, res) {
   }
   sendJson(res, 200, {
     suggestions: rows.map(r => ({ wallet_address: normalizeWallet(r.wallet_address), username: r.username })),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 async function handleWalletSummary(url, res) {
@@ -493,7 +493,7 @@ async function handleWalletSummary(url, res) {
       perfect_edition: Number(b.perfect_edition_count),
       jersey_match: Number(b.jersey_match_count),
     },
-  });
+  }, { cacheSeconds: 300 });
 }
 
 async function handleWalletSets(url, res) {
@@ -530,7 +530,7 @@ async function handleWalletSets(url, res) {
       pct_complete: pct(momentsOwned, momentsTotal),
     };
   });
-  sendJson(res, 200, { sets });
+  sendJson(res, 200, { sets }, { cacheSeconds: 300 });
 }
 
 // Edition Rankings — user-facing name; the underlying table/endpoints keep
@@ -595,7 +595,7 @@ async function handleMintRankings(url, res) {
       rating: Number(r.rating),
       rank: r.rank,
     })),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 // Which collections actually have Edition Rankings data — 73 of 93 as of the
@@ -701,7 +701,7 @@ async function handleMintRankingsExpand(url, res) {
       };
     })
     .sort((a, b) => (a.player || '').localeCompare(b.player || ''));
-  sendJson(res, 200, { cards });
+  sendJson(res, 200, { cards }, { cacheSeconds: 300 });
 }
 
 // One wallet's own complete sets across EVERY collection — backs a section
@@ -744,7 +744,7 @@ async function handleWalletMintRankings(url, res) {
       rating: Number(r.rating),
       rank: r.rank,
     })),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 const WALLET_CARDS_SORT_COLUMNS = {
@@ -807,7 +807,7 @@ async function handleWalletCards(url, res) {
     team: r.team,
     team_logo_url: r.team_logo_url || null,
   }));
-  sendJson(res, 200, { cards, total, has_more: offset + cards.length < total });
+  sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: 300 });
 }
 
 const WALLET_PACKS_SORT_COLUMNS = {
@@ -829,7 +829,7 @@ async function handleWalletPacksFilters(res) {
   sendJson(res, 200, {
     series: seriesRes.rows.map(r => r.series_label),
     rarities: sortRarities(raritiesRes.rows.map(r => r.rarity)),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 async function handleWalletPacks(url, res) {
@@ -873,7 +873,7 @@ async function handleWalletPacks(url, res) {
     series_label: r.series_label,
     rarity: r.rarity,
   }));
-  sendJson(res, 200, { packs, total, has_more: offset + packs.length < total });
+  sendJson(res, 200, { packs, total, has_more: offset + packs.length < total }, { cacheSeconds: 300 });
 }
 
 const HIGHLIGHTS_SORT_COLUMNS = {
@@ -1720,8 +1720,12 @@ async function handleLeaderboardRank(url, res) {
     WHERE LOWER(a.owner_wallet) = $${params.length}
   `;
   const { rows } = await pool.query(sql, params);
-  if (!rows.length) return sendJson(res, 200, { found: false });
+  if (!rows.length) return sendJson(res, 200, { found: false }, { cacheSeconds: 300 });
   const r = rows[0];
+  // The rank computation here (COUNT of every OTHER wallet with more cards)
+  // is another full aggregation over the combined highlights/packs union —
+  // same cost profile as handleLeaderboard itself, worth caching for the
+  // same reason.
   sendJson(res, 200, {
     found: true,
     owner_wallet: r.owner_wallet,
@@ -1729,7 +1733,7 @@ async function handleLeaderboardRank(url, res) {
     holder_username: r.wu_username || r.card_username || null,
     cards_owned: Number(r.cards_owned),
     rank: Number(r.rank),
-  });
+  }, { cacheSeconds: 300 });
 }
 
 // Type-ahead for the leaderboard's Player text filter — makes sure a picked
@@ -1748,7 +1752,7 @@ async function handleLeaderboardPlayers(url, res) {
      LIMIT 8`,
     [raw]
   );
-  sendJson(res, 200, { players: rows.map(r => r.player) });
+  sendJson(res, 200, { players: rows.map(r => r.player) }, { cacheSeconds: 300 });
 }
 
 // Backs the nav bar's small "Data updated ..." line — read live, no cache
