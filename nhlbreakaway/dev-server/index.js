@@ -503,15 +503,21 @@ async function handleWalletSets(url, res) {
   // (see project_nhlbreakaway_sets_formula Gotcha #6): a set_name can back
   // several collections rows for themed sets, so grouping by the label alone
   // would silently sum sibling collections' owned counts together.
+  // moments_total comes from minted_template_count, not template_count — a
+  // highlight Sweet hasn't minted any editions of yet can never be owned by
+  // anyone, so counting it in the denominator would cap this set below 100%
+  // forever. minted_template_count excludes those (see lib/db.js's collections
+  // schema comment) and is recomputed every build-collections.js run, so a
+  // set starts counting a highlight the first time it's actually minted.
   const { rows } = await pool.query(
-    `SELECT col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.template_count AS moments_total,
+    `SELECT col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.minted_template_count AS moments_total,
        COUNT(DISTINCT c.moment_uuid) AS moments_owned,
        COUNT(*) AS cards_owned
      FROM cards c
      JOIN moments m ON m.moment_uuid = c.moment_uuid
      JOIN collections col ON col.set_uuid = m.set_uuid
      WHERE LOWER(c.owner_wallet) = $1 AND c.burned = 0
-     GROUP BY col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.template_count
+     GROUP BY col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.minted_template_count
      ORDER BY col.series_label, col.set_name`,
     [wallet]
   );
@@ -1131,14 +1137,91 @@ const WALLET_CARDS_GROUPED_SORT_COLUMNS = {
   player: 'm.player',
   set: 'm.set_name',
   rarity: rarityRankSqlCase('m.rarity'),
-  count: 'COUNT(*)',
+  // COUNT(c.moment_uuid), not COUNT(*) — identical result in the owned-only
+  // (INNER JOIN) path below, but the roster/"all"+"missing" ownership path
+  // further down LEFT JOINs from moments, where a missing highlight's single
+  // placeholder row has every c.* column NULL; COUNT(*) would wrongly count
+  // that row as 1 instead of 0.
+  count: 'COUNT(c.moment_uuid)',
   team: 'm.team',
 };
+
+// "All"/"Missing" ownership — only reachable from the frontend once a Set
+// filter is chosen (see wallet.html's cardsOwnershipToggle, hidden until
+// cardsState.set_name is set): shows every highlight in that set regardless
+// of ownership ("all"), or only the ones this wallet does NOT hold a single
+// edition of ("missing"). Sourced from the moments CATALOG via a LEFT JOIN
+// to this wallet's cards, unlike the owned-only INNER JOIN the default
+// 'owned' mode uses below — always rendered in the grouped/count shape,
+// since edition-level detail (edition_number, badges) has no meaning for a
+// highlight nobody owns yet.
+async function handleWalletCardsRoster(q, wallet, ownership, res) {
+  const where = [`m.${DEAD_MOMENTS_EXCLUSION}`];
+  const params = [wallet];
+  const addFilter = (col, val, ilike) => {
+    if (!val) return;
+    params.push(ilike ? `%${val.toLowerCase()}%` : val);
+    where.push(ilike ? `LOWER(${col}) LIKE $${params.length}` : `${col} = $${params.length}`);
+  };
+  addFilter('m.player', q.get('player'), true);
+  addFilter('m.set_name', q.get('set_name'));
+  addFilter('m.rarity', q.get('rarity'));
+  addFilter('m.series_label', q.get('series_label'));
+  addFilter('m.team', q.get('team'));
+  // edition_badges is deliberately NOT applied here — every badge type is
+  // defined in terms of an owned edition number, which doesn't exist for a
+  // highlight this wallet doesn't hold. The frontend hides that filter
+  // whenever ownership isn't 'owned', so this is never reachable from the UI.
+
+  const sortKey = WALLET_CARDS_GROUPED_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'player';
+  const sortSql = WALLET_CARDS_GROUPED_SORT_COLUMNS[sortKey];
+  const dir = q.get('dir') === 'desc' ? 'DESC' : 'ASC';
+  const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
+  const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
+  params.push(limit, offset);
+
+  // total_count via COUNT(*) OVER() is evaluated on the HAVING-filtered
+  // grouped rows (Postgres runs window functions after GROUP BY/HAVING,
+  // before ORDER BY/LIMIT) — so it already reflects the "missing" filter,
+  // same one-query-no-second-round-trip trick used throughout this file.
+  const havingSql = ownership === 'missing' ? 'HAVING COUNT(c.moment_uuid) = 0' : '';
+
+  const sql = `
+    SELECT m.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url AS team_logo_url,
+      COUNT(c.moment_uuid) AS owned_count,
+      (ARRAY_AGG(c.edition_number ORDER BY c.edition_number ASC) FILTER (WHERE c.edition_number IS NOT NULL))[1:3] AS lowest_editions,
+      COUNT(*) OVER() AS total_count
+    FROM moments m
+    LEFT JOIN teams t ON t.team_name = m.team
+    LEFT JOIN cards c ON c.moment_uuid = m.moment_uuid AND LOWER(c.owner_wallet) = $1 AND c.burned = 0
+    WHERE ${where.join(' AND ')}
+    GROUP BY m.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url
+    ${havingSql}
+    ORDER BY ${sortSql} ${dir}, m.moment_uuid ASC
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+  `;
+  const { rows } = await pool.query(sql, params);
+  const total = rows.length ? Number(rows[0].total_count) : 0;
+  const cards = rows.map(r => ({
+    moment_uuid: r.moment_uuid,
+    player: r.player,
+    set_name: r.set_name,
+    series_label: r.series_label,
+    rarity: r.rarity,
+    team: r.team,
+    team_logo_url: r.team_logo_url || null,
+    owned_count: Number(r.owned_count),
+    lowest_editions: r.lowest_editions,
+  }));
+  sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
 
 async function handleWalletCards(url, res) {
   const q = url.searchParams;
   const wallet = normalizeWallet(q.get('wallet'));
   if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
+  const ownership = ['all', 'missing'].includes(q.get('ownership')) ? q.get('ownership') : 'owned';
+  if (ownership !== 'owned') return handleWalletCardsRoster(q, wallet, ownership, res);
   const grouped = q.get('group') === 'count';
 
   const where = ['LOWER(c.owner_wallet) = $1', 'c.burned = 0'];
