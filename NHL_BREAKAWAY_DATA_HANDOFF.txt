@@ -21,6 +21,10 @@ right way to resolve a transaction to a player/highlight name (verified: 99.97% 
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
 
+UPDATE 2026-09-03 (later): new `floor_prices` table — cheapest open marketplace listing
+per moment/pack, hourly snapshot. See the new FLOOR PRICES section below (this is storage
+only — no wallet-value aggregation/display logic was built, that's on this side).
+
 UPDATE 2026-09-03: new `collections.minted_template_count` column — a real bug, found via
 a user report ("my set won't show 100% even though I own every card"): the catalog can
 contain a real, non-dead highlight Sweet just hasn't minted any editions of yet (confirmed
@@ -708,6 +712,82 @@ full `refresh-all.js` dry run — each consistent with real ongoing trading acti
 a bug). New series (e.g. a newly-discovered pack template) are picked up automatically
 next run since it queries `moments`/`pack_moments` for the current distinct series_id
 list fresh every time, not a fixed one baked in at backfill time.
+
+FLOOR PRICES — NEW 2026-09-03, BUILT AND POPULATED, HOURLY FROM NOW ON
+Built for a "display the value of a wallet" feature (2-3000+ assets per wallet in the
+worst case) — live-fetching Sweet per asset at view time was ruled out as too costly/
+impolite at that scale, so this is a stored hourly snapshot instead. Storage only: no
+aggregation/display logic was built on top of this on the NHL Breakaway side — that's
+explicitly being built here in PopInStock3.0, not handed over pre-computed.
+
+WHAT IT IS
+The cheapest currently-open fixed-price marketplace listing for every real moment
+(highlight template) AND every pack design, from Sweet's public
+`/catalog/listing/moments` and `/catalog/listing/packs` endpoints (same query shape,
+different path + uuid meaning — the packs endpoint was undocumented anywhere until found
+2026-09-03 by network-inspecting nhlbreakaway.com/marketplace?assetType=pack). Both are
+wrapped in lib/sweetClient.js as getOpenListings(momentUuid)/getOpenPackListings(packUuid).
+Built by scripts/build-floor-prices.js: one call per asset (~2,150 total: 1,962 moments +
+185 packs), limit=100 per call (no scroll loop needed — real per-asset open-listing counts
+observed so far stay well under 100), floor = a real MIN over all returned listings'
+current_offers[0].price_usd (not a blind trust of the API's own sort=price.asc). Verified
+live against the marketplace UI itself: "Series 3 Grand Finale Pack" — total=27 listings,
+price_usd=5.80 — matched the page's own "27 Available / $5.80 USD" exactly.
+
+SCHEMA — table `floor_prices`, PRIMARY KEY (asset_uuid, asset_type)
+  asset_uuid       TEXT    -- moments.moment_uuid OR pack_moments.pack_uuid, per asset_type
+  asset_type       TEXT    -- 'moment' | 'pack' — always filter/join on this, asset_uuid
+                               alone is not guaranteed globally unique across both types
+  price_usd        REAL    -- NULL if this asset currently has ZERO open listings — a real,
+                               common state (see GOTCHA below), NOT an error and NOT $0.
+                               Roughly 60% of moments/packs have a live floor at any given
+                               time (1,355/2,147 on the initial backfill) — don't assume
+                               every held asset will price.
+  listings_count   INTEGER -- how many open listings this floor was computed over (0 when
+                               price_usd is NULL)
+  listing_id       TEXT    -- the cheapest listing's own id — https://sweet.io/listings/
+                               {listing_id} is a real, clickable link to it (same link shape
+                               dev-server's existing fetchSweetListings already uses)
+  updated_at       TEXT    -- when this row was last (re)computed — the whole table shares
+                               essentially one timestamp per refresh-all run, not a per-row
+                               freshness signal
+
+JOINING TO A WALLET'S HOLDINGS
+  Highlights: cards.moment_uuid = floor_prices.asset_uuid AND floor_prices.asset_type =
+    'moment'. Floor price is per TEMPLATE — a plain JOIN (one floor_prices row matched to
+    every owned `cards` row of that moment) already gives price × quantity-held correctly
+    when summed, no separate multiplication needed, since a wallet holding 3 copies of one
+    moment produces 3 joined rows each carrying that same price.
+  Packs: packs.pack_uuid = floor_prices.asset_uuid AND floor_prices.asset_type = 'pack'
+    (packs table, not pack_moments — pack_moments is the design catalog, packs is who
+    owns which pack editions, same cards/moments split). Filter packs.burned = 0 for
+    "currently held", same convention as cards.
+  A LEFT JOIN (not INNER) is the right choice for either — an owned asset with no floor
+    row match, or a NULL price_usd, means "no current listings to price this against",
+    which the UI needs to represent explicitly rather than silently dropping the asset or
+    treating it as worth $0.
+
+GOTCHA — SINGLE-LISTING OUTLIER PRICES, FOUND 2026-09-03, NOT FILTERED AT STORAGE
+~22 of the 1,257 currently-priced moments (concentrated entirely in the lowest-liquidity
+tiers — Signature Rares/Heroics/Limiteds/Epics, 1-of-1 "Ice Vault" Mythics, "Legendary"
+tier) have a single open listing at a wildly aspirational/troll price with no competing
+seller to undercut it — e.g. Nick Suzuki "Signature Heroics" at $999,998, Sidney Crosby
+"Signature Rares" at $878,787.90, Mario Lemieux at $166,000. These are genuinely real,
+correctly-computed floors (the true MIN of that asset's only listing) — not a pipeline
+bug, so price_usd was deliberately left as-is rather than filtered/capped in storage. The
+shared tell across all of them is listings_count = 1 combined with a price far outside
+that collection's normal range; an earlier design draft added a computed is_outlier flag
+to this table for a value-aggregation consumer to key off, but that was reverted 2026-09-03
+at the user's explicit call ("just store the floor prices, I'll manage display") — if you
+build a wallet-value feature on this table, decide your own outlier-handling rule (or none)
+rather than assuming raw SUM(price_usd) is a safe/meaningful headline number as-is.
+
+FRESHNESS
+`build-floor-prices.js` runs every hour as part of `refresh-all.js`, right after
+`build-mint-rankings.js` and right before `sync-to-raff.js` — independent of ownership
+reconciliation, it only needs `moments`/`pack_moments` to exist. First sync to Raff will
+be a full one-shot push of the whole table (no prior watermark), same as any other new
+table's first sync-to-raff.js run.
 
 TWO OPEN QUESTIONS, ORIGINALLY NOT RESOLVED — BOTH NOW CLOSED AS OF 2026-09-02
 1. RESOLVED — see SWEET TRANSACTION HISTORY above. The "no bulk endpoint, no background
