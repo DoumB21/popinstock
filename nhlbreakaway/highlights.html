@@ -35,15 +35,25 @@
        comments) — without this, clicking a sort/filter looked like nothing
        happened, inviting repeated clicks. Overlaying + disabling the
        controls (see .nhl-busy below) makes the wait visible and blocks
-       piling up more requests while one is already running. */
-    .results-wrap { position: relative; }
+       piling up more requests while one is already running.
+       Fixed to the viewport (not absolute over .results-wrap) so it's
+       always centered on what's actually visible — .results-wrap can be
+       many screens tall, so centering within IT could park the message
+       far below the fold. Same z-index/backdrop convention as this site's
+       other fixed modals (see global.css). */
     .busy-overlay {
-      position: absolute; inset: 0; z-index: 5;
-      display: none; align-items: center; justify-content: center; gap: 0.6rem;
-      background: rgba(10,10,15,0.55); border-radius: 14px;
-      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
     }
     .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
     .busy-spinner {
       width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
       border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
@@ -195,7 +205,7 @@
     <div class="results-meta" id="resultsMeta"></div>
 
     <div class="results-wrap" id="resultsWrap">
-      <div class="busy-overlay" id="busyOverlay"><span class="busy-spinner"></span><span>Loading highlights…</span></div>
+      <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading highlights…</span></div></div>
       <div class="table-scroll" style="overflow-x:auto;">
         <table class="highlights-table">
           <thead>
