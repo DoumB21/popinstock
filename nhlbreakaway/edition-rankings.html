@@ -70,9 +70,30 @@
     .top-card--1 .top-card-set-name, .top-card--2 .top-card-set-name, .top-card--3 .top-card-set-name { font-size: 1.15rem; }
     .top-card--1 .top-card-series, .top-card--2 .top-card-series, .top-card--3 .top-card-series { font-size: 0.85rem; }
     .top-card--1 .top-card-collector-name, .top-card--2 .top-card-collector-name, .top-card--3 .top-card-collector-name { font-size: 1.35rem; }
+    /* The podium's desktop-tuned sizing above (104px image, 30px padding,
+       24px gap) leaves too little room for the info column on a real phone
+       width and overflows the page horizontally — shrink it back down here.
+       Placed AFTER the unconditional podium rules above on purpose: an
+       @media block earlier in the cascade loses to a later unconditional
+       rule of equal specificity regardless of which one actually matches
+       the viewport (hit this exact bug once already — see
+       feedback_css_cascade_order_same_file memory). overflow-wrap on
+       .top-card-info is a safety net for any still-too-long single token,
+       not the primary fix. */
+    @media (max-width: 720px) {
+      .top-card, .top-card--1, .top-card--2, .top-card--3 { padding: 14px 16px; gap: 14px; }
+      .top-card-image, .top-card--1 .top-card-image, .top-card--2 .top-card-image, .top-card--3 .top-card-image { width: 60px; height: 60px; }
+      .top-card--1 .top-card-set-name, .top-card--2 .top-card-set-name, .top-card--3 .top-card-set-name { font-size: 1rem; }
+      .top-card--1 .top-card-collector-name, .top-card--2 .top-card-collector-name, .top-card--3 .top-card-collector-name { font-size: 1.1rem; }
+    }
     .top-card-rank { font-size: 1.1rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; width: 1.6em; }
     .top-card-image { width: 88px; height: 88px; object-fit: cover; border-radius: 12px; flex-shrink: 0; border: 1px solid var(--border); }
-    .top-card-info { min-width: 0; flex: 1; }
+    /* overflow-wrap: min-width:0 lets the flex item shrink, but a long
+       single-token username (no spaces, e.g. "eemdlqhv_1812...") still won't
+       break onto a new line without this — without it the card overflows
+       its own width instead of wrapping, causing real horizontal page
+       scroll on narrow viewports. */
+    .top-card-info { min-width: 0; flex: 1; overflow-wrap: break-word; }
     .top-card-set-name { font-weight: 700; color: var(--text-primary); font-size: 1.05rem; }
     .top-card-series { font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px; }
     .top-card-collector { font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px; }
@@ -113,6 +134,49 @@
     .cell-rank--1 { color: #ffd700; font-weight: 700; }
     .cell-rank--2 { color: #c0c0c0; font-weight: 700; }
     .cell-rank--3 { color: #cd7f32; font-weight: 700; }
+
+    /* ── Mobile card list — one card per ranked collector instead of a table
+       row, so phone widths never need horizontal scroll. Same "two parallel
+       DOM representations, toggled by breakpoint" pattern as sets.html/
+       pack-stats.html/highlights.html's own. No mobile "Sort by" combo here
+       — unlike those 3 pages, this leaderboard has no sortable columns to
+       begin with (rank order comes fixed from the backend), so there's
+       nothing for a sort control to replace. ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    /* Bled out to the card's own edges (negative margin matching
+       .mobile-card's padding, restored as padding so content position is
+       unchanged) so the tint reads as a full-width header band — same
+       treatment as the other 3 pages' mobile cards. */
+    .mobile-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 0.75rem;
+      margin: -0.85rem -1rem 0.6rem;
+      padding: 0.85rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      background: rgba(255,255,255,0.045);
+    }
+    .mr-mobile-collector { font-weight: 600; color: var(--text-primary); }
+    .mobile-card-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+    .mobile-stat-label {
+      display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px;
+    }
+    .mobile-stat-value { font-variant-numeric: tabular-nums; }
+    /* Same gold/silver/bronze tint as .rank-row--1/2/3 above, applied to the
+       whole card instead of a table row. */
+    .mobile-card--rank-1 { background: rgba(255,215,0,0.10); }
+    .mobile-card--rank-2 { background: rgba(192,192,192,0.09); }
+    .mobile-card--rank-3 { background: rgba(205,127,50,0.10); }
+    .mobile-expand-btn { width: 100%; margin-top: 0.75rem; }
+    .mr-expand-mobile { margin-top: 0.75rem; }
 
     .holder-link { color: var(--accent-light); text-decoration: none; }
     .holder-link:hover { text-decoration: underline; }
@@ -181,6 +245,8 @@
     @media (max-width: 700px) {
       .filter-bar .cb-combo { max-width: none; }
       .mr-table { font-size: 0.78rem; }
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
     }
   </style>
 </head>
@@ -219,7 +285,7 @@
 
       <div class="results-meta" id="resultsMeta"></div>
 
-      <div style="overflow-x:auto;">
+      <div class="table-scroll" style="overflow-x:auto;">
         <table class="mr-table">
           <thead>
             <tr>
@@ -235,6 +301,8 @@
           <tbody id="mrBody"></tbody>
         </table>
       </div>
+
+      <div class="mobile-card-list" id="mrMobileList"></div>
 
       <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
         <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
@@ -548,14 +616,18 @@ function expandKey(row) {
   return `${row.wallet_address}|${row.set_number}`;
 }
 
-function expandRowHtml(row) {
+// Shared by the desktop expand <tr> and the mobile card's own expand block
+// below — same expanded-state data (state.expanded, keyed by expandKey), just
+// wrapped differently per representation. Keeping this as one function is
+// what makes it impossible for the two DOM representations to ever disagree
+// on what an expanded row's content actually looks like.
+function expandBodyHtml(row) {
   const key = expandKey(row);
   const entry = state.expanded.get(key);
-  let body;
   if (entry === 'loading') {
-    body = `<div class="mr-expand-loading">Loading highlights…</div>`;
+    return `<div class="mr-expand-loading">Loading highlights…</div>`;
   } else if (entry === 'error') {
-    body = `<div class="mr-expand-error">Failed to load this set's highlights.</div>`;
+    return `<div class="mr-expand-error">Failed to load this set's highlights.</div>`;
   } else if (Array.isArray(entry)) {
     // Worst 5 = the 5 highest raw edition_number values in THIS exact
     // complete set — the ones hurting the rating most (the formula uses raw
@@ -565,7 +637,7 @@ function expandRowHtml(row) {
     // a set with ties.
     const editionsDesc = [...entry].map(c => c.edition_number).sort((a, b) => b - a);
     const worstThreshold = editionsDesc[Math.min(4, editionsDesc.length - 1)];
-    body = `<div class="mr-cards-grid">${entry.map(c => {
+    return `<div class="mr-cards-grid">${entry.map(c => {
       const isBest = c.edition_number === 1;
       const isWorst = !isBest && c.edition_number >= worstThreshold;
       const cls = isBest ? ' mr-card--best' : (isWorst ? ' mr-card--worst' : '');
@@ -580,10 +652,13 @@ function expandRowHtml(row) {
       </a>
     `;
     }).join('')}</div>`;
-  } else {
-    body = '';
   }
-  return `<tr class="mr-expand-row" data-expand-for="${key}"><td colspan="7">${body}</td></tr>`;
+  return '';
+}
+
+function expandRowHtml(row) {
+  const key = expandKey(row);
+  return `<tr class="mr-expand-row" data-expand-for="${key}"><td colspan="7">${expandBodyHtml(row)}</td></tr>`;
 }
 
 async function toggleExpand(row) {
@@ -631,11 +706,45 @@ function renderBody() {
     return isExpanded ? main + expandRowHtml(row) : main;
   }).join('');
 
-  body.querySelectorAll('.mr-expand-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.key;
-      const row = state.rankings.find(r => expandKey(r) === key);
-      if (row) toggleExpand(row);
+  const mobileList = document.getElementById('mrMobileList');
+  mobileList.innerHTML = state.rankings.map(row => {
+    const key = expandKey(row);
+    const isExpanded = state.expanded.has(key);
+    const rankCls = row.rank <= 3 ? ` cell-rank--${row.rank}` : '';
+    const cardCls = row.rank <= 3 ? ` mobile-card--rank-${row.rank}` : '';
+    return `
+      <div class="mobile-card${cardCls}">
+        <div class="mobile-card-header">
+          <div>
+            <div class="mr-mobile-collector">${holderLinkHtml(row)}</div>
+            <div class="cell-set-badge">Set #${row.set_number} of ${fmtNum(row.total_complete_sets)}</div>
+          </div>
+          <div class="cell-rank${rankCls}">#${fmtNum(row.rank)}</div>
+        </div>
+        <div class="mobile-card-stats">
+          <div><span class="mobile-stat-label">Avg Edition</span><span class="mobile-stat-value">${row.avg_edition.toFixed(2)}</span></div>
+          <div><span class="mobile-stat-label">Sum of Editions</span><span class="mobile-stat-value">${fmtNum(row.sum_of_editions)}</span></div>
+          <div><span class="mobile-stat-label">Rating</span><span class="mobile-stat-value${row.rating < 0 ? ' cell-rating--negative' : ''}">${row.rating.toFixed(2)}</span></div>
+          <div><span class="mobile-stat-label">Complete Sets</span><span class="mobile-stat-value">${fmtNum(row.total_complete_sets)}</span></div>
+        </div>
+        <button type="button" class="mr-expand-btn mobile-expand-btn" data-key="${key}">${isExpanded ? '▲ Hide' : '▼ Highlights'}</button>
+        ${isExpanded ? `<div class="mr-expand-mobile">${expandBodyHtml(row)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Both DOM representations render .mr-expand-btn elements sharing the same
+  // data-key — wiring each container separately (rather than one document-
+  // wide query) keeps this correct if either container is ever re-rendered
+  // independently in the future, and both call the same toggleExpand(), so
+  // state.expanded is the single source of truth either one reads from.
+  [body, mobileList].forEach(container => {
+    container.querySelectorAll('.mr-expand-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        const row = state.rankings.find(r => expandKey(r) === key);
+        if (row) toggleExpand(row);
+      });
     });
   });
 }
