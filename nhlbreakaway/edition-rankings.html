@@ -16,6 +16,32 @@
     .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     .filter-bar .cb-combo { min-width: 260px; flex: 1; max-width: 480px; }
 
+    /* ── Busy overlay — shown while the top-5 grid, a collection's
+       leaderboard, or a Load More chunk is in flight. Same fixed,
+       viewport-centered overlay + solid message card as highlights.html's
+       own (see that file's own comment for why it's fixed rather than
+       absolute over the results area) — same z-index/backdrop convention
+       as this page's own Rating Formula modal below. */
+    .busy-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
+
     /* ── Rating formula info tooltip/modal — same pattern as funko/drop.html's
        own Rating column (ⓘ icon opens a small modal explaining the formula). ── */
     .info-tip { display: inline-flex; align-items: center; margin-left: 6px; cursor: pointer; vertical-align: middle; }
@@ -247,12 +273,25 @@
       .mr-table { font-size: 0.78rem; }
       .table-scroll { display: none; }
       .mobile-card-list { display: flex; }
+      /* .section-heading (global.css) puts the heading text, the "(10+
+         highlight sets only)" count, and a trailing rule all in one flex
+         row — at phone widths both text pieces wrap to 2 lines each,
+         squeezed side by side. flex-wrap + ordering the count's flex-basis
+         to 100% drops it to its own row below the heading+rule, instead of
+         fighting the rule for the same line. Scoped to this page only —
+         .section-heading is a shared global.css class used elsewhere. */
+      .section-heading { flex-wrap: wrap; }
+      .section-heading > span:first-child { order: 1; }
+      .section-heading::after { order: 2; }
+      .section-count { order: 3; flex-basis: 100%; }
     }
   </style>
 </head>
 <body>
 
 <div class="page">
+  <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
+
   <div class="content">
 
     <div class="page-header">
@@ -270,7 +309,7 @@
 
     <div id="topSection">
       <div class="picker-hint" id="pickerHint"></div>
-      <div class="section-heading">🏆 Top 5 Best Complete Sets <span class="section-count">(10+ highlight sets only)</span></div>
+      <div class="section-heading"><span>🏆 Top 5 Best Complete Sets</span> <span class="section-count">(10+ highlight sets only)</span></div>
       <div class="top-grid" id="topGrid"></div>
     </div>
 
@@ -489,26 +528,43 @@ function buildCombo(comboId, items, getValue, setValue, onPick) {
   clear.addEventListener('click', () => { pick(''); input.blur(); });
 }
 
-async function populateSetPicker() {
-  const version = await getDataVersion();
-  const [setsRes, collRes] = await Promise.all([
-    fetch(withVersion(`${API_BASE}/api/sets`, version)).then(r => r.json()),
-    fetch(withVersion(`${API_BASE}/api/mint-rankings/collections`, version)).then(r => r.json()),
-  ]);
-  const rankedKeys = new Set(collRes.collection_keys);
-  const options = setsRes.sets
-    .filter(s => s.collection_key && rankedKeys.has(s.collection_key))
-    .sort((a, b) => a.series_label.localeCompare(b.series_label) || a.set_name.localeCompare(b.set_name))
-    .map(s => ({
-      value: s.collection_key,
-      label: `${s.set_name} — ${s.rarity} · ${s.series_label}`,
-    }));
+// Toggles the busy overlay (see .busy-overlay in the <style> above) — used
+// by every function that fetches a full page/section of data (the set
+// picker's own option list, the Top 5 grid, a collection's leaderboard,
+// Load More), same convention as highlights.html's own setBusyUi(). Not
+// used by toggleExpand()'s per-row fetch below — that already has its own
+// small inline "Loading highlights…" indicator scoped to just that row,
+// which is less disruptive than a full-page overlay for a single-row
+// drill-down.
+function setBusyUi(active) {
+  document.getElementById('busyOverlay').classList.toggle('active', active);
+}
 
-  buildCombo('setCombo',
-    [{ value: '', label: 'Choose a set…' }, ...options],
-    () => state.collectionKey,
-    v => state.collectionKey = v,
-    v => v ? loadCollection(v, { syncUrl: true }) : showPicker());
+async function populateSetPicker() {
+  setBusyUi(true);
+  try {
+    const version = await getDataVersion();
+    const [setsRes, collRes] = await Promise.all([
+      fetch(withVersion(`${API_BASE}/api/sets`, version)).then(r => r.json()),
+      fetch(withVersion(`${API_BASE}/api/mint-rankings/collections`, version)).then(r => r.json()),
+    ]);
+    const rankedKeys = new Set(collRes.collection_keys);
+    const options = setsRes.sets
+      .filter(s => s.collection_key && rankedKeys.has(s.collection_key))
+      .sort((a, b) => a.series_label.localeCompare(b.series_label) || a.set_name.localeCompare(b.set_name))
+      .map(s => ({
+        value: s.collection_key,
+        label: `${s.set_name} — ${s.rarity} · ${s.series_label}`,
+      }));
+
+    buildCombo('setCombo',
+      [{ value: '', label: 'Choose a set…' }, ...options],
+      () => state.collectionKey,
+      v => state.collectionKey = v,
+      v => v ? loadCollection(v, { syncUrl: true }) : showPicker());
+  } finally {
+    setBusyUi(false);
+  }
 }
 
 function showPicker() {
@@ -526,6 +582,7 @@ function holderLabel(row) {
 
 async function loadTopGrid() {
   const grid = document.getElementById('topGrid');
+  setBusyUi(true);
   try {
     const version = await getDataVersion();
     const res = await fetch(withVersion(`${API_BASE}/api/mint-rankings/top?limit=5`, version));
@@ -550,6 +607,8 @@ async function loadTopGrid() {
   } catch (err) {
     grid.innerHTML = '';
     console.error(err);
+  } finally {
+    setBusyUi(false);
   }
 }
 
@@ -576,6 +635,7 @@ async function loadCollection(collectionKey, { syncUrl } = {}) {
 async function fetchPage(reset) {
   if (state.loading) return;
   state.loading = true;
+  setBusyUi(true);
   const offset = reset ? 0 : state.offset;
   try {
     const version = await getDataVersion();
@@ -597,6 +657,7 @@ async function fetchPage(reset) {
     console.error(err);
   } finally {
     state.loading = false;
+    setBusyUi(false);
   }
 }
 
