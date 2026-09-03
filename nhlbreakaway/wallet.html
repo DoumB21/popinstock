@@ -84,6 +84,27 @@
     .items-table tbody tr.row-has-badge { background: rgba(240,168,64,0.07); }
     .items-table tbody tr.row-has-badge:hover { background: rgba(240,168,64,0.13); }
 
+    /* Greyed-out + inert, for a control that's temporarily meaningless given
+       the current ownership toggle (see syncCardsOwnershipVisibility) —
+       kept in the layout (not display:none) so switching Owned/All/Missing
+       never reflows the filter bar or anything below it. */
+    .control-disabled { opacity: 0.35; pointer-events: none; }
+
+    /* ── Highlights tab's ownership toggle (Owned/All/Missing) — a "Missing"
+       tag on the Owned cell, only shown in the 'all' view (owned_count is
+       never 0 in 'owned', and every row is already missing in 'missing', so
+       tagging there would be pure noise). Dimmed row background matches the
+       existing row-has-badge tint convention above, just muted/red instead
+       of accent-orange. ── */
+    .missing-tag {
+      display: inline-block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      color: #f87171; background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 999px; padding: 2px 7px; margin-left: 5px; vertical-align: middle;
+    }
+    .items-table tbody tr.row-missing { background: rgba(255,255,255,0.02); }
+    .items-table tbody tr.row-missing:hover { background: rgba(255,255,255,0.05); }
+    .mobile-card.row-missing { opacity: 0.8; }
+
     /* ── Stat card accent colors — same pattern as funko/wallet.html's own
        per-stat coloring, distinct hues so the row reads at a glance. ── */
     .stat-card--total .stat-value { color: var(--accent-light); }
@@ -120,12 +141,16 @@
     .modal-close:hover { color: var(--text-primary); }
 
     /* ── Tabs (Set Progress / Cards / Packs) — avoids the massive scroll of
-       stacking all three sections; only the active one renders. ── */
-    .wallet-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+       stacking all three sections; only the active one renders. Horizontally
+       scrollable (not wrapped) so all 5 tab labels stay reachable on a phone
+       without a drill-down UI — short flat list, unlike profile.html's
+       longer settings menu, which uses a breadcrumb drill-down instead. ── */
+    .wallet-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: -1px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .wallet-tab-btn {
       background: none; border: none; border-bottom: 2px solid transparent;
       padding: 0.65rem 0.1rem; font-family: inherit; font-size: 0.85rem; font-weight: 700;
       color: var(--text-secondary); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap; flex-shrink: 0;
     }
     .wallet-tab-btn:hover { color: var(--text-primary); }
     .wallet-tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); }
@@ -271,9 +296,56 @@
       color: var(--accent-light);
     }
 
+    /* ── Mobile-only "Sort by" combo + Asc/Desc toggle, one per sortable tab
+       — replaces that tab's clickable column headers, which disappear along
+       with its desktop table at this width. Same pattern as sets.html/
+       pack-stats.html/highlights.html/edition-rankings.html's own. ── */
+    .mobile-sort-bar { display: none; }
+    .mobile-sort-bar .cb-combo { max-width: 220px; }
+
+    /* ── Mobile card list — one card per row instead of a table row, so
+       phone widths never need horizontal scroll. Same "two parallel DOM
+       representations, toggled by breakpoint, both driven by the same
+       render call" pattern as every other page in this section — shared
+       verbatim look across sets/pack-stats/highlights/edition-rankings, now
+       reused here for all 5 tabs. ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    /* Bled out to the card's own edges (negative margin matching
+       .mobile-card's padding, restored as padding so content position is
+       unchanged) so the tint reads as a full-width header band. */
+    .mobile-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 0.75rem;
+      margin: -0.85rem -1rem 0.6rem;
+      padding: 0.85rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      background: rgba(255,255,255,0.045);
+    }
+    .mobile-card-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+    .mobile-stat-label {
+      display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px;
+    }
+    .mobile-stat-value { font-variant-numeric: tabular-nums; }
+    /* Activity's Detailed view has 8 columns, the widest table on this page —
+       its mobile card gives Item its own full-width row instead of forcing
+       it into the 2-column stats grid, so long set names don't get clipped. */
+    .mobile-card-full-row { grid-column: 1 / -1; }
+
     @media (max-width: 700px) {
       .filter-bar .cb-combo, .filter-bar .cb-dropdown, .filter-bar .search-input { max-width: none; }
       .sets-table, .items-table { font-size: 0.78rem; }
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
+      .mobile-sort-bar { display: flex; }
     }
   </style>
 </head>
@@ -357,13 +429,24 @@
             <button type="button" class="tpc-toggle-btn" data-completion="incomplete">Incomplete</button>
           </div>
         </div>
+        <div class="filter-bar mobile-sort-bar" id="setsMobileSortBar">
+          <div class="cb-combo" id="setsSortFieldCombo">
+            <input type="text" class="cb-combo-input" id="setsSortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+            <div class="cb-panel" id="setsSortFieldPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="setsSortDirToggle">
+            <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+            <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+          </div>
+        </div>
         <div class="results-meta" id="setsCount"></div>
-        <div class="sets-table-wrap">
+        <div class="sets-table-wrap table-scroll">
           <table class="sets-table">
             <thead><tr id="setsHeadRow"></tr></thead>
             <tbody id="setsBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="setsMobileList"></div>
       </div>
 
       <div class="wallet-tab-panel" id="tabPanelCards">
@@ -403,14 +486,34 @@
             <button type="button" class="tpc-toggle-btn" data-view="edition">By Edition</button>
             <button type="button" class="tpc-toggle-btn active" data-view="count">By Count</button>
           </div>
+          <!-- Hidden until a Set filter is picked (see syncCardsOwnershipVisibility)
+               — "missing from a set" has no meaning without one. Forces the view
+               above to "By Count" and hides it + Edition Badges while active,
+               since edition-level detail doesn't exist for an unowned highlight. -->
+          <div class="tpc-toggle-group" id="cardsOwnershipToggle" style="display:none">
+            <button type="button" class="tpc-toggle-btn active" data-ownership="owned">Owned</button>
+            <button type="button" class="tpc-toggle-btn" data-ownership="all">All</button>
+            <button type="button" class="tpc-toggle-btn" data-ownership="missing">Missing</button>
+          </div>
+        </div>
+        <div class="filter-bar mobile-sort-bar" id="cardsMobileSortBar">
+          <div class="cb-combo" id="cardsSortFieldCombo">
+            <input type="text" class="cb-combo-input" id="cardsSortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+            <div class="cb-panel" id="cardsSortFieldPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="cardsSortDirToggle">
+            <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+            <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+          </div>
         </div>
         <div class="results-meta" id="cardsResultsMeta"></div>
-        <div style="overflow-x:auto;">
+        <div class="table-scroll" style="overflow-x:auto;">
           <table class="items-table">
             <thead><tr id="cardsHeadRow"></tr></thead>
             <tbody id="cardsBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="cardsMobileList"></div>
         <div id="cardsLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
           <button type="button" id="cardsLoadMoreBtn" class="load-more-btn">Load more</button>
         </div>
@@ -433,13 +536,24 @@
             <div class="cb-panel" id="packRarityPanel"></div>
           </div>
         </div>
+        <div class="filter-bar mobile-sort-bar" id="packsMobileSortBar">
+          <div class="cb-combo" id="packsSortFieldCombo">
+            <input type="text" class="cb-combo-input" id="packsSortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+            <div class="cb-panel" id="packsSortFieldPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="packsSortDirToggle">
+            <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+            <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+          </div>
+        </div>
         <div class="results-meta" id="packsCount"></div>
-        <div style="overflow-x:auto;">
+        <div class="table-scroll" style="overflow-x:auto;">
           <table class="items-table">
             <thead><tr id="packsHeadRow"></tr></thead>
             <tbody id="packsBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="packsMobileList"></div>
         <div id="packsLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
           <button type="button" id="packsLoadMoreBtn" class="load-more-btn">Load more</button>
         </div>
@@ -452,13 +566,24 @@
             <button type="button" class="cb-dropdown-clear" id="rankingsNameSearchClear" style="display:none" title="Clear">✕</button>
           </div>
         </div>
+        <div class="filter-bar mobile-sort-bar" id="rankingsMobileSortBar">
+          <div class="cb-combo" id="rankingsSortFieldCombo">
+            <input type="text" class="cb-combo-input" id="rankingsSortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+            <div class="cb-panel" id="rankingsSortFieldPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="rankingsSortDirToggle">
+            <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+            <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+          </div>
+        </div>
         <div class="results-meta" id="rankingsCount"></div>
-        <div style="overflow-x:auto;">
+        <div class="table-scroll" style="overflow-x:auto;">
           <table class="items-table">
             <thead><tr id="rankingsHeadRow"></tr></thead>
             <tbody id="rankingsBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="rankingsMobileList"></div>
       </div>
 
       <div class="wallet-tab-panel" id="tabPanelActivity">
@@ -500,13 +625,24 @@
           <input type="number" class="search-input amount-range-input" id="activityMinAmount" placeholder="Min amount" min="0" step="0.01" inputmode="decimal">
           <input type="number" class="search-input amount-range-input" id="activityMaxAmount" placeholder="Max amount" min="0" step="0.01" inputmode="decimal">
         </div>
+        <div class="filter-bar mobile-sort-bar" id="activityMobileSortBar">
+          <div class="cb-combo" id="activitySortFieldCombo">
+            <input type="text" class="cb-combo-input" id="activitySortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+            <div class="cb-panel" id="activitySortFieldPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="activitySortDirToggle">
+            <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+            <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+          </div>
+        </div>
         <div class="results-meta" id="activityCount"></div>
-        <div style="overflow-x:auto;">
+        <div class="table-scroll" style="overflow-x:auto;">
           <table class="items-table">
             <thead><tr id="activityHeadRow"></tr></thead>
             <tbody id="activityBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="activityMobileList"></div>
         <div id="activityLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
           <button type="button" id="activityLoadMoreBtn" class="load-more-btn">Load more</button>
         </div>
@@ -671,6 +807,10 @@ function filteredSortedSets() {
   });
 }
 
+function setsDefaultDir(field) {
+  return field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+}
+
 function renderSetsHead() {
   const row = document.getElementById('setsHeadRow');
   row.innerHTML = SETS_COLUMNS.map(col => {
@@ -686,10 +826,11 @@ function renderSetsHead() {
         setsState.sortDir = setsState.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         setsState.sortField = field;
-        setsState.sortDir = field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+        setsState.sortDir = setsDefaultDir(field);
       }
       renderSetsHead();
       renderSetsBody();
+      syncSetsMobileSort();
     });
   });
 }
@@ -729,22 +870,55 @@ function renderSetsBody() {
       <td class="col-r"><span class="pct-complete${s.pct_complete === 100 ? ' pct-complete--full' : ''}">${fmtPct(s.pct_complete)}</span></td>
     </tr>
   `).join('');
+
+  document.getElementById('setsMobileList').innerHTML = rows.map(s => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <div class="cell-set-name">${s.collection_key
+            ? `<a class="set-link" href="${cardsTabHref(s.set_name)}" data-set-name="${escHtml(s.set_name)}">${s.set_name}</a>`
+            : s.set_name}</div>
+          <div class="cell-series">${s.series_label}</div>
+        </div>
+        ${s.rarity
+          ? `<span class="rarity-pill rarity-pill--${s.rarity.toLowerCase()}"><span class="rarity-pill-text">${s.rarity}</span></span>`
+          : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Progress</span><span class="mobile-stat-value">${fmtNum(s.moments_owned)}${s.moments_total !== null ? ` / ${fmtNum(s.moments_total)}` : ''}</span></div>
+        <div><span class="mobile-stat-label">Highlights Owned</span><span class="mobile-stat-value">${fmtNum(s.cards_owned)}</span></div>
+        <div><span class="mobile-stat-label">Complete</span><span class="mobile-stat-value"><span class="pct-complete${s.pct_complete === 100 ? ' pct-complete--full' : ''}">${fmtPct(s.pct_complete)}</span></span></div>
+      </div>
+    </div>
+  `).join('');
+
   document.getElementById('setsCount').innerHTML = `<strong>${fmtNum(rows.length)}</strong> set${rows.length === 1 ? '' : 's'}`;
 }
 
 // Clicking a set name jumps to the Highlights tab pre-filtered to that set,
 // staying on this same page — explicit user request, replacing the old
-// behavior of navigating away to the sitewide Highlights browse page.
-document.getElementById('setsBody').addEventListener('click', e => {
+// behavior of navigating away to the sitewide Highlights browse page. Wired
+// on the shared ancestor (not setsBody directly) since the same .set-link
+// markup now appears in both the desktop table AND the mobile card list.
+document.getElementById('tabPanelSets').addEventListener('click', e => {
   const link = e.target.closest('.set-link');
   if (!link) return;
   e.preventDefault();
   cardsState.set_name = link.dataset.setName;
   syncComboDisplay(document.getElementById('setCombo'));
+  syncCardsOwnershipVisibility();
   setActiveTab('cards');
   history.replaceState(null, '', link.getAttribute('href'));
   fetchCardsPage(true);
 });
+
+/* Mobile "Sort by" combo + Asc/Desc toggle — set up once (SETS_COLUMNS is
+   static), see populateMobileSortCombo/wireMobileSortDirToggle above. */
+function syncSetsMobileSort() { syncMobileSort('setsSortFieldCombo', 'setsSortDirToggle', setsState); }
+populateMobileSortCombo('setsSortFieldCombo', () => SETS_COLUMNS, setsState, setsDefaultDir,
+  () => { renderSetsHead(); renderSetsBody(); }, syncSetsMobileSort);
+wireMobileSortDirToggle('setsSortDirToggle', setsState,
+  () => { renderSetsHead(); renderSetsBody(); }, syncSetsMobileSort);
 
 async function fetchWalletSets(wallet) {
   const version = await getDataVersion();
@@ -761,6 +935,7 @@ async function fetchWalletSets(wallet) {
   renderSetsHead();
   populateSetsFilters();
   renderSetsBody();
+  syncSetsMobileSort();
 }
 
 // Options are derived from THIS wallet's own owned sets (unlike the Highlights
@@ -852,6 +1027,11 @@ const CARDS_COLUMNS_COUNT = [
 ];
 const cardsState = {
   wallet: '', cards: [], player: '', series_label: '', set_name: '', rarity: '', team: '', edition_badges: new Set(),
+  // ownership: 'owned' (default, unchanged behavior) | 'all' | 'missing' —
+  // only reachable via the UI once set_name is non-empty (see
+  // syncCardsOwnershipVisibility). 'all'/'missing' force view to 'count'
+  // server-side has no per-edition data for an unowned highlight.
+  ownership: 'owned',
   view: 'count', sortField: 'player', sortDir: 'asc', offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false,
 };
 
@@ -863,7 +1043,14 @@ function cardsQuery() {
   if (cardsState.set_name) params.set('set_name', cardsState.set_name);
   if (cardsState.rarity) params.set('rarity', cardsState.rarity);
   if (cardsState.team) params.set('team', cardsState.team);
-  if (cardsState.edition_badges.size) params.set('edition_badges', [...cardsState.edition_badges].join(','));
+  if (cardsState.ownership !== 'owned') {
+    params.set('ownership', cardsState.ownership);
+  } else if (cardsState.edition_badges.size) {
+    // edition_badges has no meaning in the 'all'/'missing' roster query
+    // (see handleWalletCardsRoster's own comment) — only ever sent alongside
+    // 'owned', matching what the backend actually applies it to.
+    params.set('edition_badges', [...cardsState.edition_badges].join(','));
+  }
   if (cardsState.view === 'count') params.set('group', 'count');
   params.set('sort', cardsState.sortField);
   params.set('dir', cardsState.sortDir);
@@ -905,6 +1092,9 @@ async function fetchCardsPage(reset) {
 function activeCardsColumns() {
   return cardsState.view === 'count' ? CARDS_COLUMNS_COUNT : CARDS_COLUMNS_EDITION;
 }
+function cardsDefaultDir(field) {
+  return (field === 'edition' || field === 'count') ? 'desc' : 'asc';
+}
 
 function renderCardsHead() {
   const row = document.getElementById('cardsHeadRow');
@@ -921,10 +1111,11 @@ function renderCardsHead() {
         cardsState.sortDir = cardsState.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         cardsState.sortField = field;
-        cardsState.sortDir = (field === 'edition' || field === 'count') ? 'desc' : 'asc';
+        cardsState.sortDir = cardsDefaultDir(field);
       }
       renderCardsHead();
       fetchCardsPage(true);
+      syncCardsMobileSort();
     });
   });
 }
@@ -961,10 +1152,17 @@ function badgesCellHtml(badges) {
 
 function renderCardsBody() {
   const counting = cardsState.view === 'count';
+  // Only 'all' needs a per-row cue — 'missing' is already 100% unowned rows
+  // (the toggle itself says so), and 'owned' can never have owned_count = 0.
+  const ownedCell = c => {
+    const missing = cardsState.ownership === 'all' && c.owned_count === 0;
+    return `${fmtNum(c.owned_count)}${missing ? ' <span class="missing-tag">Missing</span>' : ''}`;
+  };
   document.getElementById('cardsBody').innerHTML = cardsState.cards.map(c => {
     const badges = counting ? [] : computeEditionBadges(c);
+    const missingRow = cardsState.ownership === 'all' && c.owned_count === 0;
     return `
-    <tr${badges.length ? ' class="row-has-badge"' : ''}>
+    <tr class="${badges.length ? 'row-has-badge' : ''}${missingRow ? ' row-missing' : ''}">
       <td><a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a></td>
       ${counting ? '' : `<td>${badgesCellHtml(badges)}</td>`}
       <td>
@@ -975,7 +1173,7 @@ function renderCardsBody() {
         ? `<span class="rarity-pill rarity-pill--${c.rarity.toLowerCase()}"><span class="rarity-pill-text">${c.rarity}</span></span>`
         : '—'}</td>
       ${counting
-        ? `<td class="col-r">${fmtNum(c.owned_count)}</td>
+        ? `<td class="col-r">${ownedCell(c)}</td>
            <td class="col-r">${(c.lowest_editions || []).map(n => fmtNum(n)).join(' · ') || '—'}</td>`
         : `<td class="col-r">${fmtNum(c.edition_number)}</td>`}
       <td>${c.team
@@ -984,9 +1182,42 @@ function renderCardsBody() {
     </tr>
   `;
   }).join('');
-  document.getElementById('cardsResultsMeta').innerHTML = counting
-    ? `<strong>${fmtNum(cardsState.total)}</strong> highlight${cardsState.total === 1 ? '' : 's'}`
-    : `<strong>${fmtNum(cardsState.total)}</strong> edition${cardsState.total === 1 ? '' : 's'}`;
+
+  document.getElementById('cardsMobileList').innerHTML = cardsState.cards.map(c => {
+    const badges = counting ? [] : computeEditionBadges(c);
+    const missingRow = cardsState.ownership === 'all' && c.owned_count === 0;
+    return `
+    <div class="mobile-card${missingRow ? ' row-missing' : ''}">
+      <div class="mobile-card-header">
+        <div>
+          <a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a>
+          <div class="cell-series">${c.set_name || ''}${c.series_label ? ` · ${c.series_label}` : ''}</div>
+        </div>
+        ${c.rarity
+          ? `<span class="rarity-pill rarity-pill--${c.rarity.toLowerCase()}"><span class="rarity-pill-text">${c.rarity}</span></span>`
+          : ''}
+      </div>
+      <div class="mobile-card-stats">
+        ${counting
+          ? `<div><span class="mobile-stat-label">Owned</span><span class="mobile-stat-value">${ownedCell(c)}</span></div>
+             <div><span class="mobile-stat-label">Lowest Edition</span><span class="mobile-stat-value">${(c.lowest_editions || []).map(n => fmtNum(n)).join(' · ') || '—'}</span></div>`
+          : `<div><span class="mobile-stat-label">Edition</span><span class="mobile-stat-value">${fmtNum(c.edition_number)}</span></div>
+             <div><span class="mobile-stat-label">Badges</span><span class="mobile-stat-value">${badgesCellHtml(badges) || '—'}</span></div>`}
+        <div><span class="mobile-stat-label">Team</span><span class="mobile-stat-value">${c.team
+          ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
+          : '—'}</span></div>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  const total = fmtNum(cardsState.total);
+  const s = cardsState.total === 1 ? '' : 's';
+  document.getElementById('cardsResultsMeta').innerHTML =
+    cardsState.ownership === 'missing' ? `<strong>${total}</strong> highlight${s} missing from this set`
+    : cardsState.ownership === 'all' ? `<strong>${total}</strong> highlight${s} in this set`
+    : counting ? `<strong>${total}</strong> highlight${s}`
+    : `<strong>${total}</strong> edition${s}`;
 }
 
 function renderCardsLoadMore() {
@@ -1015,6 +1246,60 @@ document.getElementById('cardsViewToggle').addEventListener('click', e => {
   document.querySelectorAll('#cardsViewToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
   renderCardsHead();
   fetchCardsPage(true);
+  // The sortable column set differs between views (e.g. "Owned"/"Lowest
+  // Edition" only exist in By Count) — repopulate rather than just re-sync.
+  populateCardsMobileSort();
+});
+
+/* Mobile "Sort by" combo + Asc/Desc toggle — repopulated (not just synced)
+   whenever the view toggles, since By Edition/By Count expose different
+   sortable columns (see activeCardsColumns above). */
+function syncCardsMobileSort() { syncMobileSort('cardsSortFieldCombo', 'cardsSortDirToggle', cardsState); }
+function populateCardsMobileSort() {
+  populateMobileSortCombo('cardsSortFieldCombo', activeCardsColumns, cardsState, cardsDefaultDir,
+    () => { renderCardsHead(); fetchCardsPage(true); }, syncCardsMobileSort);
+  syncCardsMobileSort();
+}
+populateCardsMobileSort();
+wireMobileSortDirToggle('cardsSortDirToggle', cardsState,
+  () => { renderCardsHead(); fetchCardsPage(true); }, syncCardsMobileSort);
+
+/* ══════════════════ Ownership toggle (Owned / All / Missing) ══════════════════
+   Only meaningful once a Set filter is picked — "missing from a set" has no
+   set to be missing from otherwise. Called from every place cardsState.set_name
+   changes: populateCardFilters' setCombo pick, the Sets-tab "jump to
+   Highlights" link, and lookupWallet's per-lookup reset. */
+function syncCardsOwnershipVisibility() {
+  const hasSet = !!cardsState.set_name;
+  document.getElementById('cardsOwnershipToggle').style.display = hasSet ? '' : 'none';
+  document.querySelectorAll('#cardsOwnershipToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.ownership === cardsState.ownership);
+  });
+  const ownedMode = cardsState.ownership === 'owned';
+  // Edition-level detail (By Edition view, Edition Badges filter) has no
+  // meaning for a highlight this wallet doesn't own — greyed out + inert
+  // (.control-disabled) rather than hidden, so toggling All/Missing doesn't
+  // reflow the filter bar/everything below it (explicit user preference —
+  // an earlier display:none version made the whole page jump on click).
+  document.getElementById('cardsViewToggle').classList.toggle('control-disabled', !ownedMode);
+  document.getElementById('editionBadgesDd').classList.toggle('control-disabled', !ownedMode);
+}
+document.getElementById('cardsOwnershipToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  cardsState.ownership = btn.dataset.ownership;
+  document.querySelectorAll('#cardsOwnershipToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+  if (cardsState.ownership !== 'owned') {
+    // Only the grouped/count shape has meaning without real per-edition data.
+    cardsState.view = 'count';
+    document.querySelectorAll('#cardsViewToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'count'));
+  }
+  cardsState.sortField = 'player';
+  cardsState.sortDir = 'asc';
+  syncCardsOwnershipVisibility();
+  renderCardsHead();
+  fetchCardsPage(true);
+  populateCardsMobileSort();
 });
 
 const playerSearchWidget = setupTextSearch({
@@ -1096,6 +1381,10 @@ async function fetchPacksPage(reset) {
   await loadPacksChunk();
 }
 
+function packsDefaultDir(field) {
+  return field === 'edition' ? 'desc' : 'asc';
+}
+
 function renderPacksHead() {
   const row = document.getElementById('packsHeadRow');
   row.innerHTML = PACKS_COLUMNS.map(col => {
@@ -1111,10 +1400,11 @@ function renderPacksHead() {
         packsState.sortDir = packsState.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         packsState.sortField = field;
-        packsState.sortDir = field === 'edition' ? 'desc' : 'asc';
+        packsState.sortDir = packsDefaultDir(field);
       }
       renderPacksHead();
       fetchPacksPage(true);
+      syncPacksMobileSort();
     });
   });
 }
@@ -1130,9 +1420,35 @@ function renderPacksBody() {
       <td class="col-r">${fmtNum(p.edition_number)}</td>
     </tr>
   `).join('');
+
+  document.getElementById('packsMobileList').innerHTML = packsState.packs.map(p => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <div class="cell-set-name">${p.pack_name || '—'}</div>
+          <div class="cell-series">${p.series_label || ''}</div>
+        </div>
+        ${p.rarity
+          ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
+          : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Edition</span><span class="mobile-stat-value">${fmtNum(p.edition_number)}</span></div>
+      </div>
+    </div>
+  `).join('');
+
   document.getElementById('packsCount').innerHTML =
     `<strong>${fmtNum(packsState.total)}</strong> pack${packsState.total === 1 ? '' : 's'}`;
 }
+
+/* Mobile "Sort by" combo + Asc/Desc toggle — set up once (PACKS_COLUMNS is
+   static). */
+function syncPacksMobileSort() { syncMobileSort('packsSortFieldCombo', 'packsSortDirToggle', packsState); }
+populateMobileSortCombo('packsSortFieldCombo', () => PACKS_COLUMNS, packsState, packsDefaultDir,
+  () => { renderPacksHead(); fetchPacksPage(true); }, syncPacksMobileSort);
+wireMobileSortDirToggle('packsSortDirToggle', packsState,
+  () => { renderPacksHead(); fetchPacksPage(true); }, syncPacksMobileSort);
 
 function renderPacksLoadMore() {
   const wrap = document.getElementById('packsLoadMoreWrap');
@@ -1169,7 +1485,10 @@ function syncComboDisplay(combo) {
   const hasSelection = active.value !== allItem.value;
   input.placeholder = allItem.label;
   input.value = hasSelection ? active.label : '';
-  clear.style.display = hasSelection ? '' : 'none';
+  // Null-guarded: the mobile-only "Sort by" combos have no clear (✕) button
+  // in their markup — there's no "no sort" state, unlike every other filter
+  // combo on this page (same convention as highlights.html's sortFieldCombo).
+  if (clear) clear.style.display = hasSelection ? '' : 'none';
   combo.classList.toggle('has-selection', hasSelection);
 }
 
@@ -1228,8 +1547,42 @@ function buildCombo(comboId, items, getValue, setValue, onPick) {
       }
     }, 150);
   });
-  clear.addEventListener('mousedown', e => e.preventDefault());
-  clear.addEventListener('click', () => { pick(''); input.blur(); });
+  if (clear) {
+    clear.addEventListener('mousedown', e => e.preventDefault());
+    clear.addEventListener('click', () => { pick(''); input.blur(); });
+  }
+}
+
+/* ══════════════════ Mobile-only "Sort by" combo + Asc/Desc toggle ══════════════════
+   One per sortable tab — replaces that tab's clickable column headers, which
+   disappear along with its desktop table at ≤700px (see .mobile-sort-bar in
+   the <style> above). Generic across all 5 tabs since every tab's state
+   object already carries a plain sortField/sortDir pair. getColumns is a
+   function (not a static array) so tabs whose sortable set changes at
+   runtime — Highlights' By Edition/By Count view, Activity's Detailed/
+   Summary view — can re-derive it each time the view toggles. */
+function populateMobileSortCombo(comboId, getColumns, state, defaultDir, apply, syncFn) {
+  const sortable = getColumns().filter(c => c.sortable);
+  buildCombo(comboId,
+    [{ value: '', label: '' }, ...sortable.map(c => ({ value: c.key, label: c.label }))],
+    () => state.sortField,
+    v => { state.sortField = v; state.sortDir = defaultDir(v); },
+    () => { apply(); syncFn(); });
+}
+function wireMobileSortDirToggle(toggleId, state, apply, syncFn) {
+  document.getElementById(toggleId).addEventListener('click', e => {
+    const btn = e.target.closest('.tpc-toggle-btn');
+    if (!btn || btn.classList.contains('active')) return;
+    state.sortDir = btn.dataset.dir;
+    apply();
+    syncFn();
+  });
+}
+function syncMobileSort(comboId, toggleId, state) {
+  syncComboDisplay(document.getElementById(comboId));
+  document.querySelectorAll(`#${toggleId} .tpc-toggle-btn`).forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === state.sortDir);
+  });
 }
 
 /* ══════════════════ Multi-select .cb-dropdown (checkbox) plumbing ══════════════════
@@ -1336,7 +1689,15 @@ async function populateCardFilters() {
     () => cardsState.series_label, v => cardsState.series_label = v, () => fetchCardsPage(true));
   buildCombo('setCombo',
     [{ value: '', label: 'All sets' }, ...data.sets.map(name => ({ value: name, label: name }))],
-    () => cardsState.set_name, v => cardsState.set_name = v, () => fetchCardsPage(true));
+    () => cardsState.set_name,
+    v => {
+      cardsState.set_name = v;
+      // Clearing the set makes "missing from a set" meaningless — reset back
+      // to the default rather than leaving a hidden All/Missing selection
+      // that would silently resurface if a set gets picked again later.
+      if (!v) cardsState.ownership = 'owned';
+    },
+    () => { syncCardsOwnershipVisibility(); fetchCardsPage(true); });
   buildCombo('rarityCombo',
     [{ value: '', label: 'All rarities' }, ...sortByRarityOrder(data.rarities).map(v => ({ value: v, label: v }))],
     () => cardsState.rarity, v => cardsState.rarity = v, () => fetchCardsPage(true));
@@ -1423,6 +1784,7 @@ function renderRankingsHead() {
       }
       renderRankingsHead();
       renderRankingsBody();
+      syncRankingsMobileSort();
     });
   });
 }
@@ -1441,11 +1803,37 @@ function renderRankingsBody() {
       <td class="col-r">${fmtNum(s.total_complete_sets)}</td>
     </tr>
   `).join('');
+
+  document.getElementById('rankingsMobileList').innerHTML = rows.map(s => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <div class="cell-set-name"><a class="rankings-set-link" href="edition-rankings?set=${encodeURIComponent(s.collection_key)}">${escHtml(s.set_name)}</a></div>
+          <div class="cell-series">${escHtml(s.series_label)}${s.rarity ? ` · ${escHtml(s.rarity)}` : ''}</div>
+        </div>
+        <span class="${s.rank <= 3 ? `cell-rank--${s.rank}` : ''}" style="font-weight:700;">#${fmtNum(s.rank)}</span>
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Avg Edition</span><span class="mobile-stat-value">${s.avg_edition.toFixed(2)}</span></div>
+        <div><span class="mobile-stat-label">Rating</span><span class="mobile-stat-value${s.rating < 0 ? ' cell-rating--negative' : ''}">${s.rating.toFixed(2)}</span></div>
+        <div><span class="mobile-stat-label">Complete Sets</span><span class="mobile-stat-value">${fmtNum(s.total_complete_sets)}</span></div>
+      </div>
+    </div>
+  `).join('');
+
   // Reflects the FILTERED count (matches Set Completion's own setsCount
   // behavior) — only reached once at least one collection exists, since the
   // true-empty case is handled separately in fetchWalletMintRankings.
   document.getElementById('rankingsCount').innerHTML = `<strong>${fmtNum(rows.length)}</strong> collection${rows.length === 1 ? '' : 's'} completed`;
 }
+
+/* Mobile "Sort by" combo + Asc/Desc toggle — set up once (RANKINGS_COLUMNS
+   is static). */
+function syncRankingsMobileSort() { syncMobileSort('rankingsSortFieldCombo', 'rankingsSortDirToggle', rankingsState); }
+populateMobileSortCombo('rankingsSortFieldCombo', () => RANKINGS_COLUMNS, rankingsState, f => RANKINGS_DEFAULT_DIR[f] || 'asc',
+  () => { renderRankingsHead(); renderRankingsBody(); }, syncRankingsMobileSort);
+wireMobileSortDirToggle('rankingsSortDirToggle', rankingsState,
+  () => { renderRankingsHead(); renderRankingsBody(); }, syncRankingsMobileSort);
 
 const rankingsNameSearchWidget = setupTextSearch({
   inputId: 'rankingsNameSearch', clearId: 'rankingsNameSearchClear', debounceMs: 150,
@@ -1455,13 +1843,16 @@ const rankingsNameSearchWidget = setupTextSearch({
 async function fetchWalletMintRankings(wallet) {
   const countEl = document.getElementById('rankingsCount');
   const bodyEl = document.getElementById('rankingsBody');
+  const mobileListEl = document.getElementById('rankingsMobileList');
   rankingsState.rows = [];
   rankingsState.sortField = 'rank'; rankingsState.sortDir = 'asc'; rankingsState.nameSearch = '';
   document.getElementById('rankingsNameSearch').value = '';
   rankingsNameSearchWidget.reset();
   renderRankingsHead();
+  syncRankingsMobileSort();
   countEl.textContent = 'Loading…';
   bodyEl.innerHTML = '';
+  mobileListEl.innerHTML = '';
   try {
     const version = await getDataVersion();
     const res = await fetch(withVersion(`${API_BASE}/api/wallet/mint-rankings?wallet=${encodeURIComponent(wallet)}`, version));
@@ -1630,11 +2021,13 @@ function renderActivityHead() {
       }
       renderActivityHead();
       fetchActivityPage(true);
+      syncActivityMobileSort();
     });
   });
 }
 
 function renderActivityBody() {
+  const mobileListEl = document.getElementById('activityMobileList');
   if (activityState.view === 'summary') {
     document.getElementById('activityBody').innerHTML = activityState.summary.map(s => `
       <tr>
@@ -1643,6 +2036,19 @@ function renderActivityBody() {
         <td class="col-r">${fmtUsd(s.total_amount)}</td>
       </tr>
     `).join('');
+
+    mobileListEl.innerHTML = activityState.summary.map(s => `
+      <div class="mobile-card">
+        <div class="mobile-card-header">
+          <span class="type-pill type-pill--${s.transaction_type}">${ACTIVITY_TYPE_LABELS[s.transaction_type] || s.transaction_type}</span>
+        </div>
+        <div class="mobile-card-stats">
+          <div><span class="mobile-stat-label">Count</span><span class="mobile-stat-value">${fmtNum(s.count)}</span></div>
+          <div><span class="mobile-stat-label">Total Amount</span><span class="mobile-stat-value">${fmtUsd(s.total_amount)}</span></div>
+        </div>
+      </div>
+    `).join('');
+
     const grandTotal = activityState.summary.reduce((sum, s) => sum + s.count, 0);
     document.getElementById('activityCount').innerHTML = activityState.noUsername
       ? "This wallet has no known username, so it can't be matched against Sweet's own transaction history yet."
@@ -1669,6 +2075,36 @@ function renderActivityBody() {
       <td>${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}</td>
     </tr>
   `).join('');
+
+  mobileListEl.innerHTML = activityState.activity.map(a => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <span class="type-pill type-pill--${a.transaction_type}">${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</span>
+          <div class="cell-series">${fmtActivityDate(a.transaction_datetime)}</div>
+        </div>
+        ${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div class="mobile-card-full-row">
+          <span class="mobile-stat-label">Item</span>
+          <span class="mobile-stat-value">${a.player ? escHtml(a.player) + ' — ' : ''}${a.item_name ? escHtml(a.item_name) : (a.is_pack ? `<span class="pack-pill">📦 Pack</span>` : '—')}${a.rarity
+            ? ` <span class="rarity-pill rarity-pill--${a.rarity.toLowerCase()}"><span class="rarity-pill-text">${a.rarity}</span></span>`
+            : ''}</span>
+        </div>
+        <div><span class="mobile-stat-label">Edition</span><span class="mobile-stat-value">${a.edition != null ? fmtNum(a.edition) : '—'}</span></div>
+        <div><span class="mobile-stat-label">Amount</span><span class="mobile-stat-value">${fmtUsd(a.amount)}</span></div>
+        <div class="mobile-card-full-row">
+          <span class="mobile-stat-label">From / To</span>
+          <span class="mobile-stat-value">
+            <span class="cell-from-to-line" title="${escHtml(a.from_username || '')}">${escHtml(prettyWallet(a.from_username) || '—')}</span>
+            <span class="cell-from-to-line" title="${escHtml(a.to_username || '')}">${escHtml(prettyWallet(a.to_username) || '—')}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
   document.getElementById('activityCount').innerHTML = activityState.noUsername
     ? "This wallet has no known username, so it can't be matched against Sweet's own transaction history yet."
     : `<strong>${fmtNum(activityState.total)}</strong> transaction${activityState.total === 1 ? '' : 's'}`;
@@ -1734,6 +2170,23 @@ function wireActivityAmountInput(id, stateKey) {
 wireActivityAmountInput('activityMinAmount', 'min_amount');
 wireActivityAmountInput('activityMaxAmount', 'max_amount');
 
+/* Mobile "Sort by" combo + Asc/Desc toggle — Summary has no sortable columns
+   at all (ACTIVITY_COLUMNS_SUMMARY), so its mobile-sort-bar is hidden
+   outright rather than shown with an empty combo. Repopulated (not just
+   synced) on every view toggle, matching the Highlights tab's own pattern,
+   since the sortable set differs between views. */
+function syncActivityMobileSort() { syncMobileSort('activitySortFieldCombo', 'activitySortDirToggle', activityState); }
+function populateActivityMobileSort() {
+  document.getElementById('activityMobileSortBar').style.display = activityState.view === 'summary' ? 'none' : '';
+  if (activityState.view === 'summary') return;
+  populateMobileSortCombo('activitySortFieldCombo', activeActivityColumns, activityState, () => 'desc',
+    () => { renderActivityHead(); fetchActivityPage(true); }, syncActivityMobileSort);
+  syncActivityMobileSort();
+}
+populateActivityMobileSort();
+wireMobileSortDirToggle('activitySortDirToggle', activityState,
+  () => { renderActivityHead(); fetchActivityPage(true); }, syncActivityMobileSort);
+
 document.getElementById('activityViewToggle').addEventListener('click', e => {
   const btn = e.target.closest('.tpc-toggle-btn');
   if (!btn || btn.classList.contains('active')) return;
@@ -1741,6 +2194,7 @@ document.getElementById('activityViewToggle').addEventListener('click', e => {
   document.querySelectorAll('#activityViewToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
   renderActivityHead();
   renderActivityLoadMore();
+  populateActivityMobileSort();
   refreshActivity(true);
 });
 
@@ -1852,18 +2306,21 @@ async function lookupWallet(query, initialTab, initialSetName) {
 
     renderSetsHead();
     cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = initialSetName || ''; cardsState.rarity = ''; cardsState.team = ''; cardsState.edition_badges.clear();
-    cardsState.view = 'count'; cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
+    cardsState.ownership = 'owned'; cardsState.view = 'count'; cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
     document.getElementById('playerSearch').value = '';
     playerSearchWidget.reset();
     document.querySelectorAll('#cardsViewToggle .tpc-toggle-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.view === cardsState.view);
     });
+    syncCardsOwnershipVisibility();
     renderCardsHead();
+    populateCardsMobileSort();
     packsState.wallet = wallet; packsState.pack_name = ''; packsState.series_label = ''; packsState.rarity = '';
     packsState.sortField = 'pack'; packsState.sortDir = 'asc';
     document.getElementById('packSearch').value = '';
     packSearchWidget.reset();
     renderPacksHead();
+    syncPacksMobileSort();
 
     activityState.wallet = wallet; activityState.type = ''; activityState.series_label = ''; activityState.set_name = ''; activityState.rarity = ''; activityState.player = '';
     activityState.min_amount = ''; activityState.max_amount = ''; activityState.wallet_search = '';
@@ -1880,6 +2337,7 @@ async function lookupWallet(query, initialTab, initialSetName) {
     populateActivityTypeCombo();
     renderActivityHead();
     renderActivityLoadMore();
+    populateActivityMobileSort();
 
     await Promise.all([
       fetchWalletSets(wallet),
