@@ -86,6 +86,38 @@ function buildNav() {
       border-top: 1px solid var(--border);
     }
     @media (max-width: 700px) { .nav-freshness { padding: 0.3rem 0.75rem; } }
+
+    /* global.css's own @media (max-width: 640px) replaces .nav-burger's base
+       margin-left: auto with a small fixed value — correct for the other
+       sections' nav.js, where #navCartBtn (wallet widget) has its own
+       margin-left: auto at 900px and does the actual right-push, so the
+       burger's own margin barely matters there. This section has no wallet
+       widget/cart button at all (see this file's own top comment), so the
+       burger is the ONLY thing that can push itself to the right edge —
+       losing its auto margin at phone widths left it stranded right after
+       the logo/section badge instead of flush right. Re-declared here
+       (injected after global.css, so it wins at equal specificity) rather
+       than touched in global.css, since that file's fixed-margin override
+       is deliberate and correct for every OTHER section. */
+    @media (max-width: 640px) { .nav-burger { margin-left: auto; } }
+
+    /* Compact freshness line, mobile only (<=900px, the same breakpoint
+       .nav-links disappears at) — takes over the now-empty middle of the
+       nav row between the logo cluster and the hamburger instead of the
+       full-width row below the nav bar, saving that row's vertical space
+       entirely on phone/tablet. Always display:none outside that width (and
+       while still [hidden], i.e. no data loaded yet) regardless of source
+       order, since .nav-freshness-inline has no explicit display of its own
+       otherwise. */
+    .nav-freshness-inline { display: none; }
+    @media (max-width: 900px) {
+      .nav-freshness-inline:not([hidden]) {
+        display: flex; flex: 1; align-items: center; justify-content: center;
+        font-size: 0.7rem; color: var(--text-secondary); text-align: center;
+        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+      }
+      .nav-freshness { display: none; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -99,6 +131,7 @@ function buildNav() {
       <span class="nav-divider"></span>
       <a href="${_p || '.'}" class="nav-section">${SECTION_NAME}</a>
       <div class="nav-links">${links}</div>
+      <div class="nav-freshness-inline" id="navFreshnessInline" hidden></div>
       <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -189,14 +222,20 @@ function _loadScriptOnce(src) {
 // (element stays hidden) rather than showing a broken freshness line —
 // this is a nice-to-have, not something worth an error state over.
 async function loadFreshness() {
-  const el = document.getElementById('navFreshness');
-  if (!el) return;
+  // Two elements share the same data: the full-width row below the nav bar
+  // (desktop) and a compact inline one centered in the nav row itself,
+  // where .nav-links would otherwise be (mobile, <=900px, where .nav-links
+  // is already hidden and the row would otherwise just have empty space
+  // between the logo cluster and the hamburger). CSS alone decides which
+  // one is actually visible at a given width — both always get the text.
+  const els = [document.getElementById('navFreshness'), document.getElementById('navFreshnessInline')].filter(Boolean);
+  if (!els.length) return;
 
   const cached = sessionStorage.getItem(FRESHNESS_CACHE_KEY);
   if (cached) {
     try {
       const { value, cachedAt } = JSON.parse(cached);
-      if (Date.now() - cachedAt < FRESHNESS_CACHE_TTL_MS) return renderFreshness(el, value);
+      if (Date.now() - cachedAt < FRESHNESS_CACHE_TTL_MS) return renderFreshness(els, value);
     } catch {}
   }
 
@@ -206,21 +245,23 @@ async function loadFreshness() {
     const { data_last_updated } = await res.json();
     if (!data_last_updated) return;
     sessionStorage.setItem(FRESHNESS_CACHE_KEY, JSON.stringify({ value: data_last_updated, cachedAt: Date.now() }));
-    renderFreshness(el, data_last_updated);
+    renderFreshness(els, data_last_updated);
   } catch {
     // Dev API not running, network hiccup, etc. — leave the line hidden.
   }
 }
 
-function renderFreshness(el, isoString) {
+function renderFreshness(els, isoString) {
   const date = new Date(isoString);
   if (isNaN(date)) return;
   const formatted = new Intl.DateTimeFormat(undefined, {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
   }).format(date);
-  el.textContent = `Last updated: ${formatted}`;
-  el.hidden = false;
+  for (const el of els) {
+    el.textContent = `Last updated: ${formatted}`;
+    el.hidden = false;
+  }
 }
 
 function _showMovedOverlay() {
