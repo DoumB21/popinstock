@@ -61,6 +61,20 @@
     .badge-card-count { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
     .badge-card-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
 
+    /* ── Highlights tab's "Badges" column (By Edition view only) — same
+       per-edition computed-badge icons/treatment as holders.html's own
+       .edition-badges, just evaluated per-row here (this table spans many
+       different highlights, not one shared moment) instead of against a
+       single page-level HEADER. See computeEditionBadges(). ── */
+    .edition-badges { display: flex; gap: 4px; }
+    .edition-badges img { width: 20px; height: 20px; object-fit: contain; }
+    /* Perfect Edition on a growing (uncapped) moment is provisional — it's
+       "currently the newest", not permanent, since the next crafted copy can
+       take its place. Same accent treatment as .editions-growing elsewhere. */
+    .edition-badges img.badge-provisional { border-radius: 50%; outline: 2px solid var(--accent-light); outline-offset: 1px; }
+    .items-table tbody tr.row-has-badge { background: rgba(240,168,64,0.07); }
+    .items-table tbody tr.row-has-badge:hover { background: rgba(240,168,64,0.13); }
+
     /* ── Stat card accent colors — same pattern as funko/wallet.html's own
        per-stat coloring, distinct hues so the row reads at a glance. ── */
     .stat-card--total .stat-value { color: var(--accent-light); }
@@ -145,6 +159,7 @@
     /* ── Filter bar (cards table) ── */
     .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .filter-bar .cb-combo { min-width: 160px; flex: 1; max-width: 220px; }
+    .filter-bar .cb-dropdown { min-width: 160px; flex: 1; max-width: 220px; }
     .filter-bar .search-input { min-width: 180px; flex: 1.2; max-width: 280px; }
     /* Activity tab's Min/Max amount — same idea as holders.html's own
        edition-range-input (a plain min-width on .search-input would
@@ -248,7 +263,7 @@
     }
 
     @media (max-width: 700px) {
-      .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
+      .filter-bar .cb-combo, .filter-bar .cb-dropdown, .filter-bar .search-input { max-width: none; }
       .sets-table, .items-table { font-size: 0.78rem; }
     }
   </style>
@@ -367,6 +382,13 @@
             <input type="text" class="cb-combo-input" id="teamComboInput" autocomplete="off" spellcheck="false">
             <button type="button" class="cb-combo-clear" id="teamComboClear" style="display:none" title="Clear">✕</button>
             <div class="cb-panel" id="teamPanel"></div>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="cb-dropdown" id="editionBadgesDd">
+            <button class="cb-dropdown-btn" type="button"><span class="cb-label">Edition Badges</span><span class="cb-arrow">▾</span></button>
+            <button type="button" class="cb-dropdown-clear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel"></div>
           </div>
           <div class="tpc-toggle-group" id="cardsViewToggle">
             <button type="button" class="tpc-toggle-btn" data-view="edition">By Edition</button>
@@ -805,6 +827,7 @@ document.getElementById('setsCompletionToggle').addEventListener('click', e => {
      columns/aggregation differ. */
 const CARDS_COLUMNS_EDITION = [
   { key: 'player',  label: 'Player',  sortable: true },
+  { key: 'badges',  label: 'Badges',  sortable: false },
   { key: 'set',     label: 'Set',     sortable: true },
   { key: 'rarity',  label: 'Rarity',  sortable: true },
   { key: 'edition', label: 'Edition', sortable: true, num: true },
@@ -819,7 +842,7 @@ const CARDS_COLUMNS_COUNT = [
   { key: 'team',    label: 'Team',    sortable: true },
 ];
 const cardsState = {
-  wallet: '', cards: [], player: '', series_label: '', set_name: '', rarity: '', team: '',
+  wallet: '', cards: [], player: '', series_label: '', set_name: '', rarity: '', team: '', edition_badges: new Set(),
   view: 'count', sortField: 'player', sortDir: 'asc', offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false,
 };
 
@@ -831,6 +854,7 @@ function cardsQuery() {
   if (cardsState.set_name) params.set('set_name', cardsState.set_name);
   if (cardsState.rarity) params.set('rarity', cardsState.rarity);
   if (cardsState.team) params.set('team', cardsState.team);
+  if (cardsState.edition_badges.size) params.set('edition_badges', [...cardsState.edition_badges].join(','));
   if (cardsState.view === 'count') params.set('group', 'count');
   params.set('sort', cardsState.sortField);
   params.set('dir', cardsState.sortDir);
@@ -896,11 +920,44 @@ function renderCardsHead() {
   });
 }
 
+// Same 3 per-edition computed badges as holders.html's own EDITION_BADGES —
+// evaluated per row here instead of against one shared page-level HEADER,
+// since this table spans many different highlights at once. Icon URLs
+// reused from WALLET_BADGES above (same 3 icons, same source). Only shown
+// in the "By Edition" view — "By Count" collapses multiple owned editions
+// into one row, where a single badge icon can't unambiguously represent
+// every copy owned.
+function computeEditionBadges(c) {
+  const badges = [];
+  if (c.edition_number === 1) badges.push({ label: '#1 Edition', icon: WALLET_BADGES[0].icon });
+  if (c.jersey_number != null && c.edition_number === c.jersey_number) {
+    badges.push({ label: 'Jersey Match Edition', icon: WALLET_BADGES[1].icon });
+  }
+  if (c.perfect_edition != null && c.edition_number === c.perfect_edition) {
+    // Provisional on a growing (uncapped) moment — c.perfect_edition is that
+    // moment's CURRENT max edition, not a fixed cap, so this can move to a
+    // different card the next time one is crafted.
+    badges.push({ label: 'Perfect Edition', icon: WALLET_BADGES[2].icon, provisional: c.total_editions == null });
+  }
+  return badges;
+}
+function badgesCellHtml(badges) {
+  return badges.length
+    ? `<div class="edition-badges">${badges.map(b => {
+        const title = b.provisional ? `${b.label} — currently the newest, may change` : b.label;
+        return `<img src="${b.icon}" alt="${b.label}" title="${title}" loading="lazy"${b.provisional ? ' class="badge-provisional"' : ''}>`;
+      }).join('')}</div>`
+    : '';
+}
+
 function renderCardsBody() {
   const counting = cardsState.view === 'count';
-  document.getElementById('cardsBody').innerHTML = cardsState.cards.map(c => `
-    <tr>
+  document.getElementById('cardsBody').innerHTML = cardsState.cards.map(c => {
+    const badges = counting ? [] : computeEditionBadges(c);
+    return `
+    <tr${badges.length ? ' class="row-has-badge"' : ''}>
       <td><a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a></td>
+      ${counting ? '' : `<td>${badgesCellHtml(badges)}</td>`}
       <td>
         <div class="cell-set-name">${c.set_name || '—'}</div>
         <div class="cell-series">${c.series_label || ''}</div>
@@ -916,7 +973,8 @@ function renderCardsBody() {
         ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
         : '—'}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
   document.getElementById('cardsResultsMeta').innerHTML = counting
     ? `<strong>${fmtNum(cardsState.total)}</strong> highlight${cardsState.total === 1 ? '' : 's'}`
     : `<strong>${fmtNum(cardsState.total)}</strong> edition${cardsState.total === 1 ? '' : 's'}`;
@@ -1165,6 +1223,98 @@ function buildCombo(comboId, items, getValue, setValue, onPick) {
   clear.addEventListener('click', () => { pick(''); input.blur(); });
 }
 
+/* ══════════════════ Multi-select .cb-dropdown (checkbox) plumbing ══════════════════
+   Same component/behavior as leaderboard.html's own copy (itself ported from
+   inventory.html's populateCbDropdown()) — hand-ported here rather than
+   shared via a <script src>, since each copy is entangled with that page's
+   own globals. Keep in sync BY HAND if the shared component's behavior ever
+   changes — this is the 3rd hand-copy of this exact logic in this section
+   (inventory.html → leaderboard.html → here), worth finally centralizing if
+   it needs a 4th copy or a bugfix. */
+function refreshCbLabel(container, selectedSet, allLabel) {
+  const labelEl = container.querySelector('.cb-label');
+  if (!labelEl) return;
+  const labelMap = container._cbLabelMap;
+  const soleValue = selectedSet.size === 1 ? [...selectedSet][0] : null;
+  labelEl.textContent = selectedSet.size === 0 ? allLabel
+    : selectedSet.size === 1 ? (labelMap?.get(soleValue) ?? soleValue)
+    : `${selectedSet.size} selected`;
+  container.querySelector('.cb-dropdown-btn')?.classList.toggle('has-selection', selectedSet.size > 0);
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (clearBtn) clearBtn.style.display = selectedSet.size > 0 ? '' : 'none';
+}
+
+function closeAllCbDropdowns() {
+  document.querySelectorAll('.cb-dropdown').forEach(d => {
+    d.querySelector('.cb-panel').classList.remove('open');
+    d.querySelector('.cb-dropdown-btn').classList.remove('open');
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-dropdown')) closeAllCbDropdowns();
+});
+document.querySelectorAll('.cb-dropdown').forEach(container => {
+  container.querySelector('.cb-dropdown-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = container.querySelector('.cb-panel');
+    const isOpen = panel.classList.contains('open');
+    closeAllCbDropdowns();
+    if (!isOpen) {
+      panel.classList.add('open');
+      container.querySelector('.cb-dropdown-btn').classList.add('open');
+    }
+  });
+});
+
+function populateCbDropdown(containerId, items, selectedSet, allLabel, onChange) {
+  const container = document.getElementById(containerId);
+  const panel = container.querySelector('.cb-panel');
+  container._cbLabelMap = new Map(items.map(v => {
+    const value = typeof v === 'string' ? v : v.value;
+    const label = typeof v === 'string' ? v : v.label;
+    return [value, label];
+  }));
+  panel.innerHTML = items.length
+    ? items.map(v => {
+        const value = typeof v === 'string' ? v : v.value;
+        const label = typeof v === 'string' ? v : v.label;
+        return `<label class="cb-item"><input type="checkbox" value="${escHtml(value)}"${selectedSet.has(value) ? ' checked' : ''}><span>${escHtml(label)}</span></label>`;
+      }).join('')
+    : `<div class="cb-empty">No options</div>`;
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedSet.add(cb.value); else selectedSet.delete(cb.value);
+      refreshCbLabel(container, selectedSet, allLabel);
+      onChange();
+    });
+  });
+  const clearBtn = container.querySelector('.cb-dropdown-clear');
+  if (clearBtn && !clearBtn._wired) {
+    clearBtn._wired = true;
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const set = clearBtn._selectedSet;
+      if (!set || set.size === 0) return;
+      set.clear();
+      panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = false; });
+      refreshCbLabel(container, set, clearBtn._allLabel);
+      clearBtn._onChange();
+    });
+  }
+  if (clearBtn) { clearBtn._selectedSet = selectedSet; clearBtn._allLabel = allLabel; clearBtn._onChange = onChange; }
+  refreshCbLabel(container, selectedSet, allLabel);
+}
+
+// Same 3 client-computed badge types as holders.html's/wallet.html's own
+// WALLET_BADGES summary block above and leaderboard.html's identical filter —
+// #1 Edition, Jersey Match Edition, Perfect Edition. Values match the
+// backend's EDITION_BADGE_KEYS in dev-server/index.js exactly.
+const EDITION_BADGE_ITEMS = [
+  { value: 'first',   label: '#1 Edition' },
+  { value: 'jersey',   label: 'Jersey Match Edition' },
+  { value: 'perfect', label: 'Perfect Edition' },
+];
+
 // Reuses the Highlights page's own filter-options endpoint — these dropdowns
 // list every set/rarity in the whole catalog (not just ones this wallet
 // owns), same convention as Highlights' own filter bar.
@@ -1184,6 +1334,7 @@ async function populateCardFilters() {
   buildCombo('teamCombo',
     [{ value: '', label: 'All teams' }, ...data.teams.map(v => ({ value: v, label: v }))],
     () => cardsState.team, v => cardsState.team = v, () => fetchCardsPage(true));
+  populateCbDropdown('editionBadgesDd', EDITION_BADGE_ITEMS, cardsState.edition_badges, 'Edition Badges', () => fetchCardsPage(true));
 }
 
 /* ══════════════════ Edition Rankings tab ══════════════════ */
@@ -1691,7 +1842,7 @@ async function lookupWallet(query, initialTab, initialSetName) {
     setActiveTab(initialTab || TAB_NAMES[0]);
 
     renderSetsHead();
-    cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = initialSetName || ''; cardsState.rarity = ''; cardsState.team = '';
+    cardsState.wallet = wallet; cardsState.player = ''; cardsState.series_label = ''; cardsState.set_name = initialSetName || ''; cardsState.rarity = ''; cardsState.team = ''; cardsState.edition_badges.clear();
     cardsState.view = 'count'; cardsState.sortField = 'player'; cardsState.sortDir = 'asc';
     document.getElementById('playerSearch').value = '';
     playerSearchWidget.reset();

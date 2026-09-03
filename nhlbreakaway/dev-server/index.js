@@ -1154,6 +1154,25 @@ async function handleWalletCards(url, res) {
   addFilter('m.series_label', q.get('series_label'));
   addFilter('m.team', q.get('team'));
 
+  // Per-edition computed badges (#1 Edition / Perfect Edition / Jersey Match
+  // Edition) — same client-side-computed concept as holders.html's/this
+  // page's own WALLET_BADGES summary block, and the identical filter on
+  // leaderboard.html (see buildHighlightsSubquery's own comment for why
+  // Perfect Edition's COALESCE only pays for its MAX(...) subquery on
+  // uncapped/growing moments). A card counts if it qualifies for ANY of the
+  // selected types. Applied to the shared `where` before the grouped/
+  // ungrouped branch below, so it narrows both view modes identically.
+  const editionBadges = parseCsvParam(q.get('edition_badges')).filter(b => EDITION_BADGE_KEYS.has(b));
+  if (editionBadges.length) {
+    const badgeClauses = [];
+    if (editionBadges.includes('first')) badgeClauses.push('c.edition_number = 1');
+    if (editionBadges.includes('jersey')) badgeClauses.push('(m.jersey_number IS NOT NULL AND c.edition_number = m.jersey_number)');
+    if (editionBadges.includes('perfect')) {
+      badgeClauses.push(`c.edition_number = COALESCE(m.total_editions, (SELECT MAX(c2.edition_number) FROM cards c2 WHERE c2.moment_uuid = m.moment_uuid))`);
+    }
+    where.push(`(${badgeClauses.join(' OR ')})`);
+  }
+
   const sortColumns = grouped ? WALLET_CARDS_GROUPED_SORT_COLUMNS : WALLET_CARDS_SORT_COLUMNS;
   const defaultSort = grouped ? 'count' : 'player';
   const sortKey = sortColumns[q.get('sort')] ? q.get('sort') : defaultSort;
@@ -1205,8 +1224,24 @@ async function handleWalletCards(url, res) {
   // page in one query, cheaper than a second round-trip. Scoped to a single
   // wallet (never a full-table scan), so this is cheap regardless of size —
   // same reasoning as every other per-wallet query on this page.
+  // jersey_number/total_editions/perfect_edition back the "Badges" column on
+  // the frontend's "By Edition" view (computeEditionBadges() in wallet.html)
+  // — same 3 client-computed badge types as holders.html's own EDITION_BADGES,
+  // just evaluated per row here since this table spans many different
+  // highlights at once, not one shared moment. perfect_edition is the target
+  // edition number a card needs to BE a Perfect Edition (the cap, or on an
+  // uncapped/growing moment, that moment's current live max) — computed here
+  // rather than pushing the COALESCE logic into the frontend. The inner
+  // MAX(...) subquery only runs for the uncapped-moment CASE branch (Postgres
+  // short-circuits the untaken branch), so it's skipped for the vast
+  // majority of (capped) rows — same lazy-CASE pattern used throughout this
+  // file (see handleWalletSummary's own perfect_edition_count).
   const sql = `
     SELECT c.moment_uuid, c.edition_number, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url AS team_logo_url,
+      m.jersey_number, m.total_editions,
+      CASE WHEN m.total_editions IS NOT NULL THEN m.total_editions
+           ELSE (SELECT MAX(c2.edition_number) FROM cards c2 WHERE c2.moment_uuid = c.moment_uuid)
+      END AS perfect_edition,
       COUNT(*) OVER() AS total_count
     FROM cards c
     JOIN moments m ON m.moment_uuid = c.moment_uuid
@@ -1226,6 +1261,9 @@ async function handleWalletCards(url, res) {
     rarity: r.rarity,
     team: r.team,
     team_logo_url: r.team_logo_url || null,
+    jersey_number: r.jersey_number === null ? null : Number(r.jersey_number),
+    total_editions: r.total_editions === null ? null : Number(r.total_editions),
+    perfect_edition: r.perfect_edition === null ? null : Number(r.perfect_edition),
   }));
   sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
