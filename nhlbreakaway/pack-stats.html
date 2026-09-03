@@ -23,6 +23,13 @@
     }
     .filter-bar .search-input:focus { outline: none; border-color: var(--accent); }
 
+    /* Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the desktop
+       table's clickable column headers, which disappear along with the
+       table itself at this width (see .mobile-card-list below). Without
+       this, mobile would have no way to change sort order at all. */
+    .mobile-sort-bar { display: none; }
+    .mobile-sort-bar .cb-combo { max-width: 220px; }
+
     /* ── Results meta ── */
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
     .results-meta strong { color: var(--text-primary); }
@@ -81,9 +88,40 @@
     .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
     .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
 
+    /* ── Mobile card list — one card per pack instead of a table row, so
+       phone widths never need horizontal scroll to read the rest of a row.
+       Same "two parallel DOM representations, toggled by breakpoint" pattern
+       as trade-analyzer.html's own mobile-card-list (table wrapper hides,
+       this shows) — simpler here since pack-stats has no per-row sub-state
+       to keep in sync, just re-rendered from the same filtered/sorted rows
+       every time. Hidden above 700px, matching this page's own existing
+       breakpoint (not trade-analyzer's 640px). ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    .mobile-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 0.75rem; padding-bottom: 0.6rem; margin-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .mobile-card-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+    .mobile-stat-label {
+      display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px;
+    }
+    .mobile-stat-value { font-variant-numeric: tabular-nums; }
+
     @media (max-width: 700px) {
       .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
       .packs-table { font-size: 0.78rem; }
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
+      .mobile-sort-bar { display: flex; }
     }
   </style>
 </head>
@@ -111,9 +149,20 @@
       </div>
     </div>
 
+    <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
+      <div class="cb-combo" id="sortFieldCombo">
+        <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+        <div class="cb-panel" id="sortFieldPanel"></div>
+      </div>
+      <div class="tpc-toggle-group" id="sortDirToggle">
+        <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+        <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+      </div>
+    </div>
+
     <div class="results-meta" id="resultsMeta"></div>
 
-    <div style="overflow-x:auto;">
+    <div class="table-scroll" style="overflow-x:auto;">
       <table class="packs-table">
         <thead>
           <tr id="packsHeadRow"></tr>
@@ -121,6 +170,8 @@
         <tbody id="packsBody"></tbody>
       </table>
     </div>
+
+    <div class="mobile-card-list" id="packsMobileList"></div>
 
   </div>
 </div>
@@ -224,6 +275,15 @@ function filteredSortedPacks() {
   return rows;
 }
 
+// Shared by the desktop header-click handler and the mobile "Sort by" combo
+// (see mobileSortFieldCombo below) — picking a new field this way always
+// jumps straight to its "best first" direction, matching whichever way
+// makes the column read naturally (name/rarity alphabetical; every numeric
+// column highest-first).
+function defaultDirForField(field) {
+  return field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+}
+
 function renderHead() {
   const row = document.getElementById('packsHeadRow');
   row.innerHTML = COLUMNS.map(col => {
@@ -239,10 +299,11 @@ function renderHead() {
         state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         state.sortField = field;
-        state.sortDir = field === 'name' || field === 'rarity' ? 'asc' : 'desc';
+        state.sortDir = defaultDirForField(field);
       }
       renderHead();
       renderBody();
+      syncMobileSortControls();
     });
   });
 }
@@ -277,6 +338,32 @@ function renderBody() {
       <td class="col-r">${fmtPct(p.pct_left) || '—'}</td>
     </tr>
   `).join('');
+
+  const mobileList = document.getElementById('packsMobileList');
+  mobileList.innerHTML = rows.map(p => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <div class="cell-pack-name">${p.pack_name}</div>
+          <div class="cell-series">${p.series_label}</div>
+        </div>
+        ${p.rarity
+          ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
+          : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Highlights</span><span class="mobile-stat-value">${fmtNum(p.moments)}</span></div>
+        <div><span class="mobile-stat-label">Editions</span><span class="mobile-stat-value">${p.editions === null
+          ? `<span class="editions-growing" title="Uncapped — mints progressively, no fixed cap">${fmtNum(p.editions_live_sum)}+</span>`
+          : fmtNum(p.editions)}</span></div>
+        <div><span class="mobile-stat-label">Opened</span><span class="mobile-stat-value">${fmtNum(p.opened)}<span class="cell-pct">${fmtPct(p.opened_pct)}</span></span></div>
+        <div><span class="mobile-stat-label">Collected</span><span class="mobile-stat-value">${fmtNum(p.collected)}<span class="cell-pct">${fmtPct(p.collected_pct)}</span></span></div>
+        <div><span class="mobile-stat-label">Distributed</span><span class="mobile-stat-value">${fmtNum(p.distributed)}</span></div>
+        <div><span class="mobile-stat-label">% Left</span><span class="mobile-stat-value">${fmtPct(p.pct_left) || '—'}</span></div>
+      </div>
+    </div>
+  `).join('');
+
   document.getElementById('resultsMeta').innerHTML = `<strong>${rows.length}</strong> pack${rows.length === 1 ? '' : 's'}`;
 }
 
@@ -300,11 +387,19 @@ function syncComboDisplay(combo) {
   const hasSelection = active.value !== allItem.value;
   input.placeholder = allItem.label;
   input.value = hasSelection ? active.label : '';
-  clear.style.display = hasSelection ? '' : 'none';
+  if (clear) clear.style.display = hasSelection ? '' : 'none';
   combo.classList.toggle('has-selection', hasSelection);
 }
 
-function buildCombo(comboId, items, getValue, setValue) {
+// onPick defaults to renderBody (every existing Series/Rarity combo's own
+// behavior, unchanged) — the mobile "Sort by" combo below is the one
+// exception, needing extra side effects (recompute sort direction, re-sync
+// the direction toggle) beyond just re-rendering the filtered rows. It also
+// has no clear (✕) button in its markup at all — there's no "no sort"
+// state, unlike every other filter here — so both this and
+// syncComboDisplay above null-guard that lookup instead of assuming it
+// always exists.
+function buildCombo(comboId, items, getValue, setValue, onPick = renderBody) {
   const combo = document.getElementById(comboId);
   const input = combo.querySelector('.cb-combo-input');
   const clear = combo.querySelector('.cb-combo-clear');
@@ -320,7 +415,7 @@ function buildCombo(comboId, items, getValue, setValue) {
     closeAllCombos();
     setValue(val);
     syncComboDisplay(combo);
-    renderBody();
+    onPick();
   };
 
   const renderList = filterText => {
@@ -359,8 +454,10 @@ function buildCombo(comboId, items, getValue, setValue) {
       }
     }, 150);
   });
-  clear.addEventListener('mousedown', e => e.preventDefault());
-  clear.addEventListener('click', () => { pick(''); input.blur(); });
+  if (clear) {
+    clear.addEventListener('mousedown', e => e.preventDefault());
+    clear.addEventListener('click', () => { pick(''); input.blur(); });
+  }
 }
 
 function populateFilters() {
@@ -376,6 +473,41 @@ function populateFilters() {
     () => state.rarity, v => state.rarity = v);
 }
 
+// Mobile-only "Sort by" combo — buildCombo's own renderList always
+// slice(1)s the items array (index 0 is reserved for the "All X" sentinel
+// every other combo here uses, never rendered as a clickable row). Sort
+// field has no "All" option — it's always exactly one column — so a real
+// (inert, empty-value) sentinel still has to go first, or the actual first
+// column would silently take over that hidden slot and could never show as
+// the active row when the list opens (hit this exact bug once already on
+// activity-leaderboard.html's Type combo).
+function populateSortFieldCombo() {
+  buildCombo('sortFieldCombo',
+    [{ value: '', label: '' }, ...COLUMNS.filter(c => c.sortable).map(c => ({ value: c.key, label: c.label }))],
+    () => state.sortField,
+    v => {
+      state.sortField = v;
+      state.sortDir = defaultDirForField(v);
+    },
+    () => { renderHead(); renderBody(); syncMobileSortControls(); });
+}
+
+function syncMobileSortControls() {
+  syncComboDisplay(document.getElementById('sortFieldCombo'));
+  document.querySelectorAll('#sortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === state.sortDir);
+  });
+}
+
+document.getElementById('sortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  state.sortDir = btn.dataset.dir;
+  renderHead();
+  renderBody();
+  syncMobileSortControls();
+});
+
 document.getElementById('nameSearch').addEventListener('input', e => {
   state.name = e.target.value;
   renderBody();
@@ -383,6 +515,8 @@ document.getElementById('nameSearch').addEventListener('input', e => {
 
 (async function init() {
   renderHead();
+  populateSortFieldCombo();
+  syncMobileSortControls();
   document.getElementById('resultsMeta').textContent = 'Loading…';
   try {
     await fetchPacks();
