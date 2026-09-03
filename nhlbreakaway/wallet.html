@@ -726,6 +726,19 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="setValueModal">
+  <div class="modal-box">
+    <button class="modal-close" id="setValueModalClose">&times;</button>
+    <div class="modal-title">Set Value</div>
+    <div class="modal-body">
+      Based on the current floor price (the cheapest open marketplace listing) of each highlight in the set, summed — a snapshot refreshed hourly, not a live quote.<br><br>
+      <b>Set Value</b> — cost to buy one of every highlight in the set from scratch, whether you own it or not.<br>
+      <b>Cost to Complete</b> — same idea, but only for the highlights you're still missing. Blank once you own the full set.<br><br>
+      A yellow <b>(-N HL)</b> next to either number means N of those highlights currently have no open listing, so they're left out of that total.
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="ratingModal">
   <div class="modal-box">
     <button class="modal-close" id="ratingModalClose">&times;</button>
@@ -868,7 +881,7 @@ const SETS_COLUMNS = [
   // separate sortable one — there's no such thing as 2 simultaneous sorts.
   // label2 renders as the header's own second line (see renderSetsHead);
   // the body cells don't repeat either label per row, just the 2 values.
-  { key: 'set_floor_price', label: 'Set Value', label2: 'Cost to Complete', sortable: true, num: true },
+  { key: 'set_floor_price', label: 'Set Value', label2: 'Cost to Complete', sortable: true, num: true, infoTip: true },
 ];
 const setsState = {
   sets: [], sortField: 'name', sortDir: 'asc',
@@ -906,6 +919,12 @@ function setsDefaultDir(field) {
 
 function renderSetsHead() {
   const row = document.getElementById('setsHeadRow');
+  // stopPropagation keeps the icon's click from also toggling the column
+  // sort — the whole <th> is a click target for that (see the th.sortable
+  // listener below), and this icon sits inside it. Placed BEFORE the label
+  // per explicit request, unlike this site's other info-tips (Rating
+  // Formula), which sit after theirs.
+  const setValueInfoTipHtml = `<span class="info-tip" onclick="event.stopPropagation(); document.getElementById('setValueModal').classList.add('open')"><span class="info-tip-icon">ⓘ</span></span>`;
   row.innerHTML = SETS_COLUMNS.map(col => {
     if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
     const sorted = setsState.sortField === col.key;
@@ -913,7 +932,8 @@ function renderSetsHead() {
     // Sort applies to the whole column (keyed on col.key, always the first
     // line's field — see the comment on set_floor_price above) — label2 is
     // purely a second line of header text, not a second sort target.
-    const label = col.label2 ? `${col.label}<span class="th-label2">${col.label2}</span>` : col.label;
+    const label1 = col.infoTip ? `${setValueInfoTipHtml} ${col.label}` : col.label;
+    const label = col.label2 ? `${label1}<span class="th-label2">${col.label2}</span>` : label1;
     return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${label} <span class="sort-icon">${icon}</span></th>`;
   }).join('');
   row.querySelectorAll('th.sortable').forEach(th => {
@@ -2631,6 +2651,10 @@ ratingModal.addEventListener('click', e => { if (e.target === ratingModal) ratin
 const valueModal = document.getElementById('valueModal');
 document.getElementById('valueModalClose').addEventListener('click', () => valueModal.classList.remove('open'));
 valueModal.addEventListener('click', e => { if (e.target === valueModal) valueModal.classList.remove('open'); });
+
+const setValueModal = document.getElementById('setValueModal');
+document.getElementById('setValueModalClose').addEventListener('click', () => setValueModal.classList.remove('open'));
+setValueModal.addEventListener('click', e => { if (e.target === setValueModal) setValueModal.classList.remove('open'); });
 </script>
 
 <script src="nav.js"></script>
