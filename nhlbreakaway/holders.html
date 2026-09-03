@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Holders — NHL Breakaway — Hoardio</title>
   <meta name="description" content="Every edition of an NHL Breakaway highlight — current holder, in-packs, and burned status per edition." />
+  <!-- No <link rel="canonical"> on this file — it's always visited nested one
+       segment deeper (/nhlbreakaway/holders/:momentUuid, see _assetPrefix
+       below), so there's no single static canonical URL for the bare file
+       itself. og:url points at the base list route as the closest stand-in,
+       matching this page's own static-per-section-banner treatment (no
+       per-moment dynamic image/title — same generic-banner scope as every
+       other page here). -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.hoardio.com/nhlbreakaway/holders" />
+  <meta property="og:title" content="Holders — NHL Breakaway — Hoardio" />
+  <meta property="og:description" content="Every edition of an NHL Breakaway highlight — current holder, in-packs, and burned status per edition." />
+  <meta property="og:image" content="https://www.hoardio.com/images/og-nhlbreakaway.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Holders — NHL Breakaway — Hoardio" />
+  <meta name="twitter:description" content="Every edition of an NHL Breakaway highlight — current holder, in-packs, and burned status per edition." />
+  <meta name="twitter:image" content="https://www.hoardio.com/images/og-nhlbreakaway.png" />
   <!-- holders.html's pretty clean URL ("/nhlbreakaway/holders/:momentUuid", a
        vercel.json rewrite) is one segment DEEPER than this file's own flat
        location — the opposite of collection.html's case, but the same
