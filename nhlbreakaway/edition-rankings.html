@@ -96,22 +96,6 @@
     .top-card--1 .top-card-set-name, .top-card--2 .top-card-set-name, .top-card--3 .top-card-set-name { font-size: 1.15rem; }
     .top-card--1 .top-card-series, .top-card--2 .top-card-series, .top-card--3 .top-card-series { font-size: 0.85rem; }
     .top-card--1 .top-card-collector-name, .top-card--2 .top-card-collector-name, .top-card--3 .top-card-collector-name { font-size: 1.35rem; }
-    /* The podium's desktop-tuned sizing above (104px image, 30px padding,
-       24px gap) leaves too little room for the info column on a real phone
-       width and overflows the page horizontally — shrink it back down here.
-       Placed AFTER the unconditional podium rules above on purpose: an
-       @media block earlier in the cascade loses to a later unconditional
-       rule of equal specificity regardless of which one actually matches
-       the viewport (hit this exact bug once already — see
-       feedback_css_cascade_order_same_file memory). overflow-wrap on
-       .top-card-info is a safety net for any still-too-long single token,
-       not the primary fix. */
-    @media (max-width: 720px) {
-      .top-card, .top-card--1, .top-card--2, .top-card--3 { padding: 14px 16px; gap: 14px; }
-      .top-card-image, .top-card--1 .top-card-image, .top-card--2 .top-card-image, .top-card--3 .top-card-image { width: 60px; height: 60px; }
-      .top-card--1 .top-card-set-name, .top-card--2 .top-card-set-name, .top-card--3 .top-card-set-name { font-size: 1rem; }
-      .top-card--1 .top-card-collector-name, .top-card--2 .top-card-collector-name, .top-card--3 .top-card-collector-name { font-size: 1.1rem; }
-    }
     .top-card-rank { font-size: 1.1rem; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; width: 1.6em; }
     .top-card-image { width: 88px; height: 88px; object-fit: cover; border-radius: 12px; flex-shrink: 0; border: 1px solid var(--border); }
     /* overflow-wrap: min-width:0 lets the flex item shrink, but a long
@@ -125,6 +109,30 @@
     .top-card-collector { font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px; }
     .top-card-collector-name { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); }
     .top-card-rating { font-weight: 700; color: var(--accent-light); }
+
+    /* Stack vertically instead of the desktop's side-by-side row — the
+       image alone on top, then the rank badge (moved onto the image's own
+       corner) + all the text info below, full width. This is what actually
+       fixes the cramped feel of squeezing image+text side by side on a
+       narrow phone: with nothing beside it anymore, neither the image nor
+       the text needs shrinking — both keep their full desktop sizing.
+       Placed AFTER every unconditional .top-card-* rule above on purpose:
+       an @media block earlier in the cascade loses to a later unconditional
+       rule of equal specificity regardless of which one actually matches
+       the viewport (hit this exact bug once already — see
+       feedback_css_cascade_order_same_file memory). */
+    @media (max-width: 720px) {
+      .top-card { flex-direction: column; align-items: stretch; position: relative; }
+      .top-card-image, .top-card--1 .top-card-image, .top-card--2 .top-card-image, .top-card--3 .top-card-image {
+        margin: 0 auto;
+      }
+      .top-card-rank {
+        position: absolute; top: 12px; left: 12px; z-index: 1;
+        width: auto; padding: 2px 9px; border-radius: 999px;
+        background: rgba(0,0,0,0.6);
+      }
+      .top-card-info { text-align: left; }
+    }
 
     .mr-collection-header { display: flex; align-items: center; gap: 1rem; }
     .mr-collection-image { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
@@ -201,7 +209,6 @@
     .mobile-card--rank-1 { background: rgba(255,215,0,0.10); }
     .mobile-card--rank-2 { background: rgba(192,192,192,0.09); }
     .mobile-card--rank-3 { background: rgba(205,127,50,0.10); }
-    .mobile-expand-btn { width: 100%; margin-top: 0.75rem; }
     .mr-expand-mobile { margin-top: 0.75rem; }
 
     .holder-link { color: var(--accent-light); text-decoration: none; }
@@ -217,6 +224,12 @@
       color: var(--text-secondary); font-size: 0.72rem; padding: 3px 9px; cursor: pointer;
     }
     .mr-expand-btn:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.25); }
+    /* Bigger, full-width variant of .mr-expand-btn — used for the mobile
+       card's own toggle (a "banner" bar, not a small inline table button)
+       and for the bottom-of-list Hide trigger on both desktop and mobile
+       (see expandBodyHtml()): closing a long expanded list shouldn't
+       require scrolling all the way back up to the original button. */
+    .mr-expand-banner { display: block; width: 100%; margin-top: 0.75rem; padding: 9px 12px; font-size: 0.8rem; }
 
     .mr-expand-row td { background: rgba(255,255,255,0.02); padding: 10px 12px 14px; }
     .mr-expand-loading, .mr-expand-error { color: var(--text-secondary); font-size: 0.8rem; padding: 0.5rem 0; }
@@ -712,7 +725,15 @@ function expandBodyHtml(row) {
         </div>
       </a>
     `;
-    }).join('')}</div>`;
+    }).join('')}</div>
+    <button type="button" class="mr-expand-btn mr-expand-banner" data-key="${key}">▲ Hide</button>`;
+    // This bottom button shares .mr-expand-btn + the same data-key as the
+    // original toggle above the grid — renderBody()'s click wiring already
+    // queries every .mr-expand-btn in each container (not just the first),
+    // so it's picked up automatically without any extra wiring. Lets a long
+    // expanded list (many highlights) be collapsed from wherever the user
+    // has scrolled to, instead of forcing a scroll back up to the original
+    // button every time.
   }
   return '';
 }
@@ -788,7 +809,7 @@ function renderBody() {
           <div><span class="mobile-stat-label">Rating</span><span class="mobile-stat-value${row.rating < 0 ? ' cell-rating--negative' : ''}">${row.rating.toFixed(2)}</span></div>
           <div><span class="mobile-stat-label">Complete Sets</span><span class="mobile-stat-value">${fmtNum(row.total_complete_sets)}</span></div>
         </div>
-        <button type="button" class="mr-expand-btn mobile-expand-btn" data-key="${key}">${isExpanded ? '▲ Hide' : '▼ Highlights'}</button>
+        <button type="button" class="mr-expand-btn mr-expand-banner" data-key="${key}">${isExpanded ? '▲ Hide' : '▼ Highlights'}</button>
         ${isExpanded ? `<div class="mr-expand-mobile">${expandBodyHtml(row)}</div>` : ''}
       </div>
     `;
