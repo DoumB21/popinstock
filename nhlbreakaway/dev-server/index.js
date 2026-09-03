@@ -1309,7 +1309,7 @@ const HIGHLIGHTS_SORT_COLUMNS = {
 
 async function handleHighlights(url, res) {
   const q = url.searchParams;
-  const where = [DEAD_MOMENTS_EXCLUSION];
+  const where = [`m.${DEAD_MOMENTS_EXCLUSION}`];
   const params = [];
   const addFilter = (col, val, ilike) => {
     if (!val) return;
@@ -1348,9 +1348,13 @@ async function handleHighlights(url, res) {
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  // Fetch one extra row instead of a separate COUNT(*) query to know whether
-  // "Load more" should stay available — cheaper than counting ~tens of
-  // thousands of moments rows on every filter change.
+  // Snapshot the filter params before LIMIT/OFFSET are appended below, so the
+  // total-count query (run in parallel, see near the bottom of this function)
+  // can reuse the exact same WHERE clause without picking up those two extras.
+  const filterParams = params.slice();
+  // Fetch one extra row instead of relying on the total count to know whether
+  // "Load more" should stay available — still cheaper than re-deriving it
+  // from `total`/limit/offset arithmetic for no real benefit.
   params.push(limit + 1, offset);
   // total_editions IS NULL means this highlight has no fixed cap — it grows
   // by one every time a collector crafts a new copy (855 such moments,
@@ -1371,43 +1375,75 @@ async function handleHighlights(url, res) {
   // growing moment (total_editions IS NULL) shows a blank "—" for the %,
   // same convention as SETS_SQL leaving in_packs_pct null when the cap itself
   // is null.
+  // These 4 columns used to be per-row correlated subqueries/a LATERAL join
+  // — "cheap, only evaluated for the page's ≤200 rows" is true when sorting
+  // by a plain indexed column (player/set/rarity/team), since Postgres can
+  // find the top N rows via the index before ever touching them. But
+  // sorting BY one of these computed columns forces Postgres to evaluate it
+  // for EVERY row satisfying the filters before it can determine ORDER BY —
+  // with ~1,960 moments, that's ~1,960 separate correlated-subquery/LATERAL
+  // executions, each its own query plan against `cards` (1.14M rows).
+  // Measured live: 14-33 SECONDS sorting by any of these, vs ~4s for a
+  // plain-column sort. Fixed by precomputing each as a single GROUP BY pass
+  // over `cards` instead (cardAgg/topHolderAgg below), joined once — one
+  // sequential/index scan + hash aggregate instead of ~1,960 repeated plans.
+  // Verified byte-for-byte identical output against the old per-row version
+  // for several sort orders (including a filtered query) before replacing
+  // it — this is a real behavior-preserving perf fix, not a rewrite of what
+  // gets displayed.
+  const cardAgg = `
+    SELECT c.moment_uuid,
+      COUNT(*) AS total_cards,
+      COUNT(DISTINCT c.owner_wallet) FILTER (WHERE c.burned = 0 AND sw.wallet_address IS NULL) AS holders_count,
+      COUNT(*) FILTER (WHERE c.burned = 0 AND sw.role = 'pack_escrow') AS in_packs_count
+    FROM cards c
+    LEFT JOIN system_wallets sw ON LOWER(sw.wallet_address) = LOWER(c.owner_wallet)
+    GROUP BY c.moment_uuid`;
+  // Top Holder — the single wallet holding the most (unburned, non-system)
+  // editions of each highlight. DISTINCT ON picks the top row per moment
+  // from a per-(moment, wallet) aggregate, same tie-break (held count desc,
+  // then wallet address asc for determinism) as the old LATERAL join.
+  const topHolderAgg = `
+    SELECT DISTINCT ON (moment_uuid) moment_uuid, owner_wallet, owner_username, owner_name, held_count
+    FROM (
+      SELECT c.moment_uuid, c.owner_wallet, c.owner_username, c.owner_name, COUNT(*) AS held_count
+      FROM cards c
+      LEFT JOIN system_wallets sw ON LOWER(sw.wallet_address) = LOWER(c.owner_wallet)
+      WHERE c.burned = 0 AND sw.wallet_address IS NULL
+      GROUP BY c.moment_uuid, c.owner_wallet, c.owner_username, c.owner_name
+    ) per_wallet
+    ORDER BY moment_uuid, held_count DESC, owner_wallet ASC`;
   const sql = `
+    WITH card_agg AS (${cardAgg}), top_holder_agg AS (${topHolderAgg})
     SELECT m.moment_uuid, m.player, m.set_name, m.set_uuid, m.series_label, m.rarity, m.team, m.total_editions,
       t.logo_url AS team_logo_url,
       CASE WHEN m.total_editions IS NULL
-           THEN (SELECT COUNT(*) FROM cards c WHERE c.moment_uuid = m.moment_uuid)
+           THEN COALESCE(ca.total_cards, 0)
            ELSE m.total_editions
       END AS editions_display,
       (m.total_editions IS NULL) AS editions_is_growing,
-      (SELECT COUNT(DISTINCT c.owner_wallet) FROM cards c
-       LEFT JOIN system_wallets sw ON LOWER(sw.wallet_address) = LOWER(c.owner_wallet)
-       WHERE c.moment_uuid = m.moment_uuid AND c.burned = 0 AND sw.wallet_address IS NULL) AS holders_count,
-      (SELECT COUNT(*) FROM cards c
-       LEFT JOIN system_wallets sw ON LOWER(sw.wallet_address) = LOWER(c.owner_wallet)
-       WHERE c.moment_uuid = m.moment_uuid AND c.burned = 0 AND sw.role = 'pack_escrow') AS in_packs_count,
+      COALESCE(ca.holders_count, 0) AS holders_count,
+      COALESCE(ca.in_packs_count, 0) AS in_packs_count,
       th.owner_wallet AS th_wallet, th.owner_username AS th_username, th.owner_name AS th_name, th.held_count AS th_count
     FROM moments m
     LEFT JOIN teams t ON t.team_name = m.team
-    -- Top Holder — the single wallet holding the most (unburned, non-system)
-    -- editions of this highlight. A LATERAL join (not a plain correlated
-    -- subquery, since 4 columns are needed at once) — cheap for the same
-    -- reason as holders_count/in_packs_count above (indexed, ≤200 rows/page).
-    -- Ties broken by wallet address for determinism, not by any real
-    -- "earliest holder" concept.
-    LEFT JOIN LATERAL (
-      SELECT c.owner_wallet, c.owner_username, c.owner_name, COUNT(*) AS held_count
-      FROM cards c
-      LEFT JOIN system_wallets sw ON LOWER(sw.wallet_address) = LOWER(c.owner_wallet)
-      WHERE c.moment_uuid = m.moment_uuid AND c.burned = 0 AND sw.wallet_address IS NULL
-      GROUP BY c.owner_wallet, c.owner_username, c.owner_name
-      ORDER BY COUNT(*) DESC, c.owner_wallet ASC
-      LIMIT 1
-    ) th ON true
+    LEFT JOIN card_agg ca ON ca.moment_uuid = m.moment_uuid
+    LEFT JOIN top_holder_agg th ON th.moment_uuid = m.moment_uuid
     ${whereSql}
     ORDER BY ${sortSql} ${dir}${nullsClause}, m.moment_uuid ASC
     LIMIT $${params.length - 1} OFFSET $${params.length}
   `;
-  const { rows } = await pool.query(sql, params);
+  // total is the real count of highlights matching the current filters (not
+  // the ~1,965-row whole `moments` table) — the frontend shows this instead
+  // of "however many rows happen to be loaded so far", which used to always
+  // read "100" (the page size) regardless of how many actually matched.
+  // `moments` alone is small (~1,965 rows, all filter columns indexed), so
+  // this is cheap even run on every request.
+  const [{ rows }, totalResult] = await Promise.all([
+    pool.query(sql, params),
+    pool.query(`SELECT COUNT(*) FROM moments m ${whereSql}`, filterParams),
+  ]);
+  const total = Number(totalResult.rows[0].count);
   const hasMore = rows.length > limit;
   const highlights = rows.slice(0, limit).map(r => {
     const inPacksCount = Number(r.in_packs_count);
@@ -1443,7 +1479,7 @@ async function handleHighlights(url, res) {
   // moments/cards/teams (no live Sweet API call, unlike Holders), so it's
   // identical for every visitor with the same filters and only actually
   // changes when the data-refresh pipeline runs.
-  sendJson(res, 200, { highlights, has_more: hasMore }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  sendJson(res, 200, { highlights, has_more: hasMore, total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 function sortRarities(rarities) {

@@ -18,9 +18,40 @@
     .filter-bar .cb-combo { min-width: 180px; flex: 1; max-width: 260px; }
     .filter-bar .search-input { min-width: 200px; flex: 1.4; max-width: 320px; }
 
+    /* Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the desktop
+       table's clickable column headers, which disappear along with the
+       table itself at this width (see .mobile-card-list below). Without
+       this, mobile would have no way to change sort order at all. */
+    .mobile-sort-bar { display: none; }
+    .mobile-sort-bar .cb-combo { max-width: 220px; }
+
     /* ── Results meta ── */
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
     .results-meta strong { color: var(--text-primary); }
+
+    /* ── Busy overlay — shown while a sort/filter change or Load More is
+       in flight. Highlights sorts computed columns server-side, which can
+       take several seconds (see dev-server/index.js's handleHighlights
+       comments) — without this, clicking a sort/filter looked like nothing
+       happened, inviting repeated clicks. Overlaying + disabling the
+       controls (see .nhl-busy below) makes the wait visible and blocks
+       piling up more requests while one is already running. */
+    .results-wrap { position: relative; }
+    .busy-overlay {
+      position: absolute; inset: 0; z-index: 5;
+      display: none; align-items: center; justify-content: center; gap: 0.6rem;
+      background: rgba(10,10,15,0.55); border-radius: 14px;
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
+    .nhl-busy .filter-bar, .nhl-busy .mobile-sort-bar { pointer-events: none; opacity: 0.7; }
+    .nhl-busy .highlights-table thead th.sortable { pointer-events: none; cursor: not-allowed; }
 
     /* ── Highlights table ── */
     .highlights-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -83,9 +114,36 @@
     .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
     .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
 
+    /* ── Mobile card list — one card per highlight instead of a table row,
+       so phone widths never need horizontal scroll. Same "two parallel DOM
+       representations, toggled by breakpoint" pattern as sets.html/
+       pack-stats.html's own — re-rendered from the same data every time. ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    .mobile-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 0.75rem; padding-bottom: 0.6rem; margin-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .mobile-card-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+    .mobile-stat-label {
+      display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px;
+    }
+    .mobile-stat-value { font-variant-numeric: tabular-nums; }
+
     @media (max-width: 700px) {
       .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
       .highlights-table { font-size: 0.78rem; }
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
+      .mobile-sort-bar { display: flex; }
     }
   </style>
 </head>
@@ -123,15 +181,30 @@
       </div>
     </div>
 
+    <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
+      <div class="cb-combo" id="sortFieldCombo">
+        <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+        <div class="cb-panel" id="sortFieldPanel"></div>
+      </div>
+      <div class="tpc-toggle-group" id="sortDirToggle">
+        <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+        <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+      </div>
+    </div>
+
     <div class="results-meta" id="resultsMeta"></div>
 
-    <div style="overflow-x:auto;">
-      <table class="highlights-table">
-        <thead>
-          <tr id="highlightsHeadRow"></tr>
-        </thead>
-        <tbody id="highlightsBody"></tbody>
-      </table>
+    <div class="results-wrap" id="resultsWrap">
+      <div class="busy-overlay" id="busyOverlay"><span class="busy-spinner"></span><span>Loading highlights…</span></div>
+      <div class="table-scroll" style="overflow-x:auto;">
+        <table class="highlights-table">
+          <thead>
+            <tr id="highlightsHeadRow"></tr>
+          </thead>
+          <tbody id="highlightsBody"></tbody>
+        </table>
+      </div>
+      <div class="mobile-card-list" id="highlightsMobileList"></div>
     </div>
 
     <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
@@ -222,6 +295,11 @@ const state = {
   sortDir: 'asc',
   offset: 0,
   hasMore: false,
+  // Real count of highlights matching the current filters, from the
+  // backend's `total` field — NOT state.highlights.length, which is just
+  // however many rows happen to be loaded so far (always PAGE_SIZE on a
+  // first load, regardless of how many actually match).
+  total: 0,
   busy: false,
   autoLoadArmed: false,
 };
@@ -273,12 +351,23 @@ function paramsToState(sp) {
   return parseInt(sp.get('offset'), 10) || 0;
 }
 
+// Toggles the busy overlay + disables the filter bar/mobile sort bar/sortable
+// headers (see .nhl-busy in the <style> above) — sorting a computed column
+// here is a real multi-second server-side query, not instant client-side
+// re-sorting like sets.html/pack-stats.html, so without this a slow sort
+// looked like nothing happened and invited a pile of repeat clicks.
+function setBusyUi(active) {
+  document.body.classList.toggle('nhl-busy', active);
+  document.getElementById('busyOverlay').classList.toggle('active', active);
+}
+
 // Fetches exactly one PAGE_SIZE chunk starting at the current state.offset
 // and appends it. Returns how many rows came back (0 on error/no more).
 async function loadChunk() {
   if (state.busy) return 0;
   state.busy = true;
   renderLoadMore();
+  setBusyUi(true);
   let got = 0;
   try {
     const version = await getDataVersion();
@@ -286,6 +375,7 @@ async function loadChunk() {
     const data = await res.json();
     state.highlights = [...state.highlights, ...data.highlights];
     state.hasMore = data.has_more;
+    state.total = data.total;
     state.offset += data.highlights.length;
     got = data.highlights.length;
     renderBody();
@@ -296,6 +386,7 @@ async function loadChunk() {
   } finally {
     state.busy = false;
     renderLoadMore();
+    setBusyUi(false);
   }
   return got;
 }
@@ -317,6 +408,15 @@ async function restoreChunks(targetOffset) {
   } while (got > 0 && state.hasMore && state.offset < targetOffset);
 }
 
+// Shared by the desktop header-click handler and the mobile "Sort by" combo
+// (see populateSortFieldCombo below) — picking a new field this way always
+// jumps straight to its "best first" direction, matching whichever way
+// makes the column read naturally (player/set/rarity/team alphabetical;
+// every numeric column highest-first).
+function defaultDirForField(field) {
+  return (field === 'editions' || field === 'holders' || field === 'in_packs' || field === 'top_holder') ? 'desc' : 'asc';
+}
+
 function renderHead() {
   const row = document.getElementById('highlightsHeadRow');
   row.innerHTML = COLUMNS.map(col => {
@@ -332,9 +432,10 @@ function renderHead() {
         state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         state.sortField = field;
-        state.sortDir = (field === 'editions' || field === 'holders' || field === 'in_packs' || field === 'top_holder') ? 'desc' : 'asc';
+        state.sortDir = defaultDirForField(field);
       }
       renderHead();
+      syncMobileSortControls();
       fetchPage(true);
     });
   });
@@ -345,6 +446,17 @@ function fmtNum(n) {
 }
 function fmtPct(p) {
   return p === null || p === undefined ? '' : `${p.toFixed(2)}%`;
+}
+
+// Shortens a raw wallet address for display in this dense list — a real
+// Sweet username passes through unchanged (only a 0x... address matches).
+// Same convention as wallet.html's own prettyWallet(); the full address
+// still belongs in a title attribute wherever this is used, for
+// verification. Doesn't apply anywhere else on the site showing a single
+// wallet identity — only dense multi-row lists like this one.
+function prettyWallet(val) {
+  if (!val) return val;
+  return /^0x[0-9a-fA-F]{40}$/.test(val) ? `${val.slice(0, 6)}…${val.slice(-4)}` : val;
 }
 
 // Links a Top Holder to their official nhlbreakaway.com profile, pre-filtered
@@ -361,6 +473,18 @@ function nhlBreakawayUserUrl(username, h) {
     series: h.series_label || '',
   });
   return `https://nhlbreakaway.com/user/${encodeURIComponent(username)}?${params}`;
+}
+
+// Top Holder cell content, shared by the desktop table and mobile card —
+// a real username links out; otherwise the raw wallet address falls back to
+// prettyWallet() so a dense list of these doesn't blow out the row/card width.
+function topHolderHtml(h) {
+  if (!h.top_holder) return '—';
+  const url = nhlBreakawayUserUrl(h.top_holder_username, h);
+  const name = url
+    ? `<a class="holder-link" href="${url}" target="_blank" rel="noopener">${h.top_holder}</a>`
+    : `<span title="${h.top_holder}">${prettyWallet(h.top_holder)}</span>`;
+  return `${fmtNum(h.top_holder_count)}<span class="cell-holder-name">${name}</span>`;
 }
 
 function renderBody() {
@@ -380,18 +504,41 @@ function renderBody() {
         : fmtNum(h.editions)}</td>
       <td class="col-r">${fmtNum(h.holders)}</td>
       <td class="col-r">${fmtNum(h.in_packs)}<span class="cell-pct">${fmtPct(h.in_packs_pct)}</span></td>
-      <td class="col-r">${h.top_holder ? `${fmtNum(h.top_holder_count)}<span class="cell-holder-name">${
-        nhlBreakawayUserUrl(h.top_holder_username, h)
-          ? `<a class="holder-link" href="${nhlBreakawayUserUrl(h.top_holder_username, h)}" target="_blank" rel="noopener">${h.top_holder}</a>`
-          : h.top_holder
-      }</span>` : '—'}</td>
+      <td class="col-r">${topHolderHtml(h)}</td>
       <td>${h.team
         ? `<span class="cell-team">${h.team_logo_url ? `<img class="cell-team-logo" src="${h.team_logo_url}" alt="" loading="lazy">` : ''}${h.team}</span>`
         : '—'}</td>
     </tr>
   `).join('');
+
+  const mobileList = document.getElementById('highlightsMobileList');
+  mobileList.innerHTML = state.highlights.map(h => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <a class="cell-player" href="holders/${encodeURIComponent(h.moment_uuid)}">${h.player || '—'}</a>
+          <div class="cell-series">${h.set_name || ''}${h.series_label ? ` · ${h.series_label}` : ''}</div>
+        </div>
+        ${h.rarity
+          ? `<span class="rarity-pill rarity-pill--${h.rarity.toLowerCase()}"><span class="rarity-pill-text">${h.rarity}</span></span>`
+          : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Editions</span><span class="mobile-stat-value">${h.editions_is_growing
+          ? `<span class="editions-growing" title="Uncapped — grows every time a collector crafts a new copy">${fmtNum(h.editions)}+</span>`
+          : fmtNum(h.editions)}</span></div>
+        <div><span class="mobile-stat-label">Holders</span><span class="mobile-stat-value">${fmtNum(h.holders)}</span></div>
+        <div><span class="mobile-stat-label">In Packs</span><span class="mobile-stat-value">${fmtNum(h.in_packs)}<span class="cell-pct">${fmtPct(h.in_packs_pct)}</span></span></div>
+        <div><span class="mobile-stat-label">Top Holder</span><span class="mobile-stat-value">${topHolderHtml(h)}</span></div>
+        <div><span class="mobile-stat-label">Team</span><span class="mobile-stat-value">${h.team
+          ? `<span class="cell-team">${h.team_logo_url ? `<img class="cell-team-logo" src="${h.team_logo_url}" alt="" loading="lazy">` : ''}${h.team}</span>`
+          : '—'}</span></div>
+      </div>
+    </div>
+  `).join('');
+
   document.getElementById('resultsMeta').innerHTML =
-    `<strong>${state.highlights.length}</strong> highlight${state.highlights.length === 1 ? '' : 's'}${state.hasMore ? '+' : ''}`;
+    `<strong>${fmtNum(state.total)}</strong> highlight${state.total === 1 ? '' : 's'}`;
 }
 
 function renderLoadMore() {
@@ -446,11 +593,19 @@ function syncComboDisplay(combo) {
   const hasSelection = active.value !== allItem.value;
   input.placeholder = allItem.label;
   input.value = hasSelection ? active.label : '';
-  clear.style.display = hasSelection ? '' : 'none';
+  if (clear) clear.style.display = hasSelection ? '' : 'none';
   combo.classList.toggle('has-selection', hasSelection);
 }
 
-function buildCombo(comboId, items, getValue, setValue) {
+// onPick defaults to a server refetch (every existing Set/Rarity/Series/Team
+// filter combo's own behavior on this page, unchanged) — the mobile "Sort
+// by" combo (see populateSortFieldCombo below) is the one exception, needing
+// extra side effects (re-render the header, re-sync the direction toggle)
+// around that same refetch. It also has no clear (✕) button in its markup —
+// there's no "no sort" state, unlike every other filter here — so both this
+// and syncComboDisplay above null-guard that lookup instead of assuming it
+// always exists.
+function buildCombo(comboId, items, getValue, setValue, onPick = () => fetchPage(true)) {
   const combo = document.getElementById(comboId);
   const input = combo.querySelector('.cb-combo-input');
   const clear = combo.querySelector('.cb-combo-clear');
@@ -465,14 +620,8 @@ function buildCombo(comboId, items, getValue, setValue) {
   const pick = val => {
     closeAllCombos();
     setValue(val);
-    // A manual filter pick means the user is now driving the page directly —
-    // the Sets-page deep link's collection_key (a silent, one-shot arrival
-    // filter with no visible UI of its own) must not keep combining with it,
-    // or picking e.g. a different Set/Rarity while it's still active
-    // produces a confusing, over-narrowed intersection of both.
-    state.collection_key = '';
     syncComboDisplay(combo);
-    fetchPage(true);
+    onPick();
   };
 
   const renderList = filterText => {
@@ -510,8 +659,10 @@ function buildCombo(comboId, items, getValue, setValue) {
       }
     }, 150);
   });
-  clear.addEventListener('mousedown', e => e.preventDefault());
-  clear.addEventListener('click', () => { pick(''); input.blur(); });
+  if (clear) {
+    clear.addEventListener('mousedown', e => e.preventDefault());
+    clear.addEventListener('click', () => { pick(''); input.blur(); });
+  }
 }
 
 async function populateFilters() {
@@ -519,22 +670,63 @@ async function populateFilters() {
   const res = await fetch(withVersion(`${API_BASE}/api/highlights/filters`, version));
   const data = await res.json();
 
+  // Each setValue also clears collection_key — a manual filter pick means
+  // the user is now driving the page directly, and the Sets-page deep
+  // link's collection_key (a silent, one-shot arrival filter with no
+  // visible UI of its own) must not keep combining with it, or picking e.g.
+  // a different Set/Rarity while it's still active produces a confusing,
+  // over-narrowed intersection of both.
   buildCombo('setCombo',
     [{ value: '', label: 'All sets' }, ...data.sets.map(name => ({ value: name, label: name }))],
-    () => state.set_name, v => state.set_name = v);
+    () => state.set_name, v => { state.set_name = v; state.collection_key = ''; });
 
   buildCombo('rarityCombo',
     [{ value: '', label: 'All rarities' }, ...data.rarities.map(v => ({ value: v, label: v }))],
-    () => state.rarity, v => state.rarity = v);
+    () => state.rarity, v => { state.rarity = v; state.collection_key = ''; });
 
   buildCombo('seriesCombo',
     [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
-    () => state.series_label, v => state.series_label = v);
+    () => state.series_label, v => { state.series_label = v; state.collection_key = ''; });
 
   buildCombo('teamCombo',
     [{ value: '', label: 'All teams' }, ...data.teams.map(v => ({ value: v, label: v }))],
-    () => state.team, v => state.team = v);
+    () => state.team, v => { state.team = v; state.collection_key = ''; });
 }
+
+// Mobile-only "Sort by" combo — buildCombo's own renderList always slice(1)s
+// the items array (index 0 is reserved for the "All X" sentinel every other
+// combo here uses, never rendered as a clickable row). Sort field has no
+// "All" option — it's always exactly one column — so a real (inert,
+// empty-value) sentinel still has to go first, or the actual first column
+// would silently take over that hidden slot and could never show as the
+// active row when the list opens (hit this exact bug once already on
+// activity-leaderboard.html's Type combo).
+function populateSortFieldCombo() {
+  buildCombo('sortFieldCombo',
+    [{ value: '', label: '' }, ...COLUMNS.filter(c => c.sortable).map(c => ({ value: c.key, label: c.label }))],
+    () => state.sortField,
+    v => {
+      state.sortField = v;
+      state.sortDir = defaultDirForField(v);
+    },
+    () => { renderHead(); syncMobileSortControls(); fetchPage(true); });
+}
+
+function syncMobileSortControls() {
+  syncComboDisplay(document.getElementById('sortFieldCombo'));
+  document.querySelectorAll('#sortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === state.sortDir);
+  });
+}
+
+document.getElementById('sortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  state.sortDir = btn.dataset.dir;
+  renderHead();
+  syncMobileSortControls();
+  fetchPage(true);
+});
 
 // ── Best-effort scroll restore when actually returning from a Holders page
 // (not on a fresh/direct visit — only when document.referrer proves that's
@@ -561,6 +753,8 @@ function restoreScrollIfReturning() {
   const initialOffset = paramsToState(new URLSearchParams(location.search));
   document.getElementById('playerSearch').value = state.player;
   renderHead();
+  populateSortFieldCombo();
+  syncMobileSortControls();
   document.getElementById('resultsMeta').textContent = 'Loading…';
   try {
     await Promise.all([populateFilters(), restoreChunks(initialOffset)]);
