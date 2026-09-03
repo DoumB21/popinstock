@@ -301,6 +301,7 @@ const COLUMNS = [
   { key: 'editions', label: 'Editions', sortable: true, num: true },
   { key: 'holders',  label: 'Holders',  sortable: true, num: true },
   { key: 'in_packs', label: 'In Packs', sortable: true, num: true },
+  { key: 'floor_price', label: 'Floor Price', sortable: true, num: true },
   { key: 'top_holder', label: 'Top Holder', sortable: true, num: true },
   { key: 'team',     label: 'Team',     sortable: true },
 ];
@@ -442,7 +443,7 @@ async function restoreChunks(targetOffset) {
 // makes the column read naturally (player/set/rarity/team alphabetical;
 // every numeric column highest-first).
 function defaultDirForField(field) {
-  return (field === 'editions' || field === 'holders' || field === 'in_packs' || field === 'top_holder') ? 'desc' : 'asc';
+  return (field === 'editions' || field === 'holders' || field === 'in_packs' || field === 'floor_price' || field === 'top_holder') ? 'desc' : 'asc';
 }
 
 function renderHead() {
@@ -475,6 +476,10 @@ function fmtNum(n) {
 function fmtPct(p) {
   return p === null || p === undefined ? '' : `${p.toFixed(2)}%`;
 }
+function fmtUsd(n) {
+  return n === null || n === undefined ? '—' : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 
 // Shortens a raw wallet address for display in this dense list — a real
 // Sweet username passes through unchanged (only a 0x... address matches).
@@ -532,6 +537,7 @@ function renderBody() {
         : fmtNum(h.editions)}</td>
       <td class="col-r">${fmtNum(h.holders)}</td>
       <td class="col-r">${fmtNum(h.in_packs)}<span class="cell-pct">${fmtPct(h.in_packs_pct)}</span></td>
+      <td class="col-r">${fmtUsd(h.floor_price)}</td>
       <td class="col-r">${topHolderHtml(h)}</td>
       <td>${h.team
         ? `<span class="cell-team">${h.team_logo_url ? `<img class="cell-team-logo" src="${h.team_logo_url}" alt="" loading="lazy">` : ''}${h.team}</span>`
@@ -557,6 +563,7 @@ function renderBody() {
           : fmtNum(h.editions)}</span></div>
         <div><span class="mobile-stat-label">Holders</span><span class="mobile-stat-value">${fmtNum(h.holders)}</span></div>
         <div><span class="mobile-stat-label">In Packs</span><span class="mobile-stat-value">${fmtNum(h.in_packs)}<span class="cell-pct">${fmtPct(h.in_packs_pct)}</span></span></div>
+        <div><span class="mobile-stat-label">Floor Price</span><span class="mobile-stat-value">${fmtUsd(h.floor_price)}</span></div>
         <div><span class="mobile-stat-label">Top Holder</span><span class="mobile-stat-value">${topHolderHtml(h)}</span></div>
         <div><span class="mobile-stat-label">Team</span><span class="mobile-stat-value">${h.team
           ? `<span class="cell-team">${h.team_logo_url ? `<img class="cell-team-logo" src="${h.team_logo_url}" alt="" loading="lazy">` : ''}${h.team}</span>`

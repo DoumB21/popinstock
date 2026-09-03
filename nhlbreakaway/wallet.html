@@ -61,6 +61,23 @@
        "Unique Highlights" labels were wrapping to 2 lines at 140px. */
     .stats-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 
+    /* ── Portfolio floor value — sourced from floor_prices (see
+       NHL_BREAKAWAY_DATA_HANDOFF.txt's "FLOOR PRICES" section) via
+       /api/wallet/summary's value.* fields. A standalone card (not folded
+       into .stats-grid) since it needs two numbers (adjusted + raw) plus an
+       unpriced-assets note, more than a plain .stat-card's single value can
+       hold without wrapping badly at the grid's ~150px column width. ── */
+    .value-card {
+      background: linear-gradient(135deg, rgba(240,168,64,0.09), rgba(240,168,64,0.02));
+      border: 1px solid var(--border); border-radius: 14px;
+      padding: 1rem 1.3rem; display: flex; flex-direction: column; gap: 0.3rem;
+    }
+    .value-card-amount { font-size: 2rem; font-weight: 800; color: var(--accent-light); font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .value-card-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-top: 2px; }
+    .value-card-sub { font-size: 0.8rem; color: var(--text-secondary); }
+    .value-card-sub strong { color: var(--text-primary); font-weight: 600; }
+    .value-card-sub .value-unpriced { display: block; margin-top: 2px; }
+
     /* ── Wallet-wide edition badges (#1 Edition / Perfect Edition / Jersey
        Match Edition) — same 3 badge types as holders.html's EDITION_BADGES,
        aggregated across every card this wallet holds instead of one moment. ── */
@@ -104,6 +121,10 @@
     .items-table tbody tr.row-missing { background: rgba(255,255,255,0.02); }
     .items-table tbody tr.row-missing:hover { background: rgba(255,255,255,0.05); }
     .mobile-card.row-missing { opacity: 0.8; }
+    /* Floor Price on a missing highlight — same red as .missing-tag above,
+       so the two read as the same signal ("you don't own this"). Applies
+       in both All (owned_count = 0) and Missing (every row) ownership modes. */
+    .floor-price-missing { color: #f87171; font-weight: 700; }
 
     /* ── Stat card accent colors — same pattern as funko/wallet.html's own
        per-stat coloring, distinct hues so the row reads at a glance. ── */
@@ -171,6 +192,13 @@
     .sets-table thead th.sortable:hover { color: var(--text-primary); }
     .sets-table thead th .sort-icon { font-size: 0.6rem; opacity: 0.45; margin-left: 3px; }
     .sets-table thead th.sorted .sort-icon { opacity: 1; color: var(--accent-light); }
+    /* 2nd header line (see SETS_COLUMNS' set_floor_price col.label2) — same
+       pattern as the Activity tab's From/To column header (see below):
+       the header itself carries both labels so the body rows don't repeat
+       them. Orange (matching .set-value-cost below) so the header label and
+       its own value are visually linked at a glance; no letter-spacing so
+       it still reads as subordinate to the primary label above it. */
+    .th-label2 { display: block; font-weight: 700; letter-spacing: normal; margin-top: 2px; color: var(--accent-light); }
     .sets-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
     .sets-table tbody tr:last-child { border-bottom: none; }
     .sets-table tbody tr:hover { background: rgba(255,255,255,0.04); }
@@ -189,6 +217,30 @@
     .cell-from-to-line + .cell-from-to-line { margin-top: 2px; }
     .pct-complete { font-weight: 700; font-variant-numeric: tabular-nums; }
     .pct-complete--full { color: #4caf50; }
+
+    /* ── Set Completion tab's "Set Value" column — 2 stacked lines (Floor /
+       To Complete) in one cell, see setValueCellHtml(). Left-aligned despite
+       sitting in a .col-r (right-aligned-header) column — a right-aligned
+       label+amount pair reads worse than a left-aligned one at this width. */
+    .cell-set-value { text-align: left; white-space: nowrap; }
+    .set-value-line { font-variant-numeric: tabular-nums; }
+    .set-value-line + .set-value-line { margin-top: 2px; }
+    .set-value-label {
+      display: inline-block; min-width: 68px; font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary);
+    }
+    /* Same orange as the "Cost to Complete" header line (.th-label2) — the
+       two are meant to read as a matched pair at a glance. The (-N HL) flag
+       inside stays its own yellow (more specific rule wins), so the caveat
+       and the cost-to-complete signal don't get visually conflated. */
+    .set-value-cost { color: var(--accent-light); font-weight: 700; }
+    /* "(-N HL)" — some of the highlights a total is summed over currently
+       have no open listing, so the total is a floor, not the real number.
+       Yellow (not the site's own orange accent) so it reads as its own
+       distinct "heads up" signal, not a themed UI element. */
+    .hl-unpriced-flag {
+      color: #eab308; font-weight: 700; font-size: 0.78em; cursor: help;
+    }
 
     /* ── Filter bar (cards table) ── */
     .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -387,6 +439,16 @@
           </div>
           <div class="wallet-address-sub" id="walletAddressSub"></div>
         </div>
+      </div>
+
+      <div class="value-card" id="valueCard">
+        <div class="value-card-top">
+          <div>
+            <div class="value-card-amount" id="valueAdjusted">—</div>
+            <div class="value-card-label">Portfolio Floor Value <span class="info-tip" onclick="document.getElementById('valueModal').classList.add('open')"><span class="info-tip-icon">ⓘ</span></span></div>
+          </div>
+        </div>
+        <div class="value-card-sub" id="valueSub"></div>
       </div>
 
       <div class="stats-grid">
@@ -653,6 +715,17 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="valueModal">
+  <div class="modal-box">
+    <button class="modal-close" id="valueModalClose">&times;</button>
+    <div class="modal-title">Portfolio Floor Value</div>
+    <div class="modal-body">
+      The cheapest currently-open marketplace listing for every highlight/pack you hold, summed as-is — a snapshot refreshed hourly, not a live quote.<br><br>
+      <b>Not priced</b> — an asset with zero open listings right now has no floor to sum; it's counted at $0 rather than dropped, and called out separately below the total.
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="ratingModal">
   <div class="modal-box">
     <button class="modal-close" id="ratingModalClose">&times;</button>
@@ -747,6 +820,20 @@ function fmtPct(p) {
   return p === null || p === undefined ? '—' : `${p.toFixed(2)}%`;
 }
 
+/* ══════════════════ Portfolio floor value ══════════════════
+   Backed by /api/wallet/summary's value.* fields (see WALLET_VALUE_SQL in
+   dev-server/index.js) — a plain sum of every owned asset's current floor
+   price, no outlier filtering (tried and explicitly reverted 2026-09-03 —
+   it kept misfiring on legitimate low-supply/high-demand cards it
+   structurally couldn't tell apart from a troll listing). Unpriced assets
+   (no open listings right now) count as $0 and are called out separately. */
+function renderValue(v) {
+  document.getElementById('valueAdjusted').textContent = fmtUsd(v.total);
+  document.getElementById('valueSub').innerHTML = v.unpriced_assets > 0
+    ? `<span class="value-unpriced">${fmtNum(v.unpriced_assets)} asset${v.unpriced_assets === 1 ? '' : 's'} not priced in (no open listings — valued at $0)</span>`
+    : '';
+}
+
 /* ══════════════════ Wallet-wide edition badges ══════════════════ */
 // Same 3 fixed icon URLs as holders.html's EDITION_BADGES (confirmed
 // identical across every sampled card there, safe to reuse here) — this
@@ -776,6 +863,12 @@ const SETS_COLUMNS = [
   { key: 'moments_owned',  label: 'Progress', sortable: true, num: true },
   { key: 'cards_owned',    label: 'Highlights Owned', sortable: true, num: true },
   { key: 'pct_complete',   label: 'Complete',  sortable: true, num: true },
+  // Sorts by set_floor_price (the top of the 2-line cell/header) —
+  // cost_to_complete is secondary info within the same column, not a
+  // separate sortable one — there's no such thing as 2 simultaneous sorts.
+  // label2 renders as the header's own second line (see renderSetsHead);
+  // the body cells don't repeat either label per row, just the 2 values.
+  { key: 'set_floor_price', label: 'Set Value', label2: 'Cost to Complete', sortable: true, num: true },
 ];
 const setsState = {
   sets: [], sortField: 'name', sortDir: 'asc',
@@ -817,7 +910,11 @@ function renderSetsHead() {
     if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
     const sorted = setsState.sortField === col.key;
     const icon = sorted ? (setsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
-    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+    // Sort applies to the whole column (keyed on col.key, always the first
+    // line's field — see the comment on set_floor_price above) — label2 is
+    // purely a second line of header text, not a second sort target.
+    const label = col.label2 ? `${col.label}<span class="th-label2">${col.label2}</span>` : col.label;
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${label} <span class="sort-icon">${icon}</span></th>`;
   }).join('');
   row.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
@@ -852,6 +949,46 @@ function cardsTabHref(setName) {
   return url.pathname + url.search;
 }
 
+// "(-N HL)" flag — shown in front of a total whenever some of the
+// highlights it's summed over currently have zero open listings (no floor
+// to add in), so the total reads as "at least $X", not "the real total".
+// Yellow + a tooltip rather than baking the caveat into the number itself,
+// since most sets/wallets never hit this (fully-priced is the common case).
+// Same plain message for both the Floor and Cost to Complete lines —
+// which highlights it's counting over is already clear from which line
+// the flag is sitting on.
+function hlUnpricedFlag(count) {
+  if (!count) return '';
+  return `<span class="hl-unpriced-flag" title="${fmtNum(count)} highlight${count === 1 ? '' : 's'} have no open listing">(-${fmtNum(count)} HL)</span> `;
+}
+
+// Set Value cell — 2 stacked lines, shared by the desktop table and mobile
+// card. Top line: what a complete set of this collection would cost from
+// scratch (every highlight, owned or not). Bottom line: scoped to only the
+// highlights THIS wallet is missing, and reads as a plain "—" once
+// missing_count is 0 — there's nothing left to price once the set's done.
+// withLabels is only true for the mobile card — the desktop table instead
+// carries "Set Value"/"Cost to Complete" as the column header's own 2 lines
+// (see renderSetsHead's col.label2), so repeating them per row there would
+// just be noise; the mobile card has no per-column header to lean on, so it
+// keeps its own compact inline labels.
+function setValueCellHtml(s, withLabels) {
+  const floorLine = `${hlUnpricedFlag(s.set_unpriced_count)}${fmtUsd(s.set_floor_price)}`;
+  const completeLine = s.missing_count === 0
+    ? '—'
+    : `${hlUnpricedFlag(s.cost_to_complete_unpriced_count)}${fmtUsd(s.cost_to_complete)}`;
+  if (!withLabels) {
+    return `
+      <div class="set-value-line">${floorLine}</div>
+      <div class="set-value-line set-value-cost">${completeLine}</div>
+    `;
+  }
+  return `
+    <div class="set-value-line"><span class="set-value-label">Floor</span> ${floorLine}</div>
+    <div class="set-value-line set-value-cost"><span class="set-value-label">To Complete</span> ${completeLine}</div>
+  `;
+}
+
 function renderSetsBody() {
   const rows = filteredSortedSets();
   document.getElementById('setsBody').innerHTML = rows.map(s => `
@@ -868,6 +1005,7 @@ function renderSetsBody() {
       <td class="col-r">${fmtNum(s.moments_owned)}${s.moments_total !== null ? ` / ${fmtNum(s.moments_total)}` : ''}</td>
       <td class="col-r">${fmtNum(s.cards_owned)}</td>
       <td class="col-r"><span class="pct-complete${s.pct_complete === 100 ? ' pct-complete--full' : ''}">${fmtPct(s.pct_complete)}</span></td>
+      <td class="col-r cell-set-value">${setValueCellHtml(s)}</td>
     </tr>
   `).join('');
 
@@ -888,6 +1026,7 @@ function renderSetsBody() {
         <div><span class="mobile-stat-label">Progress</span><span class="mobile-stat-value">${fmtNum(s.moments_owned)}${s.moments_total !== null ? ` / ${fmtNum(s.moments_total)}` : ''}</span></div>
         <div><span class="mobile-stat-label">Highlights Owned</span><span class="mobile-stat-value">${fmtNum(s.cards_owned)}</span></div>
         <div><span class="mobile-stat-label">Complete</span><span class="mobile-stat-value"><span class="pct-complete${s.pct_complete === 100 ? ' pct-complete--full' : ''}">${fmtPct(s.pct_complete)}</span></span></div>
+        <div class="mobile-card-full-row"><span class="mobile-stat-label">Set Value</span><span class="mobile-stat-value cell-set-value">${setValueCellHtml(s, true)}</span></div>
       </div>
     </div>
   `).join('');
@@ -1015,6 +1154,7 @@ const CARDS_COLUMNS_EDITION = [
   { key: 'set',     label: 'Set',     sortable: true },
   { key: 'rarity',  label: 'Rarity',  sortable: true },
   { key: 'edition', label: 'Edition', sortable: true, num: true },
+  { key: 'floor_price', label: 'Floor Price', sortable: true, num: true },
   { key: 'team',    label: 'Team',    sortable: true },
 ];
 const CARDS_COLUMNS_COUNT = [
@@ -1023,6 +1163,7 @@ const CARDS_COLUMNS_COUNT = [
   { key: 'rarity',  label: 'Rarity',  sortable: true },
   { key: 'count',   label: 'Owned',   sortable: true, num: true },
   { key: 'lowest',  label: 'Lowest Edition', num: true },
+  { key: 'floor_price', label: 'Floor Price', sortable: true, num: true },
   { key: 'team',    label: 'Team',    sortable: true },
 ];
 const cardsState = {
@@ -1093,7 +1234,7 @@ function activeCardsColumns() {
   return cardsState.view === 'count' ? CARDS_COLUMNS_COUNT : CARDS_COLUMNS_EDITION;
 }
 function cardsDefaultDir(field) {
-  return (field === 'edition' || field === 'count') ? 'desc' : 'asc';
+  return (field === 'edition' || field === 'count' || field === 'floor_price') ? 'desc' : 'asc';
 }
 
 function renderCardsHead() {
@@ -1158,11 +1299,18 @@ function renderCardsBody() {
     const missing = cardsState.ownership === 'all' && c.owned_count === 0;
     return `${fmtNum(c.owned_count)}${missing ? ' <span class="missing-tag">Missing</span>' : ''}`;
   };
+  // Same "missing" concept as the tag above, extended to 'missing' mode too
+  // (every row there is missing by definition, so the tag itself would be
+  // pure noise there — but the floor price still benefits from the same
+  // red cue, since that's the "what would it cost to fill this gap" number).
+  const isMissing = c => cardsState.ownership === 'missing' || (cardsState.ownership === 'all' && c.owned_count === 0);
+  const floorPriceHtml = c => `<span class="${isMissing(c) ? 'floor-price-missing' : ''}">${fmtUsd(c.floor_price)}</span>`;
   document.getElementById('cardsBody').innerHTML = cardsState.cards.map(c => {
     const badges = counting ? [] : computeEditionBadges(c);
     const missingRow = cardsState.ownership === 'all' && c.owned_count === 0;
+    const rowClasses = [badges.length && 'row-has-badge', missingRow && 'row-missing'].filter(Boolean).join(' ');
     return `
-    <tr class="${badges.length ? 'row-has-badge' : ''}${missingRow ? ' row-missing' : ''}">
+    <tr class="${rowClasses}">
       <td><a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a></td>
       ${counting ? '' : `<td>${badgesCellHtml(badges)}</td>`}
       <td>
@@ -1176,6 +1324,7 @@ function renderCardsBody() {
         ? `<td class="col-r">${ownedCell(c)}</td>
            <td class="col-r">${(c.lowest_editions || []).map(n => fmtNum(n)).join(' · ') || '—'}</td>`
         : `<td class="col-r">${fmtNum(c.edition_number)}</td>`}
+      <td class="col-r">${floorPriceHtml(c)}</td>
       <td>${c.team
         ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
         : '—'}</td>
@@ -1186,8 +1335,9 @@ function renderCardsBody() {
   document.getElementById('cardsMobileList').innerHTML = cardsState.cards.map(c => {
     const badges = counting ? [] : computeEditionBadges(c);
     const missingRow = cardsState.ownership === 'all' && c.owned_count === 0;
+    const cardClasses = ['mobile-card', missingRow && 'row-missing'].filter(Boolean).join(' ');
     return `
-    <div class="mobile-card${missingRow ? ' row-missing' : ''}">
+    <div class="${cardClasses}">
       <div class="mobile-card-header">
         <div>
           <a class="cell-player" href="holders/${encodeURIComponent(c.moment_uuid)}">${c.player || '—'}</a>
@@ -1203,6 +1353,7 @@ function renderCardsBody() {
              <div><span class="mobile-stat-label">Lowest Edition</span><span class="mobile-stat-value">${(c.lowest_editions || []).map(n => fmtNum(n)).join(' · ') || '—'}</span></div>`
           : `<div><span class="mobile-stat-label">Edition</span><span class="mobile-stat-value">${fmtNum(c.edition_number)}</span></div>
              <div><span class="mobile-stat-label">Badges</span><span class="mobile-stat-value">${badgesCellHtml(badges) || '—'}</span></div>`}
+        <div><span class="mobile-stat-label">Floor Price</span><span class="mobile-stat-value">${floorPriceHtml(c)}</span></div>
         <div><span class="mobile-stat-label">Team</span><span class="mobile-stat-value">${c.team
           ? `<span class="cell-team">${c.team_logo_url ? `<img class="cell-team-logo" src="${c.team_logo_url}" alt="" loading="lazy">` : ''}${c.team}</span>`
           : '—'}</span></div>
@@ -2300,6 +2451,7 @@ async function lookupWallet(query, initialTab, initialSetName) {
     document.getElementById('statMoments').textContent = fmtNum(summary.moments_held);
     document.getElementById('statSets').textContent = fmtNum(summary.sets_represented);
     document.getElementById('statPacks').textContent = fmtNum(summary.packs_held);
+    renderValue(summary.value);
     renderBadges(summary.badges);
     contentEl.style.display = 'flex';
     setActiveTab(initialTab || TAB_NAMES[0]);
@@ -2475,6 +2627,10 @@ walletInputEl.addEventListener('keydown', e => {
 const ratingModal = document.getElementById('ratingModal');
 document.getElementById('ratingModalClose').addEventListener('click', () => ratingModal.classList.remove('open'));
 ratingModal.addEventListener('click', e => { if (e.target === ratingModal) ratingModal.classList.remove('open'); });
+
+const valueModal = document.getElementById('valueModal');
+document.getElementById('valueModalClose').addEventListener('click', () => valueModal.classList.remove('open'));
+valueModal.addEventListener('click', e => { if (e.target === valueModal) valueModal.classList.remove('open'); });
 </script>
 
 <script src="nav.js"></script>

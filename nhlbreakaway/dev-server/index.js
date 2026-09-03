@@ -444,10 +444,44 @@ async function handleWalletSuggest(url, res) {
   }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
+// Portfolio floor value — see NHL_BREAKAWAY_DATA_HANDOFF.txt's "FLOOR PRICES"
+// section for the source table. price_usd is NULL for an asset with zero
+// open listings (a real, common state, ~40% of the catalog) — those
+// contribute $0 rather than being dropped, and are surfaced separately via
+// unpriced_assets so a wallet's headline value doesn't silently read low.
+//
+// No outlier filtering — a real attempt at this (excluding lone-listing
+// prices many multiples above a set+rarity median) was tried and reverted
+// 2026-09-03. It kept misfiring on legitimate cases the median-vs-group
+// comparison structurally can't distinguish from a troll listing — most
+// concretely, a brand-new low-supply "growing" highlight (e.g. 1 copy ever
+// crafted) compared against a group median built mostly from long-established,
+// high-supply siblings of the same set+rarity. Explicit user call: every
+// floor price displays and counts as-is, everywhere on the site — this is
+// the ONLY place a wallet's value is computed, so nothing upstream should
+// try to reintroduce outlier logic independently.
+const WALLET_VALUE_SQL = `
+  SELECT
+    COUNT(*) AS total_assets,
+    COUNT(price_usd) AS priced_assets,
+    COALESCE(SUM(price_usd), 0) AS total_value
+  FROM (
+    SELECT fp.price_usd
+    FROM cards c
+    LEFT JOIN floor_prices fp ON fp.asset_uuid = c.moment_uuid AND fp.asset_type = 'moment'
+    WHERE LOWER(c.owner_wallet) = $1 AND c.burned = 0
+    UNION ALL
+    SELECT fp.price_usd
+    FROM packs p
+    LEFT JOIN floor_prices fp ON fp.asset_uuid = p.pack_uuid AND fp.asset_type = 'pack'
+    WHERE LOWER(p.owner_wallet) = $1 AND p.burned = 0
+  ) owned
+`;
+
 async function handleWalletSummary(url, res) {
   const wallet = normalizeWallet(url.searchParams.get('wallet'));
   if (!wallet) return sendJson(res, 400, { error: 'wallet required' });
-  const [cardsRes, packsRes, badgesRes] = await Promise.all([
+  const [cardsRes, packsRes, badgesRes, valueRes] = await Promise.all([
     // sets_represented counts distinct moments.set_uuid (== collections.set_uuid,
     // see collection_key note in SETS_SQL) directly off the owned cards' own
     // moments join — no separate collections lookup needed for a plain count.
@@ -479,15 +513,24 @@ async function handleWalletSummary(url, res) {
        WHERE LOWER(c.owner_wallet) = $1 AND c.burned = 0`,
       [wallet]
     ),
+    pool.query(WALLET_VALUE_SQL, [wallet]),
   ]);
   const c = cardsRes.rows[0];
   const b = badgesRes.rows[0];
+  const v = valueRes.rows[0];
+  const totalAssets = Number(v.total_assets);
+  const pricedAssets = Number(v.priced_assets);
   sendJson(res, 200, {
     wallet,
     cards_held: Number(c.cards_held),
     moments_held: Number(c.moments_held),
     sets_represented: Number(c.sets_represented),
     packs_held: Number(packsRes.rows[0].packs_held),
+    value: {
+      total: Number(v.total_value),
+      priced_assets: pricedAssets,
+      unpriced_assets: totalAssets - pricedAssets,
+    },
     badges: {
       first_edition: Number(b.first_edition_count),
       perfect_edition: Number(b.perfect_edition_count),
@@ -509,21 +552,60 @@ async function handleWalletSets(url, res) {
   // forever. minted_template_count excludes those (see lib/db.js's collections
   // schema comment) and is recomputed every build-collections.js run, so a
   // set starts counting a highlight the first time it's actually minted.
+  //
+  // set_price_stats — backs the "Set Floor Price" / "Cost to Complete"
+  // column: the roster for each set this wallet holds anything in (scoped
+  // via wallet_set_uuids, so this never scans a set the wallet has zero
+  // interest in), LEFT JOINed to floor_prices for the current price and to
+  // this wallet's own owned_moments to split "already owned" from
+  // "missing". Same EXISTS(...cards...) guard as the roster used for the
+  // Missing/All ownership toggle — a highlight with zero minted editions
+  // ever can't be bought, so it shouldn't count as "unpriced" here any more
+  // than it counts against pct_complete's own denominator above.
   const { rows } = await pool.query(
-    `SELECT col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.minted_template_count AS moments_total,
+    `WITH owned_moments AS (
+       SELECT DISTINCT c.moment_uuid FROM cards c WHERE LOWER(c.owner_wallet) = $1 AND c.burned = 0
+     ),
+     wallet_set_uuids AS (
+       SELECT DISTINCT m.set_uuid FROM moments m JOIN owned_moments om ON om.moment_uuid = m.moment_uuid
+     ),
+     set_price_stats AS (
+       SELECT m.set_uuid,
+         COUNT(*) AS highlight_count,
+         COUNT(fp.price_usd) AS priced_count,
+         COALESCE(SUM(fp.price_usd), 0) AS set_floor_price,
+         COUNT(*) FILTER (WHERE om.moment_uuid IS NULL) AS missing_count,
+         COUNT(fp.price_usd) FILTER (WHERE om.moment_uuid IS NULL) AS missing_priced_count,
+         COALESCE(SUM(fp.price_usd) FILTER (WHERE om.moment_uuid IS NULL), 0) AS cost_to_complete
+       FROM moments m
+       JOIN wallet_set_uuids ws ON ws.set_uuid = m.set_uuid
+       LEFT JOIN floor_prices fp ON fp.asset_uuid = m.moment_uuid AND fp.asset_type = 'moment'
+       LEFT JOIN owned_moments om ON om.moment_uuid = m.moment_uuid
+       WHERE m.${DEAD_MOMENTS_EXCLUSION} AND EXISTS (SELECT 1 FROM cards c3 WHERE c3.moment_uuid = m.moment_uuid)
+       GROUP BY m.set_uuid
+     )
+     SELECT col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.minted_template_count AS moments_total,
        COUNT(DISTINCT c.moment_uuid) AS moments_owned,
-       COUNT(*) AS cards_owned
+       COUNT(*) AS cards_owned,
+       sps.set_floor_price, sps.highlight_count, sps.priced_count,
+       sps.cost_to_complete, sps.missing_count, sps.missing_priced_count
      FROM cards c
      JOIN moments m ON m.moment_uuid = c.moment_uuid
      JOIN collections col ON col.set_uuid = m.set_uuid
+     LEFT JOIN set_price_stats sps ON sps.set_uuid = col.set_uuid
      WHERE LOWER(c.owner_wallet) = $1 AND c.burned = 0
-     GROUP BY col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.minted_template_count
+     GROUP BY col.set_uuid, col.collection_key, col.series_label, col.set_name, col.rarity, col.minted_template_count,
+       sps.set_floor_price, sps.highlight_count, sps.priced_count, sps.cost_to_complete, sps.missing_count, sps.missing_priced_count
      ORDER BY col.series_label, col.set_name`,
     [wallet]
   );
   const sets = rows.map(r => {
     const momentsTotal = r.moments_total === null ? null : Number(r.moments_total);
     const momentsOwned = Number(r.moments_owned);
+    const highlightCount = r.highlight_count === null ? null : Number(r.highlight_count);
+    const pricedCount = r.priced_count === null ? null : Number(r.priced_count);
+    const missingCount = r.missing_count === null ? 0 : Number(r.missing_count);
+    const missingPricedCount = r.missing_priced_count === null ? 0 : Number(r.missing_priced_count);
     return {
       set_uuid: r.set_uuid,
       collection_key: r.collection_key,
@@ -534,6 +616,15 @@ async function handleWalletSets(url, res) {
       moments_owned: momentsOwned,
       cards_owned: Number(r.cards_owned),
       pct_complete: pct(momentsOwned, momentsTotal),
+      set_floor_price: Number(r.set_floor_price || 0),
+      set_unpriced_count: highlightCount !== null && pricedCount !== null ? highlightCount - pricedCount : 0,
+      cost_to_complete: Number(r.cost_to_complete || 0),
+      cost_to_complete_unpriced_count: missingCount - missingPricedCount,
+      // Missing highlights, from the SAME roster this price math is built
+      // on — the frontend blanks the "Cost to Complete" row when this is 0
+      // (nothing left to buy), rather than re-deriving "complete" from
+      // pct_complete's own rounding.
+      missing_count: missingCount,
     };
   });
   sendJson(res, 200, { sets }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
@@ -1125,6 +1216,7 @@ const WALLET_CARDS_SORT_COLUMNS = {
   rarity: rarityRankSqlCase('m.rarity'),
   edition: 'c.edition_number',
   team: 'm.team',
+  floor_price: 'fp.price_usd',
 };
 
 // "By Count" view (group=count) — one row per highlight instead of one row
@@ -1144,6 +1236,11 @@ const WALLET_CARDS_GROUPED_SORT_COLUMNS = {
   // that row as 1 instead of 0.
   count: 'COUNT(c.moment_uuid)',
   team: 'm.team',
+  // MAX(), not a bare column — floor_prices is per-moment (PK (asset_uuid,
+  // asset_type)), so every row in a moment_uuid group already carries the
+  // same value; MAX() just avoids needing it in GROUP BY. Also correct in
+  // the roster ("all"/"missing") query below, which reuses this same map.
+  floor_price: 'MAX(fp.price_usd)',
 };
 
 // "All"/"Missing" ownership — only reachable from the frontend once a Set
@@ -1181,6 +1278,13 @@ async function handleWalletCardsRoster(q, wallet, ownership, res) {
   const sortKey = WALLET_CARDS_GROUPED_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'player';
   const sortSql = WALLET_CARDS_GROUPED_SORT_COLUMNS[sortKey];
   const dir = q.get('dir') === 'desc' ? 'DESC' : 'ASC';
+  // floor_price is NULL for any highlight with zero open listings right now
+  // (a real, common state — see NHL_BREAKAWAY_DATA_HANDOFF.txt's "FLOOR
+  // PRICES" section) — Postgres's default NULL ordering flips with
+  // direction, so without this a "floor price desc" sort buries every real
+  // price under a wall of unpriced rows first. Same fix as this file's
+  // other nullable sort columns (top_holder, Activity's amount).
+  const nullsClause = sortKey === 'floor_price' ? ' NULLS LAST' : '';
   const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
   params.push(limit, offset);
@@ -1195,14 +1299,16 @@ async function handleWalletCardsRoster(q, wallet, ownership, res) {
     SELECT m.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url AS team_logo_url,
       COUNT(c.moment_uuid) AS owned_count,
       (ARRAY_AGG(c.edition_number ORDER BY c.edition_number ASC) FILTER (WHERE c.edition_number IS NOT NULL))[1:3] AS lowest_editions,
+      MAX(fp.price_usd) AS floor_price,
       COUNT(*) OVER() AS total_count
     FROM moments m
     LEFT JOIN teams t ON t.team_name = m.team
     LEFT JOIN cards c ON c.moment_uuid = m.moment_uuid AND LOWER(c.owner_wallet) = $1 AND c.burned = 0
+    LEFT JOIN floor_prices fp ON fp.asset_uuid = m.moment_uuid AND fp.asset_type = 'moment'
     WHERE ${where.join(' AND ')}
     GROUP BY m.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url
     ${havingSql}
-    ORDER BY ${sortSql} ${dir}, m.moment_uuid ASC
+    ORDER BY ${sortSql} ${dir}${nullsClause}, m.moment_uuid ASC
     LIMIT $${params.length - 1} OFFSET $${params.length}
   `;
   const { rows } = await pool.query(sql, params);
@@ -1217,6 +1323,7 @@ async function handleWalletCardsRoster(q, wallet, ownership, res) {
     team_logo_url: r.team_logo_url || null,
     owned_count: Number(r.owned_count),
     lowest_editions: r.lowest_editions,
+    floor_price: r.floor_price === null ? null : Number(r.floor_price),
   }));
   sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
@@ -1266,6 +1373,10 @@ async function handleWalletCards(url, res) {
   const sortKey = sortColumns[q.get('sort')] ? q.get('sort') : defaultSort;
   const sortSql = sortColumns[sortKey];
   const dir = q.get('dir') === 'desc' ? 'DESC' : 'ASC';
+  // floor_price is NULL for a highlight with zero open listings right now —
+  // same NULLS-flip-with-direction gotcha as this file's other nullable
+  // sort columns (top_holder, Activity's amount, the roster query above).
+  const nullsClause = sortKey === 'floor_price' ? ' NULLS LAST' : '';
   const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
   params.push(limit, offset);
@@ -1282,13 +1393,15 @@ async function handleWalletCards(url, res) {
       SELECT c.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url AS team_logo_url,
         COUNT(*) AS owned_count,
         (ARRAY_AGG(c.edition_number ORDER BY c.edition_number ASC))[1:3] AS lowest_editions,
+        MAX(fp.price_usd) AS floor_price,
         COUNT(*) OVER() AS total_count
       FROM cards c
       JOIN moments m ON m.moment_uuid = c.moment_uuid
       LEFT JOIN teams t ON t.team_name = m.team
+      LEFT JOIN floor_prices fp ON fp.asset_uuid = c.moment_uuid AND fp.asset_type = 'moment'
       WHERE ${where.join(' AND ')}
       GROUP BY c.moment_uuid, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url
-      ORDER BY ${sortSql} ${dir}, c.moment_uuid ASC
+      ORDER BY ${sortSql} ${dir}${nullsClause}, c.moment_uuid ASC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
     const { rows } = await pool.query(sql, params);
@@ -1303,6 +1416,7 @@ async function handleWalletCards(url, res) {
       team_logo_url: r.team_logo_url || null,
       owned_count: Number(r.owned_count),
       lowest_editions: r.lowest_editions,
+      floor_price: r.floor_price === null ? null : Number(r.floor_price),
     }));
     return sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
   }
@@ -1326,7 +1440,7 @@ async function handleWalletCards(url, res) {
   // file (see handleWalletSummary's own perfect_edition_count).
   const sql = `
     SELECT c.moment_uuid, c.edition_number, m.player, m.set_name, m.series_label, m.rarity, m.team, t.logo_url AS team_logo_url,
-      m.jersey_number, m.total_editions,
+      m.jersey_number, m.total_editions, fp.price_usd AS floor_price,
       CASE WHEN m.total_editions IS NOT NULL THEN m.total_editions
            ELSE (SELECT MAX(c2.edition_number) FROM cards c2 WHERE c2.moment_uuid = c.moment_uuid)
       END AS perfect_edition,
@@ -1334,8 +1448,9 @@ async function handleWalletCards(url, res) {
     FROM cards c
     JOIN moments m ON m.moment_uuid = c.moment_uuid
     LEFT JOIN teams t ON t.team_name = m.team
+    LEFT JOIN floor_prices fp ON fp.asset_uuid = c.moment_uuid AND fp.asset_type = 'moment'
     WHERE ${where.join(' AND ')}
-    ORDER BY ${sortSql} ${dir}, c.edition_number ASC, c.moment_uuid ASC
+    ORDER BY ${sortSql} ${dir}${nullsClause}, c.edition_number ASC, c.moment_uuid ASC
     LIMIT $${params.length - 1} OFFSET $${params.length}
   `;
   const { rows } = await pool.query(sql, params);
@@ -1352,6 +1467,7 @@ async function handleWalletCards(url, res) {
     jersey_number: r.jersey_number === null ? null : Number(r.jersey_number),
     total_editions: r.total_editions === null ? null : Number(r.total_editions),
     perfect_edition: r.perfect_edition === null ? null : Number(r.perfect_edition),
+    floor_price: r.floor_price === null ? null : Number(r.floor_price),
   }));
   sendJson(res, 200, { cards, total, has_more: offset + cards.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
@@ -1429,6 +1545,7 @@ const HIGHLIGHTS_SORT_COLUMNS = {
   editions: 'editions_display', // the computed column below, not raw total_editions
   holders: 'holders_count',
   in_packs: 'in_packs_count', // sorts by the raw count, not the %, same as every other count/pct pair on this site
+  floor_price: 'fp.price_usd',
   top_holder: 'th_count',
   team: 'team',
 };
@@ -1442,33 +1559,35 @@ async function handleHighlights(url, res) {
     params.push(ilike ? `%${val}%` : val);
     where.push(`${col} ${ilike ? 'ILIKE' : '='} $${params.length}`);
   };
-  addFilter('player', q.get('player'), true);
+  addFilter('m.player', q.get('player'), true);
   // The "Set" dropdown filters by name (see handleHighlightsFilters' dedup
   // comment) — not set_uuid, which is one-per-rarity for themed sets and so
   // can't represent "all rows sharing this set name" as a single value.
-  addFilter('set_name', q.get('set_name'));
-  addFilter('rarity', q.get('rarity'));
-  addFilter('series_label', q.get('series_label'));
-  addFilter('team', q.get('team'));
+  addFilter('m.set_name', q.get('set_name'));
+  addFilter('m.rarity', q.get('rarity'));
+  addFilter('m.series_label', q.get('series_label'));
+  addFilter('m.team', q.get('team'));
   // Deep-link from the Sets page ("?set=<collection_key>") — collection_key
   // is one opaque string, identical on both `collections` and `moments` for
   // the same (series, set, rarity). DEAD_MOMENTS_EXCLUSION above still
   // applies on top of this — it's an independent exclusion, not implied by
   // collection_key alone (the 2 dead Chicago Blackhawks duplicates share
   // their real twin's collection_key).
-  addFilter('collection_key', q.get('set'));
+  addFilter('m.collection_key', q.get('set'));
 
   const sortKey = HIGHLIGHTS_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'player';
   const sortSql = HIGHLIGHTS_SORT_COLUMNS[sortKey];
   const dir = q.get('dir') === 'desc' ? 'DESC' : 'ASC';
   // th_count is NULL whenever a highlight has no current holder at all (the
-  // "—" rows) — Postgres's default NULL ordering flips with direction
-  // (NULLS LAST for ASC, NULLS FIRST for DESC), which put those dash rows at
-  // the TOP when sorting DESC. Forcing NULLS LAST unconditionally keeps them
-  // pinned to the bottom regardless of sort direction. Every other sortable
-  // column here is never NULL, so this is scoped to top_holder specifically
-  // rather than applied blindly to every sort.
-  const nullsClause = sortKey === 'top_holder' ? ' NULLS LAST' : '';
+  // "—" rows), and floor_price is NULL whenever it has zero open listings
+  // right now (a real, common state — see NHL_BREAKAWAY_DATA_HANDOFF.txt's
+  // "FLOOR PRICES" section) — Postgres's default NULL ordering flips with
+  // direction (NULLS LAST for ASC, NULLS FIRST for DESC), which put those
+  // dash rows at the TOP when sorting DESC. Forcing NULLS LAST
+  // unconditionally keeps them pinned to the bottom regardless of sort
+  // direction. Every other sortable column here is never NULL, so this is
+  // scoped to these two specifically rather than applied blindly.
+  const nullsClause = (sortKey === 'top_holder' || sortKey === 'floor_price') ? ' NULLS LAST' : '';
 
   const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
@@ -1527,18 +1646,23 @@ async function handleHighlights(url, res) {
     GROUP BY c.moment_uuid`;
   // Top Holder — the single wallet holding the most (unburned, non-system)
   // editions of each highlight. DISTINCT ON picks the top row per moment
-  // from a per-(moment, wallet) aggregate, same tie-break (held count desc,
-  // then wallet address asc for determinism) as the old LATERAL join.
+  // from a per-(moment, wallet) aggregate. Tie-break on equal held_count:
+  // whoever's own LOWEST-numbered edition is smaller wins (e.g. holding
+  // #45/83/183 beats holding #58/60/67, even though both are 3) — a real
+  // signal of "got in earliest/holds the better copy", not the old plain
+  // wallet-address-ascending tie-break, which was purely arbitrary. Wallet
+  // address ASC is now only the final, extremely-unlikely-to-matter
+  // tie-break (two wallets tied on both count AND lowest edition).
   const topHolderAgg = `
     SELECT DISTINCT ON (moment_uuid) moment_uuid, owner_wallet, owner_username, owner_name, held_count
     FROM (
-      SELECT c.moment_uuid, c.owner_wallet, c.owner_username, c.owner_name, COUNT(*) AS held_count
+      SELECT c.moment_uuid, c.owner_wallet, c.owner_username, c.owner_name, COUNT(*) AS held_count, MIN(c.edition_number) AS min_edition
       FROM cards c
       LEFT JOIN system_wallets sw ON LOWER(sw.wallet_address) = LOWER(c.owner_wallet)
       WHERE c.burned = 0 AND sw.wallet_address IS NULL
       GROUP BY c.moment_uuid, c.owner_wallet, c.owner_username, c.owner_name
     ) per_wallet
-    ORDER BY moment_uuid, held_count DESC, owner_wallet ASC`;
+    ORDER BY moment_uuid, held_count DESC, min_edition ASC, owner_wallet ASC`;
   const sql = `
     WITH card_agg AS (${cardAgg}), top_holder_agg AS (${topHolderAgg})
     SELECT m.moment_uuid, m.player, m.set_name, m.set_uuid, m.series_label, m.rarity, m.team, m.total_editions,
@@ -1550,11 +1674,13 @@ async function handleHighlights(url, res) {
       (m.total_editions IS NULL) AS editions_is_growing,
       COALESCE(ca.holders_count, 0) AS holders_count,
       COALESCE(ca.in_packs_count, 0) AS in_packs_count,
+      fp.price_usd AS floor_price,
       th.owner_wallet AS th_wallet, th.owner_username AS th_username, th.owner_name AS th_name, th.held_count AS th_count
     FROM moments m
     LEFT JOIN teams t ON t.team_name = m.team
     LEFT JOIN card_agg ca ON ca.moment_uuid = m.moment_uuid
     LEFT JOIN top_holder_agg th ON th.moment_uuid = m.moment_uuid
+    LEFT JOIN floor_prices fp ON fp.asset_uuid = m.moment_uuid AND fp.asset_type = 'moment'
     ${whereSql}
     ORDER BY ${sortSql} ${dir}${nullsClause}, m.moment_uuid ASC
     LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -1587,6 +1713,7 @@ async function handleHighlights(url, res) {
       holders: Number(r.holders_count),
       in_packs: inPacksCount,
       in_packs_pct: pct(inPacksCount, r.total_editions === null ? null : Number(r.total_editions)),
+      floor_price: r.floor_price === null ? null : Number(r.floor_price),
       // Display fallback chain matches holders.html's own holder rendering
       // exactly: owner_username -> owner_name -> shortened wallet. The link
       // (top_holder_username) is separate and only ever a REAL Sweet
