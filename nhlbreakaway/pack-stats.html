@@ -266,6 +266,14 @@ function filteredSortedPacks() {
   rows = [...rows].sort((a, b) => {
     let av, bv;
     if (field === 'name') { av = a.pack_name; bv = b.pack_name; }
+    // Uncapped packs have editions=null (the whole reason editions_live_sum
+    // exists — it's what actually renders as "N+" in this column). Sorting
+    // by the raw field left every uncapped row's sort key as null, so they
+    // never compared against each other or the capped rows by their real
+    // displayed number at all — just whatever order the API happened to
+    // return them in. Fall back to the live sum so "sort by Editions"
+    // always orders by the number actually shown.
+    else if (field === 'editions') { av = a.editions ?? a.editions_live_sum; bv = b.editions ?? b.editions_live_sum; }
     else { av = a[field]; bv = b[field]; }
     if (av === null || av === undefined) av = typeof bv === 'number' ? -Infinity : '';
     if (bv === null || bv === undefined) bv = typeof av === 'number' ? -Infinity : '';
