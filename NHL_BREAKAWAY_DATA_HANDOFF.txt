@@ -1,5 +1,5 @@
 NHL BREAKAWAY DATA LAYER — HANDOFF NOTE
-Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02, by a Claude Code session
+Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02/03, by a Claude Code session
 working in C:\Personnel\Projets\NHL Breakaway
 Dropped here (PopInStock3.0) only as a file for another session to read — nothing else
 in this project folder was touched or should be touched based on this note.
@@ -20,6 +20,26 @@ it's NOT opaque, it's the exact same value as cards.token_uri/packs.token_uri an
 right way to resolve a transaction to a player/highlight name (verified: 99.97% exact-
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
+
+UPDATE 2026-09-03: new `collections.minted_template_count` column — a real bug, found via
+a user report ("my set won't show 100% even though I own every card"): the catalog can
+contain a real, non-dead highlight Sweet just hasn't minted any editions of yet (confirmed
+via holders.html showing "hasn't been minted yet — no editions exist on-chain" for it),
+and template_count/mint_rankings' old templateRows query both counted it anyway — nobody
+can ever own a card that doesn't exist, so any wallet's completion % or "complete set"
+eligibility for that collection was permanently capped, forever, until this fix.
+minted_template_count = COUNT of a collection's templates with >=1 row in `cards` (built
+in build-collections.js, recomputed every refresh-all run, so a highlight starts counting
+the moment its first edition gets minted/scraped). Also fixed the same root cause in
+build-mint-rankings.js's templateRows query (same EXISTS(cards) filter — this is why
+mint_rankings.set_size above is now minted_template_count-based, not template_count) and
+in dev-server's handleWalletCardsRoster (the wallet Highlights tab's All/Missing roster —
+was showing the unminted highlight tagged "Missing" forever, contradicting the Sets tab's
+own now-correct 100%). Deliberately NOT changed: the sitewide Sets page/SETS_SQL
+(col.template_count AS moments — stays the full catalog size, informational), the
+per-highlight holders.html page, filter dropdowns, and player search — those are catalog
+browse/discovery, not a specific wallet's completion math, and the per-highlight page's
+"hasn't been minted yet" empty state is the intended way to surface this case there.
 
 UPDATE 2026-09-02 (same day, later still): found and documented a real KNOWN LIMITATION
 (see the new section below) — the bare-series aggregate endpoint this whole table was
@@ -135,9 +155,15 @@ CORE TABLES (all already built, populated, and validated against live ground tru
   MAX(rarity)-picked label with wrong totals — caught 2026-08-26 by cross-checking
   against two other fan sites, which correctly show these as separate sets. 91 rows
   total now (was 84).
-  Columns: series_label, set_name, set_uuid, rarity, template_count, total_supply,
-  image_url, in_set_completion_challenge, challenge_active_until,
+  Columns: series_label, set_name, set_uuid, rarity, template_count, minted_template_count,
+  total_supply, image_url, in_set_completion_challenge, challenge_active_until,
   challenge_requirement_count, updated_at
+  template_count vs minted_template_count (added 2026-09-03, see UPDATE below): use
+  template_count for the sitewide Sets page's own "Moments" column (full catalog size,
+  including highlights Sweet hasn't minted an edition of yet). Use minted_template_count
+  as the denominator anywhere a specific wallet's own completion % is computed — a
+  moment with zero editions minted can never be owned by anyone, so template_count would
+  cap that wallet below 100% forever even after they hold every mintable card.
   UI note: it's fine for the Sets page's "Set" filter dropdown to still show one
   entry per distinct set_name (deduplicated) — but the grid/table itself must NOT
   re-group by set_name when rendering rows. Query `collections` directly
@@ -333,9 +359,10 @@ SCHEMA — table `mint_rankings`, PRIMARY KEY (collection_key, wallet_address, s
                                     collection, 2 = their 2nd, etc.
   total_complete_sets    INTEGER -- how many complete sets this wallet owns of this
                                     collection (same value repeated across all its rows)
-  set_size               INTEGER -- template_count for this collection at compute time
-                                    (should match collections.template_count, but this
-                                    column is the frozen value used for THIS row's math)
+  set_size               INTEGER -- minted_template_count for this collection at compute
+                                    time (NOT collections.template_count — see 2026-09-03
+                                    update below), frozen at the value used for THIS row's
+                                    math
   sum_of_editions        INTEGER -- sum of the edition_number used per template for
                                     this specific complete set
   avg_edition             REAL   -- sum_of_editions / set_size
