@@ -1156,7 +1156,12 @@ const WALLET_CARDS_GROUPED_SORT_COLUMNS = {
 // since edition-level detail (edition_number, badges) has no meaning for a
 // highlight nobody owns yet.
 async function handleWalletCardsRoster(q, wallet, ownership, res) {
-  const where = [`m.${DEAD_MOMENTS_EXCLUSION}`];
+  // Same rule as collections.minted_template_count / the Sets tab's pct_complete
+  // (see lib/db.js's collections schema comment): a highlight with zero editions
+  // ever minted can't be owned by anyone, so it always showed up here tagged
+  // "Missing" even once a wallet held every mintable card in the set — visibly
+  // contradicting the Sets tab's own (now-correct) 100%. Excluded the same way.
+  const where = [`m.${DEAD_MOMENTS_EXCLUSION}`, `EXISTS (SELECT 1 FROM cards c2 WHERE c2.moment_uuid = m.moment_uuid)`];
   const params = [wallet];
   const addFilter = (col, val, ilike) => {
     if (!val) return;
