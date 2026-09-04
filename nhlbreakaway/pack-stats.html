@@ -32,6 +32,32 @@
     }
     .filter-bar .search-input:focus { outline: none; border-color: var(--accent); }
 
+    /* ── Busy overlay — shown while the initial packs fetch is in flight.
+       Same fixed, viewport-centered overlay + solid message card as
+       highlights.html/edition-rankings.html/holders.html's own — this page
+       only ever fetches once (every filter/sort after that is client-side
+       over the already-loaded rows), so this only wraps init()'s own
+       fetchPacks() call. ── */
+    .busy-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
+
     /* Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the desktop
        table's clickable column headers, which disappear along with the
        table itself at this width (see .mobile-card-list below). Without
@@ -179,6 +205,8 @@
     </div>
 
     <div class="results-meta" id="resultsMeta"></div>
+
+    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
 
     <div class="table-scroll" style="overflow-x:auto;">
       <table class="packs-table">
@@ -539,11 +567,16 @@ document.getElementById('nameSearch').addEventListener('input', e => {
   renderBody();
 });
 
+function setBusyUi(active) {
+  document.getElementById('busyOverlay').classList.toggle('active', active);
+}
+
 (async function init() {
   renderHead();
   populateSortFieldCombo();
   syncMobileSortControls();
   document.getElementById('resultsMeta').textContent = 'Loading…';
+  setBusyUi(true);
   try {
     await fetchPacks();
     populateFilters();
@@ -551,6 +584,8 @@ document.getElementById('nameSearch').addEventListener('input', e => {
   } catch (err) {
     document.getElementById('resultsMeta').textContent = 'Failed to load packs. Please try again shortly.';
     console.error(err);
+  } finally {
+    setBusyUi(false);
   }
 })();
 </script>

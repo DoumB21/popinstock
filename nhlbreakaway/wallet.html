@@ -22,6 +22,34 @@
     .content { display: flex; flex-direction: column; gap: 2rem; }
     .page-header { margin-bottom: 0; }
 
+    /* ── Busy overlay — one shared indicator for the whole page: the initial
+       wallet lookup (all 5 tabs load together, see lookupWallet()) and every
+       subsequent filter/sort change or Load More within the Highlights/
+       Packs/Activity tabs (Set Completion and Edition Rankings are
+       client-side only after their one initial fetch, same as sets.html/
+       pack-stats.html, so they never need to re-trigger this). Same fixed,
+       viewport-centered overlay + solid message card as every other page in
+       this section. ── */
+    .busy-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
+
     /* ── Controls ── */
     .controls { display: flex; flex-direction: column; gap: 0.65rem; max-width: 640px; }
     .controls-row { display: flex; gap: 0.5rem; }
@@ -421,6 +449,8 @@
         <button class="lookup-btn" id="lookupBtn">Look Up</button>
       </div>
     </div>
+
+    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
 
     <div id="walletError"></div>
     <div id="walletEmpty">This wallet doesn't hold any NHL Breakaway highlights or packs yet.</div>
@@ -1220,10 +1250,25 @@ function cardsQuery() {
   return params;
 }
 
+// Toggles the shared busy overlay (see .busy-overlay in the <style> above) —
+// used by lookupWallet() plus every re-fetching tab's own load*Chunk()/
+// fetchActivitySummary(). Reference-counted (unlike the plain boolean toggle
+// every other page in this section uses) because lookupWallet() kicks off
+// its 5 tabs' fetches via one Promise.all — 3 of them (cards/packs/activity)
+// independently call this too, and a plain toggle would hide the overlay
+// the instant the FASTEST of those finishes, even while the slower ones (or
+// sets/mint-rankings, which never toggle it themselves) are still loading.
+let _busyCount = 0;
+function setBusyUi(active) {
+  _busyCount = Math.max(0, _busyCount + (active ? 1 : -1));
+  document.getElementById('busyOverlay').classList.toggle('active', _busyCount > 0);
+}
+
 async function loadCardsChunk() {
   if (cardsState.busy) return 0;
   cardsState.busy = true;
   renderCardsLoadMore();
+  setBusyUi(true);
   let got = 0;
   try {
     const version = await getDataVersion();
@@ -1241,6 +1286,7 @@ async function loadCardsChunk() {
   } finally {
     cardsState.busy = false;
     renderCardsLoadMore();
+    setBusyUi(false);
   }
   return got;
 }
@@ -1527,6 +1573,7 @@ async function loadPacksChunk() {
   if (packsState.busy) return 0;
   packsState.busy = true;
   renderPacksLoadMore();
+  setBusyUi(true);
   let got = 0;
   try {
     const version = await getDataVersion();
@@ -1543,6 +1590,7 @@ async function loadPacksChunk() {
   } finally {
     packsState.busy = false;
     renderPacksLoadMore();
+    setBusyUi(false);
   }
   return got;
 }
@@ -2129,6 +2177,7 @@ async function loadActivityChunk() {
   if (activityState.busy) return 0;
   activityState.busy = true;
   renderActivityLoadMore();
+  setBusyUi(true);
   let got = 0;
   try {
     const version = await getDataVersion();
@@ -2147,6 +2196,7 @@ async function loadActivityChunk() {
   } finally {
     activityState.busy = false;
     renderActivityLoadMore();
+    setBusyUi(false);
   }
   return got;
 }
@@ -2160,6 +2210,7 @@ async function fetchActivityPage(reset) {
 // (not a client-side reduce over whatever page of `activity` happens to be
 // loaded, which would silently under-count past the first page).
 async function fetchActivitySummary() {
+  setBusyUi(true);
   try {
     const version = await getDataVersion();
     const res = await fetch(withVersion(`${API_BASE}/api/wallet/activity/summary?${activityFilterParams()}`, version));
@@ -2170,6 +2221,8 @@ async function fetchActivitySummary() {
   } catch (err) {
     document.getElementById('activityCount').textContent = 'Failed to load activity summary. Please try again shortly.';
     console.error(err);
+  } finally {
+    setBusyUi(false);
   }
 }
 
@@ -2417,6 +2470,7 @@ async function lookupWallet(query, initialTab, initialSetName) {
 
   btn.disabled = true;
   btn.textContent = 'Looking up…';
+  setBusyUi(true);
   try {
     const version = await getDataVersion();
     const resolveRes = await fetch(withVersion(`${API_BASE}/api/wallet/resolve?q=${encodeURIComponent(query)}`, version));
@@ -2532,6 +2586,7 @@ async function lookupWallet(query, initialTab, initialSetName) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Look Up';
+    setBusyUi(false);
   }
 }
 

@@ -22,6 +22,32 @@
     .content { display: flex; flex-direction: column; gap: 1.25rem; }
     .page-header { margin-bottom: 0; }
 
+    /* ── Busy overlay — shown while a filter/sort change, Load More, or the
+       spotlight rank lookup is in flight. Same fixed, viewport-centered
+       overlay + solid message card as highlights.html/holders.html's own.
+       This page has no separate mobile table layout (addresses are just
+       pretty-printed instead — see prettyWallet() below), so the overlay
+       needs no width/breakpoint variants either. ── */
+    .busy-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
+
     /* ── Filter bar — multi-select .cb-dropdown (checkbox) for attribute
        filters, matching the sitewide component already used on
        inventory.html/prizepool.html/schema.html/etc. (see
@@ -222,6 +248,8 @@
 
     <div class="results-meta" id="resultsMeta"></div>
 
+    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
+
     <div style="overflow-x:auto;">
       <table class="leaderboard-table">
         <thead>
@@ -408,10 +436,19 @@ function renderLoadMore() {
   btn.textContent = state.busy ? 'Loading…' : 'Load more';
 }
 
+// Toggles the busy overlay (see .busy-overlay in the <style> above) — used
+// by loadChunk/loadSpotlight (so every filter/sort change and Load More is
+// covered) plus init(). Same convention as highlights.html/holders.html's
+// own setBusyUi().
+function setBusyUi(active) {
+  document.getElementById('busyOverlay').classList.toggle('active', active);
+}
+
 async function loadChunk() {
   if (state.busy) return 0;
   state.busy = true;
   renderLoadMore();
+  setBusyUi(true);
   let got = 0;
   try {
     const version = await getDataVersion();
@@ -428,6 +465,7 @@ async function loadChunk() {
   } finally {
     state.busy = false;
     renderLoadMore();
+    setBusyUi(false);
   }
   return got;
 }
@@ -441,6 +479,7 @@ async function loadSpotlight() {
   if (state.busy) return;
   state.busy = true;
   renderLoadMore();
+  setBusyUi(true);
   try {
     const rankParams = buildFilterParams();
     rankParams.set('wallet', state.spotlightWallet);
@@ -458,6 +497,7 @@ async function loadSpotlight() {
   } finally {
     state.busy = false;
     renderLoadMore();
+    setBusyUi(false);
   }
 }
 
