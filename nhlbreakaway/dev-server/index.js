@@ -2176,18 +2176,23 @@ async function handleHoldersTopHolders(url, res) {
   const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 100, 1), 200);
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
 
+  // total_holders via COUNT(*) OVER() is evaluated on the GROUP BY'd rows
+  // (distinct holders), not the raw per-card rows — same convention as this
+  // file's other windowed-total endpoints. Replaces the old "fetch limit+1,
+  // slice off the extra row" has_more trick now that the real total is known.
   const { rows } = await pool.query(
-    `SELECT c.owner_wallet, c.owner_username, c.owner_name, COUNT(*) AS held_count
+    `SELECT c.owner_wallet, c.owner_username, c.owner_name, COUNT(*) AS held_count,
+       COUNT(*) OVER() AS total_holders
      FROM cards c
      ${SYSTEM_WALLET_OWNER_JOIN}
      WHERE c.moment_uuid = $1 AND c.burned = 0 AND sw.wallet_address IS NULL
      GROUP BY c.owner_wallet, c.owner_username, c.owner_name
      ORDER BY COUNT(*) DESC, c.owner_wallet ASC
      LIMIT $2 OFFSET $3`,
-    [momentUuid, limit + 1, offset]
+    [momentUuid, limit, offset]
   );
-  const hasMore = rows.length > limit;
-  const holders = rows.slice(0, limit).map(r => ({
+  const total = rows.length ? Number(rows[0].total_holders) : 0;
+  const holders = rows.map(r => ({
     owner_wallet: r.owner_wallet,
     // Same display fallback chain as the Editions tab's own holder cell
     // (owner_username -> owner_name -> FULL wallet address, never
@@ -2197,7 +2202,7 @@ async function handleHoldersTopHolders(url, res) {
     holder_username: r.owner_username || null,
     held_count: Number(r.held_count),
   }));
-  sendJson(res, 200, { holders, has_more: hasMore });
+  sendJson(res, 200, { holders, total, has_more: offset + holders.length < total });
 }
 
 // Collector Leaderboard — a general-purpose "who owns the most cards matching

@@ -1099,7 +1099,7 @@ function onLoadMoreClick() {
 document.getElementById('loadMoreBtn').addEventListener('click', onLoadMoreClick);
 
 /* ══════════════════ Tabs (Editions / Top Holders) ══════════════════ */
-const topHoldersState = { holders: [], offset: 0, hasMore: false, busy: false, autoLoadArmed: false, loaded: false };
+const topHoldersState = { holders: [], offset: 0, hasMore: false, busy: false, autoLoadArmed: false, loaded: false, total: 0 };
 
 function fmtPct(p) {
   return p === null || p === undefined ? '—' : `${p.toFixed(2)}%`;
@@ -1156,7 +1156,7 @@ function renderTopHoldersBody() {
     }).join('');
   }
   document.getElementById('topHoldersResultsMeta').innerHTML =
-    `<strong>${topHoldersState.holders.length}</strong> holder${topHoldersState.holders.length === 1 ? '' : 's'}${topHoldersState.hasMore ? '+' : ''}`;
+    `<strong>${fmtNum(topHoldersState.total)}</strong> holder${topHoldersState.total === 1 ? '' : 's'}`;
 }
 
 function renderTopHoldersLoadMore() {
@@ -1178,6 +1178,7 @@ async function loadTopHoldersChunk() {
     const data = await res.json();
     topHoldersState.holders = [...topHoldersState.holders, ...data.holders];
     topHoldersState.hasMore = data.has_more;
+    topHoldersState.total = data.total;
     topHoldersState.offset += data.holders.length;
     renderTopHoldersBody();
   } catch (err) {
