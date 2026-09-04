@@ -380,6 +380,30 @@
       background: rgba(240,168,64,0.1); border: 1px solid rgba(240,168,64,0.35);
       color: var(--accent-light);
     }
+    /* Pulled-highlights panel for a 'pack_open' row — always shown (not a
+       collapsible toggle, per explicit user call after testing the expand/
+       collapse version: it read better always-open). .pull-list/.pull-item/
+       etc. are the same mini-list markup pack-stats.html's own Activity tab
+       uses for a pack's pulls, ported here for consistency. */
+    .activity-pulls-row td { background: rgba(255,255,255,0.02); padding: 10px 14px 14px; }
+    .activity-pulls-mobile { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+    .activity-expand-empty { color: var(--text-secondary); font-size: 0.8rem; padding: 0.35rem 0; }
+    /* Capped, not full-width — the desktop expand row's <td> spans all 8
+       Activity columns (colspan), so with no cap .pull-set's flex:1 stretched
+       across that entire width, dragging the rarity pill to the literal far
+       edge of the table and leaving a huge gap after the player/edition/set
+       text. This keeps the whole cluster compact, rarity still pinned to the
+       right of it, just not of the whole table. */
+    .pull-list { display: flex; flex-direction: column; gap: 4px; max-width: 520px; }
+    .pull-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      color: inherit; text-decoration: none; font-size: 0.8rem;
+      padding: 2px 0; border-radius: 4px;
+    }
+    .pull-item:hover .pull-player { color: var(--accent-light); text-decoration: underline; }
+    .pull-player { font-weight: 600; color: var(--text-primary); }
+    .pull-edition { color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .pull-set { color: var(--text-secondary); font-size: 0.72rem; flex: 1; }
 
     /* ── Mobile-only "Sort by" combo + Asc/Desc toggle, one per sortable tab
        — replaces that tab's clickable column headers, which disappear along
@@ -2255,6 +2279,41 @@ function renderActivityHead() {
   });
 }
 
+/* ══════════════════ Pack Open rows — pulled-highlights expand panel ══════════════════
+   Per NHL_BREAKAWAY_DATA_HANDOFF.txt's PACK OPENING HISTORY section — the
+   transaction's own token_uri (already resolved to this row via the `p`
+   join in handleWalletActivity) is the exact join key into
+   cards.pulled_from_pack_token_uri, so the pulls arrive inline with the
+   activity row itself (pack_pulls/pack_pulls_resolved) — no separate
+   per-row fetch needed, unlike edition-rankings.html's own expand panel. */
+function pullListHtml(highlights) {
+  return `<div class="pull-list">${(highlights || []).map(h => `
+    <a class="pull-item" href="holders?moment_uuid=${encodeURIComponent(h.moment_uuid)}">
+      <span class="pull-player">${escHtml(h.player)}</span>
+      <span class="pull-edition">#${fmtNum(h.edition_number)}</span>
+      <span class="pull-set">${escHtml(h.set_name)}</span>
+      ${h.rarity ? `<span class="rarity-pill rarity-pill--${h.rarity.toLowerCase()}"><span class="rarity-pill-text">${h.rarity}</span></span>` : ''}
+    </a>
+  `).join('')}</div>`;
+}
+function packPullsBodyHtml(a) {
+  if (!a.pack_pulls_resolved) {
+    return `<div class="activity-expand-empty">This pack's opening history hasn't been retrieved yet — full history is being backfilled drop by drop.</div>`;
+  }
+  if (!a.pack_pulls || !a.pack_pulls.length) {
+    return `<div class="activity-expand-empty">No highlights found for this pack.</div>`;
+  }
+  return pullListHtml(a.pack_pulls);
+}
+// Player column for a pack row — always a plain pill, no expand/collapse
+// (tried collapsible, reverted per explicit user call after testing: the
+// pulls panel reads better always shown for a 'pack_open' row).
+function playerCellHtml(a) {
+  if (a.player) return escHtml(a.player);
+  if (!a.is_pack) return '—';
+  return `<span class="pack-pill">📦 Pack</span>`;
+}
+
 function renderActivityBody() {
   const mobileListEl = document.getElementById('activityMobileList');
   if (activityState.view === 'summary') {
@@ -2288,7 +2347,7 @@ function renderActivityBody() {
     <tr>
       <td><span class="type-pill type-pill--${a.transaction_type}">${ACTIVITY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</span></td>
       <td>${fmtActivityDate(a.transaction_datetime)}</td>
-      <td>${a.player ? escHtml(a.player) : (a.is_pack ? `<span class="pack-pill">📦 Pack</span>` : '—')}</td>
+      <td>${playerCellHtml(a)}</td>
       <td>
         <div class="cell-set-name">${a.item_name || '—'}</div>
         <div class="cell-series">${a.series_label || ''}${a.rarity
@@ -2303,6 +2362,7 @@ function renderActivityBody() {
       </td>
       <td>${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}</td>
     </tr>
+    ${a.transaction_type === 'pack_open' ? `<tr class="activity-pulls-row"><td colspan="${ACTIVITY_COLUMNS_DETAILED.length}">${packPullsBodyHtml(a)}</td></tr>` : ''}
   `).join('');
 
   mobileListEl.innerHTML = activityState.activity.map(a => `
@@ -2331,6 +2391,7 @@ function renderActivityBody() {
           </span>
         </div>
       </div>
+      ${a.transaction_type === 'pack_open' ? `<div class="activity-pulls-mobile">${packPullsBodyHtml(a)}</div>` : ''}
     </div>
   `).join('');
 

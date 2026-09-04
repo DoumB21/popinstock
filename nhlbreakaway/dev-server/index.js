@@ -1134,6 +1134,12 @@ async function handleWalletActivity(url, res) {
        COALESCE(c.rarity, p.rarity) AS rarity,
        c.player,
        (p.token_uri IS NOT NULL) AS is_pack,
+       (p.pulls_resolved_at IS NOT NULL) AS pack_pulls_resolved,
+       (SELECT json_agg(json_build_object(
+          'moment_uuid', c2.moment_uuid, 'player', c2.player, 'team', c2.team,
+          'set_name', c2.set_name, 'rarity', c2.rarity, 'edition_number', c2.edition_number
+        ) ORDER BY c2.token_uri)
+        FROM cards c2 WHERE c2.pulled_from_pack_token_uri = s.token_uri) AS pack_pulls,
        COUNT(*) OVER() AS total_count
      FROM sweet_transaction_history s
      LEFT JOIN cards c ON c.token_uri = s.token_uri
@@ -1158,6 +1164,16 @@ async function handleWalletActivity(url, res) {
     rarity: r.rarity,
     player: r.player,
     is_pack: r.is_pack,
+    // Per NHL_BREAKAWAY_DATA_HANDOFF.txt's PACK OPENING HISTORY section — the
+    // SAME token_uri that resolved this row's pack (via the `p` join above)
+    // is also the exact join key into cards.pulled_from_pack_token_uri, so no
+    // separate lookup is needed. pack_pulls_resolved distinguishes "this
+    // drop's history hasn't been backfilled yet" (false, pack_pulls empty)
+    // from "backfilled, this pack genuinely has 0 pulls" (true, pack_pulls
+    // empty — not observed so far, but the frontend should still handle it
+    // rather than assume genuine data is a bug).
+    pack_pulls_resolved: r.pack_pulls_resolved,
+    pack_pulls: r.pack_pulls,
   }));
   sendJson(res, 200, { activity, total, has_more: offset + activity.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
