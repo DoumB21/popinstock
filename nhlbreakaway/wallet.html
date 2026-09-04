@@ -58,9 +58,14 @@
     /* Suggestion dropdown reuses global.css's .cb-panel/.cb-item (same look
        as every other type-to-search combo site-wide) — just anchored to
        this plain text input instead of a .cb-combo wrapper. */
-    .suggest-item { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+    .suggest-item { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
     .suggest-item-name { font-weight: 600; }
     .suggest-item-wallet { font-size: 0.72rem; color: var(--text-secondary); }
+    /* Recent-wallets row (see openRecents()) — reuses the same .cb-item as a
+       live suggestion row, plus a remove "×" (global .gs-result-remove, same
+       one the sitewide GlobalSearch popup uses for its own recent lists)
+       pushed to the far right. */
+    .suggest-row-remove { margin-left: auto; }
 
     /* ── Wallet content ── */
     #walletContent { display: none; flex-direction: column; gap: 2rem; }
@@ -2482,6 +2487,10 @@ async function lookupWallet(query, initialTab, initialSetName) {
     if (!resolveRes.ok) throw new Error(`resolve failed: ${resolveRes.status}`);
     const resolved = await resolveRes.json();
     const { wallet_address: wallet, username, avatar_url, favorite_team, favorite_team_name, favorite_team_logo_url } = resolved;
+    // Recorded on every successful resolve, not just a clicked suggestion —
+    // a directly-typed username/address still counts as "a place actually
+    // visited" (same rule GlobalSearch's own addRecentWallet follows).
+    addRecentWallet(wallet, username);
 
     const res = await fetch(withVersion(`${API_BASE}/api/wallet/summary?wallet=${encodeURIComponent(wallet)}`, version));
     const summary = await res.json();
@@ -2590,6 +2599,31 @@ async function lookupWallet(query, initialTab, initialSetName) {
   }
 }
 
+/* ══════════════════ Recent wallets (localStorage) ══════════════════
+   Same MRU-list idea as the sitewide GlobalSearch popup's own recent
+   wallets (shared/global-search.js) — kept as its own list/key here since
+   this page's suggestion row already carries a richer shape (username +
+   address, see renderSuggestions) that the recent list reuses as-is. Shown
+   in the same dropdown as live suggestions (see openRecents/suggestMode)
+   whenever the input is empty, rather than a separate widget. */
+const RECENT_WALLETS_KEY = 'nhlbw_recent_wallets_v1';
+const RECENT_WALLETS_MAX = 6;
+function loadRecentWallets() {
+  try { return JSON.parse(localStorage.getItem(RECENT_WALLETS_KEY)) || []; } catch { return []; }
+}
+function addRecentWallet(wallet_address, username) {
+  const list = loadRecentWallets().filter(w => w.wallet_address !== wallet_address);
+  list.unshift({ wallet_address, username: username || '' });
+  try { localStorage.setItem(RECENT_WALLETS_KEY, JSON.stringify(list.slice(0, RECENT_WALLETS_MAX))); } catch {}
+}
+function removeRecentWallet(wallet_address) {
+  const list = loadRecentWallets().filter(w => w.wallet_address !== wallet_address);
+  try { localStorage.setItem(RECENT_WALLETS_KEY, JSON.stringify(list)); } catch {}
+}
+function clearRecentWallets() {
+  try { localStorage.removeItem(RECENT_WALLETS_KEY); } catch {}
+}
+
 /* ══════════════════ Search suggestions (username/address type-ahead) ══════════════════ */
 const walletInputEl = document.getElementById('walletInput');
 const walletInputClearBtn = document.getElementById('walletInputClear');
@@ -2597,13 +2631,14 @@ const suggestPanel = document.getElementById('walletSuggestPanel');
 let suggestItems = [];
 let suggestActiveIndex = -1;
 let suggestSeq = 0; // discards a stale response if a newer request already landed
+let suggestMode = 'search'; // 'search' (live API suggestions) | 'recent' (localStorage list)
 
 function updateWalletInputClear() { walletInputClearBtn.style.display = walletInputEl.value ? '' : 'none'; }
 walletInputClearBtn.addEventListener('mousedown', e => e.preventDefault()); // keep focus so blur/suggestion-close doesn't fire first
 walletInputClearBtn.addEventListener('click', () => {
   walletInputEl.value = '';
   updateWalletInputClear();
-  closeSuggestions();
+  openRecents();
   walletInputEl.focus();
 });
 
@@ -2613,20 +2648,60 @@ function closeSuggestions() {
   suggestActiveIndex = -1;
 }
 
+// Populates suggestItems from the recent-wallets list instead of a live API
+// call — same {username, wallet_address} shape as a search suggestion, so
+// renderSuggestions/selectSuggestion/keyboard nav all work unchanged.
+function openRecents() {
+  const recents = loadRecentWallets();
+  suggestMode = 'recent';
+  suggestActiveIndex = -1;
+  suggestItems = recents;
+  if (!recents.length) { closeSuggestions(); return; }
+  renderSuggestions();
+}
+
 function renderSuggestions() {
   if (!suggestItems.length) {
     suggestPanel.innerHTML = `<div class="cb-empty">No matches</div>`;
   } else {
-    suggestPanel.innerHTML = suggestItems.map((s, i) => `
-      <div class="cb-item suggest-item${i === suggestActiveIndex ? ' active' : ''}" data-index="${i}">
-        <span class="suggest-item-name">${s.username || '(no username)'}</span>
-        <span class="suggest-item-wallet">${s.wallet_address}</span>
+    const headHtml = suggestMode === 'recent'
+      ? `<div class="gs-recent-head"><span>Recent</span><button type="button" class="gs-recent-clear" id="walletRecentClearBtn">Clear all</button></div>`
+      : '';
+    suggestPanel.innerHTML = headHtml + suggestItems.map((s, i) => `
+      <div class="cb-item${i === suggestActiveIndex ? ' active' : ''}" data-index="${i}">
+        <div class="suggest-item">
+          <span class="suggest-item-name">${s.username || '(no username)'}</span>
+          <span class="suggest-item-wallet">${s.wallet_address}</span>
+        </div>
+        ${suggestMode === 'recent' ? `<button type="button" class="gs-result-remove suggest-row-remove" data-remove-recent="${s.wallet_address}" title="Remove from recent">&times;</button>` : ''}
       </div>
     `).join('');
-    suggestPanel.querySelectorAll('.suggest-item').forEach(el => {
-      el.addEventListener('mousedown', e => e.preventDefault()); // keep focus so blur doesn't close before click registers
-      el.addEventListener('click', () => selectSuggestion(suggestItems[Number(el.dataset.index)]));
+    suggestPanel.querySelectorAll('.cb-item[data-index]').forEach(el => {
+      el.addEventListener('mousedown', e => { if (!e.target.closest('[data-remove-recent]')) e.preventDefault(); }); // keep focus so blur doesn't close before click registers
+      el.addEventListener('click', e => {
+        if (e.target.closest('[data-remove-recent]')) return; // its own listener below handles this
+        selectSuggestion(suggestItems[Number(el.dataset.index)]);
+      });
     });
+    if (suggestMode === 'recent') {
+      suggestPanel.querySelectorAll('[data-remove-recent]').forEach(btn => {
+        btn.addEventListener('mousedown', e => e.preventDefault());
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          removeRecentWallet(btn.dataset.removeRecent);
+          openRecents();
+        });
+      });
+      const clearBtn = document.getElementById('walletRecentClearBtn');
+      if (clearBtn) {
+        clearBtn.addEventListener('mousedown', e => e.preventDefault());
+        clearBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          clearRecentWallets();
+          closeSuggestions();
+        });
+      }
+    }
   }
   suggestPanel.classList.add('open');
 }
@@ -2639,11 +2714,16 @@ function selectSuggestion(item) {
 }
 
 let _suggestT = null;
+walletInputEl.addEventListener('focus', () => {
+  if (!walletInputEl.value.trim()) openRecents();
+});
 walletInputEl.addEventListener('input', () => {
   clearTimeout(_suggestT);
   updateWalletInputClear();
   const q = walletInputEl.value.trim();
+  if (!q) { openRecents(); return; }
   if (q.length < 2) { closeSuggestions(); return; }
+  suggestMode = 'search';
   _suggestT = setTimeout(async () => {
     const seq = ++suggestSeq;
     try {
