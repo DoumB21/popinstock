@@ -21,6 +21,13 @@ right way to resolve a transaction to a player/highlight name (verified: 99.97% 
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
 
+UPDATE 2026-09-04 (later): expanded PACK OPENING HISTORY's reference query into a full
+"how to build the page" section — a real paginated listing query (one query, no N+1, tested
+live), reverse lookup by highlight, filter-dropdown sources, an empirical "pull odds so far"
+query, and an explicit note that Sweet publishes no official pack-contents/odds list
+anywhere found (checked directly) — any "remaining probability" feature can only be an
+estimate off observed pulls, not a true countdown.
+
 UPDATE 2026-09-04: new pack-opening history — which highlights each opened pack produced,
 who opened it, when, and the on-chain tx. No new tables (4 new columns on cards/packs). See
 the new PACK OPENING HISTORY section below. One drop (series_id 8R5xYdbD, "Series 3 Grand
@@ -845,29 +852,84 @@ SCHEMA — 4 new columns, no new tables
                                           real cards will never get backfilled (see BACKFILL
                                           SCOPE below)
 
-REFERENCE QUERY — everything needed for one pack-opening row, verified live against a real
-resolved pack (Series 3 Grand Finale Pack, edition #1800, opened by andy_hoffman
-2026-09-01T17:02:46Z, 4 highlights: Darren Raddysh/Nazem Kadri/Nathan MacKinnon/Zack
-Bolduc):
-  -- header (one row per opened pack)
+HOW TO BUILD THE PAGE — every query below run and verified live against real Raff data
+2026-09-04 (not theoretical — actual rows/counts shown are real, from the 8R5xYdbD drop).
+
+1. PAGINATED LISTING (the main page — one row per opened pack, highlights inline, ONE query,
+no N+1): json_agg pulls each pack's highlights into the same query as the header + total
+count, same "COUNT(*) OVER() so pagination needs no second round-trip" convention this
+dev-server already uses everywhere else (see SETS_SQL/handleWalletCards etc). Verified: for
+pack_uuid b572cf35000000009ff1000000000000, page 1 returned total_count=1510 and (among
+others) edition #2287 opened by "uncgpa" 2026-09-04T13:42:51Z with exactly the 4 highlights
+this doc's earlier version already listed by hand.
   SELECT p.token_uri, p.pack_uuid, p.pack_name, p.series_label, p.rarity, p.edition_number,
-         p.burned_by_wallet, wu.username AS opener_username, p.burned_at,
-         p.burned_tx_hash  -- build polygonscan link client-side: 'https://polygonscan.com/tx/' || burned_tx_hash
+         p.burned_by_wallet, wu.username AS opener_username, p.burned_at, p.burned_tx_hash,
+         -- build the polygonscan link client-side: 'https://polygonscan.com/tx/' || burned_tx_hash
+         COUNT(*) OVER() AS total_count,
+         json_agg(json_build_object(
+           'moment_uuid', c.moment_uuid, 'player', c.player, 'team', c.team,
+           'set_name', c.set_name, 'rarity', c.rarity, 'edition_number', c.edition_number
+         ) ORDER BY c.token_uri) AS highlights
   FROM packs p
   LEFT JOIN wallet_usernames wu ON LOWER(wu.wallet_address) = LOWER(p.burned_by_wallet)
+  JOIN cards c ON c.pulled_from_pack_token_uri = p.token_uri
   WHERE p.pulls_resolved_at IS NOT NULL
+    -- optional filters, all tested: AND p.pack_uuid = $n (one specific drop/pack design)
+    -- AND p.series_label = $n / AND p.rarity = $n (broader set filter)
+    -- AND wu.username = $n (by opener username) / AND LOWER(p.burned_by_wallet) = LOWER($n) (by raw wallet)
+  GROUP BY p.token_uri, p.pack_uuid, p.pack_name, p.series_label, p.rarity, p.edition_number,
+           p.burned_by_wallet, wu.username, p.burned_at, p.burned_tx_hash
   ORDER BY p.burned_at DESC
-  -- highlights pulled by one specific pack (pass its token_uri from the header row above)
-  SELECT c.moment_uuid, c.player, c.team, c.set_name, c.rarity, c.series_label,
-         c.edition_number, m.jersey_number
+  LIMIT $limit OFFSET $offset
+Note the JOIN (not LEFT JOIN) on cards — deliberate, a resolved pack with genuinely 0 pulls
+has never been observed (0/1510 so far) so this can't silently hide a pack; if that ever
+does happen it'll correctly vanish from this listing rather than show an empty highlights
+array, which is arguably the more surprising failure mode — switch to LEFT JOIN + COALESCE
+if you'd rather it show up with an empty pull list instead.
+
+2. FILTER BY A SPECIFIC HIGHLIGHT ("which packs produced this card") — reverse of the above,
+useful for a moment's own page ("pulled from these packs"):
+  SELECT p.token_uri, p.pack_name, p.burned_at, p.burned_by_wallet, wu.username, c.edition_number
   FROM cards c
-  LEFT JOIN moments m ON m.moment_uuid = c.moment_uuid
-  WHERE c.pulled_from_pack_token_uri = $1
-  -- "by username" filter: join wallet_usernames the same way as the header query above,
-  -- WHERE wu.username = $1 (or resolve a raw wallet address the same way handleWalletSets
-  -- etc. already do elsewhere in dev-server)
-  -- "by set" filter (which highlights came from packs of a given set/drop): filter the
-  -- header query by p.pack_uuid or p.series_label/p.rarity, same as everywhere else
+  JOIN packs p ON p.token_uri = c.pulled_from_pack_token_uri
+  LEFT JOIN wallet_usernames wu ON LOWER(wu.wallet_address) = LOWER(p.burned_by_wallet)
+  WHERE c.moment_uuid = $1
+  ORDER BY p.burned_at DESC
+
+3. FILTER-DROPDOWN SOURCES (same "distinct values from what's actually resolved" convention
+as handleHighlightsFilters/handleWalletActivityFilters elsewhere in this file):
+  SELECT DISTINCT p.pack_name, p.pack_uuid FROM packs p WHERE p.pulls_resolved_at IS NOT NULL ORDER BY p.pack_name
+  SELECT DISTINCT p.series_label FROM packs p WHERE p.pulls_resolved_at IS NOT NULL ORDER BY p.series_label
+  SELECT DISTINCT p.rarity FROM packs p WHERE p.pulls_resolved_at IS NOT NULL
+
+4. "PULL ODDS SO FAR" (empirical, per pack design) — verified for the 8R5xYdbD drop: 152
+distinct highlights observed across 1,510 packs/6,040 total pulls so far, top of the list all
+Ice Nation (Series 3) Fandom cards at ~121-129 pulls each:
+  SELECT c.moment_uuid, c.player, c.set_name, c.rarity, COUNT(*) AS times_pulled,
+         COUNT(*)::float / (SELECT COUNT(*) FROM cards c2 JOIN packs p2 ON p2.token_uri = c2.pulled_from_pack_token_uri WHERE p2.pack_uuid = $1) AS observed_share
+  FROM cards c
+  JOIN packs p ON p.token_uri = c.pulled_from_pack_token_uri
+  WHERE p.pack_uuid = $1
+  GROUP BY c.moment_uuid, c.player, c.set_name, c.rarity
+  ORDER BY times_pulled DESC
+IMPORTANT GAP — this is OBSERVED frequency so far, NOT a guaranteed "remaining pool" or
+official odds. Sweet does not publish a pack's possible-contents list or drop odds anywhere
+found so far (checked the pack's own getPublicToken doc directly, 2026-09-04 — no
+odds/contents field on it, just images/attributes/edition_number, same shape as every other
+token). A "remaining pulls probability" feature can only ever be an estimate built from this
+observed-so-far distribution (e.g. Bayesian/frequentist inference over what's been pulled),
+not a true countdown against a known total pool — label it as such in the UI if built,
+rather than implying more certainty than the data supports. If Sweet's own site or drop page
+(https://nhlbreakaway.com/drop/{series_id}) ever turns out to publish an official contents
+checklist somewhere, that would change this — not found as of 2026-09-04, worth a fresh
+look if this feature becomes a priority rather than assuming this gap is permanent.
+
+5. ROUTING, matching this file's own nhlba.com/packages/opened/117 reference target: that
+site keys the URL by a numeric drop id; this schema's natural key is pack_uuid (stable,
+already the join key everywhere else in this doc) or series_id (also stable, already used
+for /drop/{series_id} on nhlbreakaway.com itself) — either works, pack_uuid is probably the
+better fit since it's already established as "the" identifier for a pack design elsewhere
+on this site (Pack Stats page etc).
 
 BACKFILL SCOPE, 2026-09-04 — ONE DROP FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
