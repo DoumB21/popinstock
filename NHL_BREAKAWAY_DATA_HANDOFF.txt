@@ -931,17 +931,24 @@ for /drop/{series_id} on nhlbreakaway.com itself) — either works, pack_uuid is
 better fit since it's already established as "the" identifier for a pack design elsewhere
 on this site (Pack Stats page etc).
 
-BACKFILL SCOPE, 2026-09-04 — ONE DROP FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY
+BACKFILL SCOPE, 2026-09-04 — TWO ACTIVE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
 as a first step — same cost class as the sweet_transaction_history Alchemy-hybrid idea
 declined earlier (one eth_getTransactionReceipt call per pack; 163K of them would be a
-genuinely large one-time job). Instead, backfilled ONE specific active drop end-to-end per
-direct user request: series_id 8R5xYdbD ("Series 3 Grand Finale Pack" CORE,
-https://nhlbreakaway.com/drop/8R5xYdbD) — ALL 1,510 packs of this drop ever opened
-(first burn 2026-09-01T17:02:46Z, i.e. this drop's entire history, not just "since Aug 31")
-are fully resolved: 6,040 card pulls linked, exactly 4/pack (matches "Pack of 4
-Highlights"), 0 zero-pull anomalies, 0 unmatched links. Verified pushed to Raff and
-queried back exactly matching local data.
+genuinely large one-time job). Instead, backfilled two specific active drops end-to-end per
+direct user request, both their ENTIRE history (not date-limited):
+  - series_id 8R5xYdbD, "Series 3 Grand Finale Pack" CORE
+    (https://nhlbreakaway.com/drop/8R5xYdbD) — 1,510 packs, first burn 2026-09-01T17:02:46Z,
+    6,040 card pulls linked, exactly 4/pack.
+  - series_id 61p6QVRP, "Playoff Bound 2026 Debut LE Pack" CORE
+    (https://nhlbreakaway.com/drop/61p6QVRP) — 1,743 packs, first burn 2026-04-22T17:03:20Z,
+    8,715 card pulls linked, exactly 5/pack.
+Both: 0 zero-pull anomalies, 0 unmatched links, verified pushed to Raff and queried back
+exactly matching local data. Backfilled sequentially, not concurrently with each other or
+with a running refresh-all — deliberately waited out an in-progress hourly refresh first
+before starting the second drop's Alchemy calls (see detect-burns.js's own comment on why
+concurrent Alchemy requests are a real, previously-proven silent-data-loss risk, not just a
+theoretical one).
 To backfill another drop the same way: `node --env-file=.env scripts/backfill-pack-burn-
 hashes.js <series_id>` (fills packs.burned_tx_hash for that contract's full history) then
 `node --env-file=.env scripts/resolve-pack-openings.js <series_id>` (resolves the pulls) —
