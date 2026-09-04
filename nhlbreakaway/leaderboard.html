@@ -36,6 +36,14 @@
        class (for consistent input styling), whose own min-width: 180px would
        otherwise win over this width and silently keep the box wide. */
     .filter-bar .edition-range-input { width: 108px; min-width: 0; max-width: 108px; flex: 0 0 auto; }
+    /* Wraps Min/Max edition as ONE flex item within .filter-bar (flex: 0 0
+       auto, sized to its own content) — otherwise the two inputs compete
+       individually with every other filter for line placement, and can
+       land on 2 different rows once the row's other items (e.g. Highlight
+       Badges, flex:1) grow to fill whatever room is left. Keeping them
+       paired in their own group makes them wrap together as a unit, never
+       split, regardless of what else is on the line. */
+    .edition-range-group { display: flex; gap: 0.5rem; flex: 0 0 auto; }
     .player-search-wrap { position: relative; flex: 1.2; min-width: 180px; max-width: 260px; }
     .player-search-wrap .search-input { width: 100%; max-width: none; }
     /* Both text-search inputs reuse .cb-dropdown-clear's exact look (same ✕,
@@ -45,6 +53,19 @@
     @media (max-width: 700px) {
       .filter-bar .cb-dropdown, .filter-bar .search-input, .filter-bar .edition-range-input,
       .player-search-wrap { max-width: none; }
+      /* .edition-range-input also carries .search-input (for shared input
+         styling), so the reset just above would otherwise win here too and
+         let each box grow to fill its own row — re-asserting the narrow
+         width after it (same specificity, source order decides) keeps Min
+         and Max edition sitting on one row together instead of stacking. */
+      .filter-bar .edition-range-input { max-width: 108px; }
+      /* Only 3 columns here (Rank/Holder/Owned), and Holder's raw-address
+         case is already shortened by prettyWallet() — narrowing the font a
+         touch closes the rest of the gap (long real usernames) without
+         needing the table-scroll/mobile-card-list two-DOM-representation
+         pattern the other pages in this section use for wider tables. */
+      .leaderboard-table { font-size: 0.78rem; }
+      .leaderboard-table thead th, .leaderboard-table tbody td { padding: 6px 8px; }
     }
 
     /* Controls that only make sense for Highlights (not Packs, which has no
@@ -176,8 +197,10 @@
         <div class="cb-panel"></div>
       </div>
 
-      <input type="number" class="search-input edition-range-input" id="editionMinInput" placeholder="Min edition" min="1" inputmode="numeric">
-      <input type="number" class="search-input edition-range-input" id="editionMaxInput" placeholder="Max edition" min="1" inputmode="numeric">
+      <div class="edition-range-group">
+        <input type="number" class="search-input edition-range-input" id="editionMinInput" placeholder="Min edition" min="1" inputmode="numeric">
+        <input type="number" class="search-input edition-range-input" id="editionMaxInput" placeholder="Max edition" min="1" inputmode="numeric">
+      </div>
     </div>
 
     <div class="filter-bar">
@@ -205,7 +228,7 @@
           <tr>
             <th>Rank</th>
             <th>Holder</th>
-            <th class="col-r">Collectibles Owned</th>
+            <th class="col-r">Owned</th>
           </tr>
         </thead>
         <tbody id="leaderboardBody"></tbody>
@@ -303,6 +326,16 @@ function escHtml(s) {
 function fmtNum(n) {
   return n === null || n === undefined ? '—' : n.toLocaleString();
 }
+// Shortens a raw wallet address for display in this dense list — a real
+// Sweet username passes through unchanged (only a 0x... address matches).
+// Same convention as wallet.html's/highlights.html's own prettyWallet() —
+// the full address still belongs in a title attribute for verification,
+// and this is scoped to this one dense list, not any single-wallet-identity
+// display elsewhere on the site.
+function prettyWallet(val) {
+  if (!val) return val;
+  return /^0x[0-9a-fA-F]{40}$/.test(val) ? `${val.slice(0, 6)}…${val.slice(-4)}` : val;
+}
 
 // Shared by the paginated list fetch AND the "find a collector" rank lookup
 // — both must query with the exact same active filters to stay consistent.
@@ -348,7 +381,7 @@ function renderBody() {
       const rowClass = state.spotlightWallet ? 'spotlight-row' : (rank <= 3 ? `rank-row--${rank}` : '');
       const holderCell = h.holder_username
         ? `<a class="holder-link" href="https://nhlbreakaway.com/user/${encodeURIComponent(h.holder_username)}?sort=newest" target="_blank" rel="noopener">${escHtml(h.holder)}</a>`
-        : escHtml(h.holder);
+        : `<span title="${escHtml(h.holder)}">${escHtml(prettyWallet(h.holder))}</span>`;
       return `
         <tr${rowClass ? ` class="${rowClass}"` : ''}>
           <td class="cell-rank${rankClass}">#${fmtNum(rank)}</td>
