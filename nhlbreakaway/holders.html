@@ -234,9 +234,62 @@
     /* ── Combinable filters (Holder search / Edition range) ── */
     .filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
     .filter-bar .search-input { min-width: 200px; flex: 1.4; max-width: 320px; }
-    .filter-bar .edition-range-input { width: 80px; flex: 0 0 auto; }
+    .filter-bar .edition-range-input { width: 80px; min-width: 0; max-width: 80px; flex: 0 0 auto; }
+    /* Wraps Min/Max edition as ONE flex item within .filter-bar (flex: 0 0
+       auto) — otherwise the two inputs compete individually with the search
+       box for line placement and can land on separate rows depending on
+       what else is on that line. Same fix as leaderboard.html's own. */
+    .edition-range-group { display: flex; gap: 0.5rem; flex: 0 0 auto; }
     @media (max-width: 700px) {
       .filter-bar .search-input, .filter-bar .edition-range-input { max-width: none; }
+      /* .edition-range-input also carries .search-input, so the reset just
+         above would otherwise win here too (same specificity, source order
+         decides) — reassert it after, so Min/Max stay narrow and sit on one
+         row together instead of stretching full-width and stacking. */
+      .filter-bar .edition-range-input { max-width: 80px; }
+    }
+
+    /* Mobile-only "Sort by" combo + Asc/Desc toggle — same pattern as every
+       other page in this section's mobile pass. align-items: stretch (not
+       .filter-bar's inherited flex-start) so the toggle group matches the
+       sort-field combo's own height. Editions tab only — Top Holders has no
+       sortable columns (fixed rank order), same as edition-rankings.html's
+       own leaderboard. */
+    .mobile-sort-bar { display: none; align-items: stretch; }
+    .mobile-sort-bar .cb-combo { max-width: 220px; }
+
+    /* ── Mobile card list — one card per row instead of a table row. Both
+       tabs use this (Editions has 5 columns, Top Holders has 3 but the
+       ranking + status data reads better stacked too, same call as every
+       other page in this pass once a table gets this dense). ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    .mobile-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem;
+      margin: -0.85rem -1rem 0.6rem;
+      padding: 0.85rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      background: rgba(255,255,255,0.045);
+    }
+    .mobile-card-header-name { display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex-wrap: wrap; }
+    .mobile-card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; }
+    .mobile-stat-label {
+      display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px;
+    }
+    .mobile-stat-value { font-variant-numeric: tabular-nums; }
+    /* Same badge tint as .editions-table tbody tr.row-has-badge. */
+    .mobile-card.row-has-badge { background: rgba(240,168,64,0.07); border-color: rgba(240,168,64,0.25); }
+
+    @media (max-width: 700px) {
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
+      .mobile-sort-bar { display: flex; }
     }
 
     /* ── Tabs (Editions / Top Holders) — same pattern as wallet.html's own
@@ -288,12 +341,27 @@
       <div class="holders-tab-panel active" id="tabPanelEditions">
         <div class="filter-bar">
           <input type="text" class="search-input" id="holderSearchInput" placeholder="Search holder" autocomplete="off" spellcheck="false">
-          <input type="number" class="search-input edition-range-input" id="editionMinInput" placeholder="Min edition" min="1" inputmode="numeric">
-          <input type="number" class="search-input edition-range-input" id="editionMaxInput" placeholder="Max edition" min="1" inputmode="numeric">
+          <div class="edition-range-group">
+            <input type="number" class="search-input edition-range-input" id="editionMinInput" placeholder="Min edition" min="1" inputmode="numeric">
+            <input type="number" class="search-input edition-range-input" id="editionMaxInput" placeholder="Max edition" min="1" inputmode="numeric">
+          </div>
           <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
         </div>
+        <!-- Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the
+             desktop table's clickable column headers, which disappear along
+             with the table at that width (see .mobile-card-list below). -->
+        <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
+          <div class="cb-combo" id="sortFieldCombo">
+            <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+            <div class="cb-panel" id="sortFieldPanel"></div>
+          </div>
+          <div class="tpc-toggle-group" id="sortDirToggle">
+            <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+            <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+          </div>
+        </div>
         <div class="results-meta" id="resultsMeta"></div>
-        <div style="overflow-x:auto;">
+        <div class="table-scroll" style="overflow-x:auto;">
           <table class="editions-table">
             <thead>
               <tr id="editionsHeadRow"></tr>
@@ -301,6 +369,7 @@
             <tbody id="editionsBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="editionsMobileList"></div>
         <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
           <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
         </div>
@@ -308,7 +377,7 @@
 
       <div class="holders-tab-panel" id="tabPanelTopHolders">
         <div class="results-meta" id="topHoldersResultsMeta"></div>
-        <div style="overflow-x:auto;">
+        <div class="table-scroll" style="overflow-x:auto;">
           <table class="top-holders-table">
             <thead>
               <tr>
@@ -320,6 +389,7 @@
             <tbody id="topHoldersBody"></tbody>
           </table>
         </div>
+        <div class="mobile-card-list" id="topHoldersMobileList"></div>
         <div id="topHoldersLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
           <button type="button" id="topHoldersLoadMoreBtn" class="load-more-btn">Load more</button>
         </div>
@@ -397,6 +467,92 @@ function resetAndReload() {
   loadEditionsChunk();
 }
 
+/* ══════════════════ .cb-combo widget (single-select) ══════════════════
+   Verbatim copy of the same widget used elsewhere in this section (e.g.
+   activity-leaderboard.html) — hand-copied per this section's own
+   convention of not sharing JS modules across pages. Only used here for
+   the mobile "Sort by" combo (this page has no other filter combos). */
+function closeAllCombos() {
+  document.querySelectorAll('.cb-combo').forEach(combo => {
+    combo.classList.remove('open');
+    combo.querySelector('.cb-panel')?.classList.remove('open');
+    if (combo._items) syncComboDisplay(combo);
+  });
+}
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.cb-combo')) closeAllCombos();
+});
+
+function syncComboDisplay(combo) {
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const allItem = combo._items[0];
+  const active = combo._items.find(i => i.value === combo._getValue()) || allItem;
+  const hasSelection = active.value !== allItem.value;
+  input.placeholder = allItem.label;
+  input.value = hasSelection ? active.label : '';
+  if (clear) clear.style.display = hasSelection ? '' : 'none';
+  combo.classList.toggle('has-selection', hasSelection);
+}
+
+function buildCombo(comboId, items, getValue, setValue, onPick) {
+  const combo = document.getElementById(comboId);
+  const input = combo.querySelector('.cb-combo-input');
+  const clear = combo.querySelector('.cb-combo-clear');
+  const panel = combo.querySelector('.cb-panel');
+
+  combo._items = items;
+  combo._getValue = getValue;
+  syncComboDisplay(combo);
+  if (combo._wired) return;
+  combo._wired = true;
+
+  const pick = val => {
+    closeAllCombos();
+    setValue(val);
+    syncComboDisplay(combo);
+    onPick();
+  };
+
+  const renderList = filterText => {
+    const q = filterText.trim().toLowerCase();
+    const options = combo._items.slice(1);
+    const filtered = q ? options.filter(i => i.label.toLowerCase().includes(q)) : options;
+    panel.innerHTML = filtered.length
+      ? filtered.map(i => `<div class="cb-item${i.value === getValue() ? ' active' : ''}" data-val="${i.value}"><span>${i.label}</span></div>`).join('')
+      : `<div class="cb-empty">No matches</div>`;
+    panel.querySelectorAll('.cb-item').forEach(item => {
+      item.addEventListener('click', () => pick(item.dataset.val));
+    });
+  };
+
+  input.addEventListener('focus', () => {
+    closeAllCombos();
+    combo.classList.add('open');
+    panel.classList.add('open');
+    renderList('');
+    input.select();
+  });
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); input.blur(); closeAllCombos(); }
+    else if (e.key === 'Enter') { e.preventDefault(); panel.querySelector('.cb-item')?.click(); }
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!combo.contains(document.activeElement)) {
+        combo.classList.remove('open');
+        panel.classList.remove('open');
+        syncComboDisplay(combo);
+      }
+    }, 150);
+  });
+  if (clear) {
+    clear.addEventListener('mousedown', e => e.preventDefault());
+    clear.addEventListener('click', () => { pick(''); input.blur(); });
+  }
+}
+
 const EDITIONS_COLUMNS = [
   { key: 'edition', label: 'Edition', sortable: true },
   { key: 'badges',  label: 'Badges',  sortable: false },
@@ -424,9 +580,40 @@ function renderEditionsHead() {
       }
       renderEditionsHead();
       resetAndReload();
+      syncMobileSortControls();
     });
   });
 }
+
+/* ══════════════════ Mobile "Sort by" combo + Asc/Desc toggle ══════════════════
+   Static column set (unlike activity-leaderboard.html's, which varies by
+   Type) — populated once at init, never repopulated. */
+function populateMobileSortCombo() {
+  const sortable = EDITIONS_COLUMNS.filter(c => c.sortable);
+  buildCombo('sortFieldCombo',
+    [{ value: '', label: '' }, ...sortable.map(c => ({ value: c.key, label: c.label }))],
+    () => state.sortField,
+    // Same default-direction-on-new-field rule as the desktop header click
+    // handler above ('asc'), so both paths behave identically for the same
+    // field.
+    v => { state.sortField = v; state.sortDir = 'asc'; },
+    () => { renderEditionsHead(); resetAndReload(); syncMobileSortControls(); });
+  syncMobileSortControls();
+}
+function syncMobileSortControls() {
+  syncComboDisplay(document.getElementById('sortFieldCombo'));
+  document.querySelectorAll('#sortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === state.sortDir);
+  });
+}
+document.getElementById('sortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  state.sortDir = btn.dataset.dir;
+  renderEditionsHead();
+  syncMobileSortControls();
+  resetAndReload();
+});
 
 // Set once the header response arrives (see init()) — total_editions/
 // jersey_number are needed per-row below, not just for display.
@@ -496,6 +683,16 @@ function fmtDate(s) {
   if (!s) return '';
   const d = new Date(s);
   return isNaN(d) ? s : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Shortens a raw wallet address for display in this dense list — a real
+// Sweet username/owner_name passes through unchanged (only a 0x... address
+// matches). Same convention as wallet.html/highlights.html/leaderboard.html's
+// own prettyWallet(); the full value still belongs in a title attribute
+// wherever this is used, for verification.
+function prettyWallet(val) {
+  if (!val) return val;
+  return /^0x[0-9a-fA-F]{40}$/.test(val) ? `${val.slice(0, 6)}…${val.slice(-4)}` : val;
 }
 
 // Links a holder to their official nhlbreakaway.com profile, pre-filtered to
@@ -704,67 +901,101 @@ const STATUS_LABEL = {
 };
 const BURNED_STATUSES = new Set(['used_for_crafting', 'removed_from_circulation', 'burned']);
 
+// Shared by the desktop <tr> and mobile card — one source of truth for the
+// per-row Holder/Status/Badges/Link cell content, so this fairly involved
+// conditional logic isn't hand-duplicated across two render paths.
+function editionCells(e) {
+  let holderCell, statusCell;
+  if (e.status === 'held') {
+    const profileUrl = nhlBreakawayUserUrl(e.holder_username);
+    // No profile link: `e.holder` is either owner_name (plain text, passes
+    // through prettyWallet unchanged) or the full raw wallet address — same
+    // shorten-with-title-fallback convention as every other dense list on
+    // this site.
+    holderCell = e.holder
+      ? (profileUrl
+          ? `<a class="holder-link" href="${profileUrl}" target="_blank" rel="noopener">${e.holder}</a>`
+          : `<span title="${e.holder}">${prettyWallet(e.holder)}</span>`)
+      : '—';
+    // Ownership-wise a listed card is still just "Held" (per the handoff
+    // note) — this is an extra pill to the right of the regular status
+    // (the pills are left-aligned, so "right" keeps Held anchored in the
+    // same spot whether or not a row is also listed), not a separate
+    // status bucket, sourced from the same live Sweet call that backs the
+    // header's "Listed" count. The price is baked directly into the pill
+    // text ("Listed for $X.XX", auto-uppercased by .status-pill's own
+    // CSS like every other pill) rather than a separate line underneath.
+    const listedUrl = e.listed_price_usd != null ? sweetHighlightUrl() : null;
+    const listedLabel = `Listed for $${e.listed_price_usd != null ? e.listed_price_usd.toFixed(2) : ''}`;
+    const listedPill = e.listed_price_usd != null
+      ? (listedUrl
+          ? ` <a class="status-pill status-pill--listed" href="${listedUrl}" target="_blank" rel="noopener">${listedLabel}</a>`
+          : ` <span class="status-pill status-pill--listed">${listedLabel}</span>`)
+      : '';
+    statusCell = `<span class="status-pill status-pill--held">${STATUS_LABEL.held}</span>${listedPill}${e.owned_since ? `<div class="cell-sub">since ${fmtDate(e.owned_since)}</div>` : ''}`;
+  } else if (BURNED_STATUSES.has(e.status)) {
+    holderCell = '—';
+    statusCell = `<span class="status-pill status-pill--${e.status}">${STATUS_LABEL[e.status]}</span>${e.burned_at ? `<div class="cell-sub">${fmtDate(e.burned_at)}${e.burned_by ? ` by <span title="${e.burned_by}">${prettyWallet(e.burned_by)}</span>` : ''}</div>` : ''}`;
+  } else {
+    // 'in_packs' or 'other' — both unburned, both system-held, neither a
+    // real collector.
+    holderCell = '—';
+    statusCell = `<span class="status-pill status-pill--${e.status}">${STATUS_LABEL[e.status]}</span>`;
+  }
+  const link = e.polygonscan_url
+    ? `<a class="polyscan-link" href="${e.polygonscan_url}" target="_blank" rel="noopener">Polygonscan ↗</a>`
+    : '';
+  const badges = EDITION_BADGES.filter(b => b.test(e.edition_number));
+  const badgesCell = badges.length
+    ? `<div class="edition-badges">${badges.map(b => {
+        const isProvisional = b.provisional && b.provisional();
+        const title = isProvisional ? `${b.label} — currently the newest, may change` : b.label;
+        return `<img src="${b.icon}" alt="${b.label}" title="${title}" loading="lazy"${isProvisional ? ' class="badge-provisional"' : ''}>`;
+      }).join('')}</div>`
+    : '';
+  return { holderCell, statusCell, link, badgesCell, hasBadge: badges.length > 0 };
+}
+
 function renderEditionsBody() {
   const body = document.getElementById('editionsBody');
+  const mobileList = document.getElementById('editionsMobileList');
   if (state.editions.length === 0) {
     // Only reachable once a status filter has narrowed the list to zero —
     // the "highlight hasn't been minted yet" empty state is a separate,
     // page-level state handled in init(), before this section (and its
     // filter tiles) is even shown.
     body.innerHTML = `<tr><td colspan="5" class="state-empty">No editions match this filter.</td></tr>`;
+    mobileList.innerHTML = `<div class="state-empty">No editions match this filter.</div>`;
     return;
   }
   body.innerHTML = state.editions.map(e => {
-    let holderCell, statusCell;
-    if (e.status === 'held') {
-      const profileUrl = nhlBreakawayUserUrl(e.holder_username);
-      holderCell = e.holder
-        ? (profileUrl ? `<a class="holder-link" href="${profileUrl}" target="_blank" rel="noopener">${e.holder}</a>` : e.holder)
-        : '—';
-      // Ownership-wise a listed card is still just "Held" (per the handoff
-      // note) — this is an extra pill to the right of the regular status
-      // (the pills are left-aligned, so "right" keeps Held anchored in the
-      // same spot whether or not a row is also listed), not a separate
-      // status bucket, sourced from the same live Sweet call that backs the
-      // header's "Listed" count. The price is baked directly into the pill
-      // text ("Listed for $X.XX", auto-uppercased by .status-pill's own
-      // CSS like every other pill) rather than a separate line underneath.
-      const listedUrl = e.listed_price_usd != null ? sweetHighlightUrl() : null;
-      const listedLabel = `Listed for $${e.listed_price_usd != null ? e.listed_price_usd.toFixed(2) : ''}`;
-      const listedPill = e.listed_price_usd != null
-        ? (listedUrl
-            ? ` <a class="status-pill status-pill--listed" href="${listedUrl}" target="_blank" rel="noopener">${listedLabel}</a>`
-            : ` <span class="status-pill status-pill--listed">${listedLabel}</span>`)
-        : '';
-      statusCell = `<span class="status-pill status-pill--held">${STATUS_LABEL.held}</span>${listedPill}${e.owned_since ? `<div class="cell-sub">since ${fmtDate(e.owned_since)}</div>` : ''}`;
-    } else if (BURNED_STATUSES.has(e.status)) {
-      holderCell = '—';
-      statusCell = `<span class="status-pill status-pill--${e.status}">${STATUS_LABEL[e.status]}</span>${e.burned_at ? `<div class="cell-sub">${fmtDate(e.burned_at)}${e.burned_by ? ` by ${e.burned_by}` : ''}</div>` : ''}`;
-    } else {
-      // 'in_packs' or 'other' — both unburned, both system-held, neither a
-      // real collector.
-      holderCell = '—';
-      statusCell = `<span class="status-pill status-pill--${e.status}">${STATUS_LABEL[e.status]}</span>`;
-    }
-    const link = e.polygonscan_url
-      ? `<a class="polyscan-link" href="${e.polygonscan_url}" target="_blank" rel="noopener">Polygonscan ↗</a>`
-      : '';
-    const badges = EDITION_BADGES.filter(b => b.test(e.edition_number));
-    const badgesCell = badges.length
-      ? `<div class="edition-badges">${badges.map(b => {
-          const isProvisional = b.provisional && b.provisional();
-          const title = isProvisional ? `${b.label} — currently the newest, may change` : b.label;
-          return `<img src="${b.icon}" alt="${b.label}" title="${title}" loading="lazy"${isProvisional ? ' class="badge-provisional"' : ''}>`;
-        }).join('')}</div>`
-      : '';
+    const { holderCell, statusCell, link, badgesCell, hasBadge } = editionCells(e);
     return `
-      <tr${badges.length ? ' class="row-has-badge"' : ''}>
+      <tr${hasBadge ? ' class="row-has-badge"' : ''}>
         <td class="cell-edition">#${fmtNum(e.edition_number)}</td>
         <td>${badgesCell}</td>
         <td>${holderCell}</td>
         <td>${statusCell}</td>
         <td class="col-r">${link}</td>
       </tr>
+    `;
+  }).join('');
+  mobileList.innerHTML = state.editions.map(e => {
+    const { holderCell, statusCell, link, badgesCell, hasBadge } = editionCells(e);
+    return `
+      <div class="mobile-card${hasBadge ? ' row-has-badge' : ''}">
+        <div class="mobile-card-header">
+          <div class="mobile-card-header-name">
+            <span class="cell-edition">#${fmtNum(e.edition_number)}</span>
+            ${badgesCell}
+          </div>
+          ${link}
+        </div>
+        <div class="mobile-card-stats">
+          <div><span class="mobile-stat-label">Holder</span><span class="mobile-stat-value">${holderCell}</span></div>
+          <div><span class="mobile-stat-label">Status</span><span class="mobile-stat-value">${statusCell}</span></div>
+        </div>
+      </div>
     `;
   }).join('');
 }
@@ -831,24 +1062,46 @@ function topHoldersPctDenominator() {
   return HEADER ? (HEADER.total_editions ?? HEADER.current_max_edition) : null;
 }
 
+// Same fallback-with-title convention as editionCells()'s holderCell above.
+function topHolderCells(h, denom) {
+  const profileUrl = nhlBreakawayUserUrl(h.holder_username);
+  const holderCell = profileUrl
+    ? `<a class="holder-link" href="${profileUrl}" target="_blank" rel="noopener">${h.holder}</a>`
+    : `<span title="${h.holder}">${prettyWallet(h.holder)}</span>`;
+  const pct = denom ? (h.held_count / denom) * 100 : null;
+  return { holderCell, pct };
+}
+
 function renderTopHoldersBody() {
   const denom = topHoldersPctDenominator();
   const body = document.getElementById('topHoldersBody');
+  const mobileList = document.getElementById('topHoldersMobileList');
   if (topHoldersState.holders.length === 0) {
     body.innerHTML = `<tr><td colspan="3" class="state-empty">No holders yet.</td></tr>`;
+    mobileList.innerHTML = `<div class="state-empty">No holders yet.</div>`;
   } else {
     body.innerHTML = topHoldersState.holders.map(h => {
-      const profileUrl = nhlBreakawayUserUrl(h.holder_username);
-      const holderCell = profileUrl
-        ? `<a class="holder-link" href="${profileUrl}" target="_blank" rel="noopener">${h.holder}</a>`
-        : h.holder;
-      const pct = denom ? (h.held_count / denom) * 100 : null;
+      const { holderCell, pct } = topHolderCells(h, denom);
       return `
         <tr>
           <td>${holderCell}</td>
           <td class="col-r">${fmtNum(h.held_count)}</td>
           <td class="col-r">${fmtPct(pct)}</td>
         </tr>
+      `;
+    }).join('');
+    mobileList.innerHTML = topHoldersState.holders.map(h => {
+      const { holderCell, pct } = topHolderCells(h, denom);
+      return `
+        <div class="mobile-card">
+          <div class="mobile-card-header">
+            <div class="mobile-card-header-name">${holderCell}</div>
+          </div>
+          <div class="mobile-card-stats">
+            <div><span class="mobile-stat-label">Total</span><span class="mobile-stat-value">${fmtNum(h.held_count)}</span></div>
+            <div><span class="mobile-stat-label">%</span><span class="mobile-stat-value">${fmtPct(pct)}</span></div>
+          </div>
+        </div>
       `;
     }).join('');
   }
@@ -974,6 +1227,7 @@ function wireBackLink() {
     HEADER = header;
     renderHeader(header);
     renderEditionsHead();
+    populateMobileSortCombo();
     await loadEditionsChunk();
     if (state.editions.length === 0) {
       document.getElementById('emptyState').style.display = 'block';
