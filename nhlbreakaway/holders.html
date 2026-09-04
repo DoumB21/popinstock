@@ -293,7 +293,10 @@
        sortable columns (fixed rank order), same as edition-rankings.html's
        own leaderboard. */
     .mobile-sort-bar { display: none; align-items: stretch; }
-    .mobile-sort-bar .cb-combo { max-width: 220px; }
+    /* Fixed (not max-) width — a shrinkable combo left too little guaranteed
+       room for the Asc/Desc toggle group beside it, so the toggle wrapped
+       onto its own line depending on exact viewport width. */
+    .mobile-sort-bar .cb-combo { width: 200px; flex: 0 0 200px; }
 
     /* ── Mobile card list — one card per row instead of a table row. Both
        tabs use this (Editions has 5 columns, Top Holders has 3 but the
