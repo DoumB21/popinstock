@@ -912,17 +912,12 @@ Ice Nation (Series 3) Fandom cards at ~121-129 pulls each:
   WHERE p.pack_uuid = $1
   GROUP BY c.moment_uuid, c.player, c.set_name, c.rarity
   ORDER BY times_pulled DESC
-IMPORTANT GAP — this is OBSERVED frequency so far, NOT a guaranteed "remaining pool" or
-official odds. Sweet does not publish a pack's possible-contents list or drop odds anywhere
-found so far (checked the pack's own getPublicToken doc directly, 2026-09-04 — no
-odds/contents field on it, just images/attributes/edition_number, same shape as every other
-token). A "remaining pulls probability" feature can only ever be an estimate built from this
-observed-so-far distribution (e.g. Bayesian/frequentist inference over what's been pulled),
-not a true countdown against a known total pool — label it as such in the UI if built,
-rather than implying more certainty than the data supports. If Sweet's own site or drop page
-(https://nhlbreakaway.com/drop/{series_id}) ever turns out to publish an official contents
-checklist somewhere, that would change this — not found as of 2026-09-04, worth a fresh
-look if this feature becomes a priority rather than assuming this gap is permanent.
+UPDATE 2026-09-04 (later, same day) — GAP CLOSED, see the new PACK HIGHLIGHT POOLS section
+below. This "observed frequency only" caveat turned out to be about Sweet's API specifically
+— nhlbreakaway.com's own drop pages (https://nhlbreakaway.com/drop/{series_id}) DO publish an
+official-looking possible-contents checklist, just as a linked Google Sheet ("Highlights
+List") rather than anything in the API. A real "remaining pulls" countdown (not just an
+observed-frequency estimate) is now possible — see below for the table and the formula.
 
 5. ROUTING, matching this file's own nhlba.com/packages/opened/117 reference target: that
 site keys the URL by a numeric drop id; this schema's natural key is pack_uuid (stable,
@@ -930,6 +925,86 @@ already the join key everywhere else in this doc) or series_id (also stable, alr
 for /drop/{series_id} on nhlbreakaway.com itself) — either works, pack_uuid is probably the
 better fit since it's already established as "the" identifier for a pack design elsewhere
 on this site (Pack Stats page etc).
+
+PACK HIGHLIGHT POOLS — NEW 2026-09-04, BUILT, 2 DROPS IMPORTED, MANUAL/ONE-OFF NOT HOURLY
+The missing piece for a REAL "remaining pulls" countdown (not just PACK OPENING HISTORY's
+observed-frequency estimate above): NHL Breakaway's own drop pages
+(https://nhlbreakaway.com/drop/{series_id}) link a "Highlights List" — a published Google
+Sheet enumerating every highlight a specific pack can produce, with a sourced "Approx #
+Avail" quantity per highlight. Found by the user directly (not discovered via any API) —
+worth checking each active drop's page for this link, it's not guaranteed to exist for every
+drop, and there's no way found so far to enumerate it from Sweet's API.
+
+TABLE `pack_highlight_pools`, PRIMARY KEY (pack_uuid, moment_uuid) — deliberately minimal,
+NOTHING duplicated that's already on `moments` (name/rarity/team/etc — join moment_uuid
+there for all of that, exactly like every other table in this doc):
+  pack_uuid          TEXT     -- which pack design (packs.pack_uuid / pack_moments.pack_uuid)
+  moment_uuid         TEXT    -- which highlight (moments.moment_uuid)
+  approx_avail        INTEGER -- sourced quantity for THIS highlight individually. 0 when
+                                  approx_avail_set is used instead (see below) — never both
+  approx_avail_set     INTEGER -- sourced quantity SHARED across every highlight in this
+                                  one's group/tier in the source sheet (e.g. one drop's
+                                  Legendary tier: "1 highlight total" across 5 players means
+                                  1 pull total shared between all 5, not 1 each). 0 when
+                                  approx_avail is used instead
+  updated_at           TEXT
+
+REMAINING-PULLS FORMULA, verified live against real data on both imported drops:
+  -- per-highlight case (Nick Suzuki, Series 3 Grand Finale / 8R5xYdbD drop):
+  -- sheet says 54 available, pack-opening history shows 37 pulled so far -> 17 remain
+  SELECT php.approx_avail - COUNT(c.token_uri) AS remaining
+  FROM pack_highlight_pools php
+  JOIN moments m ON m.moment_uuid = php.moment_uuid
+  LEFT JOIN packs p ON p.pack_uuid = php.pack_uuid
+  LEFT JOIN cards c ON c.pulled_from_pack_token_uri = p.token_uri AND c.moment_uuid = php.moment_uuid
+  WHERE php.pack_uuid = $1 AND php.moment_uuid = $2 AND php.approx_avail > 0
+  GROUP BY php.approx_avail
+  -- shared-pool case (Playoff Bound 2026 / 61p6QVRP drop's "The Greatest Achievements"
+  -- Legendary tier, 5 players): sheet says 1 shared, 1 already pulled (any of the 5) -> 0
+  -- remain for ALL FIVE, not "1 remaining" on the 4 not-yet-pulled ones. Group by
+  -- (pack_uuid, m.set_name) — a shared-pool group is always one full section/tier of the
+  -- source sheet, and set_name is the reliable way to identify that group (two DIFFERENT
+  -- shared-pool groups on the same pack could coincidentally have the same approx_avail_set
+  -- number, so don't group on that alone). Tested live, returns exactly {set_name:
+  -- "The Greatest Achievements", pool_size: 1, pulled_so_far: 1, remaining_for_whole_group: 0}:
+  WITH group_moments AS (
+    SELECT php.pack_uuid, m.set_name, php.moment_uuid, php.approx_avail_set
+    FROM pack_highlight_pools php
+    JOIN moments m ON m.moment_uuid = php.moment_uuid
+    WHERE php.pack_uuid = $1 AND php.approx_avail_set > 0
+  )
+  SELECT gm.set_name, MAX(gm.approx_avail_set) AS pool_size,
+         COUNT(c.token_uri) AS pulled_so_far,
+         MAX(gm.approx_avail_set) - COUNT(c.token_uri) AS remaining_for_whole_group
+  FROM group_moments gm
+  JOIN packs p ON p.pack_uuid = gm.pack_uuid
+  LEFT JOIN cards c ON c.pulled_from_pack_token_uri = p.token_uri AND c.moment_uuid = gm.moment_uuid
+  GROUP BY gm.set_name
+
+HOW IT WAS BUILT — scripts/import-pack-highlight-pool.js in the NHL Breakaway project (NOT
+part of refresh-all.js — this is explicitly a MANUAL, run-once-per-drop import, same as
+backfill-pack-burn-hashes.js, not automatic/hourly; the source is a human-curated spreadsheet
+someone has to find and hand off, not something to poll). Usage:
+`node --env-file=.env scripts/import-pack-highlight-pool.js <pack_uuid> <published-sheet-url>`
+(pubhtml/pub/csv links all work, normalized internally). Matches each sheet row to a
+moment_uuid via player+team+rarity+total_editions, with game_date and section-name as
+tiebreakers for ambiguous matches — both real backfilled drops matched 100% (163/163 and
+169/169) after two known gotchas got handled:
+  - Accents/city-name variants (Montreal vs Montréal, LA Kings vs Los Angeles Kings) — handled
+    via NFD-normalize + a small hardcoded team-alias map (also covers the Utah Mammoth vs
+    Utah Hockey Club franchise rename — moments.team still carries whichever name Sweet used
+    at scrape time, which can lag a real rename).
+  - A found DATA QUALITY ISSUE in Sweet's own catalog, not this feature's bug: moments.player
+    has "Macklin Celebini" (missing the second r) for the Ice Vault (Series 3) Mythic
+    moment — every other reference to this player spells it "Celebrini" correctly. Worked
+    around with a narrowly-scoped one-entry alias, not a general fuzzy-name matcher (a typo
+    list should only grow by hand-confirmed cases, not guessing). Worth knowing about if this
+    typo ever surfaces confusingly elsewhere (search UI, filters, etc).
+Two sheet formats seen so far, both handled by the same script: a distinct number on every
+row (Series 3 Grand Finale), or one note on each section's first row only — "~N per
+highlight" (apply N to every row in the section) vs "N highlight(s) total" (N shared across
+the whole section, the approx_avail_set case) — inherited down through the section's blank
+rows until the next section header resets it.
 
 BACKFILL SCOPE, 2026-09-04 — TWO ACTIVE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
