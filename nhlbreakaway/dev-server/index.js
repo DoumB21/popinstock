@@ -59,6 +59,18 @@ async function ensureLeaderboardIndexes() {
   for (const sql of LEADERBOARD_INDEXES) await pool.query(sql);
 }
 
+// Pack Opening History (Pack Stats' Activity tab) — backs both the main
+// listing's per-pack EXISTS subqueries (handlePackActivity) and the
+// Highlight Filters dropdown sources (handlePackActivityFilters). Partial
+// (WHERE pulled_from_pack_token_uri IS NOT NULL) since the vast majority of
+// `cards` rows are NULL here (only backfilled/newly-resolved pulls set it).
+const PACK_ACTIVITY_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS idx_cards_pulled_from_pack ON cards (pulled_from_pack_token_uri) WHERE pulled_from_pack_token_uri IS NOT NULL`,
+];
+async function ensurePackActivityIndexes() {
+  for (const sql of PACK_ACTIVITY_INDEXES) await pool.query(sql);
+}
+
 // Same tier order as nhlbreakaway/rarity-order.js's RARITY_ORDER (kept in
 // sync by hand — this file runs under plain Node, not a browser, so it can't
 // just <script src> that module). Used to sort the Rarity column/dropdown by
@@ -285,6 +297,157 @@ async function handlePacks(res) {
   });
   // Same shape/cost as handleSets' aggregation, same reasoning for caching.
   sendJson(res, 200, { packs }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
+/* ══════════════════ Pack Opening History (Pack Stats' Activity tab) ══════════════════
+   Per NHL_BREAKAWAY_DATA_HANDOFF.txt's PACK OPENING HISTORY section — no new
+   tables, rides on packs.pulled_from_pack_token_uri (set on `cards` rows)
+   and packs.pulls_resolved_at ("we looked" marker). Only ONE drop
+   (series_id 8R5xYdbD) is backfilled as of 2026-09-04; every NEW pack open
+   of ANY design is captured automatically going forward via the hourly
+   resolve-pack-openings.js phase, so other drops will only show activity
+   from here on, not full history — this is a real, documented data gap,
+   not a bug in this query. */
+const PACK_ACTIVITY_SORT_COLUMNS = {
+  date: 'p.burned_at',
+  opener: 'opener_username',
+  edition: 'p.edition_number',
+  pack_name: 'p.pack_name',
+};
+
+async function handlePackActivity(url, res) {
+  const q = url.searchParams;
+  const where = ['p.pulls_resolved_at IS NOT NULL'];
+  const params = [];
+  const addEq = (col, val) => {
+    if (!val) return;
+    params.push(val);
+    where.push(`${col} = $${params.length}`);
+  };
+  addEq('p.pack_uuid', q.get('pack_uuid'));
+  addEq('p.series_label', q.get('series_label'));
+  addEq('p.rarity', q.get('rarity'));
+
+  // Matches either a resolved opener username OR the raw wallet address —
+  // wallet_usernames coverage isn't 100% (same caveat as everywhere else in
+  // this file), so a burner/no-username wallet still needs to be findable
+  // by pasting its address.
+  const opener = (q.get('opener') || '').trim();
+  if (opener) {
+    params.push(`%${opener}%`);
+    where.push(`(wu.username ILIKE $${params.length} OR p.burned_by_wallet ILIKE $${params.length})`);
+  }
+  // Highlight/pull-level filters ("Highlight Filters" in the UI — what was
+  // actually pulled, as opposed to "Pack Filters" above, which is about the
+  // pack design/opener) — combined into ONE correlated EXISTS so every
+  // condition has to match the SAME pulled card (e.g. rarity=Rare AND
+  // player=X means "one of the pulls is a Rare X", not two independently-
+  // matching pulls). A plain WHERE on the joined `c` rows below would be
+  // wrong here regardless — it runs BEFORE the GROUP BY/json_agg and would
+  // silently strip a matching pack's OTHER (non-matching) highlights out of
+  // its own highlights array.
+  const pullConds = [];
+  const addPullEq = (col, val) => {
+    if (!val) return;
+    params.push(val);
+    pullConds.push(`c2.${col} = $${params.length}`);
+  };
+  addPullEq('set_name', q.get('pull_set_name'));
+  addPullEq('series_label', q.get('pull_series_label'));
+  addPullEq('rarity', q.get('pull_rarity'));
+  const player = (q.get('player') || '').trim();
+  if (player) {
+    params.push(`%${player}%`);
+    pullConds.push(`c2.player ILIKE $${params.length}`);
+  }
+  const minEdition = parseInt(q.get('min_edition'), 10);
+  if (Number.isFinite(minEdition)) {
+    params.push(minEdition);
+    pullConds.push(`c2.edition_number >= $${params.length}`);
+  }
+  const maxEdition = parseInt(q.get('max_edition'), 10);
+  if (Number.isFinite(maxEdition)) {
+    params.push(maxEdition);
+    pullConds.push(`c2.edition_number <= $${params.length}`);
+  }
+  if (pullConds.length) {
+    where.push(`EXISTS (SELECT 1 FROM cards c2 WHERE c2.pulled_from_pack_token_uri = p.token_uri AND ${pullConds.join(' AND ')})`);
+  }
+
+  const sortKey = PACK_ACTIVITY_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'date';
+  const sortSql = PACK_ACTIVITY_SORT_COLUMNS[sortKey];
+  const dir = q.get('dir') === 'asc' ? 'ASC' : 'DESC';
+  const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 25, 1), 100);
+  const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
+  params.push(limit, offset);
+
+  const { rows } = await pool.query(
+    `SELECT p.token_uri, p.pack_uuid, p.pack_name, p.series_label, p.rarity, p.edition_number,
+       p.burned_by_wallet, wu.username AS opener_username, p.burned_at, p.burned_tx_hash,
+       COUNT(*) OVER() AS total_count,
+       json_agg(json_build_object(
+         'moment_uuid', c.moment_uuid, 'player', c.player, 'team', c.team,
+         'set_name', c.set_name, 'rarity', c.rarity, 'edition_number', c.edition_number
+       ) ORDER BY c.token_uri) AS highlights
+     FROM packs p
+     LEFT JOIN wallet_usernames wu ON LOWER(wu.wallet_address) = LOWER(p.burned_by_wallet)
+     JOIN cards c ON c.pulled_from_pack_token_uri = p.token_uri
+     WHERE ${where.join(' AND ')}
+     GROUP BY p.token_uri, p.pack_uuid, p.pack_name, p.series_label, p.rarity, p.edition_number,
+              p.burned_by_wallet, wu.username, p.burned_at, p.burned_tx_hash
+     ORDER BY ${sortSql} ${dir}
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const total = rows.length ? Number(rows[0].total_count) : 0;
+  const packs = rows.map(r => ({
+    token_uri: r.token_uri,
+    pack_uuid: r.pack_uuid,
+    pack_name: r.pack_name,
+    series_label: r.series_label,
+    rarity: r.rarity,
+    edition_number: r.edition_number,
+    opener_wallet: r.burned_by_wallet,
+    opener_username: r.opener_username,
+    burned_at: r.burned_at,
+    burned_tx_hash: r.burned_tx_hash,
+    highlights: r.highlights,
+  }));
+  sendJson(res, 200, { packs, total, has_more: offset + packs.length < total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
+// Filter-dropdown sources for BOTH filter groups the Activity tab shows:
+//  - "Pack Filters" (pack design/series/rarity) — sourced from pack_moments
+//    (the small design catalog, ~185 rows) filtered to designs with at least
+//    one resolved pack, rather than DISTINCT over the much larger `packs`
+//    table (one row per individual pack edition, ~177K rows) — same
+//    "distinct values from what's actually resolved" convention as
+//    handleWalletActivityFilters, cheaper query shape.
+//  - "Highlight Filters" (what was actually PULLED — its own set/series/
+//    rarity, independent of the pack's own) — sourced from `cards` rows that
+//    are themselves a resolved pull (idx_cards_pulled_from_pack backs this).
+async function handlePackActivityFilters(res) {
+  const [packRes, pullRes] = await Promise.all([
+    pool.query(
+      `SELECT pm.pack_uuid, pm.pack_name, pm.series_label, pm.rarity
+       FROM pack_moments pm
+       WHERE EXISTS (SELECT 1 FROM packs p WHERE p.pack_uuid = pm.pack_uuid AND p.pulls_resolved_at IS NOT NULL)
+       ORDER BY pm.pack_name`
+    ),
+    pool.query(
+      `SELECT DISTINCT c.set_name, c.series_label, c.rarity
+       FROM cards c
+       WHERE c.pulled_from_pack_token_uri IS NOT NULL`
+    ),
+  ]);
+  sendJson(res, 200, {
+    packs: packRes.rows.map(r => ({ pack_uuid: r.pack_uuid, pack_name: r.pack_name })),
+    series: [...new Set(packRes.rows.map(r => r.series_label).filter(Boolean))].sort(),
+    rarities: sortRarities([...new Set(packRes.rows.map(r => r.rarity).filter(Boolean))]),
+    pullSets: [...new Set(pullRes.rows.map(r => r.set_name).filter(Boolean))].sort(),
+    pullSeries: [...new Set(pullRes.rows.map(r => r.series_label).filter(Boolean))].sort(),
+    pullRarities: sortRarities([...new Set(pullRes.rows.map(r => r.rarity).filter(Boolean))]),
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 async function handleSets(res) {
@@ -2560,6 +2723,10 @@ export async function routeRequest(url, res) {
       await handleSets(res);
     } else if (url.pathname === '/api/packs') {
       await handlePacks(res);
+    } else if (url.pathname === '/api/pack-activity/filters') {
+      await handlePackActivityFilters(res);
+    } else if (url.pathname === '/api/pack-activity') {
+      await handlePackActivity(url, res);
     } else if (url.pathname === '/api/wallet/resolve') {
       await handleWalletResolve(url, res);
     } else if (url.pathname === '/api/wallet/suggest') {
@@ -2639,7 +2806,7 @@ if (isMainModule) {
     await routeRequest(url, res);
   });
 
-  Promise.all([ensureHighlightsIndexes(), ensureWalletIndexes(), ensureLeaderboardIndexes()])
+  Promise.all([ensureHighlightsIndexes(), ensureWalletIndexes(), ensureLeaderboardIndexes(), ensurePackActivityIndexes()])
     .catch(err => console.error('Failed to ensure indexes:', err))
     .finally(() => {
       server.listen(PORT, () => {

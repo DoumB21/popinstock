@@ -31,6 +31,30 @@
       color: var(--text-primary); padding: 0.5rem 0.75rem; font-size: 0.85rem;
     }
     .filter-bar .search-input:focus { outline: none; border-color: var(--accent); }
+    /* Activity tab's Min/Max Edition — narrow fixed-width number inputs,
+       same idea as wallet.html's own amount-range-input (a plain min-width
+       on .search-input would otherwise silently win over a narrower width
+       set here). */
+    .filter-bar .amount-range-input { width: 120px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
+    @media (max-width: 700px) { .filter-bar .amount-range-input { max-width: none; } }
+
+    /* Activity tab's two filter groups (Pack Filters / Highlight Filters) —
+       same label styling as .mobile-stat-label elsewhere on this site. */
+    .filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    .filter-group-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+
+    /* Opener search — a plain .search-input plus a live suggestion dropdown
+       (same /api/wallet/suggest-backed type-ahead as wallet.html's own
+       Wallet Look Up box), so it needs the same relative-positioned wrap +
+       cb-dropdown-clear + cb-panel trio wallet.html uses for its own input. */
+    .opener-search-wrap { position: relative; flex: 1.2; min-width: 220px; max-width: 320px; }
+    .opener-search-wrap .search-input { width: 100%; max-width: none; padding-right: 2.1rem; }
+    .suggest-item { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+    .suggest-item-name { font-weight: 600; }
+    .suggest-item-wallet { font-size: 0.72rem; color: var(--text-secondary); }
 
     /* ── Busy overlay — shown while the initial packs fetch is in flight.
        Same fixed, viewport-centered overlay + solid message card as
@@ -68,6 +92,58 @@
     /* ── Results meta ── */
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
     .results-meta strong { color: var(--text-primary); }
+
+    /* ── Tabs (Stats / Activity) — same pattern as holders.html's own
+       Editions/Top Holders tabs. ── */
+    .packstats-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+    .packstats-tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.65rem 0.1rem; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+      color: var(--text-secondary); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .packstats-tab-btn:hover { color: var(--text-primary); }
+    .packstats-tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); }
+    .packstats-tab-panel { display: none; flex-direction: column; gap: 1.25rem; margin-top: 1.25rem; }
+    .packstats-tab-panel.active { display: flex; }
+
+    /* Stats tab's pack-name cell becomes a real link into the Activity tab,
+       pre-filtered to that pack (see PACKS_ROW_LINK below) — same "real
+       anchor, not a div+click" convention as every other drill-through link
+       on this site (right/middle-click still works for free). */
+    .pack-name-link { color: var(--text-primary); text-decoration: none; }
+    .pack-name-link:hover { color: var(--accent-light); text-decoration: underline; }
+
+    /* ── Activity tab ── */
+    .activity-table td { vertical-align: top; }
+    /* Zebra striping — each row is a whole pack-open (4 stacked highlight
+       lines), tall enough that adjacent rows blend together without a clear
+       separator. Only on this table, not the Stats tab's dense single-line
+       rows, which don't need it. */
+    .activity-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    /* Same accent-light treatment as holders.html's own .holder-link — the
+       site's established color for a resolved username link. */
+    .opener-link { color: var(--accent-light); text-decoration: none; }
+    .opener-link:hover { text-decoration: underline; }
+    /* Icon-only Polygonscan link — same treatment as wallet.html's own
+       .explorer-link on its Activity tab. */
+    .explorer-link { color: var(--text-secondary); text-decoration: none; }
+    .explorer-link:hover { color: var(--accent-light); }
+
+    /* One pulled highlight (of usually 4) inside a pack-open row — a mini
+       version of the site's own table-row shape, not a full separate table,
+       since it's nested inside one cell/mobile-card. */
+    .pull-list { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+    .pull-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      color: inherit; text-decoration: none; font-size: 0.8rem;
+      padding: 2px 0; border-radius: 4px;
+    }
+    .pull-item:hover .pull-player { color: var(--accent-light); text-decoration: underline; }
+    .pull-player { font-weight: 600; color: var(--text-primary); }
+    .pull-set { color: var(--text-secondary); font-size: 0.72rem; flex: 1; }
+    .pull-edition { color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .pull-list-wrap { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+    .pull-list-wrap .pull-list { margin-top: 0.35rem; }
 
     /* ── Packs table ── */
     .packs-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -161,8 +237,8 @@
     .mobile-stat-value { font-variant-numeric: tabular-nums; }
 
     @media (max-width: 700px) {
-      .filter-bar .cb-combo, .filter-bar .search-input { max-width: none; }
-      .packs-table { font-size: 0.78rem; }
+      .filter-bar .cb-combo, .filter-bar .search-input, .opener-search-wrap { max-width: none; }
+      .packs-table, .activity-table { font-size: 0.78rem; }
       .table-scroll { display: none; }
       .mobile-card-list { display: flex; }
       .mobile-sort-bar { display: flex; }
@@ -179,45 +255,132 @@
       <div class="page-subtitle">Highlights, editions, opened, and collected stats for every pack.</div>
     </div>
 
-    <div class="filter-bar">
-      <input type="text" class="search-input" id="nameSearch" placeholder="Search pack name…" autocomplete="off" spellcheck="false">
-      <div class="cb-combo" id="seriesCombo">
-        <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
-        <div class="cb-panel" id="seriesPanel"></div>
-      </div>
-      <div class="cb-combo" id="rarityCombo">
-        <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
-        <div class="cb-panel" id="rarityPanel"></div>
-      </div>
+    <div class="packstats-tabs" id="packstatsTabs">
+      <button type="button" class="packstats-tab-btn active" data-tab="stats">Stats</button>
+      <button type="button" class="packstats-tab-btn" data-tab="activity">Activity</button>
     </div>
-
-    <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
-      <div class="cb-combo" id="sortFieldCombo">
-        <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
-        <div class="cb-panel" id="sortFieldPanel"></div>
-      </div>
-      <div class="tpc-toggle-group" id="sortDirToggle">
-        <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
-        <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
-      </div>
-    </div>
-
-    <div class="results-meta" id="resultsMeta"></div>
 
     <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
 
-    <div class="table-scroll" style="overflow-x:auto;">
-      <table class="packs-table">
-        <thead>
-          <tr id="packsHeadRow"></tr>
-        </thead>
-        <tbody id="packsBody"></tbody>
-      </table>
+    <div class="packstats-tab-panel active" id="tabPanelStats">
+      <div class="filter-bar">
+        <input type="text" class="search-input" id="nameSearch" placeholder="Search pack name…" autocomplete="off" spellcheck="false">
+        <div class="cb-combo" id="seriesCombo">
+          <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="seriesPanel"></div>
+        </div>
+        <div class="cb-combo" id="rarityCombo">
+          <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="rarityPanel"></div>
+        </div>
+      </div>
+
+      <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
+        <div class="cb-combo" id="sortFieldCombo">
+          <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+          <div class="cb-panel" id="sortFieldPanel"></div>
+        </div>
+        <div class="tpc-toggle-group" id="sortDirToggle">
+          <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+          <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+        </div>
+      </div>
+
+      <div class="results-meta" id="resultsMeta"></div>
+
+      <div class="table-scroll" style="overflow-x:auto;">
+        <table class="packs-table">
+          <thead>
+            <tr id="packsHeadRow"></tr>
+          </thead>
+          <tbody id="packsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="mobile-card-list" id="packsMobileList"></div>
     </div>
 
-    <div class="mobile-card-list" id="packsMobileList"></div>
+    <div class="packstats-tab-panel" id="tabPanelActivity">
+      <div class="filter-group">
+        <div class="filter-group-label">Pack Filters</div>
+        <div class="filter-bar">
+          <div class="cb-combo" id="activityPackCombo">
+            <input type="text" class="cb-combo-input" id="activityPackComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityPackComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityPackPanel"></div>
+          </div>
+          <div class="cb-combo" id="activitySeriesCombo">
+            <input type="text" class="cb-combo-input" id="activitySeriesComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activitySeriesComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activitySeriesPanel"></div>
+          </div>
+          <div class="cb-combo" id="activityRarityCombo">
+            <input type="text" class="cb-combo-input" id="activityRarityComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityRarityComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityRarityPanel"></div>
+          </div>
+          <div class="opener-search-wrap">
+            <input type="text" class="search-input" id="activityOpenerSearch" placeholder="Search opener (username or wallet)…" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-dropdown-clear" id="activityOpenerSearchClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityOpenerSuggestPanel"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-group-label">Highlight Filters</div>
+        <div class="filter-bar">
+          <div class="cb-combo" id="activityPullSetCombo">
+            <input type="text" class="cb-combo-input" id="activityPullSetComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityPullSetComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityPullSetPanel"></div>
+          </div>
+          <div class="cb-combo" id="activityPullSeriesCombo">
+            <input type="text" class="cb-combo-input" id="activityPullSeriesComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityPullSeriesComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityPullSeriesPanel"></div>
+          </div>
+          <div class="cb-combo" id="activityPullRarityCombo">
+            <input type="text" class="cb-combo-input" id="activityPullRarityComboInput" autocomplete="off" spellcheck="false">
+            <button type="button" class="cb-combo-clear" id="activityPullRarityComboClear" style="display:none" title="Clear">✕</button>
+            <div class="cb-panel" id="activityPullRarityPanel"></div>
+          </div>
+          <input type="number" class="search-input amount-range-input" id="activityMinEdition" placeholder="Min edition" min="1" step="1" inputmode="numeric">
+          <input type="number" class="search-input amount-range-input" id="activityMaxEdition" placeholder="Max edition" min="1" step="1" inputmode="numeric">
+          <input type="text" class="search-input" id="activityPlayerSearch" placeholder="Search player…" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="filter-bar mobile-sort-bar" id="activityMobileSortBar">
+        <div class="cb-combo" id="activitySortFieldCombo">
+          <input type="text" class="cb-combo-input" id="activitySortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+          <div class="cb-panel" id="activitySortFieldPanel"></div>
+        </div>
+        <div class="tpc-toggle-group" id="activitySortDirToggle">
+          <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+          <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+        </div>
+      </div>
+
+      <div class="results-meta" id="activityResultsMeta"></div>
+
+      <div class="table-scroll" style="overflow-x:auto;">
+        <table class="activity-table packs-table">
+          <thead>
+            <tr id="activityHeadRow"></tr>
+          </thead>
+          <tbody id="activityBody"></tbody>
+        </table>
+      </div>
+
+      <div class="mobile-card-list" id="activityMobileList"></div>
+
+      <div id="activityLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+        <button type="button" id="activityLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
+    </div>
 
   </div>
 </div>
@@ -370,14 +533,29 @@ function fmtPct(p) {
   return p === null || p === undefined ? '' : `${p.toFixed(2)}%`;
 }
 
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Stats tab's pack-name cell links straight into the Activity tab,
+// pre-filtered to this exact pack design — a real <a href> (not a div+click
+// handler) so right/middle-click still work, and a fresh load of this exact
+// URL lands on the same filtered view via the init() URL-param read below.
+function packActivityHref(p) {
+  return `pack-stats?tab=activity&pack_uuid=${encodeURIComponent(p.pack_uuid)}`;
+}
+function packNameLinkHtml(p) {
+  return `<a class="pack-name-link" href="${packActivityHref(p)}">${escHtml(p.pack_name)}</a>`;
+}
+
 function renderBody() {
   const rows = filteredSortedPacks();
   const body = document.getElementById('packsBody');
   body.innerHTML = rows.map(p => `
     <tr>
       <td>
-        <div class="cell-pack-name">${p.pack_name}</div>
-        <div class="cell-series">${p.series_label}</div>
+        <div class="cell-pack-name">${packNameLinkHtml(p)}</div>
+        <div class="cell-series">${escHtml(p.series_label)}</div>
       </td>
       <td>${p.rarity
         ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
@@ -398,8 +576,8 @@ function renderBody() {
     <div class="mobile-card">
       <div class="mobile-card-header">
         <div>
-          <div class="cell-pack-name">${p.pack_name}</div>
-          <div class="cell-series">${p.series_label}</div>
+          <div class="cell-pack-name">${packNameLinkHtml(p)}</div>
+          <div class="cell-series">${escHtml(p.series_label)}</div>
         </div>
         ${p.rarity
           ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
@@ -571,6 +749,440 @@ function setBusyUi(active) {
   document.getElementById('busyOverlay').classList.toggle('active', active);
 }
 
+/* ══════════════════ Activity tab — pack opening history ══════════════════
+   Per NHL_BREAKAWAY_DATA_HANDOFF.txt's PACK OPENING HISTORY section, backed
+   by /api/pack-activity (+ /api/pack-activity/filters). Only ONE drop is
+   fully backfilled as of 2026-09-04 (series_id 8R5xYdbD) — every NEW pack
+   open of any design is captured automatically going forward, but other
+   drops will only show activity from here on, not full history. Paginated
+   via Load More (same click-once-to-arm-autoscroll convention as wallet.html's
+   own Activity tab), NOT a single client-side fetch like the Stats tab
+   above — this table only grows over time and a pack-open row carries 4
+   nested highlights each, too heavy to ever load in full up front. */
+function prettyWallet(val) {
+  if (!val) return val;
+  return /^0x[0-9a-fA-F]{40}$/.test(val) ? `${val.slice(0, 6)}…${val.slice(-4)}` : val;
+}
+// transaction_datetime-style naive string (no timezone suffix) — same
+// UTC-assumption fix as wallet.html's own fmtActivityDate.
+function fmtActivityDate(raw) {
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (isNaN(d)) return raw;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d);
+}
+
+const ACTIVITY_PAGE_SIZE = 25;
+const ACTIVITY_COLUMNS = [
+  { key: 'pack_name', label: 'Pack', sortable: true },
+  { key: 'rarity',    label: 'Rarity' },
+  { key: 'edition',   label: 'Edition', sortable: true, num: true },
+  { key: 'date',      label: 'Opened At', sortable: true },
+  { key: 'opener',    label: 'Opened By', sortable: true },
+  { key: 'highlights', label: 'Highlights' },
+  { key: 'tx',        label: '' },
+];
+function activityDefaultDirForField(field) {
+  return field === 'opener' || field === 'pack_name' ? 'asc' : 'desc';
+}
+
+const activityState = {
+  packUuid: '', seriesLabel: '', rarity: '', opener: '',
+  pullSetName: '', pullSeriesLabel: '', pullRarity: '', minEdition: '', maxEdition: '', player: '',
+  sortField: 'date', sortDir: 'desc',
+  activity: [], offset: 0, total: 0, hasMore: false, busy: false, autoLoadArmed: false, loaded: false,
+};
+
+function renderActivityHead() {
+  const row = document.getElementById('activityHeadRow');
+  row.innerHTML = ACTIVITY_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = activityState.sortField === col.key;
+    const icon = sorted ? (activityState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (activityState.sortField === field) {
+        activityState.sortDir = activityState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        activityState.sortField = field;
+        activityState.sortDir = activityDefaultDirForField(field);
+      }
+      renderActivityHead();
+      fetchActivityPage(true);
+      syncActivityMobileSort();
+    });
+  });
+}
+
+// One pulled highlight, reused by both the desktop cell and the mobile
+// card's own "Highlights" section — links into Holders for that exact
+// moment, same as every other per-highlight link on this site.
+function pullListHtml(highlights) {
+  return `<div class="pull-list">${(highlights || []).map(h => `
+    <a class="pull-item" href="holders?moment_uuid=${encodeURIComponent(h.moment_uuid)}">
+      <span class="pull-player">${escHtml(h.player)}</span>
+      <span class="pull-edition">#${fmtNum(h.edition_number)}</span>
+      <span class="pull-set">${escHtml(h.set_name)}</span>
+      ${h.rarity ? `<span class="rarity-pill rarity-pill--${h.rarity.toLowerCase()}"><span class="rarity-pill-text">${h.rarity}</span></span>` : ''}
+    </a>
+  `).join('')}</div>`;
+}
+function openerCellHtml(p) {
+  if (p.opener_username) {
+    return `<a class="opener-link" href="https://nhlbreakaway.com/user/${encodeURIComponent(p.opener_username)}?sort=newest" target="_blank" rel="noopener">${escHtml(p.opener_username)}</a>`;
+  }
+  return p.opener_wallet ? `<span title="${escHtml(p.opener_wallet)}">${prettyWallet(p.opener_wallet)}</span>` : '—';
+}
+function txCellHtml(p) {
+  return p.burned_tx_hash
+    ? `<a class="explorer-link" href="https://polygonscan.com/tx/${p.burned_tx_hash}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>`
+    : '';
+}
+
+function renderActivityBody() {
+  const rows = activityState.activity;
+  document.getElementById('activityBody').innerHTML = rows.map(p => `
+    <tr>
+      <td>
+        <div class="cell-pack-name">${escHtml(p.pack_name)}</div>
+        <div class="cell-series">${escHtml(p.series_label)}</div>
+      </td>
+      <td>${p.rarity
+        ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
+        : '—'}</td>
+      <td class="col-r">#${fmtNum(p.edition_number)}</td>
+      <td>${fmtActivityDate(p.burned_at)}</td>
+      <td>${openerCellHtml(p)}</td>
+      <td>${pullListHtml(p.highlights)}</td>
+      <td>${txCellHtml(p)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('activityMobileList').innerHTML = rows.map(p => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <div class="cell-pack-name">${escHtml(p.pack_name)}</div>
+          <div class="cell-series">${escHtml(p.series_label)}</div>
+        </div>
+        ${p.rarity
+          ? `<span class="rarity-pill rarity-pill--${p.rarity.toLowerCase()}"><span class="rarity-pill-text">${p.rarity}</span></span>`
+          : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Edition</span><span class="mobile-stat-value">#${fmtNum(p.edition_number)}</span></div>
+        <div><span class="mobile-stat-label">Opened At</span><span class="mobile-stat-value">${fmtActivityDate(p.burned_at)}</span></div>
+        <div><span class="mobile-stat-label">Opened By</span><span class="mobile-stat-value">${openerCellHtml(p)}</span></div>
+        <div><span class="mobile-stat-label">Tx</span><span class="mobile-stat-value">${txCellHtml(p)}</span></div>
+      </div>
+      <div class="pull-list-wrap">
+        <span class="mobile-stat-label">Highlights</span>
+        ${pullListHtml(p.highlights)}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('activityResultsMeta').innerHTML = activityState.total
+    ? `<strong>${fmtNum(activityState.total)}</strong> pack${activityState.total === 1 ? '' : 's'} opened`
+    : 'No pack openings found.';
+}
+
+function renderActivityLoadMore() {
+  const wrap = document.getElementById('activityLoadMoreWrap');
+  const btn = document.getElementById('activityLoadMoreBtn');
+  wrap.style.display = activityState.hasMore ? 'block' : 'none';
+  btn.disabled = activityState.busy;
+  btn.textContent = activityState.busy ? 'Loading…' : 'Load more';
+}
+document.getElementById('activityLoadMoreBtn').addEventListener('click', () => {
+  activityState.autoLoadArmed = true;
+  fetchActivityPage(false);
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && activityState.autoLoadArmed && !activityState.busy && activityState.hasMore) fetchActivityPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('activityLoadMoreWrap'));
+
+function activityQueryParams() {
+  const params = new URLSearchParams();
+  if (activityState.packUuid) params.set('pack_uuid', activityState.packUuid);
+  if (activityState.seriesLabel) params.set('series_label', activityState.seriesLabel);
+  if (activityState.rarity) params.set('rarity', activityState.rarity);
+  if (activityState.opener) params.set('opener', activityState.opener);
+  if (activityState.pullSetName) params.set('pull_set_name', activityState.pullSetName);
+  if (activityState.pullSeriesLabel) params.set('pull_series_label', activityState.pullSeriesLabel);
+  if (activityState.pullRarity) params.set('pull_rarity', activityState.pullRarity);
+  if (activityState.minEdition !== '') params.set('min_edition', activityState.minEdition);
+  if (activityState.maxEdition !== '') params.set('max_edition', activityState.maxEdition);
+  if (activityState.player) params.set('player', activityState.player);
+  params.set('sort', activityState.sortField);
+  params.set('dir', activityState.sortDir);
+  params.set('limit', ACTIVITY_PAGE_SIZE);
+  params.set('offset', activityState.offset);
+  return params;
+}
+
+async function loadActivityChunk() {
+  if (activityState.busy) return;
+  activityState.busy = true;
+  renderActivityLoadMore();
+  setBusyUi(true);
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/pack-activity?${activityQueryParams()}`, version));
+    const data = await res.json();
+    activityState.activity = [...activityState.activity, ...data.packs];
+    activityState.total = data.total;
+    activityState.hasMore = data.has_more;
+    activityState.offset += data.packs.length;
+    renderActivityBody();
+  } catch (err) {
+    document.getElementById('activityResultsMeta').textContent = 'Failed to load pack activity. Please try again shortly.';
+    console.error(err);
+  } finally {
+    activityState.busy = false;
+    renderActivityLoadMore();
+    setBusyUi(false);
+  }
+}
+async function fetchActivityPage(reset) {
+  if (reset) { activityState.offset = 0; activityState.activity = []; activityState.autoLoadArmed = false; }
+  await loadActivityChunk();
+}
+
+function populateActivitySortFieldCombo() {
+  buildCombo('activitySortFieldCombo',
+    [{ value: '', label: '' }, ...ACTIVITY_COLUMNS.filter(c => c.sortable).map(c => ({ value: c.key, label: c.label }))],
+    () => activityState.sortField,
+    v => {
+      activityState.sortField = v;
+      activityState.sortDir = activityDefaultDirForField(v);
+    },
+    () => { renderActivityHead(); fetchActivityPage(true); syncActivityMobileSort(); });
+}
+function syncActivityMobileSort() {
+  syncComboDisplay(document.getElementById('activitySortFieldCombo'));
+  document.querySelectorAll('#activitySortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === activityState.sortDir);
+  });
+}
+document.getElementById('activitySortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  activityState.sortDir = btn.dataset.dir;
+  renderActivityHead();
+  fetchActivityPage(true);
+  syncActivityMobileSort();
+});
+
+async function populateActivityFilters() {
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/pack-activity/filters`, version));
+  const data = await res.json();
+  buildCombo('activityPackCombo',
+    [{ value: '', label: 'All packs' }, ...data.packs.map(p => ({ value: p.pack_uuid, label: p.pack_name }))],
+    () => activityState.packUuid, v => activityState.packUuid = v,
+    () => { syncPackUuidUrl(); fetchActivityPage(true); });
+  buildCombo('activitySeriesCombo',
+    [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
+    () => activityState.seriesLabel, v => activityState.seriesLabel = v, () => fetchActivityPage(true));
+  buildCombo('activityRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...data.rarities.map(v => ({ value: v, label: v }))],
+    () => activityState.rarity, v => activityState.rarity = v, () => fetchActivityPage(true));
+  // Highlight Filters — same shape/wiring as the Pack Filters combos above,
+  // just sourced from data.pull* (what was actually PULLED, independent of
+  // the pack's own series/rarity — see handlePackActivityFilters).
+  buildCombo('activityPullSetCombo',
+    [{ value: '', label: 'All sets' }, ...data.pullSets.map(v => ({ value: v, label: v }))],
+    () => activityState.pullSetName, v => activityState.pullSetName = v, () => fetchActivityPage(true));
+  buildCombo('activityPullSeriesCombo',
+    [{ value: '', label: 'All series' }, ...data.pullSeries.map(v => ({ value: v, label: v }))],
+    () => activityState.pullSeriesLabel, v => activityState.pullSeriesLabel = v, () => fetchActivityPage(true));
+  buildCombo('activityPullRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...data.pullRarities.map(v => ({ value: v, label: v }))],
+    () => activityState.pullRarity, v => activityState.pullRarity = v, () => fetchActivityPage(true));
+}
+
+/* ══════════════════ Opener search — live suggestion dropdown ══════════════════
+   Same debounced type-ahead as wallet.html's own Wallet Look Up search box,
+   backed by the SAME /api/wallet/suggest endpoint (username/wallet_address
+   matches) — reused as-is since "opener" here is exactly the same kind of
+   lookup (a wallet, matched by username or address prefix/substring). */
+const openerInputEl = document.getElementById('activityOpenerSearch');
+const openerClearBtn = document.getElementById('activityOpenerSearchClear');
+const openerSuggestPanel = document.getElementById('activityOpenerSuggestPanel');
+let openerSuggestItems = [];
+let openerSuggestActiveIndex = -1;
+let openerSuggestSeq = 0;
+
+function updateOpenerClear() { openerClearBtn.style.display = openerInputEl.value ? '' : 'none'; }
+function closeOpenerSuggestions() {
+  openerSuggestPanel.classList.remove('open');
+  openerSuggestItems = [];
+  openerSuggestActiveIndex = -1;
+}
+function renderOpenerSuggestions() {
+  if (!openerSuggestItems.length) {
+    openerSuggestPanel.innerHTML = `<div class="cb-empty">No matches</div>`;
+  } else {
+    openerSuggestPanel.innerHTML = openerSuggestItems.map((s, i) => `
+      <div class="cb-item suggest-item${i === openerSuggestActiveIndex ? ' active' : ''}" data-index="${i}">
+        <span class="suggest-item-name">${escHtml(s.username || '(no username)')}</span>
+        <span class="suggest-item-wallet">${escHtml(s.wallet_address)}</span>
+      </div>
+    `).join('');
+    openerSuggestPanel.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('mousedown', e => e.preventDefault()); // keep focus so blur doesn't close before click registers
+      el.addEventListener('click', () => selectOpenerSuggestion(openerSuggestItems[Number(el.dataset.index)]));
+    });
+  }
+  openerSuggestPanel.classList.add('open');
+}
+function applyOpener(val) {
+  activityState.opener = val.trim();
+  fetchActivityPage(true);
+}
+function selectOpenerSuggestion(item) {
+  openerInputEl.value = item.username || item.wallet_address;
+  updateOpenerClear();
+  closeOpenerSuggestions();
+  applyOpener(openerInputEl.value);
+}
+let _openerSuggestT = null;
+let _openerApplyT = null;
+openerInputEl.addEventListener('input', () => {
+  updateOpenerClear();
+  const q = openerInputEl.value.trim();
+
+  // The typed text is still a valid filter on its own even with no
+  // suggestion picked (matches a raw wallet address, or a username Sweet
+  // never cached — see handlePackActivity's opener ILIKE) — debounced
+  // separately from the suggestion fetch below so neither blocks the other.
+  clearTimeout(_openerApplyT);
+  _openerApplyT = setTimeout(() => applyOpener(openerInputEl.value), 300);
+
+  clearTimeout(_openerSuggestT);
+  if (q.length < 2) { closeOpenerSuggestions(); return; }
+  _openerSuggestT = setTimeout(async () => {
+    const seq = ++openerSuggestSeq;
+    try {
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`, version));
+      const data = await res.json();
+      if (seq !== openerSuggestSeq) return; // a newer keystroke's request already won
+      openerSuggestItems = data.suggestions;
+      openerSuggestActiveIndex = -1;
+      renderOpenerSuggestions();
+    } catch (err) {
+      console.error(err);
+    }
+  }, 250);
+});
+openerInputEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && openerSuggestItems.length) {
+    e.preventDefault();
+    openerSuggestActiveIndex = (openerSuggestActiveIndex + 1) % openerSuggestItems.length;
+    renderOpenerSuggestions();
+  } else if (e.key === 'ArrowUp' && openerSuggestItems.length) {
+    e.preventDefault();
+    openerSuggestActiveIndex = (openerSuggestActiveIndex - 1 + openerSuggestItems.length) % openerSuggestItems.length;
+    renderOpenerSuggestions();
+  } else if (e.key === 'Enter') {
+    if (openerSuggestActiveIndex >= 0 && openerSuggestItems[openerSuggestActiveIndex]) {
+      e.preventDefault();
+      selectOpenerSuggestion(openerSuggestItems[openerSuggestActiveIndex]);
+    } else {
+      closeOpenerSuggestions();
+    }
+  } else if (e.key === 'Escape') {
+    closeOpenerSuggestions();
+  }
+});
+openerClearBtn.addEventListener('mousedown', e => e.preventDefault());
+openerClearBtn.addEventListener('click', () => {
+  openerInputEl.value = '';
+  updateOpenerClear();
+  closeOpenerSuggestions();
+  applyOpener('');
+  openerInputEl.focus();
+});
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.opener-search-wrap')) closeOpenerSuggestions();
+});
+
+let _editionRangeT = null;
+function wireEditionRangeInput(id, stateKey) {
+  document.getElementById(id).addEventListener('input', e => {
+    clearTimeout(_editionRangeT);
+    const val = e.target.value;
+    _editionRangeT = setTimeout(() => { activityState[stateKey] = val; fetchActivityPage(true); }, 250);
+  });
+}
+wireEditionRangeInput('activityMinEdition', 'minEdition');
+wireEditionRangeInput('activityMaxEdition', 'maxEdition');
+
+let _activityPlayerT = null;
+document.getElementById('activityPlayerSearch').addEventListener('input', e => {
+  clearTimeout(_activityPlayerT);
+  const val = e.target.value;
+  _activityPlayerT = setTimeout(() => { activityState.player = val.trim(); fetchActivityPage(true); }, 300);
+});
+
+// Lazy — the Activity tab's own filters/first page only fetch the first
+// time it's actually opened (see setActiveTab below), same "never pay for a
+// tab you didn't open" convention as holders.html's Top Holders tab.
+async function initActivityTab() {
+  renderActivityHead();
+  populateActivitySortFieldCombo();
+  syncActivityMobileSort();
+  document.getElementById('activityResultsMeta').textContent = 'Loading…';
+  try {
+    await populateActivityFilters();
+    await fetchActivityPage(true);
+  } catch (err) {
+    document.getElementById('activityResultsMeta').textContent = 'Failed to load pack activity. Please try again shortly.';
+    console.error(err);
+  }
+}
+
+// Keeps ?pack_uuid= in sync with the Pack filter combo's own current value.
+// The Stats tab's pack-name link (packActivityHref) is what puts it in the
+// URL in the first place (a full navigation, so it's correct at load time)
+// — without this, clearing the combo or picking a different pack left the
+// OLD pack_uuid sitting in the address bar, so a copy-pasted URL would land
+// back on the pack the visitor had already moved away from.
+function syncPackUuidUrl() {
+  const url = new URL(location.href);
+  if (activityState.packUuid) url.searchParams.set('pack_uuid', activityState.packUuid);
+  else url.searchParams.delete('pack_uuid');
+  history.replaceState(null, '', url);
+}
+
+/* ══════════════════ Tabs (Stats / Activity) ══════════════════ */
+const TAB_PANEL_IDS = { stats: 'tabPanelStats', activity: 'tabPanelActivity' };
+function setActiveTab(tab, { syncUrl = true } = {}) {
+  if (!TAB_PANEL_IDS[tab]) tab = 'stats';
+  document.querySelectorAll('.packstats-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  Object.entries(TAB_PANEL_IDS).forEach(([name, id]) => {
+    document.getElementById(id).classList.toggle('active', name === tab);
+  });
+  if (syncUrl) {
+    const url = new URL(location.href);
+    url.searchParams.set('tab', tab);
+    history.replaceState(null, '', url);
+  }
+  if (tab === 'activity' && !activityState.loaded) {
+    activityState.loaded = true;
+    initActivityTab();
+  }
+}
+document.getElementById('packstatsTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.packstats-tab-btn');
+  if (btn) setActiveTab(btn.dataset.tab);
+});
+
 (async function init() {
   renderHead();
   populateSortFieldCombo();
@@ -587,6 +1199,15 @@ function setBusyUi(active) {
   } finally {
     setBusyUi(false);
   }
+
+  // Deep-link support — a Stats-tab pack-name click (packActivityHref) lands
+  // here as ?tab=activity&pack_uuid=..., same URL-param-read convention as
+  // wallet.html's own ?tab=/?set= init handling.
+  const initParams = new URLSearchParams(location.search);
+  const initTab = initParams.get('tab') || 'stats';
+  const initPackUuid = initParams.get('pack_uuid') || '';
+  if (initPackUuid) activityState.packUuid = initPackUuid;
+  setActiveTab(initTab, { syncUrl: false });
 })();
 </script>
 
