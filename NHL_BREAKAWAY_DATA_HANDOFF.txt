@@ -1,5 +1,5 @@
 NHL BREAKAWAY DATA LAYER — HANDOFF NOTE
-Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02/03, by a Claude Code session
+Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02/03/04, by a Claude Code session
 working in C:\Personnel\Projets\NHL Breakaway
 Dropped here (PopInStock3.0) only as a file for another session to read — nothing else
 in this project folder was touched or should be touched based on this note.
@@ -20,6 +20,12 @@ it's NOT opaque, it's the exact same value as cards.token_uri/packs.token_uri an
 right way to resolve a transaction to a player/highlight name (verified: 99.97% exact-
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
+
+UPDATE 2026-09-04: new pack-opening history — which highlights each opened pack produced,
+who opened it, when, and the on-chain tx. No new tables (4 new columns on cards/packs). See
+the new PACK OPENING HISTORY section below. One drop (series_id 8R5xYdbD, "Series 3 Grand
+Finale Pack" CORE) is fully backfilled (1,510 packs, 6,040 pulls); every NEW pack-open of
+ANY design is captured automatically going forward via the hourly refresh.
 
 UPDATE 2026-09-03 (later): new `floor_prices` table — cheapest open marketplace listing
 per moment/pack, hourly snapshot. See the new FLOOR PRICES section below (this is storage
@@ -788,6 +794,107 @@ FRESHNESS
 reconciliation, it only needs `moments`/`pack_moments` to exist. First sync to Raff will
 be a full one-shot push of the whole table (no prior watermark), same as any other new
 table's first sync-to-raff.js run.
+
+PACK OPENING HISTORY — NEW 2026-09-04, BUILT, ONE DROP FULLY BACKFILLED, HOURLY FROM NOW ON
+Built for a "reproduce nhlba.com/packages/opened/117" page — per-pack-opening history (who
+opened it, when, and which highlights came out), filterable by set/username/etc. This is
+the piece Sweet's own API has NO endpoint for at all (not even close — nothing in
+/distribution/history or /catalog ties a pack burn to the cards it produced). Resolved
+entirely via Alchemy/Polygonscan, not Sweet.
+
+WHAT IT IS AND HOW IT WORKS
+Verified live 2026-09-04 against a real pack open before building anything: opening a pack
+transfers N pre-existing card editions from the `pack_escrow` system_wallets entry
+(0x610123c1f5e34974c63343c84973cd5603b08e7c — the same wallet already behind "In Packs"
+elsewhere in this schema) to the opener, in the SAME on-chain transaction as the pack's own
+burn. detect-burns.js (which already finds every pack burn) now also captures that
+transaction's hash (`packs.burned_tx_hash`, free — Alchemy's alchemy_getAssetTransfers
+always returned this, it just wasn't stored before). A new script,
+scripts/resolve-pack-openings.js, fetches that transaction's FULL receipt
+(eth_getTransactionReceipt — every log in it, not just the pack's own burn transfer) and
+records every pack_escrow-to-opener Transfer it finds on a KNOWN CARD contract (via
+`series_contracts`) as `cards.pulled_from_pack_token_uri`. No new tables — this rides on
+the existing `cards`/`packs` tables (and their existing sync-to-raff.js config) rather than
+a parallel schema.
+
+NO NEW COLUMNS FOR NAME/RARITY/ETC ARE NEEDED — a pulled card's `cards` row already has
+moment_uuid (plus already-denormalized player/team/set_name/rarity, same as every other
+cards row) since it's the SAME cards table build-moments.js/reconcile-cards.js/
+detect-burns.js already populate. Join to `moments` on moment_uuid for the canonical/
+fuller version (badges, jersey_number, etc.) exactly like every other feature in this doc.
+
+SCHEMA — 4 new columns, no new tables
+  packs.burned_tx_hash          TEXT  -- the opening transaction's hash. Polygonscan link
+                                          is NOT stored separately (redundant, pure prefix)
+                                          — build it as https://polygonscan.com/tx/{hash}
+  packs.pulls_resolved_at       TEXT  -- set once resolve-pack-openings.js has processed
+                                          this pack's burn tx (even a genuine 0-pull result
+                                          sets this — it's a "we looked" marker so nothing
+                                          gets retried forever, not a "found something" one).
+                                          NULL = not opened yet, OR opened but not yet
+                                          processed (burned_tx_hash also NULL in that case
+                                          until detect-burns.js's next run catches it)
+  cards.burned_tx_hash          TEXT  -- same idea, captured for cards' own burns too
+                                          (crafting etc.) — not used by this feature, added
+                                          for free since the burn-detection code path is
+                                          shared between cards and packs
+  cards.pulled_from_pack_token_uri TEXT -- set to packs.token_uri when this specific card
+                                          edition was identified as one of the highlights a
+                                          specific pack produced. NULL = unresolved/unknown
+                                          provenance, NOT "wasn't from a pack" — plenty of
+                                          real cards will never get backfilled (see BACKFILL
+                                          SCOPE below)
+
+REFERENCE QUERY — everything needed for one pack-opening row, verified live against a real
+resolved pack (Series 3 Grand Finale Pack, edition #1800, opened by andy_hoffman
+2026-09-01T17:02:46Z, 4 highlights: Darren Raddysh/Nazem Kadri/Nathan MacKinnon/Zack
+Bolduc):
+  -- header (one row per opened pack)
+  SELECT p.token_uri, p.pack_uuid, p.pack_name, p.series_label, p.rarity, p.edition_number,
+         p.burned_by_wallet, wu.username AS opener_username, p.burned_at,
+         p.burned_tx_hash  -- build polygonscan link client-side: 'https://polygonscan.com/tx/' || burned_tx_hash
+  FROM packs p
+  LEFT JOIN wallet_usernames wu ON LOWER(wu.wallet_address) = LOWER(p.burned_by_wallet)
+  WHERE p.pulls_resolved_at IS NOT NULL
+  ORDER BY p.burned_at DESC
+  -- highlights pulled by one specific pack (pass its token_uri from the header row above)
+  SELECT c.moment_uuid, c.player, c.team, c.set_name, c.rarity, c.series_label,
+         c.edition_number, m.jersey_number
+  FROM cards c
+  LEFT JOIN moments m ON m.moment_uuid = c.moment_uuid
+  WHERE c.pulled_from_pack_token_uri = $1
+  -- "by username" filter: join wallet_usernames the same way as the header query above,
+  -- WHERE wu.username = $1 (or resolve a raw wallet address the same way handleWalletSets
+  -- etc. already do elsewhere in dev-server)
+  -- "by set" filter (which highlights came from packs of a given set/drop): filter the
+  -- header query by p.pack_uuid or p.series_label/p.rarity, same as everywhere else
+
+BACKFILL SCOPE, 2026-09-04 — ONE DROP FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY
+Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
+as a first step — same cost class as the sweet_transaction_history Alchemy-hybrid idea
+declined earlier (one eth_getTransactionReceipt call per pack; 163K of them would be a
+genuinely large one-time job). Instead, backfilled ONE specific active drop end-to-end per
+direct user request: series_id 8R5xYdbD ("Series 3 Grand Finale Pack" CORE,
+https://nhlbreakaway.com/drop/8R5xYdbD) — ALL 1,510 packs of this drop ever opened
+(first burn 2026-09-01T17:02:46Z, i.e. this drop's entire history, not just "since Aug 31")
+are fully resolved: 6,040 card pulls linked, exactly 4/pack (matches "Pack of 4
+Highlights"), 0 zero-pull anomalies, 0 unmatched links. Verified pushed to Raff and
+queried back exactly matching local data.
+To backfill another drop the same way: `node --env-file=.env scripts/backfill-pack-burn-
+hashes.js <series_id>` (fills packs.burned_tx_hash for that contract's full history) then
+`node --env-file=.env scripts/resolve-pack-openings.js <series_id>` (resolves the pulls) —
+both scripts in the NHL Breakaway project, both safe to re-run (idempotent).
+
+FRESHNESS
+`resolve-pack-openings.js` runs every hour as part of refresh-all.js, right after
+detect-burns.js (needs that run's freshly-captured burned_tx_hash). At current pack-opening
+volume (~143/day campaign-wide, ~3/hour) this is cheap and keeps EVERY pack's openings
+current going forward, not just the one backfilled drop — a newly-opened pack of ANY design
+gets resolved on the very next hourly run, no drop-specific configuration needed for new
+activity. Only the PRE-EXISTING historical backlog is scoped to what's been explicitly
+backfilled (currently just 8R5xYdbD) — if a wallet's activity/pack-open history needs to
+reach further back than a pack's own drop start, that's a case-by-case backfill call, not
+automatic.
 
 TWO OPEN QUESTIONS, ORIGINALLY NOT RESOLVED — BOTH NOW CLOSED AS OF 2026-09-02
 1. RESOLVED — see SWEET TRANSACTION HISTORY above. The "no bulk endpoint, no background
