@@ -242,12 +242,49 @@
     .edition-range-group { display: flex; gap: 0.5rem; flex: 0 0 auto; }
     @media (max-width: 700px) {
       .filter-bar .search-input, .filter-bar .edition-range-input { max-width: none; }
-      /* .edition-range-input also carries .search-input, so the reset just
-         above would otherwise win here too (same specificity, source order
-         decides) — reassert it after, so Min/Max stay narrow and sit on one
-         row together instead of stretching full-width and stacking. */
-      .filter-bar .edition-range-input { max-width: 80px; }
+      /* Below 700px, Min/Max share their row with the Clear filters button
+         but were staying pinned at their desktop 80px width, leaving the
+         row's actual free space unused and clipping their own placeholder
+         text ("Min edi…"). A first attempt gave the group flex:1;min-width:0
+         directly — that let flex-wrap shrink it toward zero to squeeze
+         everything (Search holder + a near-invisible sliver + Clear
+         filters) onto ONE line instead of wrapping, the opposite of what
+         was wanted. The group needs its own real min-width (200px — big
+         enough that it, plus Search holder's own 200px min-width, can't
+         both fit on one 700px-wide line, so wrapping still happens as
+         before) alongside flex:1 so that ONCE wrapped onto its own row with
+         Clear filters, it grows to fill whatever room is left there,
+         splitting it evenly between the two (min-width:0) inputs inside. */
+      .edition-range-group { flex: 1 1 200px; min-width: 200px; }
+      .filter-bar .edition-range-input { flex: 1; min-width: 0; max-width: none; }
     }
+
+    /* ── Busy overlay — shown while the header/editions/top-holders fetch is
+       in flight. Same fixed, viewport-centered overlay + solid message card
+       as highlights.html/edition-rankings.html's own — fixed rather than
+       absolute so it's centered on what's visible regardless of scroll
+       position, and covers the plain "Loading…" page-title placeholder text
+       that's otherwise visible (unstyled, top-left) during the initial
+       header fetch. ── */
+    .busy-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
 
     /* Mobile-only "Sort by" combo + Asc/Desc toggle — same pattern as every
        other page in this section's mobile pass. align-items: stretch (not
@@ -327,6 +364,8 @@
   <div class="content">
 
     <a class="back-link" id="backLink" href="highlights">← Back to Highlights</a>
+
+    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
 
     <div class="holder-header" id="holderHeader">
       <div class="page-title">Loading…</div>
@@ -1008,10 +1047,20 @@ function renderLoadMore() {
   btn.textContent = state.busy ? 'Loading…' : 'Load more';
 }
 
+// Toggles the busy overlay (see .busy-overlay in the <style> above) — used
+// for the initial header/editions load (see init()), every filter/sort
+// change (resetAndReload -> loadEditionsChunk), Load More, and the Top
+// Holders tab's own lazy load. Same convention as highlights.html/
+// edition-rankings.html's own setBusyUi().
+function setBusyUi(active) {
+  document.getElementById('busyOverlay').classList.toggle('active', active);
+}
+
 async function loadEditionsChunk() {
   if (state.busy) return;
   state.busy = true;
   renderLoadMore();
+  setBusyUi(true);
   try {
     const params = new URLSearchParams({
       moment_uuid: MOMENT_UUID, limit: PAGE_SIZE, offset: state.offset,
@@ -1039,6 +1088,7 @@ async function loadEditionsChunk() {
   } finally {
     state.busy = false;
     renderLoadMore();
+    setBusyUi(false);
   }
 }
 
@@ -1121,6 +1171,7 @@ async function loadTopHoldersChunk() {
   if (topHoldersState.busy) return;
   topHoldersState.busy = true;
   renderTopHoldersLoadMore();
+  setBusyUi(true);
   try {
     const params = new URLSearchParams({ moment_uuid: MOMENT_UUID, limit: PAGE_SIZE, offset: topHoldersState.offset });
     const res = await fetch(`${API_BASE}/api/holders/top-holders?${params}`);
@@ -1135,6 +1186,7 @@ async function loadTopHoldersChunk() {
   } finally {
     topHoldersState.busy = false;
     renderTopHoldersLoadMore();
+    setBusyUi(false);
   }
 }
 document.getElementById('topHoldersLoadMoreBtn').addEventListener('click', () => {
@@ -1216,6 +1268,7 @@ function wireBackLink() {
     document.getElementById('errorState').style.display = 'block';
     return;
   }
+  setBusyUi(true);
   try {
     const res = await fetch(`${API_BASE}/api/holders/header?moment_uuid=${encodeURIComponent(MOMENT_UUID)}`);
     if (!res.ok) {
@@ -1239,6 +1292,8 @@ function wireBackLink() {
     document.getElementById('errorState').textContent = 'Failed to load. Please try again shortly.';
     document.getElementById('errorState').style.display = 'block';
     console.error(err);
+  } finally {
+    setBusyUi(false);
   }
 })();
 </script>
