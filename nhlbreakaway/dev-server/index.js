@@ -1147,8 +1147,15 @@ async function handleActivityLeaderboard(url, res) {
   const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
   params.push(limit + 1, offset);
 
+  // total_wallets via COUNT(*) OVER() is evaluated on the grouped rows
+  // (Postgres runs window functions after GROUP BY, before ORDER BY/LIMIT)
+  // — gives the real count of matching wallets in the same query, same
+  // "no second round-trip" trick used throughout this file (e.g.
+  // handleHighlights' own `total`). Frontend shows this instead of
+  // "however many rows happen to be loaded so far" (always the page size
+  // + "+" on a first load, regardless of how many actually matched).
   const sql = `
-    SELECT username, COUNT(*) AS count, SUM(amount) AS total_amount
+    SELECT username, COUNT(*) AS count, SUM(amount) AS total_amount, COUNT(*) OVER() AS total_wallets
     FROM ${fromClause}
     WHERE ${ACTIVITY_LEADERBOARD_EXCLUSION}
     GROUP BY username
@@ -1157,12 +1164,13 @@ async function handleActivityLeaderboard(url, res) {
   `;
   const { rows } = await pool.query(sql, params);
   const hasMore = rows.length > limit;
+  const total = rows.length ? Number(rows[0].total_wallets) : 0;
   const leaderboard = rows.slice(0, limit).map(r => ({
     username: r.username,
     count: Number(r.count),
     total_amount: r.total_amount === null ? null : Number(r.total_amount),
   }));
-  sendJson(res, 200, { leaderboard, has_more: hasMore }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  sendJson(res, 200, { leaderboard, has_more: hasMore, total }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // "Find a collector" — this wallet's real rank within the CURRENT filtered

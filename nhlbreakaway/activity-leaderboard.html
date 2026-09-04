@@ -81,6 +81,95 @@
     .cell-count { font-weight: 700; color: var(--text-primary); }
     .holder-link { color: var(--accent-light); text-decoration: none; }
     .holder-link:hover { text-decoration: underline; }
+
+    /* ── Busy overlay — same pattern as highlights.html's own. This page's
+       queries (grouping/summing sweet_transaction_history) run several
+       seconds — without this, a filter/sort/type change looked like nothing
+       happened, inviting repeat clicks. Fixed to the viewport (not absolute
+       over the results) so it's centered on what's visible regardless of
+       scroll position; same z-index/backdrop convention as this site's
+       other fixed modals. Identical at every width — a fixed-position
+       overlay needs no separate mobile/desktop treatment. */
+    .busy-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    .busy-overlay.active { display: flex; }
+    .busy-box {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.9rem 1.4rem; border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+    }
+    .busy-spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--accent-light);
+      animation: busy-spin 0.7s linear infinite;
+    }
+    @keyframes busy-spin { to { transform: rotate(360deg); } }
+    .nhl-busy .filter-bar, .nhl-busy .mobile-sort-bar { pointer-events: none; opacity: 0.7; }
+    .nhl-busy .items-table thead th.sortable { pointer-events: none; cursor: not-allowed; }
+
+    /* Mobile-only "Sort by" combo + Asc/Desc toggle — same pattern as
+       sets.html/pack-stats.html/highlights.html/wallet.html's own. */
+    /* align-items: stretch (not the .filter-bar-inherited flex-start) so
+       the Asc/Desc toggle group stretches to match the sort-field combo's
+       own height, same as every other page's mobile-sort-bar — without
+       this override it renders ~10px shorter here than on pack-stats.html
+       etc., since .filter-bar sets flex-start for its OTHER rows (the
+       "Find a Collector" wrap needs top-alignment against a taller
+       suggestion panel), which this bar would otherwise inherit too. */
+    .mobile-sort-bar { display: none; align-items: stretch; }
+    .mobile-sort-bar .cb-combo { max-width: 220px; }
+
+    /* ── Mobile card list — one card per row instead of a table row, so
+       phone widths never need horizontal scroll. Same "two parallel DOM
+       representations, toggled by breakpoint, both driven by the same
+       render call" pattern as every other page in this section. Used
+       unconditionally here (not just below some column-count threshold) —
+       simpler than switching between a row-ish layout and a block one
+       depending on whether the active type has a Total Amount column. ── */
+    .mobile-card-list { display: none; flex-direction: column; gap: 0.75rem; }
+    .mobile-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.85rem 1rem;
+    }
+    .mobile-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem;
+      margin: -0.85rem -1rem 0.6rem;
+      padding: 0.85rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      background: rgba(255,255,255,0.045);
+    }
+    .mobile-card-header-name { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    /* .cell-rank's own width:1% is a table-cell "shrink to content" trick —
+       inside this flex header instead, that same tiny width collapses the
+       box to ~1px and lets the "#N" text overflow into the wallet link next
+       to it. Undo it here specifically. */
+    .mobile-card-header-name .cell-rank { width: auto; flex-shrink: 0; }
+    .mobile-card-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+    .mobile-stat-label {
+      display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px;
+    }
+    .mobile-stat-value { font-variant-numeric: tabular-nums; }
+    .mobile-card.rank-row--1 { background: rgba(255,215,0,0.08); border-color: rgba(255,215,0,0.25); }
+    .mobile-card.rank-row--2 { background: rgba(192,192,192,0.07); border-color: rgba(192,192,192,0.22); }
+    .mobile-card.rank-row--3 { background: rgba(205,127,50,0.08); border-color: rgba(205,127,50,0.25); }
+    .mobile-card.spotlight-row { background: rgba(240,168,64,0.08); border-color: rgba(240,168,64,0.3); }
+
+    @media (max-width: 700px) {
+      .table-scroll { display: none; }
+      .mobile-card-list { display: flex; }
+      .mobile-sort-bar { display: flex; }
+    }
   </style>
 </head>
 <body>
@@ -125,14 +214,37 @@
       <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
     </div>
 
+    <!-- Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the desktop
+         table's clickable column headers, which disappear along with the
+         table at that width (see .mobile-card-list below). Repopulated
+         whenever the Type changes (see populateTypeCombo's onPick), since
+         count-only types have one fewer sortable column than purchase/sale. -->
+    <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
+      <div class="cb-combo" id="sortFieldCombo">
+        <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+        <div class="cb-panel" id="sortFieldPanel"></div>
+      </div>
+      <div class="tpc-toggle-group" id="sortDirToggle">
+        <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+        <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+      </div>
+    </div>
+
     <div class="results-meta" id="resultsMeta"></div>
 
-    <div style="overflow-x:auto;">
+    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading leaderboard…</span></div></div>
+
+    <div class="table-scroll" style="overflow-x:auto;">
       <table class="items-table">
         <thead><tr id="headRow"></tr></thead>
         <tbody id="body"></tbody>
       </table>
     </div>
+    <!-- Always a 1-column block layout at mobile widths, regardless of
+         whether the active type has 3 columns (count-only) or 4 (purchase/
+         sale, +Total Amount) — simpler and more consistent than switching
+         between a row-ish layout and a block one depending on type. -->
+    <div class="mobile-card-list" id="mobileList"></div>
 
     <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
       <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
@@ -326,7 +438,22 @@ const state = {
   sortField: 'amount', sortDir: 'desc',
   leaderboard: [], offset: 0, hasMore: false, busy: false, autoLoadArmed: false,
   spotlightUsername: null,
+  // Real count of wallets matching the current filters, from the backend's
+  // `total` field — NOT state.leaderboard.length, which is just however
+  // many rows happen to be loaded so far (always the page size on a first
+  // load, regardless of how many actually matched).
+  total: 0,
 };
+
+// Shown while a filter/sort/type change or Load More is in flight — this
+// page's queries (grouping/summing sweet_transaction_history) routinely
+// take several seconds, so without this a change looked like nothing
+// happened and invited repeat clicks. Same pattern/name as highlights.html's
+// own setBusyUi(), identical at every width (fixed-position overlay).
+function setBusyUi(active) {
+  document.body.classList.toggle('nhl-busy', active);
+  document.getElementById('busyOverlay').classList.toggle('active', active);
+}
 
 // Shared by the paginated list and the spotlight rank lookup — same filters,
 // same type, same sort (the spotlight always shows this wallet's rank
@@ -353,6 +480,7 @@ async function loadChunk() {
   if (state.busy) return 0;
   state.busy = true;
   renderLoadMore();
+  setBusyUi(true);
   let got = 0;
   try {
     const version = await getDataVersion();
@@ -360,6 +488,7 @@ async function loadChunk() {
     const data = await res.json();
     state.leaderboard = [...state.leaderboard, ...data.leaderboard];
     state.hasMore = data.has_more;
+    state.total = data.total;
     state.offset += data.leaderboard.length;
     got = data.leaderboard.length;
     renderBody();
@@ -369,6 +498,7 @@ async function loadChunk() {
   } finally {
     state.busy = false;
     renderLoadMore();
+    setBusyUi(false);
   }
   return got;
 }
@@ -381,6 +511,7 @@ async function loadSpotlight() {
   if (state.busy) return;
   state.busy = true;
   renderLoadMore();
+  setBusyUi(true);
   try {
     const params = buildFilterParams();
     params.set('username', state.spotlightUsername);
@@ -398,6 +529,7 @@ async function loadSpotlight() {
   } finally {
     state.busy = false;
     renderLoadMore();
+    setBusyUi(false);
   }
 }
 
@@ -435,16 +567,47 @@ function renderHead() {
       }
       renderHead();
       fetchPage(true);
+      syncMobileSortControls();
     });
   });
 }
 
+/* ══════════════════ Mobile "Sort by" combo + Asc/Desc toggle ══════════════════
+   Repopulated (not just synced) whenever the Type changes — see
+   populateTypeCombo's onPick — since count-only types have one fewer
+   sortable column than purchase/sale (no Total Amount). */
+function populateMobileSortCombo() {
+  const sortable = activeColumns().filter(c => c.sortable);
+  buildCombo('sortFieldCombo',
+    [{ value: '', label: '' }, ...sortable.map(c => ({ value: c.key, label: c.label }))],
+    () => state.sortField,
+    v => { state.sortField = v; state.sortDir = 'desc'; },
+    () => { renderHead(); fetchPage(true); syncMobileSortControls(); });
+  syncMobileSortControls();
+}
+function syncMobileSortControls() {
+  syncComboDisplay(document.getElementById('sortFieldCombo'));
+  document.querySelectorAll('#sortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === state.sortDir);
+  });
+}
+document.getElementById('sortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  state.sortDir = btn.dataset.dir;
+  renderHead();
+  syncMobileSortControls();
+  fetchPage(true);
+});
+
 function renderBody() {
   const cols = activeColumns().length;
   const body = document.getElementById('body');
+  const mobileList = document.getElementById('mobileList');
   if (!state.leaderboard.length) {
     const emptyMsg = state.spotlightUsername ? "This collector has no activity matching these filters." : 'No activity matches these filters.';
     body.innerHTML = `<tr><td colspan="${cols}" style="padding:2rem 1rem; text-align:center; color:var(--text-secondary);">${emptyMsg}</td></tr>`;
+    mobileList.innerHTML = `<div style="padding:2rem 1rem; text-align:center; color:var(--text-secondary);">${emptyMsg}</div>`;
   } else {
     body.innerHTML = state.leaderboard.map((r, i) => {
       // Spotlight mode carries the collector's REAL rank on the row itself
@@ -463,13 +626,34 @@ function renderBody() {
         </tr>
       `;
     }).join('');
+
+    mobileList.innerHTML = state.leaderboard.map((r, i) => {
+      const rank = r.rank != null ? r.rank : i + 1;
+      const rankClass = rank <= 3 ? ` cell-rank--${rank}` : '';
+      const cardClass = state.spotlightUsername ? ' spotlight-row' : (rank <= 3 ? ` rank-row--${rank}` : '');
+      const wallet = `<a class="holder-link" href="https://nhlbreakaway.com/user/${encodeURIComponent(r.username)}?sort=newest" target="_blank" rel="noopener">${escHtml(r.username)}</a>`;
+      return `
+        <div class="mobile-card${cardClass}">
+          <div class="mobile-card-header">
+            <div class="mobile-card-header-name">
+              <span class="cell-rank${rankClass}">#${fmtNum(rank)}</span>
+              ${wallet}
+            </div>
+          </div>
+          <div class="mobile-card-stats">
+            <div><span class="mobile-stat-label">Count</span><span class="mobile-stat-value">${fmtNum(r.count)}</span></div>
+            ${TYPE_HAS_AMOUNT[state.type] ? `<div><span class="mobile-stat-label">Total Amount</span><span class="mobile-stat-value">${fmtUsd(r.total_amount)}</span></div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
   const meta = document.getElementById('resultsMeta');
   if (state.spotlightUsername) {
     meta.innerHTML = `Showing <strong>1</strong> collector only <button type="button" id="exitSpotlightBtn" class="exit-spotlight-btn">✕ Show full leaderboard</button>`;
     document.getElementById('exitSpotlightBtn').addEventListener('click', exitSpotlight);
   } else {
-    meta.innerHTML = `<strong>${fmtNum(state.leaderboard.length)}</strong> wallet${state.leaderboard.length === 1 ? '' : 's'}${state.hasMore ? '+' : ''}`;
+    meta.innerHTML = `<strong>${fmtNum(state.total)}</strong> wallet${state.total === 1 ? '' : 's'}`;
   }
 }
 
@@ -507,7 +691,7 @@ function populateTypeCombo() {
       state.sortField = TYPE_HAS_AMOUNT[v] ? 'amount' : 'count';
       state.sortDir = 'desc';
     },
-    () => { renderHead(); fetchPage(true); });
+    () => { renderHead(); fetchPage(true); populateMobileSortCombo(); });
 }
 
 async function populateFilters() {
@@ -678,6 +862,7 @@ findCollectorInputEl.addEventListener('keydown', e => {
   document.getElementById('resultsMeta').textContent = 'Loading…';
   populateTypeCombo();
   renderHead();
+  populateMobileSortCombo();
   try {
     await Promise.all([populateFilters(), fetchPage(true)]);
   } catch (err) {
