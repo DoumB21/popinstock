@@ -145,6 +145,56 @@
     .pull-list-wrap { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
     .pull-list-wrap .pull-list { margin-top: 0.35rem; }
 
+    /* ── Left in Packs tab ── */
+    .pools-summary {
+      display: flex; flex-wrap: wrap; gap: 1.5rem;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.85rem 1.2rem;
+    }
+    .pools-summary-item { display: flex; flex-direction: column; gap: 2px; }
+    .pools-summary-value { font-size: 1.3rem; font-weight: 800; color: var(--accent-light); font-variant-numeric: tabular-nums; }
+    .pools-summary-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+
+    /* One highlight-pool row's linked highlight(s) — usually 1 (an
+       individual highlight), occasionally several (a shared pool, e.g. "The
+       Greatest Achievements" Legendary tier sharing 1 pull across 5
+       players) — same idea as the Activity tab's own pull-list, reused
+       verbatim since it's the same "compact linked mini-list inside one
+       cell" shape. */
+    .pool-members { display: flex; flex-direction: column; gap: 4px; }
+    .pool-member {
+      display: flex; align-items: center; gap: 0.5rem;
+      color: inherit; text-decoration: none; font-size: 0.83rem;
+    }
+    .pool-member:hover .pool-member-name { color: var(--accent-light); text-decoration: underline; }
+    .pool-member-name { font-weight: 600; color: var(--text-primary); }
+    .pool-member-team { color: var(--text-secondary); font-size: 0.72rem; flex: 1; }
+    /* Per-member pulled count within a shared-pool group — see
+       poolMemberHtml's showPulled param. Dim/plain at 0, accent+bold on the
+       member(s) that actually account for the group's pulled total, so a
+       glance answers "which one(s) got pulled". */
+    .pool-member-pulled { color: var(--text-secondary); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+    .pool-member-pulled--hit { color: var(--accent-light); font-weight: 700; }
+    .pool-shared-note { display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px; }
+
+    .pool-remaining { font-weight: 700; font-variant-numeric: tabular-nums; }
+    /* Red — this exact highlight/pool has nothing left, matches the site's
+       existing "negative/depleted" red convention (holders.html's
+       .floor-price-missing, wallet.html's .cell-rating--negative). */
+    .pool-remaining--depleted { color: #f87171; }
+    /* Yellow — still available but low, same "heads up" amber as the
+       Wallet tab's own .hl-unpriced-flag. Threshold is a plain <=5, not
+       tied to the pool's own size — a 1-of-1 with 1 left and a 500-pool
+       with 5 left both read as "grab it soon" at a glance. */
+    .pool-remaining--low { color: #eab308; }
+
+    .pools-unsourced {
+      font-size: 0.82rem; color: var(--text-secondary);
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.85rem 1.2rem;
+    }
+    .pools-unsourced-list { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
+
     /* ── Packs table ── */
     .packs-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .packs-table thead th {
@@ -238,7 +288,7 @@
 
     @media (max-width: 700px) {
       .filter-bar .cb-combo, .filter-bar .search-input, .opener-search-wrap { max-width: none; }
-      .packs-table, .activity-table { font-size: 0.78rem; }
+      .packs-table, .activity-table, .pools-table { font-size: 0.78rem; }
       .table-scroll { display: none; }
       .mobile-card-list { display: flex; }
       .mobile-sort-bar { display: flex; }
@@ -258,6 +308,7 @@
     <div class="packstats-tabs" id="packstatsTabs">
       <button type="button" class="packstats-tab-btn active" data-tab="stats">Stats</button>
       <button type="button" class="packstats-tab-btn" data-tab="activity">Activity</button>
+      <button type="button" class="packstats-tab-btn" data-tab="left-in-packs">Left in Packs</button>
     </div>
 
     <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
@@ -380,6 +431,53 @@
       <div id="activityLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
         <button type="button" id="activityLoadMoreBtn" class="load-more-btn">Load more</button>
       </div>
+    </div>
+
+    <div class="packstats-tab-panel" id="tabPanelLeftInPacks">
+      <div class="filter-bar">
+        <div class="cb-combo" id="poolsPackCombo">
+          <input type="text" class="cb-combo-input" id="poolsPackComboInput" autocomplete="off" spellcheck="false" readonly>
+          <button type="button" class="cb-combo-clear" id="poolsPackComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="poolsPackPanel"></div>
+        </div>
+        <div class="cb-combo" id="poolsSetCombo">
+          <input type="text" class="cb-combo-input" id="poolsSetComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="poolsSetComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="poolsSetPanel"></div>
+        </div>
+        <div class="cb-combo" id="poolsRarityCombo">
+          <input type="text" class="cb-combo-input" id="poolsRarityComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="poolsRarityComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="poolsRarityPanel"></div>
+        </div>
+        <input type="text" class="search-input" id="poolsPlayerSearch" placeholder="Search player…" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="filter-bar mobile-sort-bar" id="poolsMobileSortBar">
+        <div class="cb-combo" id="poolsSortFieldCombo">
+          <input type="text" class="cb-combo-input" id="poolsSortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+          <div class="cb-panel" id="poolsSortFieldPanel"></div>
+        </div>
+        <div class="tpc-toggle-group" id="poolsSortDirToggle">
+          <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+          <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+        </div>
+      </div>
+
+      <div class="pools-summary" id="poolsSummary"></div>
+
+      <div class="results-meta" id="poolsResultsMeta"></div>
+
+      <div class="table-scroll" style="overflow-x:auto;">
+        <table class="pools-table packs-table">
+          <thead><tr id="poolsHeadRow"></tr></thead>
+          <tbody id="poolsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="mobile-card-list" id="poolsMobileList"></div>
+
+      <div class="pools-unsourced" id="poolsUnsourced"></div>
     </div>
 
   </div>
@@ -541,8 +639,12 @@ function escHtml(s) {
 // pre-filtered to this exact pack design — a real <a href> (not a div+click
 // handler) so right/middle-click still work, and a fresh load of this exact
 // URL lands on the same filtered view via the init() URL-param read below.
+// Also carries pool_pack_uuid, so if the visitor later opens Left in Packs
+// it's already showing this pack too — even though most packs have no pool
+// data at all, initPoolsTab() validates it against the real list and falls
+// back to "Select a pack" if this one isn't in it.
 function packActivityHref(p) {
-  return `pack-stats?tab=activity&pack_uuid=${encodeURIComponent(p.pack_uuid)}`;
+  return `pack-stats?tab=activity&pack_uuid=${encodeURIComponent(p.pack_uuid)}&pool_pack_uuid=${encodeURIComponent(p.pack_uuid)}`;
 }
 function packNameLinkHtml(p) {
   return `<a class="pack-name-link" href="${packActivityHref(p)}">${escHtml(p.pack_name)}</a>`;
@@ -1160,8 +1262,301 @@ function syncPackUuidUrl() {
   history.replaceState(null, '', url);
 }
 
-/* ══════════════════ Tabs (Stats / Activity) ══════════════════ */
-const TAB_PANEL_IDS = { stats: 'tabPanelStats', activity: 'tabPanelActivity' };
+/* ══════════════════ Left in Packs — highlight pool remaining-count tab ══════════════════
+   Per NHL_BREAKAWAY_DATA_HANDOFF.txt's PACK HIGHLIGHT POOLS section, backed
+   by /api/pack-pools(/filters). Unlike Activity, this is a MANUAL one-off
+   import per drop (not hourly) — only 2 packs have this data at all right
+   now. Small dataset per pack (≤165 rows) fetched whole and filtered/sorted
+   client-side, same convention as the Stats tab above, NOT Activity's
+   server-paginated Load More. */
+const POOLS_COLUMNS = [
+  { key: 'set_name',  label: 'Set',       sortable: true },
+  { key: 'player',    label: 'Highlight', sortable: true },
+  { key: 'available', label: 'Available', sortable: true, num: true },
+  { key: 'pulled',    label: 'Pulled',    sortable: true, num: true },
+  { key: 'remaining', label: 'Remaining', sortable: true, num: true },
+];
+function poolsDefaultDirForField(field) {
+  return field === 'player' || field === 'set_name' ? 'asc' : 'desc';
+}
+const poolsState = {
+  packUuid: '', packName: '', setName: '', rarity: '', player: '',
+  sortField: 'remaining', sortDir: 'asc',
+  highlights: [], unsourced: [], totals: null, poolsAvailable: null, loaded: false,
+};
+
+// showPulled: only for shared-pool rows — the row's own Pulled column
+// already shows the group TOTAL, so a per-member breakdown is only useful
+// (and only non-redundant) when the group has more than one member. Every
+// member shows its own count, 0 included, not just the ones that hit — the
+// whole point is being able to tell WHICH of the shared members accounts
+// for the group's pulled total.
+function poolMemberHtml(m, showPulled) {
+  return `<a class="pool-member" href="holders?moment_uuid=${encodeURIComponent(m.moment_uuid)}">
+    <span class="pool-member-name">${escHtml(m.player)}</span>
+    <span class="pool-member-team">${escHtml(m.team || '')}</span>
+    ${showPulled ? `<span class="pool-member-pulled${m.pulled > 0 ? ' pool-member-pulled--hit' : ''}">${fmtNum(m.pulled)} pulled</span>` : ''}
+    ${m.rarity ? `<span class="rarity-pill rarity-pill--${m.rarity.toLowerCase()}"><span class="rarity-pill-text">${m.rarity}</span></span>` : ''}
+  </a>`;
+}
+function poolHighlightCellHtml(h) {
+  const showPulled = h.type === 'shared';
+  return `<div class="pool-members">${h.members.map(m => poolMemberHtml(m, showPulled)).join('')}</div>`;
+}
+function poolAvailableCellHtml(h) {
+  return h.type === 'shared'
+    ? `${fmtNum(h.pool_size)}<span class="pool-shared-note">shared × ${h.members.length}</span>`
+    : fmtNum(h.pool_size);
+}
+function poolRemainingCellHtml(h) {
+  const cls = h.remaining <= 0 ? 'pool-remaining--depleted' : (h.remaining <= 5 ? 'pool-remaining--low' : '');
+  // The sheet's "approx avail" is a snapshot estimate, not a live cap — a
+  // highlight open long enough can genuinely get pulled MORE times than
+  // that estimate said existed. Surfaced as "(+N) All pulled" (N = the
+  // overage) rather than a silently-clamped "All pulled", so that's
+  // visible instead of looking identical to an exact sellout.
+  let text;
+  if (h.remaining < 0) text = `(+${fmtNum(-h.remaining)}) All pulled`;
+  else if (h.remaining === 0) text = 'All pulled';
+  else text = fmtNum(h.remaining);
+  return `<span class="pool-remaining ${cls}">${text}</span>`;
+}
+
+function filteredSortedPools() {
+  let rows = poolsState.highlights;
+  if (poolsState.setName) rows = rows.filter(h => h.set_name === poolsState.setName);
+  if (poolsState.rarity) rows = rows.filter(h => h.members.some(m => m.rarity === poolsState.rarity));
+  const q = poolsState.player.trim().toLowerCase();
+  if (q) rows = rows.filter(h => h.members.some(m => m.player.toLowerCase().includes(q)));
+
+  const dir = poolsState.sortDir === 'asc' ? 1 : -1;
+  const field = poolsState.sortField;
+  return [...rows].sort((a, b) => {
+    let av, bv;
+    if (field === 'player') { av = a.members[0].player; bv = b.members[0].player; }
+    else if (field === 'set_name') { av = a.set_name; bv = b.set_name; }
+    else if (field === 'available') { av = a.pool_size; bv = b.pool_size; }
+    else { av = a[field]; bv = b[field]; } // pulled, remaining
+    if (typeof av === 'string') return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+}
+
+function renderPoolsHead() {
+  const row = document.getElementById('poolsHeadRow');
+  row.innerHTML = POOLS_COLUMNS.map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = poolsState.sortField === col.key;
+    const icon = sorted ? (poolsState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (poolsState.sortField === field) {
+        poolsState.sortDir = poolsState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        poolsState.sortField = field;
+        poolsState.sortDir = poolsDefaultDirForField(field);
+      }
+      renderPoolsHead();
+      renderPoolsBody();
+      syncPoolsMobileSort();
+    });
+  });
+}
+
+function renderPoolsSummary() {
+  const el = document.getElementById('poolsSummary');
+  if (!poolsState.poolsAvailable) { el.innerHTML = ''; return; }
+  const t = poolsState.totals;
+  el.innerHTML = `
+    <div class="pools-summary-item"><span class="pools-summary-value">${fmtNum(t.available)}</span><span class="pools-summary-label">Available</span></div>
+    <div class="pools-summary-item"><span class="pools-summary-value">${fmtNum(t.pulled)}</span><span class="pools-summary-label">Pulled So Far</span></div>
+    <div class="pools-summary-item"><span class="pools-summary-value">${fmtNum(t.remaining)}</span><span class="pools-summary-label">Remaining</span></div>
+  `;
+}
+
+function renderPoolsUnsourced() {
+  const el = document.getElementById('poolsUnsourced');
+  if (!poolsState.unsourced.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div>${poolsState.unsourced.length} highlight${poolsState.unsourced.length === 1 ? '' : 's'} in this pack's design ${poolsState.unsourced.length === 1 ? "wasn't" : "weren't"} sourced in the Highlights List sheet, so no available/remaining count exists for ${poolsState.unsourced.length === 1 ? 'it' : 'them'} yet:</div>
+    <div class="pools-unsourced-list">${poolsState.unsourced.map(m => `<span>${escHtml(m.player)} <span class="cell-series">(${escHtml(m.set_name)})</span></span>`).join('')}</div>
+  `;
+}
+
+function renderPoolsBody() {
+  if (!poolsState.packUuid) {
+    document.getElementById('poolsBody').innerHTML = '';
+    document.getElementById('poolsMobileList').innerHTML = '';
+    document.getElementById('poolsResultsMeta').textContent = 'Select a pack from the list.';
+    return;
+  }
+  if (!poolsState.poolsAvailable) {
+    document.getElementById('poolsBody').innerHTML = '';
+    document.getElementById('poolsMobileList').innerHTML = '';
+    document.getElementById('poolsResultsMeta').textContent = "This pack's Highlights List hasn't been imported yet.";
+    return;
+  }
+  const rows = filteredSortedPools();
+  document.getElementById('poolsBody').innerHTML = rows.map(h => `
+    <tr>
+      <td>${escHtml(h.set_name)}</td>
+      <td>${poolHighlightCellHtml(h)}</td>
+      <td class="col-r">${poolAvailableCellHtml(h)}</td>
+      <td class="col-r">${fmtNum(h.pulled)}</td>
+      <td class="col-r">${poolRemainingCellHtml(h)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('poolsMobileList').innerHTML = rows.map(h => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <div class="cell-series">${escHtml(h.set_name)}</div>
+          ${poolHighlightCellHtml(h)}
+        </div>
+      </div>
+      <div class="mobile-card-stats">
+        <div><span class="mobile-stat-label">Available</span><span class="mobile-stat-value">${poolAvailableCellHtml(h)}</span></div>
+        <div><span class="mobile-stat-label">Pulled</span><span class="mobile-stat-value">${fmtNum(h.pulled)}</span></div>
+        <div><span class="mobile-stat-label">Remaining</span><span class="mobile-stat-value">${poolRemainingCellHtml(h)}</span></div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('poolsResultsMeta').innerHTML = `<strong>${fmtNum(rows.length)}</strong> highlight${rows.length === 1 ? '' : 's'}`;
+}
+
+function renderPoolsAll() {
+  renderPoolsSummary();
+  renderPoolsUnsourced();
+  renderPoolsBody();
+}
+
+async function fetchPoolsForPack() {
+  // A different pack's pool has a different set of sets/rarities — a
+  // filter value carried over from the previous pack could silently hide
+  // everything (or nothing meaningful) on the new one.
+  poolsState.setName = '';
+  poolsState.rarity = '';
+  document.getElementById('poolsResultsMeta').textContent = 'Loading…';
+  document.getElementById('poolsBody').innerHTML = '';
+  document.getElementById('poolsMobileList').innerHTML = '';
+  document.getElementById('poolsSummary').innerHTML = '';
+  document.getElementById('poolsUnsourced').innerHTML = '';
+  setBusyUi(true);
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/pack-pools?pack_uuid=${encodeURIComponent(poolsState.packUuid)}`, version));
+    const data = await res.json();
+    poolsState.poolsAvailable = data.pools_available;
+    poolsState.highlights = data.highlights || [];
+    poolsState.unsourced = data.unsourced || [];
+    poolsState.totals = data.pools_available ? { available: data.total_available, pulled: data.total_pulled, remaining: data.total_remaining } : null;
+    populatePoolsDataFilters();
+    renderPoolsAll();
+  } catch (err) {
+    document.getElementById('poolsResultsMeta').textContent = 'Failed to load pack highlight pools. Please try again shortly.';
+    console.error(err);
+  } finally {
+    setBusyUi(false);
+  }
+}
+
+function populatePoolsSortFieldCombo() {
+  buildCombo('poolsSortFieldCombo',
+    [{ value: '', label: '' }, ...POOLS_COLUMNS.filter(c => c.sortable).map(c => ({ value: c.key, label: c.label }))],
+    () => poolsState.sortField,
+    v => { poolsState.sortField = v; poolsState.sortDir = poolsDefaultDirForField(v); },
+    () => { renderPoolsHead(); renderPoolsBody(); syncPoolsMobileSort(); });
+}
+function syncPoolsMobileSort() {
+  syncComboDisplay(document.getElementById('poolsSortFieldCombo'));
+  document.querySelectorAll('#poolsSortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === poolsState.sortDir);
+  });
+}
+document.getElementById('poolsSortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  poolsState.sortDir = btn.dataset.dir;
+  renderPoolsHead();
+  renderPoolsBody();
+  syncPoolsMobileSort();
+});
+
+document.getElementById('poolsPlayerSearch').addEventListener('input', e => {
+  poolsState.player = e.target.value;
+  renderPoolsBody();
+});
+
+// Set/Rarity options are scoped to whatever pack is CURRENTLY loaded (not a
+// sitewide list) — rebuilt after every pack switch, not just once at init,
+// since a different pack's pool has a different set of sets/rarities. Same
+// "don't show a filter value with zero matches" convention as elsewhere on
+// this site.
+function populatePoolsDataFilters() {
+  const setValues = [...new Set(poolsState.highlights.map(h => h.set_name).filter(Boolean))].sort();
+  const rarityValues = sortByRarityOrder([...new Set(poolsState.highlights.flatMap(h => h.members.map(m => m.rarity)).filter(Boolean))]);
+  buildCombo('poolsSetCombo',
+    [{ value: '', label: 'All sets' }, ...setValues.map(v => ({ value: v, label: v }))],
+    () => poolsState.setName, v => poolsState.setName = v, () => renderPoolsBody());
+  buildCombo('poolsRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...rarityValues.map(v => ({ value: v, label: v }))],
+    () => poolsState.rarity, v => poolsState.rarity = v, () => renderPoolsBody());
+}
+
+async function initPoolsTab() {
+  renderPoolsHead();
+  populatePoolsSortFieldCombo();
+  syncPoolsMobileSort();
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/pack-pools/filters`, version));
+    const data = await res.json();
+    if (!data.packs.length) {
+      document.getElementById('poolsResultsMeta').textContent = 'No packs have a Highlights List imported yet.';
+      return;
+    }
+    // Keep a URL-deep-linked pack_uuid only if it's actually one this
+    // endpoint lists (most packs have no pool data at all — see the Stats
+    // tab's own click-through, which pre-fills this for EVERY pack, not
+    // just the ones with real pool data). No auto-selecting the first pack
+    // otherwise — an explicit "Select a pack" state instead.
+    if (poolsState.packUuid && !data.packs.some(p => p.pack_uuid === poolsState.packUuid)) {
+      poolsState.packUuid = '';
+    }
+    buildCombo('poolsPackCombo',
+      [{ value: '', label: 'Select a pack…' }, ...data.packs.map(p => ({ value: p.pack_uuid, label: p.pack_name }))],
+      () => poolsState.packUuid, v => { poolsState.packUuid = v; syncPoolUuidUrl(); }, () => { fetchPoolsForPack(); });
+    syncPoolUuidUrl();
+    if (poolsState.packUuid) {
+      await fetchPoolsForPack();
+    } else {
+      populatePoolsDataFilters(); // wires Set/Rarity as inert empty-option combos until a pack is picked
+      renderPoolsAll();
+    }
+  } catch (err) {
+    document.getElementById('poolsResultsMeta').textContent = 'Failed to load pack highlight pools. Please try again shortly.';
+    console.error(err);
+  }
+}
+
+// Keeps ?pool_pack_uuid= in sync with the Pack combo, same "copy-pasted URL
+// should match what's on screen" reasoning as syncPackUuidUrl for Activity
+// — a different param name (pool_pack_uuid, not pack_uuid) since the two
+// tabs' pack selections are independent of each other.
+function syncPoolUuidUrl() {
+  const url = new URL(location.href);
+  if (poolsState.packUuid) url.searchParams.set('pool_pack_uuid', poolsState.packUuid);
+  else url.searchParams.delete('pool_pack_uuid');
+  history.replaceState(null, '', url);
+}
+
+/* ══════════════════ Tabs (Stats / Activity / Left in Packs) ══════════════════ */
+const TAB_PANEL_IDS = { stats: 'tabPanelStats', activity: 'tabPanelActivity', 'left-in-packs': 'tabPanelLeftInPacks' };
 function setActiveTab(tab, { syncUrl = true } = {}) {
   if (!TAB_PANEL_IDS[tab]) tab = 'stats';
   document.querySelectorAll('.packstats-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
@@ -1176,6 +1571,10 @@ function setActiveTab(tab, { syncUrl = true } = {}) {
   if (tab === 'activity' && !activityState.loaded) {
     activityState.loaded = true;
     initActivityTab();
+  }
+  if (tab === 'left-in-packs' && !poolsState.loaded) {
+    poolsState.loaded = true;
+    initPoolsTab();
   }
 }
 document.getElementById('packstatsTabs').addEventListener('click', e => {
@@ -1207,6 +1606,8 @@ document.getElementById('packstatsTabs').addEventListener('click', e => {
   const initTab = initParams.get('tab') || 'stats';
   const initPackUuid = initParams.get('pack_uuid') || '';
   if (initPackUuid) activityState.packUuid = initPackUuid;
+  const initPoolPackUuid = initParams.get('pool_pack_uuid') || '';
+  if (initPoolPackUuid) poolsState.packUuid = initPoolPackUuid;
   setActiveTab(initTab, { syncUrl: false });
 })();
 </script>

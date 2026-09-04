@@ -450,6 +450,135 @@ async function handlePackActivityFilters(res) {
   }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
+/* ══════════════════ Pack Highlight Pools (Pack Stats' "Left in Packs" tab) ══════════════════
+   Per NHL_BREAKAWAY_DATA_HANDOFF.txt's PACK HIGHLIGHT POOLS section — a
+   MANUAL, one-off-per-drop import (NOT hourly like everything else in this
+   file) of NHL Breakaway's own published "Highlights List" sheet for a
+   drop, giving a real sourced "Approx # Avail" per highlight (or shared
+   across a whole tier — see approx_avail_set). Combined with the pull
+   counts this file already computes for PACK OPENING HISTORY, this is a
+   genuine "N remaining" countdown, not just an observed-frequency guess.
+   Only 2 drops have this table populated at all as of 2026-09-04 — same
+   backfill-scope caveat as pack activity, just a different (manual, rarer)
+   process behind it. */
+async function handlePackPoolsFilters(res) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT pm.pack_uuid, pm.pack_name
+     FROM pack_moments pm
+     WHERE EXISTS (SELECT 1 FROM pack_highlight_pools php WHERE php.pack_uuid = pm.pack_uuid)
+     ORDER BY pm.pack_name`
+  );
+  sendJson(res, 200, {
+    packs: rows.map(r => ({ pack_uuid: r.pack_uuid, pack_name: r.pack_name })),
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
+async function handlePackPools(url, res) {
+  const packUuid = (url.searchParams.get('pack_uuid') || '').trim();
+  if (!packUuid) return sendJson(res, 400, { error: 'pack_uuid required' });
+
+  const { rows } = await pool.query(
+    `SELECT php.moment_uuid, php.approx_avail, php.approx_avail_set,
+       m.player, m.team, m.set_name, m.rarity,
+       COALESCE(pulls.cnt, 0) AS pulled
+     FROM pack_highlight_pools php
+     JOIN moments m ON m.moment_uuid = php.moment_uuid
+     LEFT JOIN (
+       SELECT c.moment_uuid, COUNT(*) AS cnt
+       FROM cards c
+       JOIN packs p ON p.token_uri = c.pulled_from_pack_token_uri
+       WHERE p.pack_uuid = $1
+       GROUP BY c.moment_uuid
+     ) pulls ON pulls.moment_uuid = php.moment_uuid
+     WHERE php.pack_uuid = $1
+     ORDER BY m.set_name, m.player`,
+    [packUuid]
+  );
+
+  if (!rows.length) {
+    return sendJson(res, 200, { pools_available: false, highlights: [] }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+  }
+
+  // The TOP-LEVEL summary total is deliberately NOT a sum of the sheet's
+  // own per-highlight approx_avail/approx_avail_set values — that
+  // undercounts whenever the sheet itself has a gap (see `unsourced` below,
+  // a real one found on the Series 3 Grand Finale drop) since an unsourced
+  // highlight's real pool contribution is then missing entirely. The
+  // mathematically correct total is this pack DESIGN's own cap
+  // (pack_moments.total_editions, same "Editions" figure the Stats tab
+  // already shows) times how many highlights come out of one pack
+  // (highlights_in_pack, the Stats tab's own "Highlights" column) — e.g.
+  // Playoff Bound 2026: 2,000 editions × 5/pack = 10,000, not the sheet's
+  // own (incomplete) 9,536. Falls back to a live packs COUNT(*) for the
+  // rare uncapped pack design (total_editions IS NULL), same
+  // editions_live_sum convention PACKS_SQL already uses elsewhere.
+  // total_pulled is likewise the REAL total (every pull ever linked to
+  // ANY pack of this design), not just the sourced highlights' own sum —
+  // covers the same gap for packs whose unsourced highlights have already
+  // been pulled some nonzero number of times.
+  const [packInfoRes, liveCountRes, truePulledRes] = await Promise.all([
+    pool.query(`SELECT total_editions, highlights_in_pack FROM pack_moments WHERE pack_uuid = $1`, [packUuid]),
+    pool.query(`SELECT COUNT(*) AS n FROM packs WHERE pack_uuid = $1`, [packUuid]),
+    pool.query(
+      `SELECT COUNT(*) AS n FROM cards c JOIN packs p ON p.token_uri = c.pulled_from_pack_token_uri WHERE p.pack_uuid = $1`,
+      [packUuid]
+    ),
+  ]);
+  const packInfo = packInfoRes.rows[0] || {};
+  const effectiveEditions = packInfo.total_editions != null ? Number(packInfo.total_editions) : Number(liveCountRes.rows[0].n);
+  const highlightsPerPack = Number(packInfo.highlights_in_pack) || 0;
+  const trueTotalAvailable = effectiveEditions * highlightsPerPack;
+  const trueTotalPulled = Number(truePulledRes.rows[0].n);
+
+  // Shared-pool rows (approx_avail_set > 0) group by set_name — per the
+  // handoff note, a shared-pool group is always one full section/tier of
+  // the source sheet, and set_name is the reliable way to identify it (two
+  // DIFFERENT shared groups could coincidentally share the same
+  // approx_avail_set number, so never group on that alone).
+  const sharedGroups = new Map(); // set_name -> { pool_size, members: [] }
+  const highlights = [];
+  // A handful of rows (found 2026-09-05, verified against the Series 3
+  // Grand Finale drop specifically) have BOTH approx_avail=0 AND
+  // approx_avail_set=0 — a real gap in that drop's own sheet-import
+  // (some tiers, e.g. its own Legendary/Mythic sections, didn't get parsed
+  // into either bucket), not a bug in this query. Surfaced explicitly as
+  // "not sourced" rather than silently dropped, matching this file's usual
+  // convention of naming known data gaps instead of hiding them.
+  const unsourced = [];
+
+  for (const r of rows) {
+    const approxAvail = Number(r.approx_avail) || 0;
+    const approxAvailSet = Number(r.approx_avail_set) || 0;
+    const pulled = Number(r.pulled);
+    const base = { moment_uuid: r.moment_uuid, player: r.player, team: r.team, set_name: r.set_name, rarity: r.rarity, pulled };
+    if (approxAvailSet > 0) {
+      const key = r.set_name;
+      if (!sharedGroups.has(key)) sharedGroups.set(key, { set_name: key, pool_size: approxAvailSet, members: [] });
+      sharedGroups.get(key).members.push(base);
+    } else if (approxAvail > 0) {
+      highlights.push({ type: 'individual', set_name: r.set_name, pool_size: approxAvail, pulled, remaining: approxAvail - pulled, members: [base] });
+    } else {
+      unsourced.push(base);
+    }
+  }
+  for (const g of sharedGroups.values()) {
+    const pulledTotal = g.members.reduce((sum, m) => sum + m.pulled, 0);
+    highlights.push({
+      type: 'shared', set_name: g.set_name, pool_size: g.pool_size,
+      pulled: pulledTotal, remaining: g.pool_size - pulledTotal, members: g.members,
+    });
+  }
+
+  sendJson(res, 200, {
+    pools_available: true,
+    total_available: trueTotalAvailable,
+    total_pulled: trueTotalPulled,
+    total_remaining: trueTotalAvailable - trueTotalPulled,
+    highlights,
+    unsourced,
+  }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
 async function handleSets(res) {
   const { rows } = await pool.query(SETS_SQL);
   const sets = rows.map(row => {
@@ -2743,6 +2872,10 @@ export async function routeRequest(url, res) {
       await handlePackActivityFilters(res);
     } else if (url.pathname === '/api/pack-activity') {
       await handlePackActivity(url, res);
+    } else if (url.pathname === '/api/pack-pools/filters') {
+      await handlePackPoolsFilters(res);
+    } else if (url.pathname === '/api/pack-pools') {
+      await handlePackPools(url, res);
     } else if (url.pathname === '/api/wallet/resolve') {
       await handleWalletResolve(url, res);
     } else if (url.pathname === '/api/wallet/suggest') {
