@@ -21,6 +21,15 @@ right way to resolve a transaction to a player/highlight name (verified: 99.97% 
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
 
+UPDATE 2026-09-04 (evening): 3rd drop backfilled (QqBmP5RA, "Hoist The Cup 2026 Debut LE
+Pack" — an ENDED drop, not one of the 2 active ones) — confirms the on-demand per-drop
+workflow generalizes cleanly. Also now an established, explicit user preference: this
+backfill workflow is on-demand only (wait for approval each time, periodic reminders OK),
+never automatic/unprompted, and never concurrent with a running refresh-all. See the updated
+BACKFILL SCOPE section below for the full 3-drop tally and the discovery-autonomy proof
+(reading /drops, extracting a series_id, finding its Highlights List link — all done without
+the user hand-supplying URLs).
+
 UPDATE 2026-09-04 (later): expanded PACK OPENING HISTORY's reference query into a full
 "how to build the page" section — a real paginated listing query (one query, no N+1, tested
 live), reverse lookup by highlight, filter-dropdown sources, an empirical "pull odds so far"
@@ -1006,24 +1015,39 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04 — TWO ACTIVE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY
+BACKFILL SCOPE, 2026-09-04/05 — THREE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
 as a first step — same cost class as the sweet_transaction_history Alchemy-hybrid idea
 declined earlier (one eth_getTransactionReceipt call per pack; 163K of them would be a
-genuinely large one-time job). Instead, backfilled two specific active drops end-to-end per
-direct user request, both their ENTIRE history (not date-limited):
+genuinely large one-time job). Instead, this is now an established ON-DEMAND workflow: the
+user browses https://nhlbreakaway.com/drops (newest first) and asks for the next one to be
+imported one at a time — NOT something to run unprompted; wait for explicit approval each
+time, but it's fine to remind the user periodically that more drops remain unimported.
+Confirmed capable of doing the whole discovery step autonomously (2026-09-04): reading the
+drops list, extracting a drop's series_id from its own link, finding its "Highlights List"
+sheet link on the drop page, and matching it all to local pack_uuid/series_id data — no
+human needs to hand-supply URLs, just approve which drop to do next.
+Drops backfilled so far, each their ENTIRE history (not date-limited):
   - series_id 8R5xYdbD, "Series 3 Grand Finale Pack" CORE
     (https://nhlbreakaway.com/drop/8R5xYdbD) — 1,510 packs, first burn 2026-09-01T17:02:46Z,
-    6,040 card pulls linked, exactly 4/pack.
+    6,040 card pulls linked, exactly 4/pack. ACTIVE drop.
   - series_id 61p6QVRP, "Playoff Bound 2026 Debut LE Pack" CORE
     (https://nhlbreakaway.com/drop/61p6QVRP) — 1,743 packs, first burn 2026-04-22T17:03:20Z,
-    8,715 card pulls linked, exactly 5/pack.
-Both: 0 zero-pull anomalies, 0 unmatched links, verified pushed to Raff and queried back
-exactly matching local data. Backfilled sequentially, not concurrently with each other or
-with a running refresh-all — deliberately waited out an in-progress hourly refresh first
-before starting the second drop's Alchemy calls (see detect-burns.js's own comment on why
-concurrent Alchemy requests are a real, previously-proven silent-data-loss risk, not just a
-theoretical one).
+    8,715 card pulls linked, exactly 5/pack. ACTIVE drop.
+  - series_id QqBmP5RA, "Hoist The Cup 2026 Debut LE Pack" RARE
+    (https://nhlbreakaway.com/drop/QqBmP5RA) — 713 packs, first burn 2026-07-30T17:04:53Z,
+    4,278 card pulls linked, exactly 6/pack. ENDED drop — the 3rd-most-recent on /drops,
+    proving this isn't limited to only the currently-active 2.
+All three: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
+matched (163/163, 169/169, 170/170), verified pushed to Raff and queried back exactly
+matching local data. Backfilled sequentially, never concurrently with each other or with a
+running refresh-all — always check `Get-ScheduledTaskInfo -TaskName "NHL Breakaway
+Refresh"`'s LastTaskResult (267009 = still running) before starting a new drop's Alchemy
+calls, and mind the ~1hr window before the next scheduled run for a drop's size (a small
+drop like QqBmP5RA's 713 packs took ~8 min for the resolve step alone) — see detect-burns.js's
+own comment on why concurrent Alchemy requests are a real, previously-proven silent-data-loss
+risk, not just a theoretical one.
 To backfill another drop the same way: `node --env-file=.env scripts/backfill-pack-burn-
 hashes.js <series_id>` (fills packs.burned_tx_hash for that contract's full history) then
 `node --env-file=.env scripts/resolve-pack-openings.js <series_id>` (resolves the pulls) —
