@@ -1,5 +1,5 @@
 NHL BREAKAWAY DATA LAYER — HANDOFF NOTE
-Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02/03/04, by a Claude Code session
+Written 2026-08-25, updated 2026-08-26/30/31, 2026-09-02/03/04/05, by a Claude Code session
 working in C:\Personnel\Projets\NHL Breakaway
 Dropped here (PopInStock3.0) only as a file for another session to read — nothing else
 in this project folder was touched or should be touched based on this note.
@@ -20,6 +20,17 @@ it's NOT opaque, it's the exact same value as cards.token_uri/packs.token_uri an
 right way to resolve a transaction to a player/highlight name (verified: 99.97% exact-
 match). The example queries were wrong to only join series_id — fixed to join token_uri
 directly, with an explanation of why series_id alone is ambiguous for a shared series.
+
+UPDATE 2026-09-05 (early AM): full audit of drops 1-14 completed per direct user request,
+after the shared-multi-tab-workbook discovery raised the question of whether earlier imports
+might be silently wrong too. Found and fixed a REAL bug (drop #9 had wrong data from an early
+import predating gid support) and confirmed drops #12/#13 (already fixed) and #10/#11/#14
+(never actually broken) are all now correct. Also found and fixed a separate, more serious
+bug: a sync-to-raff.js watermark race that permanently dropped ~978 of drop #14's packs from
+Raff — root-caused in resolve-pack-openings.js and fixed there, plus the already-stuck rows
+recovered. See SHARED MULTI-TAB WORKBOOKS / FULL AUDIT / SYNC-TO-RAFF WATERMARK RACE sections
+below for full detail. Final state: 1,531 pack_highlight_pools rows + 20,407 resolved packs,
+verified byte-for-byte matching between local and Raff.
 
 UPDATE 2026-09-04 (evening): 3rd drop backfilled (QqBmP5RA, "Hoist The Cup 2026 Debut LE
 Pack" — an ENDED drop, not one of the 2 active ones) — confirms the on-demand per-drop
@@ -1175,7 +1186,88 @@ href in a browser, check its tab bar, click through to find a tab matching the t
 drop's name, and retry with that tab's `#gid=...` URL — don't conclude "no data exists" or
 fall back to opening-history-only until the tab bar itself has been checked and has no
 matching tab.
-background/long-running processes got killed externally within a ~15-minute span: multiple
+
+TITLE-CHECK REFINED TO WORD-OVERLAP, 2026-09-05 (after a 2nd false-positive) — strict
+substring containment (even after stripping season tokens) still rejected real matches where
+the sheet's own title carries one extra/missing generic word our `pack_moments.pack_name`
+doesn't — e.g. sheet "The Hunt for Stanley 2026 Debut LE Pack" vs our own catalog's "...Debut
+Pack" (no "LE" — confirmed correct on OUR side too: even the site's own /drops listing agrees
+with our wording). Now: strip season tokens AND a small filler-word list ("the", "for", "of",
+"debut", "le", "pack", "encore", "collectible", "quest", "reward", "expansion") from both
+names, then require >=70% of the SMALLER remaining word set to appear in the larger one.
+Deliberately excludes filler words from the ratio, not just season tokens — without that, two
+GENUINELY DIFFERENT packs (e.g. "Base..." vs "Next-Gen Class...") would still score ~75%
+overlap on shared suffix filler alone, defeating the whole check. Verified both directions:
+correctly passes "Hunt for Stanley...Debut Pack" vs "...Debut LE Pack" (100% on the
+distinctive words "hunt"/"stanley"), and correctly still rejects "Base 2025-26..." against
+"Next-Gen Class 2025-26..." content (0% overlap on "base" vs "next"/"gen"/"class").
+
+FULL AUDIT, DROPS 1-14, COMPLETED 2026-09-05 PER DIRECT USER REQUEST ("make sure we didn't
+mis-handle 2-tab spreadsheets... run a full audit from pack 1 to 14"). Re-ran
+import-pack-highlight-pool.js against every drop's originally-used URL and checked
+sync-to-raff.js's change count immediately after each (0 pushed = confirmed already correct,
+matches a fresh re-fetch exactly; >0 = a real fix was needed). Results:
+  - Drops 1-8: all CLEAN, 0 changes each. None of these shared a workbook with another drop
+    (8 distinct published-sheet ids) — never at risk of the tab-selection bug in the first
+    place.
+  - Drop 9 ("Fresh Sweaters 2025-26 December Expansion Pack"): WAS GENUINELY WRONG — its
+    original import (done before gid support existed) pulled stale/incorrect values (e.g.
+    Justin Brazeau showed 93, the tab's real current value is 208) — likely from an earlier
+    revision of that same tab, or a workbook-default that had briefly pointed elsewhere.
+    FIXED using the confirmed-correct tab (gid=811975557); all 90 rows corrected, re-verified
+    stable (0 changes) on this audit's re-check.
+  - Drops 10 ("Next-Gen Class...") and 11 ("Opening Ice 2025-26...") share a workbook each
+    with another drop but were imported via the bare/default-tab URL BEFORE any gid/title
+    check existed — both re-verified CLEAN on this audit (0 changes), confirmed correct by
+    fortunate timing (the workbook's default tab happened to already be the right one when
+    each was originally fetched).
+  - Drops 12 and 13: previously found and fixed (see above) — re-confirmed CLEAN (0 changes)
+    on this audit using their correct explicit-gid URLs.
+  - Drop 14: imported after gid support existed, re-confirmed CLEAN (0 changes).
+FINAL VERIFIED TOTALS (local vs Raff, exact match both sides): 1,531 `pack_highlight_pools`
+rows total across all 14 drops (163+169+170+137+132+102+132+90+90+90+80+80+48+48), 20,407
+packs with `pulls_resolved_at` set. CONCLUSION: of 14 drops, only #9 had a real, silently-
+wrong-data bug (now fixed); #12/#13 had genuinely missing pool data (now filled in); the rest
+were always correct. The lesson generalizes: ANY drop imported via a bare/default-tab URL
+(no explicit gid) before 2026-09-05, especially one sharing a workbook with another drop,
+is worth a one-time re-verification re-run exactly like this audit did — cheap (no Alchemy
+calls, just a sheet re-fetch + upsert-with-change-guard) and conclusive (a 0-change result
+after re-fetching IS the proof of correctness, not an assumption).
+
+SYNC-TO-RAFF WATERMARK RACE — REAL BUG FOUND AND FIXED, 2026-09-05. `sync-to-raff.js`
+advances each table's watermark to `syncStartedAt` (captured at THAT sync's own start)
+unconditionally, regardless of whether every row up to that timestamp was actually captured.
+`resolve-pack-openings.js` used to stamp EVERY row from one entire run (which can take 40+
+minutes on a large drop) with a SINGLE timestamp captured once at the run's start. If a
+sync-to-raff.js run executes WHILE a resolve-pack-openings.js run is still writing, the
+sync's watermark can advance past that shared timestamp — and every row the still-running
+resolve script writes AFTER that point (still stamped with the now-in-the-past shared value)
+becomes PERMANENTLY invisible to every future incremental sync, since its scraped_at will
+always be less than the already-advanced watermark. This actually happened: running
+sync-to-raff.js for the drops #12/#13 fixes while drop #14's resolve-pack-openings.js was
+still active in the background left ~978 of drop #14's 4,822 packs (and their ~2,900 linked
+cards) permanently stuck — confirmed by comparing local vs Raff counts directly (resolved:
+4,822 local vs 3,844 Raff; the packs ROWS all existed on Raff already from earlier scraping,
+only the burned/pulls_resolved_at field UPDATEs were the ones lost).
+FIXED at the root cause: `resolve-pack-openings.js` now captures a FRESH timestamp per pack
+INSIDE its main loop, not one shared value for the whole run — a row's scraped_at now always
+reflects roughly when it was actually written, so a concurrent sync can only ever miss the
+still-in-flight tail, and that tail's later (still-fresh) timestamps get correctly picked up
+by the very next sync. The run's own end-of-run sanity check (previously keyed off the shared
+timestamp) now tracks its own processed-token_uri list in memory instead.
+RECOVERED the already-stuck drop #14 rows with a new one-off, `scripts/fix-stale-sync-
+timestamps.js <pack_uuid>` — bumps scraped_at to NOW for every packs/cards row tied to a
+pack_uuid, forcing the next sync to pick them all up regardless of the current watermark
+(safe/idempotent to run on already-correct rows too). Re-verified after: local/Raff now
+match exactly (resolved: 4,822/4,822, burned: 4,822/4,822).
+GENERAL LESSON: never run sync-to-raff.js while ANY Alchemy-heavy script from this workflow
+(detect-burns.js, resolve-pack-openings.js, backfill-pack-burn-hashes.js) is still actively
+running in the background — not just for the already-known "concurrent Alchemy requests
+silently drop data" risk, but now also for this separate sync-watermark race. Wait for the
+on-chain step to fully finish before running sync-to-raff.js, every time.
+
+ENVIRONMENT INSTABILITY, OBSERVED 2026-09-04 EVENING DURING AN EARLIER AUTONOMOUS WINDOW —
+several background/long-running processes got killed externally within a ~15-minute span: multiple
 Bash background wait-loops, AND (more seriously) the resolve-pack-openings.js process itself
 mid-run for the V1orQgqQ drop (stopped at 1,352/1,451 packs). Cause not identified — possibly
 environment/session interruptions unrelated to this code. Good news: every script in this
