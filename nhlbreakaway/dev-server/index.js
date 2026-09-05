@@ -71,6 +71,24 @@ async function ensurePackActivityIndexes() {
   for (const sql of PACK_ACTIVITY_INDEXES) await pool.query(sql);
 }
 
+// Sitewide Activity History (Activity Leaderboard's "History" tab) — per
+// NHL_BREAKAWAY_DATA_HANDOFF.txt's own STORAGE/SCALE note,
+// sweet_transaction_history only has indexes on (series_id,
+// transaction_type, to_username, from_username) — every wallet-scoped
+// query on this table (handleWalletActivity etc.) narrows via
+// from_username/to_username FIRST, so the ORDER BY transaction_datetime
+// afterward is cheap (a few hundred/thousand rows). This tab's own default
+// view has no such narrowing (a sitewide "most recent activity" feed), so
+// without this index that same ORDER BY was a full sort over 756K+ rows —
+// confirmed live, ~15-19s per request before this index existed. DESC to
+// match the feed's own default sort direction.
+const ACTIVITY_HISTORY_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS idx_sweet_transaction_history_datetime ON sweet_transaction_history (transaction_datetime DESC)`,
+];
+async function ensureActivityHistoryIndexes() {
+  for (const sql of ACTIVITY_HISTORY_INDEXES) await pool.query(sql);
+}
+
 // Same tier order as nhlbreakaway/rarity-order.js's RARITY_ORDER (kept in
 // sync by hand — this file runs under plain Node, not a browser, so it can't
 // just <script src> that module). Used to sort the Rarity column/dropdown by
@@ -1366,6 +1384,171 @@ async function handleWalletActivityFilters(url, res) {
     sets: [...new Set(rows.map(r => r.set_name).filter(Boolean))].sort(),
     rarities: sortRarities([...new Set(rows.map(r => r.rarity).filter(Boolean))]),
   }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
+/* ══════════════════ Sitewide Activity History (Activity Leaderboard's "History" tab) ══════════════════
+   The same per-transaction feed as Wallet Look Up's own Activity tab, but
+   with NO wallet scoping at all — every collector's rows at once. No
+   purchase/sale relabeling either (that CASE only exists because a wallet-
+   scoped view needs "was THIS wallet the buyer or the seller on this
+   row" — a sitewide feed has no single viewing wallet, and a 'purchase'
+   row already shows both sides directly via from/to). `wallet_search`
+   doubles as the "Search collector" box's filter (substring match against
+   either side, same convention as the wallet-scoped version's own field of
+   the same name) — reused as the query param name for continuity, even
+   though this page's own UI labels it differently. */
+const ACTIVITY_HISTORY_TYPES = new Set(['purchase', 'trade', 'gift', 'pack_open', 'promo', 'transfer']);
+const ACTIVITY_HISTORY_SORT_COLUMNS = { date: 's.transaction_datetime', amount: 's.amount' };
+
+function buildActivityHistoryWhere(q) {
+  const where = ['1=1'];
+  const params = [];
+  const typeFilter = q.get('type');
+  if (ACTIVITY_HISTORY_TYPES.has(typeFilter)) {
+    params.push(typeFilter);
+    where.push(`s.transaction_type = $${params.length}`);
+  }
+  const addEqFilter = (col, val) => {
+    if (!val) return;
+    params.push(val);
+    where.push(`${col} = $${params.length}`);
+  };
+  addEqFilter('COALESCE(c.series_label, p.series_label)', q.get('series_label'));
+  addEqFilter('COALESCE(c.set_name, p.pack_name)', q.get('set_name'));
+  addEqFilter('COALESCE(c.rarity, p.rarity)', q.get('rarity'));
+  const minAmount = parseFloat(q.get('min_amount'));
+  const maxAmount = parseFloat(q.get('max_amount'));
+  if (Number.isFinite(minAmount)) { params.push(minAmount); where.push(`s.amount >= $${params.length}`); }
+  if (Number.isFinite(maxAmount)) { params.push(maxAmount); where.push(`s.amount <= $${params.length}`); }
+  const walletSearch = (q.get('wallet_search') || '').trim();
+  if (walletSearch) {
+    params.push(`%${walletSearch.toLowerCase()}%`);
+    where.push(`(LOWER(s.from_username) LIKE $${params.length} OR LOWER(s.to_username) LIKE $${params.length})`);
+  }
+  const playerSearch = (q.get('player') || '').trim();
+  if (playerSearch) {
+    params.push(`%${playerSearch.toLowerCase()}%`);
+    where.push(`LOWER(c.player) LIKE $${params.length}`);
+  }
+  // s.edition is a real column on sweet_transaction_history itself (not
+  // derived from the cards/packs join) — present for every transaction
+  // type, card or pack, per the handoff note's own schema section.
+  const minEdition = parseInt(q.get('min_edition'), 10);
+  const maxEdition = parseInt(q.get('max_edition'), 10);
+  if (Number.isFinite(minEdition)) { params.push(minEdition); where.push(`s.edition >= $${params.length}`); }
+  if (Number.isFinite(maxEdition)) { params.push(maxEdition); where.push(`s.edition <= $${params.length}`); }
+  // Date range — transaction_datetime is a naive (no timezone) ISO-8601-like
+  // TEXT column (per the handoff note), so plain string comparison against
+  // a 'YYYY-MM-DD' bound already sorts correctly; date_to gets a literal
+  // end-of-day suffix so the whole selected day is included, not just its
+  // midnight instant. Same idx_sweet_transaction_history_datetime index
+  // this tab's default (unfiltered) sort already relies on backs a range
+  // scan here too.
+  const dateFrom = (q.get('date_from') || '').trim();
+  if (dateFrom) { params.push(dateFrom); where.push(`s.transaction_datetime >= $${params.length}`); }
+  const dateTo = (q.get('date_to') || '').trim();
+  if (dateTo) { params.push(`${dateTo}T23:59:59`); where.push(`s.transaction_datetime <= $${params.length}`); }
+  return { where, params };
+}
+
+async function handleActivityHistory(url, res) {
+  const q = url.searchParams;
+  const { where, params } = buildActivityHistoryWhere(q);
+
+  const sortKey = ACTIVITY_HISTORY_SORT_COLUMNS[q.get('sort')] ? q.get('sort') : 'date';
+  const sortSql = ACTIVITY_HISTORY_SORT_COLUMNS[sortKey];
+  const dir = q.get('dir') === 'asc' ? 'ASC' : 'DESC';
+  const nullsClause = sortKey === 'amount' ? ' NULLS LAST' : '';
+  const limit = Math.min(Math.max(parseInt(q.get('limit'), 10) || 50, 1), 200);
+  const offset = Math.max(parseInt(q.get('offset'), 10) || 0, 0);
+  // NO `COUNT(*) OVER()` here, unlike every other paginated endpoint in this
+  // file — deliberately. Confirmed live: with it, this specific query (no
+  // wallet/pack/series scoping to shrink the matching set the way every
+  // OTHER caller of that pattern has) took 15-29s even on an indexed,
+  // type-only-filtered subset of ~160-235K rows, because the window
+  // function forces full materialization of the whole matching set before
+  // LIMIT can apply — fine at the few-hundred/thousand-row scale every
+  // other endpoint here operates at, not at this table's real 756K+ scale.
+  // Fetching limit+1 and slicing off the extra row (same trick this
+  // codebase used everywhere before COUNT(*) OVER() was introduced) gets
+  // `has_more` for free while staying index-assisted — confirmed the same
+  // query shape drops to ~250-400ms once the window function is removed.
+  params.push(limit + 1, offset);
+
+  const { rows } = await pool.query(
+    `SELECT s.transaction_type, s.transaction_datetime, s.edition, s.amount, s.currency,
+       s.from_username, s.to_username, s.explorer_url,
+       COALESCE(c.set_name, p.pack_name) AS item_name,
+       COALESCE(c.series_label, p.series_label) AS series_label,
+       COALESCE(c.rarity, p.rarity) AS rarity,
+       c.player,
+       (p.token_uri IS NOT NULL) AS is_pack,
+       (p.pulls_resolved_at IS NOT NULL) AS pack_pulls_resolved,
+       (SELECT json_agg(json_build_object(
+          'moment_uuid', c2.moment_uuid, 'player', c2.player, 'team', c2.team,
+          'set_name', c2.set_name, 'rarity', c2.rarity, 'edition_number', c2.edition_number
+        ) ORDER BY c2.token_uri)
+        FROM cards c2 WHERE c2.pulled_from_pack_token_uri = s.token_uri) AS pack_pulls
+     FROM sweet_transaction_history s
+     LEFT JOIN cards c ON c.token_uri = s.token_uri
+     LEFT JOIN packs p ON p.token_uri = s.token_uri
+     WHERE ${where.join(' AND ')}
+     ORDER BY ${sortSql} ${dir}${nullsClause}
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.length = limit;
+  const activity = rows.map(r => ({
+    transaction_type: r.transaction_type,
+    transaction_datetime: r.transaction_datetime,
+    edition: r.edition,
+    amount: r.amount === null ? null : Number(r.amount),
+    currency: r.currency,
+    from_username: r.from_username,
+    to_username: r.to_username,
+    explorer_url: r.explorer_url,
+    item_name: r.item_name,
+    series_label: r.series_label,
+    rarity: r.rarity,
+    player: r.player,
+    is_pack: r.is_pack,
+    pack_pulls_resolved: r.pack_pulls_resolved,
+    pack_pulls: r.pack_pulls,
+  }));
+  // No `total` field — see the query comment above for why an exact count
+  // isn't affordable at this table's real scale without scoping first.
+  // Frontend shows "N loaded so far" instead of "N of M", same convention
+  // as this codebase used everywhere before COUNT(*) OVER() existed.
+  sendJson(res, 200, { activity, has_more: hasMore }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
+}
+
+// Summary view — same GROUP BY-at-the-database shape as
+// handleWalletActivitySummary, just sitewide (every transaction_type at
+// once, including ALL 7 raw values — a summary has no reason to hide
+// 'sale' the way the row-level Type filter dropdown does, since it's not a
+// filterable perspective here, just informational grouping... except
+// 'sale' never appears as a raw transaction_type at all, so this naturally
+// only ever returns the 6 real ones anyway).
+async function handleActivityHistorySummary(url, res) {
+  const q = url.searchParams;
+  const { where, params } = buildActivityHistoryWhere(q);
+  const { rows } = await pool.query(
+    `SELECT s.transaction_type, COUNT(*) AS count, SUM(s.amount) AS total_amount
+     FROM sweet_transaction_history s
+     LEFT JOIN cards c ON c.token_uri = s.token_uri
+     LEFT JOIN packs p ON p.token_uri = s.token_uri
+     WHERE ${where.join(' AND ')}
+     GROUP BY s.transaction_type
+     ORDER BY count DESC`,
+    params
+  );
+  const summary = rows.map(r => ({
+    transaction_type: r.transaction_type,
+    count: Number(r.count),
+    total_amount: r.total_amount === null ? null : Number(r.total_amount),
+  }));
+  sendJson(res, 200, { summary }, { cacheSeconds: VERSIONED_CACHE_SECONDS, immutable: true });
 }
 
 // Sitewide, cross-wallet leaderboard for sweet_transaction_history — "who
@@ -2898,6 +3081,10 @@ export async function routeRequest(url, res) {
       await handleWalletActivitySummary(url, res);
     } else if (url.pathname === '/api/wallet/activity') {
       await handleWalletActivity(url, res);
+    } else if (url.pathname === '/api/activity-history/summary') {
+      await handleActivityHistorySummary(url, res);
+    } else if (url.pathname === '/api/activity-history') {
+      await handleActivityHistory(url, res);
     } else if (url.pathname === '/api/mint-rankings/collections') {
       await handleMintRankingsCollections(res);
     } else if (url.pathname === '/api/mint-rankings/top') {
@@ -2955,7 +3142,7 @@ if (isMainModule) {
     await routeRequest(url, res);
   });
 
-  Promise.all([ensureHighlightsIndexes(), ensureWalletIndexes(), ensureLeaderboardIndexes(), ensurePackActivityIndexes()])
+  Promise.all([ensureHighlightsIndexes(), ensureWalletIndexes(), ensureLeaderboardIndexes(), ensurePackActivityIndexes(), ensureActivityHistoryIndexes()])
     .catch(err => console.error('Failed to ensure indexes:', err))
     .finally(() => {
       server.listen(PORT, () => {

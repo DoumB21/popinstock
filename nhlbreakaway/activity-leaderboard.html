@@ -26,9 +26,102 @@
     .filter-bar .cb-combo { min-width: 160px; flex: 1; max-width: 220px; }
     .filter-bar .text-search-wrap { position: relative; min-width: 180px; max-width: 280px; flex: 1.2; }
     .filter-bar .text-search-wrap .search-input { width: 100%; min-width: 0; max-width: none; padding-right: 2.1rem; }
+    /* History tab's own Min/Max amount — same fixed-narrow pattern as
+       wallet.html's own amount-range-input. */
+    .filter-bar .amount-range-input { width: 120px; flex: 0 0 auto; min-width: 0; max-width: 120px; }
+    /* Date inputs render their own native calendar-icon chrome, so they
+       need a bit more room than the plain number inputs to not clip it. */
+    .filter-bar .date-range-input { width: 160px; flex: 0 0 auto; min-width: 0; max-width: 160px; color-scheme: dark; }
     @media (max-width: 700px) {
       .filter-bar .cb-combo, .filter-bar .text-search-wrap { max-width: none; }
+      .filter-bar .amount-range-input, .filter-bar .date-range-input { max-width: none; }
     }
+
+    /* ── Tabs (Leaderboard / History) — same pattern as pack-stats.html's/
+       holders.html's own. ── */
+    .al-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+    .al-tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.65rem 0.1rem; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+      color: var(--text-secondary); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .al-tab-btn:hover { color: var(--text-primary); }
+    .al-tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); }
+    .al-tab-panel { display: none; flex-direction: column; gap: 1.25rem; margin-top: 1.25rem; }
+    .al-tab-panel.active { display: flex; }
+
+    /* ── History tab — per-transaction feed, ported from wallet.html's own
+       Activity tab (type/rarity pills, from/to cells, pack-pull mini-list)
+       since this page had none of that CSS before. ── */
+    .type-pill {
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(var(--tp-rgb), 0.12); border: 1px solid rgba(var(--tp-rgb), 0.4);
+      color: rgb(var(--tp-rgb));
+    }
+    .type-pill--purchase  { --tp-rgb: 34, 197, 94; }
+    .type-pill--trade     { --tp-rgb: 59, 130, 246; }
+    .type-pill--gift      { --tp-rgb: 236, 72, 153; }
+    .type-pill--pack_open { --tp-rgb: 240, 168, 64; }
+    .type-pill--promo     { --tp-rgb: 20, 184, 166; }
+    .type-pill--transfer  { --tp-rgb: 148, 163, 184; }
+    .pack-pill {
+      display: inline-flex; align-items: center; gap: 4px; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(240,168,64,0.1); border: 1px solid rgba(240,168,64,0.35);
+      color: var(--accent-light);
+    }
+    .rarity-pill {
+      --rr-border: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35));
+      --rr-text: linear-gradient(91.27deg, #fff 6.06%, #e7f1f4 47.93%, #fff 87.27%);
+      display: inline-flex; align-items: center; line-height: 1;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 999px;
+      border: 1px solid transparent;
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      background-image: linear-gradient(var(--bg), var(--bg)), var(--rr-border);
+    }
+    .rarity-pill-text {
+      background-image: var(--rr-text);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+    }
+    .rarity-pill--fandom    { --rr-border: linear-gradient(91deg, #824424, #8a6441 30%, #7b4c2e 90%); --rr-text: linear-gradient(91deg, #d1713e 6.06%, #f3ac6c 47.93%, #d28e62 87.27%); }
+    .rarity-pill--rare      { --rr-border: linear-gradient(92deg, #4e7fff, #2f52d6 30%, #4e7fff 90%); --rr-text: linear-gradient(93.83deg, #68aeff -0.71%, #c4dfff 45.06%, #68aeff 99.14%); }
+    .rarity-pill--limited   { --rr-border: linear-gradient(91deg, #646464, #303030 30%, #646464 90%); --rr-text: linear-gradient(91.27deg, #a5b4ae 6.06%, #e6edea 31.44%, #bdc2c0 47.51%, #d9d9d9 63.58%, #c5d2ce 87.27%); }
+    .rarity-pill--legendary { --rr-border: linear-gradient(92.71deg, #bd8800 -7.25%, #633b00 16.42%, #bd8800 36.23%, #633b00 54.94%, #bd8800 76.96%, #633b00 98.42%); --rr-text: linear-gradient(91.27deg, #ffb800 6.06%, #ffebb8 47.93%, #ffcf55 87.27%); }
+    .rarity-pill--epic      { --rr-border: linear-gradient(92deg, #007770, #350da7 10%, #89068b 30%, #350da7 70%, #007770 95%); --rr-text: linear-gradient(99.88deg, #23ffa3 0.36%, #5177ff 24.51%, #f364ff 46.15%, #748aff 71.31%, #28ffcb 96.55%); }
+    .rarity-pill--heroic    { --rr-border: linear-gradient(91.94deg, #58009d 3.4%, #2b00ab 27.27%, #58009d 45.16%, #2b00ab 60.73%, #58009d 80.46%, #2b00ab 98.86%); --rr-text: linear-gradient(91.27deg, #7d8aff 6.06%, #b98eff 47.93%, #4176ff 87.27%); }
+    .rarity-pill--mythic    { --rr-border: linear-gradient(91.94deg, #ff2600 30%, #e20004 50%, #870005 80%, #e20004 98%, #ff2600); --rr-text: linear-gradient(91.27deg, #ff2600 6.06%, #e20004 47.93%); }
+    .cell-set-name { font-weight: 600; color: var(--text-primary); }
+    .cell-series { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+    .cell-from-to-line { font-size: 0.82rem; white-space: nowrap; }
+    .cell-from-to-line + .cell-from-to-line { margin-top: 2px; }
+    .explorer-link { color: var(--text-secondary); text-decoration: none; }
+    .explorer-link:hover { color: var(--accent-light); }
+    .mobile-card-full-row { grid-column: 1 / -1; }
+    .pull-list { display: flex; flex-direction: column; gap: 4px; max-width: 520px; }
+    .pull-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      color: inherit; text-decoration: none; font-size: 0.8rem;
+      padding: 2px 0; border-radius: 4px;
+    }
+    .pull-item:hover .pull-player { color: var(--accent-light); text-decoration: underline; }
+    .pull-player { font-weight: 600; color: var(--text-primary); }
+    .pull-edition { color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .pull-set { color: var(--text-secondary); font-size: 0.72rem; flex: 1; }
+    .activity-pulls-row td { background: rgba(255,255,255,0.02); padding: 10px 14px 14px; }
+    .activity-pulls-mobile { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+    .activity-expand-empty { color: var(--text-secondary); font-size: 0.8rem; padding: 0.35rem 0; }
+
+    /* History tab's own "Search collector" box — same suggestion-dropdown
+       widget as the Leaderboard tab's "Find a Collector" above, just its
+       own instance (a live FILTER on the feed, not a rank spotlight). */
+    .collector-search-wrap { position: relative; flex: 1; max-width: 340px; min-width: 220px; }
+    .collector-search-wrap .search-input { width: 100%; max-width: none; padding-right: 2.1rem; }
 
     .results-meta { font-size: 0.8rem; color: var(--text-secondary); min-height: 1.2em; }
     .results-meta strong { color: var(--text-primary); }
@@ -179,75 +272,161 @@
 
     <div class="page-header">
       <div class="page-title">NHL Breakaway <span class="accent">Activity Leaderboard</span></div>
-      <div class="page-subtitle">Top spenders, sellers, traders, and pack openers — pick a type, then filter by series, set, rarity, and player.</div>
+      <div class="page-subtitle">Top spenders, sellers, traders, and pack openers, or browse the full sitewide activity history.</div>
     </div>
 
-    <div class="filter-bar">
-      <div class="cb-combo" id="typeCombo">
-        <input type="text" class="cb-combo-input" id="typeComboInput" autocomplete="off" spellcheck="false">
-        <div class="cb-panel" id="typePanel"></div>
+    <div class="al-tabs" id="alTabs">
+      <button type="button" class="al-tab-btn active" data-tab="leaderboard">Leaderboard</button>
+      <button type="button" class="al-tab-btn" data-tab="history">History</button>
+    </div>
+
+    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading…</span></div></div>
+
+    <div class="al-tab-panel active" id="tabPanelLeaderboard">
+      <div class="filter-bar">
+        <div class="cb-combo" id="typeCombo">
+          <input type="text" class="cb-combo-input" id="typeComboInput" autocomplete="off" spellcheck="false">
+          <div class="cb-panel" id="typePanel"></div>
+        </div>
+        <div class="cb-combo" id="seriesCombo">
+          <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="seriesPanel"></div>
+        </div>
+        <div class="cb-combo" id="setCombo">
+          <input type="text" class="cb-combo-input" id="setComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="setComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="setPanel"></div>
+        </div>
+        <div class="cb-combo" id="rarityCombo">
+          <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="rarityPanel"></div>
+        </div>
       </div>
-      <div class="cb-combo" id="seriesCombo">
-        <input type="text" class="cb-combo-input" id="seriesComboInput" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-combo-clear" id="seriesComboClear" style="display:none" title="Clear">✕</button>
-        <div class="cb-panel" id="seriesPanel"></div>
+
+      <div class="filter-bar">
+        <div class="find-collector-wrap">
+          <input type="text" class="search-input" id="findCollectorInput" placeholder="Find collector by username or wallet (0x...)" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-dropdown-clear" id="findCollectorClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="findCollectorSuggestPanel"></div>
+        </div>
+        <span class="results-meta" id="findCollectorResult"></span>
+        <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
       </div>
-      <div class="cb-combo" id="setCombo">
-        <input type="text" class="cb-combo-input" id="setComboInput" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-combo-clear" id="setComboClear" style="display:none" title="Clear">✕</button>
-        <div class="cb-panel" id="setPanel"></div>
+
+      <!-- Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the desktop
+           table's clickable column headers, which disappear along with the
+           table at that width (see .mobile-card-list below). Repopulated
+           whenever the Type changes (see populateTypeCombo's onPick), since
+           count-only types have one fewer sortable column than purchase/sale. -->
+      <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
+        <div class="cb-combo" id="sortFieldCombo">
+          <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+          <div class="cb-panel" id="sortFieldPanel"></div>
+        </div>
+        <div class="tpc-toggle-group" id="sortDirToggle">
+          <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+          <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+        </div>
       </div>
-      <div class="cb-combo" id="rarityCombo">
-        <input type="text" class="cb-combo-input" id="rarityComboInput" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-combo-clear" id="rarityComboClear" style="display:none" title="Clear">✕</button>
-        <div class="cb-panel" id="rarityPanel"></div>
+
+      <div class="results-meta" id="resultsMeta"></div>
+
+      <div class="table-scroll" style="overflow-x:auto;">
+        <table class="items-table">
+          <thead><tr id="headRow"></tr></thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+      <!-- Always a 1-column block layout at mobile widths, regardless of
+           whether the active type has 3 columns (count-only) or 4 (purchase/
+           sale, +Total Amount) — simpler and more consistent than switching
+           between a row-ish layout and a block one depending on type. -->
+      <div class="mobile-card-list" id="mobileList"></div>
+
+      <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+        <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
       </div>
     </div>
 
-    <div class="filter-bar">
-      <div class="find-collector-wrap">
-        <input type="text" class="search-input" id="findCollectorInput" placeholder="Find collector by username or wallet (0x...)" autocomplete="off" spellcheck="false">
-        <button type="button" class="cb-dropdown-clear" id="findCollectorClear" style="display:none" title="Clear">✕</button>
-        <div class="cb-panel" id="findCollectorSuggestPanel"></div>
+    <div class="al-tab-panel" id="tabPanelHistory">
+      <div class="filter-bar">
+        <div class="cb-combo" id="historyTypeCombo">
+          <input type="text" class="cb-combo-input" id="historyTypeComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="historyTypeComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="historyTypePanel"></div>
+        </div>
+        <div class="cb-combo" id="historySeriesCombo">
+          <input type="text" class="cb-combo-input" id="historySeriesComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="historySeriesComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="historySeriesPanel"></div>
+        </div>
+        <div class="cb-combo" id="historySetCombo">
+          <input type="text" class="cb-combo-input" id="historySetComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="historySetComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="historySetPanel"></div>
+        </div>
+        <div class="cb-combo" id="historyRarityCombo">
+          <input type="text" class="cb-combo-input" id="historyRarityComboInput" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-combo-clear" id="historyRarityComboClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="historyRarityPanel"></div>
+        </div>
       </div>
-      <span class="results-meta" id="findCollectorResult"></span>
-      <button id="clearFiltersBtn" class="clear-filters-btn" type="button">✕ Clear filters</button>
-    </div>
 
-    <!-- Mobile-only "Sort by" combo + Asc/Desc toggle — replaces the desktop
-         table's clickable column headers, which disappear along with the
-         table at that width (see .mobile-card-list below). Repopulated
-         whenever the Type changes (see populateTypeCombo's onPick), since
-         count-only types have one fewer sortable column than purchase/sale. -->
-    <div class="filter-bar mobile-sort-bar" id="mobileSortBar">
-      <div class="cb-combo" id="sortFieldCombo">
-        <input type="text" class="cb-combo-input" id="sortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
-        <div class="cb-panel" id="sortFieldPanel"></div>
+      <div class="filter-bar">
+        <div class="collector-search-wrap">
+          <input type="text" class="search-input" id="historyCollectorSearch" placeholder="Search collector (username or wallet)…" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-dropdown-clear" id="historyCollectorClear" style="display:none" title="Clear">✕</button>
+          <div class="cb-panel" id="historyCollectorSuggestPanel"></div>
+        </div>
+        <div class="text-search-wrap">
+          <input type="text" class="search-input" id="historyPlayerSearch" placeholder="Search player" autocomplete="off" spellcheck="false">
+          <button type="button" class="cb-dropdown-clear" id="historyPlayerSearchClear" style="display:none" title="Clear">✕</button>
+        </div>
+        <input type="number" class="search-input amount-range-input" id="historyMinAmount" placeholder="Min amount" min="0" step="0.01" inputmode="decimal">
+        <input type="number" class="search-input amount-range-input" id="historyMaxAmount" placeholder="Max amount" min="0" step="0.01" inputmode="decimal">
       </div>
-      <div class="tpc-toggle-group" id="sortDirToggle">
-        <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
-        <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+
+      <div class="filter-bar">
+        <input type="number" class="search-input amount-range-input" id="historyMinEdition" placeholder="Min edition" min="1" step="1" inputmode="numeric">
+        <input type="number" class="search-input amount-range-input" id="historyMaxEdition" placeholder="Max edition" min="1" step="1" inputmode="numeric">
+        <input type="date" class="search-input date-range-input" id="historyDateFrom" aria-label="From date">
+        <input type="date" class="search-input date-range-input" id="historyDateTo" aria-label="To date">
+        <button type="button" id="historyClearDatesBtn" class="clear-filters-btn" style="display:none;">✕ Clear dates</button>
       </div>
-    </div>
 
-    <div class="results-meta" id="resultsMeta"></div>
+      <div class="filter-bar">
+        <div class="tpc-toggle-group" id="historyViewToggle">
+          <button type="button" class="tpc-toggle-btn active" data-view="detailed">Detailed</button>
+          <button type="button" class="tpc-toggle-btn" data-view="summary">Summary</button>
+        </div>
+      </div>
 
-    <div class="busy-overlay" id="busyOverlay"><div class="busy-box"><span class="busy-spinner"></span><span>Loading leaderboard…</span></div></div>
+      <div class="filter-bar mobile-sort-bar" id="historyMobileSortBar">
+        <div class="cb-combo" id="historySortFieldCombo">
+          <input type="text" class="cb-combo-input" id="historySortFieldComboInput" autocomplete="off" spellcheck="false" readonly>
+          <div class="cb-panel" id="historySortFieldPanel"></div>
+        </div>
+        <div class="tpc-toggle-group" id="historySortDirToggle">
+          <button type="button" class="tpc-toggle-btn" data-dir="asc">↑ Asc</button>
+          <button type="button" class="tpc-toggle-btn" data-dir="desc">↓ Desc</button>
+        </div>
+      </div>
 
-    <div class="table-scroll" style="overflow-x:auto;">
-      <table class="items-table">
-        <thead><tr id="headRow"></tr></thead>
-        <tbody id="body"></tbody>
-      </table>
-    </div>
-    <!-- Always a 1-column block layout at mobile widths, regardless of
-         whether the active type has 3 columns (count-only) or 4 (purchase/
-         sale, +Total Amount) — simpler and more consistent than switching
-         between a row-ish layout and a block one depending on type. -->
-    <div class="mobile-card-list" id="mobileList"></div>
+      <div class="results-meta" id="historyResultsMeta"></div>
 
-    <div id="loadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
-      <button type="button" id="loadMoreBtn" class="load-more-btn">Load more</button>
+      <div class="table-scroll" style="overflow-x:auto;">
+        <table class="items-table">
+          <thead><tr id="historyHeadRow"></tr></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <div class="mobile-card-list" id="historyMobileList"></div>
+
+      <div id="historyLoadMoreWrap" style="display:none; text-align:center; padding:1rem 0;">
+        <button type="button" id="historyLoadMoreBtn" class="load-more-btn">Load more</button>
+      </div>
     </div>
 
   </div>
@@ -856,6 +1035,518 @@ findCollectorInputEl.addEventListener('keydown', e => {
   } else if (e.key === 'Escape') {
     closeFcSuggestions();
   }
+});
+
+/* ══════════════════ History tab — sitewide per-transaction activity feed ══════════════════
+   Same shape as wallet.html's own Activity tab, but with NO wallet scoping
+   at all — every collector's rows at once, backed by /api/activity-history
+   (+ /api/activity-history/summary). No 'sale' pseudo-type here — that only
+   exists on the wallet-scoped version to relabel a 'purchase' row relative
+   to whichever wallet is being viewed; a sitewide feed has no single
+   viewing wallet, and a 'purchase' row already shows both sides via
+   From/To directly.
+   IMPORTANT — this endpoint deliberately has NO exact `total` (see
+   handleActivityHistory's own comment in dev-server/index.js): a
+   COUNT(*) OVER() over this table's real 756K+ rows took 15-29s with no
+   scoping to shrink the matching set first, the way every OTHER paginated
+   endpoint in this codebase gets to assume. resultsMeta here shows "N
+   loaded so far", not "N total". */
+const WALLET_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+function prettyWallet(val) {
+  if (!val) return val;
+  return WALLET_ADDRESS_RE.test(val) ? `${val.slice(0, 6)}…${val.slice(-4)}` : val;
+}
+// A resolved username links to their nhlbreakaway.com profile (same URL
+// shape as the Leaderboard tab's own .holder-link above); a raw, unresolved
+// 0x address (see the handoff note's ~1.6%-of-rows gotcha) has no profile
+// to link to, so it's plain text.
+function fromToLinkHtml(username) {
+  if (!username) return '—';
+  const display = escHtml(prettyWallet(username));
+  if (WALLET_ADDRESS_RE.test(username)) return `<span title="${escHtml(username)}">${display}</span>`;
+  return `<a class="holder-link" href="https://nhlbreakaway.com/user/${encodeURIComponent(username)}?sort=newest" target="_blank" rel="noopener" title="${escHtml(username)}">${display}</a>`;
+}
+function fmtActivityDate(raw) {
+  if (!raw) return '—';
+  const d = new Date(raw + 'Z');
+  if (isNaN(d)) return raw;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d);
+}
+function pullListHtml(highlights) {
+  return `<div class="pull-list">${(highlights || []).map(h => `
+    <a class="pull-item" href="holders?moment_uuid=${encodeURIComponent(h.moment_uuid)}">
+      <span class="pull-player">${escHtml(h.player)}</span>
+      <span class="pull-edition">#${fmtNum(h.edition_number)}</span>
+      <span class="pull-set">${escHtml(h.set_name)}</span>
+      ${h.rarity ? `<span class="rarity-pill rarity-pill--${h.rarity.toLowerCase()}"><span class="rarity-pill-text">${h.rarity}</span></span>` : ''}
+    </a>
+  `).join('')}</div>`;
+}
+function packPullsBodyHtml(a) {
+  if (!a.pack_pulls_resolved) {
+    return `<div class="activity-expand-empty">This pack's opening history hasn't been retrieved yet — full history is being backfilled drop by drop.</div>`;
+  }
+  if (!a.pack_pulls || !a.pack_pulls.length) {
+    return `<div class="activity-expand-empty">No highlights found for this pack.</div>`;
+  }
+  return pullListHtml(a.pack_pulls);
+}
+// Always-visible, not collapsible — same call already made for wallet.html's
+// own Pack Open rows after live testing (see that page's own comment).
+function playerCellHtml(a) {
+  if (a.player) return escHtml(a.player);
+  if (!a.is_pack) return '—';
+  return `<span class="pack-pill">📦 Pack</span>`;
+}
+
+const HISTORY_TYPE_LABELS = {
+  purchase: 'Purchase', trade: 'Trade', gift: 'Gift',
+  pack_open: 'Pack Open', promo: 'Promo', transfer: 'Transfer',
+};
+const HISTORY_COLUMNS_DETAILED = [
+  { key: 'type',   label: 'Type' },
+  { key: 'date',   label: 'Date', sortable: true },
+  { key: 'player', label: 'Player' },
+  { key: 'item',   label: 'Item' },
+  { key: 'edition', label: 'Edition', num: true },
+  { key: 'amount', label: 'Amount', sortable: true, num: true },
+  { key: 'from_to', label: 'From<br>To' },
+  { key: 'link',   label: '' },
+];
+const HISTORY_COLUMNS_SUMMARY = [
+  { key: 'type',  label: 'Type' },
+  { key: 'count', label: 'Count', num: true },
+  { key: 'total_amount', label: 'Total Amount', num: true },
+];
+function activeHistoryColumns() {
+  return historyState.view === 'summary' ? HISTORY_COLUMNS_SUMMARY : HISTORY_COLUMNS_DETAILED;
+}
+
+const historyState = {
+  type: '', series_label: '', set_name: '', rarity: '', player: '',
+  min_amount: '', max_amount: '', wallet_search: '',
+  min_edition: '', max_edition: '', date_from: '', date_to: '',
+  view: 'detailed', activity: [], summary: [], sortField: 'date', sortDir: 'desc',
+  hasMore: false, busy: false, autoLoadArmed: false, loaded: false,
+};
+
+function historyFilterParams() {
+  const params = new URLSearchParams();
+  if (historyState.type) params.set('type', historyState.type);
+  if (historyState.series_label) params.set('series_label', historyState.series_label);
+  if (historyState.set_name) params.set('set_name', historyState.set_name);
+  if (historyState.rarity) params.set('rarity', historyState.rarity);
+  if (historyState.player) params.set('player', historyState.player);
+  if (historyState.min_amount !== '') params.set('min_amount', historyState.min_amount);
+  if (historyState.max_amount !== '') params.set('max_amount', historyState.max_amount);
+  if (historyState.wallet_search) params.set('wallet_search', historyState.wallet_search);
+  if (historyState.min_edition !== '') params.set('min_edition', historyState.min_edition);
+  if (historyState.max_edition !== '') params.set('max_edition', historyState.max_edition);
+  if (historyState.date_from) params.set('date_from', historyState.date_from);
+  if (historyState.date_to) params.set('date_to', historyState.date_to);
+  return params;
+}
+function historyQuery() {
+  const params = historyFilterParams();
+  params.set('sort', historyState.sortField);
+  params.set('dir', historyState.sortDir);
+  params.set('limit', 50);
+  params.set('offset', historyState.activity.length);
+  return params;
+}
+function refreshHistory(reset) {
+  return historyState.view === 'summary' ? fetchHistorySummary() : fetchHistoryPage(reset);
+}
+
+async function loadHistoryChunk() {
+  if (historyState.busy) return 0;
+  historyState.busy = true;
+  renderHistoryLoadMore();
+  setBusyUi(true);
+  let got = 0;
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/activity-history?${historyQuery()}`, version));
+    const data = await res.json();
+    historyState.activity = [...historyState.activity, ...data.activity];
+    historyState.hasMore = data.has_more;
+    got = data.activity.length;
+    renderHistoryBody();
+  } catch (err) {
+    document.getElementById('historyResultsMeta').textContent = 'Failed to load activity. Please try again shortly.';
+    console.error(err);
+  } finally {
+    historyState.busy = false;
+    renderHistoryLoadMore();
+    setBusyUi(false);
+  }
+  return got;
+}
+async function fetchHistoryPage(reset) {
+  if (reset) { historyState.activity = []; historyState.autoLoadArmed = false; }
+  await loadHistoryChunk();
+}
+async function fetchHistorySummary() {
+  setBusyUi(true);
+  try {
+    const version = await getDataVersion();
+    const res = await fetch(withVersion(`${API_BASE}/api/activity-history/summary?${historyFilterParams()}`, version));
+    const data = await res.json();
+    historyState.summary = data.summary;
+    renderHistoryBody();
+  } catch (err) {
+    document.getElementById('historyResultsMeta').textContent = 'Failed to load activity summary. Please try again shortly.';
+    console.error(err);
+  } finally {
+    setBusyUi(false);
+  }
+}
+
+function renderHistoryHead() {
+  const row = document.getElementById('historyHeadRow');
+  row.innerHTML = activeHistoryColumns().map(col => {
+    if (!col.sortable) return `<th${col.num ? ' class="col-r"' : ''}>${col.label}</th>`;
+    const sorted = historyState.sortField === col.key;
+    const icon = sorted ? (historyState.sortDir === 'asc' ? '↑' : '↓') : '↕';
+    return `<th class="sortable${col.num ? ' col-r' : ''}${sorted ? ' sorted' : ''}" data-field="${col.key}">${col.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('');
+  row.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.field;
+      if (historyState.sortField === field) historyState.sortDir = historyState.sortDir === 'asc' ? 'desc' : 'asc';
+      else { historyState.sortField = field; historyState.sortDir = 'desc'; }
+      renderHistoryHead();
+      fetchHistoryPage(true);
+      syncHistoryMobileSort();
+    });
+  });
+}
+
+function renderHistoryBody() {
+  const mobileListEl = document.getElementById('historyMobileList');
+  if (historyState.view === 'summary') {
+    document.getElementById('historyBody').innerHTML = historyState.summary.map(s => `
+      <tr>
+        <td><span class="type-pill type-pill--${s.transaction_type}">${HISTORY_TYPE_LABELS[s.transaction_type] || s.transaction_type}</span></td>
+        <td class="col-r">${fmtNum(s.count)}</td>
+        <td class="col-r">${fmtUsd(s.total_amount)}</td>
+      </tr>
+    `).join('');
+    mobileListEl.innerHTML = historyState.summary.map(s => `
+      <div class="mobile-card">
+        <div class="mobile-card-header">
+          <span class="type-pill type-pill--${s.transaction_type}">${HISTORY_TYPE_LABELS[s.transaction_type] || s.transaction_type}</span>
+        </div>
+        <div class="mobile-card-stats">
+          <div><span class="mobile-stat-label">Count</span><span class="mobile-stat-value">${fmtNum(s.count)}</span></div>
+          <div><span class="mobile-stat-label">Total Amount</span><span class="mobile-stat-value">${fmtUsd(s.total_amount)}</span></div>
+        </div>
+      </div>
+    `).join('');
+    const grandTotal = historyState.summary.reduce((sum, s) => sum + s.count, 0);
+    document.getElementById('historyResultsMeta').innerHTML = `<strong>${fmtNum(grandTotal)}</strong> transaction${grandTotal === 1 ? '' : 's'} across ${historyState.summary.length} type${historyState.summary.length === 1 ? '' : 's'}`;
+    return;
+  }
+
+  document.getElementById('historyBody').innerHTML = historyState.activity.map(a => `
+    <tr>
+      <td><span class="type-pill type-pill--${a.transaction_type}">${HISTORY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</span></td>
+      <td>${fmtActivityDate(a.transaction_datetime)}</td>
+      <td>${playerCellHtml(a)}</td>
+      <td>
+        <div class="cell-set-name">${a.item_name || '—'}</div>
+        <div class="cell-series">${a.series_label || ''}${a.rarity
+          ? ` <span class="rarity-pill rarity-pill--${a.rarity.toLowerCase()}"><span class="rarity-pill-text">${a.rarity}</span></span>`
+          : ''}</div>
+      </td>
+      <td class="col-r">${a.edition != null ? fmtNum(a.edition) : '—'}</td>
+      <td class="col-r">${fmtUsd(a.amount)}</td>
+      <td>
+        <div class="cell-from-to-line">${fromToLinkHtml(a.from_username)}</div>
+        <div class="cell-from-to-line">${fromToLinkHtml(a.to_username)}</div>
+      </td>
+      <td>${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}</td>
+    </tr>
+    ${a.transaction_type === 'pack_open' ? `<tr class="activity-pulls-row"><td colspan="${HISTORY_COLUMNS_DETAILED.length}">${packPullsBodyHtml(a)}</td></tr>` : ''}
+  `).join('');
+
+  mobileListEl.innerHTML = historyState.activity.map(a => `
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <div>
+          <span class="type-pill type-pill--${a.transaction_type}">${HISTORY_TYPE_LABELS[a.transaction_type] || a.transaction_type}</span>
+          <div class="cell-series">${fmtActivityDate(a.transaction_datetime)}</div>
+        </div>
+        ${a.explorer_url ? `<a class="explorer-link" href="${a.explorer_url}" target="_blank" rel="noopener" title="View on Polygonscan">↗</a>` : ''}
+      </div>
+      <div class="mobile-card-stats">
+        <div class="mobile-card-full-row">
+          <span class="mobile-stat-label">Item</span>
+          <span class="mobile-stat-value">${a.player ? escHtml(a.player) + ' — ' : ''}${a.item_name ? escHtml(a.item_name) : (a.is_pack ? `<span class="pack-pill">📦 Pack</span>` : '—')}${a.rarity
+            ? ` <span class="rarity-pill rarity-pill--${a.rarity.toLowerCase()}"><span class="rarity-pill-text">${a.rarity}</span></span>`
+            : ''}</span>
+        </div>
+        <div><span class="mobile-stat-label">Edition</span><span class="mobile-stat-value">${a.edition != null ? fmtNum(a.edition) : '—'}</span></div>
+        <div><span class="mobile-stat-label">Amount</span><span class="mobile-stat-value">${fmtUsd(a.amount)}</span></div>
+        <div class="mobile-card-full-row">
+          <span class="mobile-stat-label">From / To</span>
+          <span class="mobile-stat-value">
+            <span class="cell-from-to-line">${fromToLinkHtml(a.from_username)}</span>
+            <span class="cell-from-to-line">${fromToLinkHtml(a.to_username)}</span>
+          </span>
+        </div>
+      </div>
+      ${a.transaction_type === 'pack_open' ? `<div class="activity-pulls-mobile">${packPullsBodyHtml(a)}</div>` : ''}
+    </div>
+  `).join('');
+
+  document.getElementById('historyResultsMeta').innerHTML = `<strong>${fmtNum(historyState.activity.length)}</strong> loaded so far`;
+}
+
+function renderHistoryLoadMore() {
+  const wrap = document.getElementById('historyLoadMoreWrap');
+  const btn = document.getElementById('historyLoadMoreBtn');
+  wrap.style.display = (historyState.view === 'detailed' && historyState.hasMore) ? 'block' : 'none';
+  btn.disabled = historyState.busy;
+  btn.textContent = historyState.busy ? 'Loading…' : 'Load more';
+}
+document.getElementById('historyLoadMoreBtn').addEventListener('click', () => {
+  historyState.autoLoadArmed = true;
+  fetchHistoryPage(false);
+});
+new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && historyState.autoLoadArmed && !historyState.busy && historyState.hasMore) fetchHistoryPage(false);
+}, { rootMargin: '600px' }).observe(document.getElementById('historyLoadMoreWrap'));
+
+function populateHistoryTypeCombo() {
+  buildCombo('historyTypeCombo',
+    [{ value: '', label: 'All types' }, ...Object.entries(HISTORY_TYPE_LABELS).map(([value, label]) => ({ value, label }))],
+    () => historyState.type, v => historyState.type = v, () => refreshHistory(true));
+}
+async function populateHistoryFilters() {
+  const version = await getDataVersion();
+  const res = await fetch(withVersion(`${API_BASE}/api/highlights/filters`, version));
+  const data = await res.json();
+  buildCombo('historySeriesCombo',
+    [{ value: '', label: 'All series' }, ...data.series.map(v => ({ value: v, label: v }))],
+    () => historyState.series_label, v => historyState.series_label = v, () => refreshHistory(true));
+  buildCombo('historySetCombo',
+    [{ value: '', label: 'All sets' }, ...data.sets.map(v => ({ value: v, label: v }))],
+    () => historyState.set_name, v => historyState.set_name = v, () => refreshHistory(true));
+  buildCombo('historyRarityCombo',
+    [{ value: '', label: 'All rarities' }, ...sortByRarityOrder(data.rarities).map(v => ({ value: v, label: v }))],
+    () => historyState.rarity, v => historyState.rarity = v, () => refreshHistory(true));
+}
+
+const historyPlayerSearchWidget = setupTextSearch({
+  inputId: 'historyPlayerSearch', clearId: 'historyPlayerSearchClear', debounceMs: 300,
+  applyValue: val => { historyState.player = val; refreshHistory(true); },
+});
+
+let _historyAmountT = null;
+function wireHistoryAmountInput(id, stateKey) {
+  document.getElementById(id).addEventListener('input', e => {
+    clearTimeout(_historyAmountT);
+    const val = e.target.value;
+    _historyAmountT = setTimeout(() => { historyState[stateKey] = val; refreshHistory(true); }, 250);
+  });
+}
+wireHistoryAmountInput('historyMinAmount', 'min_amount');
+wireHistoryAmountInput('historyMaxAmount', 'max_amount');
+wireHistoryAmountInput('historyMinEdition', 'min_edition');
+wireHistoryAmountInput('historyMaxEdition', 'max_edition');
+
+// Date inputs commit on `change` (a complete pick from the native calendar,
+// or a fully-typed date), not `input` — no debounce needed the way free
+// typing in a text/number field does, and it avoids re-fetching on every
+// partial keystroke while typing a date segment by hand.
+function updateClearDatesBtn() {
+  document.getElementById('historyClearDatesBtn').style.display = (historyState.date_from || historyState.date_to) ? '' : 'none';
+}
+function wireHistoryDateInput(id, stateKey) {
+  document.getElementById(id).addEventListener('change', e => {
+    historyState[stateKey] = e.target.value;
+    updateClearDatesBtn();
+    refreshHistory(true);
+  });
+}
+wireHistoryDateInput('historyDateFrom', 'date_from');
+wireHistoryDateInput('historyDateTo', 'date_to');
+document.getElementById('historyClearDatesBtn').addEventListener('click', () => {
+  historyState.date_from = '';
+  historyState.date_to = '';
+  document.getElementById('historyDateFrom').value = '';
+  document.getElementById('historyDateTo').value = '';
+  updateClearDatesBtn();
+  refreshHistory(true);
+});
+
+function syncHistoryMobileSort() {
+  syncComboDisplay(document.getElementById('historySortFieldCombo'));
+  document.querySelectorAll('#historySortDirToggle .tpc-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dir === historyState.sortDir);
+  });
+}
+function populateHistoryMobileSort() {
+  document.getElementById('historyMobileSortBar').style.display = historyState.view === 'summary' ? 'none' : '';
+  if (historyState.view === 'summary') return;
+  buildCombo('historySortFieldCombo',
+    [{ value: '', label: '' }, ...activeHistoryColumns().filter(c => c.sortable).map(c => ({ value: c.key, label: c.label }))],
+    () => historyState.sortField,
+    v => { historyState.sortField = v; historyState.sortDir = 'desc'; },
+    () => { renderHistoryHead(); fetchHistoryPage(true); syncHistoryMobileSort(); });
+  syncHistoryMobileSort();
+}
+document.getElementById('historySortDirToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  historyState.sortDir = btn.dataset.dir;
+  renderHistoryHead();
+  fetchHistoryPage(true);
+  syncHistoryMobileSort();
+});
+
+document.getElementById('historyViewToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.tpc-toggle-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  historyState.view = btn.dataset.view;
+  document.querySelectorAll('#historyViewToggle .tpc-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderHistoryHead();
+  renderHistoryLoadMore();
+  populateHistoryMobileSort();
+  refreshHistory(true);
+});
+
+/* ══════════════════ "Search collector" — live suggestion dropdown ══════════════════
+   Same /api/wallet/suggest-backed type-ahead as every other collector/
+   wallet search on this site — a live FILTER on the feed here (narrows to
+   that person's from/to rows), not a rank spotlight like the Leaderboard
+   tab's own "Find a Collector" above. */
+const historyCollectorInputEl = document.getElementById('historyCollectorSearch');
+const historyCollectorClearBtn = document.getElementById('historyCollectorClear');
+const historyCollectorSuggestPanel = document.getElementById('historyCollectorSuggestPanel');
+let hcSuggestItems = [];
+let hcSuggestActiveIndex = -1;
+let hcSuggestSeq = 0;
+
+function updateHistoryCollectorClear() { historyCollectorClearBtn.style.display = historyCollectorInputEl.value ? '' : 'none'; }
+function closeHcSuggestions() {
+  historyCollectorSuggestPanel.classList.remove('open');
+  hcSuggestItems = [];
+  hcSuggestActiveIndex = -1;
+}
+function renderHcSuggestions() {
+  if (!hcSuggestItems.length) {
+    historyCollectorSuggestPanel.innerHTML = `<div class="cb-empty">No matches</div>`;
+  } else {
+    historyCollectorSuggestPanel.innerHTML = hcSuggestItems.map((s, i) => `
+      <div class="cb-item suggest-item${i === hcSuggestActiveIndex ? ' active' : ''}" data-index="${i}">
+        <span class="suggest-item-name">${escHtml(s.username || '(no username)')}</span>
+        <span class="suggest-item-wallet">${escHtml(s.wallet_address)}</span>
+      </div>
+    `).join('');
+    historyCollectorSuggestPanel.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('mousedown', e => e.preventDefault());
+      el.addEventListener('click', () => selectHcSuggestion(hcSuggestItems[Number(el.dataset.index)]));
+    });
+  }
+  historyCollectorSuggestPanel.classList.add('open');
+}
+function applyHistoryCollector(val) {
+  historyState.wallet_search = val.trim();
+  refreshHistory(true);
+}
+function selectHcSuggestion(item) {
+  historyCollectorInputEl.value = item.username || item.wallet_address;
+  updateHistoryCollectorClear();
+  closeHcSuggestions();
+  applyHistoryCollector(historyCollectorInputEl.value);
+}
+let _hcSuggestT = null;
+let _hcApplyT = null;
+historyCollectorInputEl.addEventListener('input', () => {
+  updateHistoryCollectorClear();
+  const q = historyCollectorInputEl.value.trim();
+  clearTimeout(_hcApplyT);
+  _hcApplyT = setTimeout(() => applyHistoryCollector(historyCollectorInputEl.value), 300);
+  clearTimeout(_hcSuggestT);
+  if (q.length < 2) { closeHcSuggestions(); return; }
+  _hcSuggestT = setTimeout(async () => {
+    const seq = ++hcSuggestSeq;
+    try {
+      const version = await getDataVersion();
+      const res = await fetch(withVersion(`${API_BASE}/api/wallet/suggest?q=${encodeURIComponent(q)}`, version));
+      const data = await res.json();
+      if (seq !== hcSuggestSeq) return;
+      hcSuggestItems = data.suggestions;
+      hcSuggestActiveIndex = -1;
+      renderHcSuggestions();
+    } catch (err) {
+      console.error(err);
+    }
+  }, 250);
+});
+historyCollectorInputEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && hcSuggestItems.length) {
+    e.preventDefault();
+    hcSuggestActiveIndex = (hcSuggestActiveIndex + 1) % hcSuggestItems.length;
+    renderHcSuggestions();
+  } else if (e.key === 'ArrowUp' && hcSuggestItems.length) {
+    e.preventDefault();
+    hcSuggestActiveIndex = (hcSuggestActiveIndex - 1 + hcSuggestItems.length) % hcSuggestItems.length;
+    renderHcSuggestions();
+  } else if (e.key === 'Enter') {
+    if (hcSuggestActiveIndex >= 0 && hcSuggestItems[hcSuggestActiveIndex]) {
+      selectHcSuggestion(hcSuggestItems[hcSuggestActiveIndex]);
+    } else {
+      closeHcSuggestions();
+    }
+  } else if (e.key === 'Escape') {
+    closeHcSuggestions();
+  }
+});
+historyCollectorClearBtn.addEventListener('mousedown', e => e.preventDefault());
+historyCollectorClearBtn.addEventListener('click', () => {
+  historyCollectorInputEl.value = '';
+  updateHistoryCollectorClear();
+  closeHcSuggestions();
+  applyHistoryCollector('');
+  historyCollectorInputEl.focus();
+});
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.collector-search-wrap')) closeHcSuggestions();
+});
+
+async function initHistoryTab() {
+  renderHistoryHead();
+  populateHistoryTypeCombo();
+  populateHistoryMobileSort();
+  document.getElementById('historyResultsMeta').textContent = 'Loading…';
+  try {
+    await populateHistoryFilters();
+    await fetchHistoryPage(true);
+  } catch (err) {
+    document.getElementById('historyResultsMeta').textContent = 'Failed to load activity. Please try again shortly.';
+    console.error(err);
+  }
+}
+
+/* ══════════════════ Tabs (Leaderboard / History) ══════════════════ */
+const AL_TAB_PANEL_IDS = { leaderboard: 'tabPanelLeaderboard', history: 'tabPanelHistory' };
+function setActiveAlTab(tab) {
+  if (!AL_TAB_PANEL_IDS[tab]) tab = 'leaderboard';
+  document.querySelectorAll('.al-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  Object.entries(AL_TAB_PANEL_IDS).forEach(([name, id]) => {
+    document.getElementById(id).classList.toggle('active', name === tab);
+  });
+  if (tab === 'history' && !historyState.loaded) {
+    historyState.loaded = true;
+    initHistoryTab();
+  }
+}
+document.getElementById('alTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.al-tab-btn');
+  if (btn) setActiveAlTab(btn.dataset.tab);
 });
 
 (async function init() {
