@@ -1015,7 +1015,7 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04/05 — SEVEN DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+BACKFILL SCOPE, 2026-09-04/05 — EIGHT DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
 ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED (TEMPORARILY AUTONOMOUS PER-REFRESH-CYCLE
 LATE 2026-09-04 EVENING, USER AWAY A FEW HOURS — see feedback memory, not a permanent policy)
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
@@ -1055,8 +1055,11 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
     got killed externally partway through (1,352/1,451 done at that point) — safe to just
     re-run (idempotent, skips already-resolved packs), finished the remaining 99 cleanly on
     the retry. See the ENVIRONMENT INSTABILITY note below.
-All seven: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
-matched (163/163, 169/169, 170/170, 137/137, 132/132, 102/102, 132/132), verified pushed to Raff and
+  - series_id V1P8wB1d, "Seasoned Steel Debut LE Pack" CORE
+    (https://nhlbreakaway.com/drop/V1P8wB1d) — 1,477 packs, 4,431 card pulls linked, exactly
+    3/pack. Sold Out (8th-most-recent). Clean run, no instability.
+All eight: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
+matched (163/163, 169/169, 170/170, 137/137, 132/132, 102/102, 132/132, 90/90), verified pushed to Raff and
 queried back exactly matching local data. Backfilled sequentially, never concurrently with
 each other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName
 "NHL Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new
