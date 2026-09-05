@@ -1015,7 +1015,7 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04/05 — TEN DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+BACKFILL SCOPE, 2026-09-04/05 — ELEVEN DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
 ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED (TEMPORARILY AUTONOMOUS PER-REFRESH-CYCLE
 LATE 2026-09-04 EVENING, USER AWAY A FEW HOURS — see feedback memory, not a permanent policy)
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
@@ -1067,8 +1067,19 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
     5/pack. Sold Out (10th-most-recent). IMPORTANT DISCOVERY on this one — see PUBLISHED
     SHEET URLS ARE NOT STABLE below; a new sanity check in import-pack-highlight-pool.js
     caught it correctly.
-All ten: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
-matched (163/163, 169/169, 170/170, 137/137, 132/132, 102/102, 132/132, 90/90, 90/90, 90/90), verified pushed to Raff and
+  - series_id ebWV421G, "Opening Ice 2025-26 Debut LE Pack" RARE
+    (https://nhlbreakaway.com/drop/ebWV421G) — 470 packs, 2,350 card pulls linked, exactly
+    5/pack. Sold Out (11th-most-recent). Sheet had a real 2nd DISTINCT typo type: 4 rows in
+    its "Fresh Sweaters 2025-26" section (Justin Brazeau, Andrew Mangiapane, Zack Bolduc,
+    Chris Kreider) were labeled Rarity=Limited/Total Minted=500, but every other source
+    (including that set's own dedicated Highlights List sheet, already imported cleanly)
+    confirms Rarity=Core/1500 for all 4 — verified directly against `moments` before fixing.
+    Correctly left unmatched by the script (76/80) rather than guessing; resolved by hand
+    with a new one-off script, scripts/fix-opening-ice-2025-26-fresh-sweaters-typo.js, using
+    the sheet's own approx_avail values against the CORRECT moment_uuid. Final: 80/80.
+All eleven: 0 zero-pull anomalies, 0 unmatched pull links (after the by-hand fix above), 100%
+of highlight-pool sheet rows matched or resolved (163/163, 169/169, 170/170, 137/137,
+132/132, 102/102, 132/132, 90/90, 90/90, 90/90, 80/80), verified pushed to Raff and
 queried back exactly matching local data. Backfilled sequentially, never concurrently with
 each other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName
 "NHL Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new
