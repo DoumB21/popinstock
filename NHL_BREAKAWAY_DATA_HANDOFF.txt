@@ -1015,7 +1015,7 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04/05 — THREE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+BACKFILL SCOPE, 2026-09-04/05 — FIVE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
 ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
 as a first step — same cost class as the sweet_transaction_history Alchemy-hybrid idea
@@ -1039,13 +1039,24 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
     (https://nhlbreakaway.com/drop/QqBmP5RA) — 713 packs, first burn 2026-07-30T17:04:53Z,
     4,278 card pulls linked, exactly 6/pack. ENDED drop — the 3rd-most-recent on /drops,
     proving this isn't limited to only the currently-active 2.
-All three: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
-matched (163/163, 169/169, 170/170), verified pushed to Raff and queried back exactly
-matching local data. Backfilled sequentially, never concurrently with each other or with a
-running refresh-all — always check `Get-ScheduledTaskInfo -TaskName "NHL Breakaway
-Refresh"`'s LastTaskResult (267009 = still running) before starting a new drop's Alchemy
-calls, and mind the ~1hr window before the next scheduled run for a drop's size (a small
-drop like QqBmP5RA's 713 packs took ~8 min for the resolve step alone) — see detect-burns.js's
+  - series_id M1AOraRz, "The Hunt for Stanley 2026 Encore Pack" LIMITED
+    (https://nhlbreakaway.com/drop/M1AOraRz) — 929 packs, 4,645 card pulls linked, exactly
+    5/pack. Sold Out (4th-most-recent).
+  - series_id 2RXxVmRm, "The Hunt for Stanley 2026 Debut Pack" CORE
+    (https://nhlbreakaway.com/drop/2RXxVmRm) — 1,423 packs, 7,115 card pulls linked, exactly
+    5/pack. Sold Out (5th-most-recent).
+All five: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
+matched (163/163, 169/169, 170/170, 137/137, 132/132), verified pushed to Raff and queried
+back exactly matching local data. Backfilled sequentially, never concurrently with each
+other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName "NHL
+Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new drop's
+Alchemy calls, and mind the ~1hr window before the next scheduled run for a drop's size
+(observed resolve-step rate so far: roughly 80-115 packs/min, varies run to run — budget
+generously, e.g. a 1,423-pack drop took ~12 min one run). One real timing miss this session:
+an early wait-loop bug checked LastTaskResult without first confirming a NEW run had
+actually started, so it returned immediately instead of waiting — fixed by also comparing
+LastRunTime against a captured baseline before treating "not running" as "safe to proceed".
+See detect-burns.js's
 own comment on why concurrent Alchemy requests are a real, previously-proven silent-data-loss
 risk, not just a theoretical one.
 To backfill another drop the same way: `node --env-file=.env scripts/backfill-pack-burn-
