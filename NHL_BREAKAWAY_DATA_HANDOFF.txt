@@ -1015,7 +1015,8 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04/05 — ELEVEN DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+BACKFILL SCOPE, 2026-09-04/05 — THIRTEEN DROPS FULLY DONE (+1 IN PROGRESS), NOT THE WHOLE
+163K-PACK HISTORY,
 ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED (TEMPORARILY AUTONOMOUS PER-REFRESH-CYCLE
 LATE 2026-09-04 EVENING, USER AWAY A FEW HOURS — see feedback memory, not a permanent policy)
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
@@ -1075,24 +1076,21 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
     (including that set's own dedicated Highlights List sheet, already imported cleanly)
     confirms Rarity=Core/1500 for all 4 — verified directly against `moments` before fixing.
     Correctly left unmatched by the script (76/80) rather than guessing; resolved by hand
-    with a new one-off script, scripts/fix-opening-ice-2025-26-fresh-sweaters-typo.js, using
-    the sheet's own approx_avail values against the CORRECT moment_uuid. Final: 80/80.
+    with scripts/fix-fresh-sweaters-2025-26-rarity-typo.js, using the sheet's own approx_avail
+    values against the CORRECT moment_uuid. Final: 80/80.
   - series_id M1aozDRK, "Base 2025-26 Debut LE Pack" CORE (https://nhlbreakaway.com/drop/
-    M1aozDRK) — PACK-OPENING HISTORY ONLY: 1,457 packs, 4,371 card pulls linked, exactly
-    3/pack, verified on Raff. Highlight-pool NOT imported — see MULTI-SET "DEBUT LE" PACKS
-    below, a structurally different case discovered on this drop, left for a decision before
-    building anything for it.
+    M1aozDRK) — 1,457 packs, 4,371 card pulls linked, exactly 3/pack. FULLY COMPLETE
+    (corrected 2026-09-05 — see SHARED MULTI-TAB WORKBOOKS below): pool sheet was on a
+    non-default tab (gid=889030832) of the workbook shared with drop #11; 80/80 rows (76
+    auto + 4 via the same Fresh-Sweaters-2025-26-rarity typo fix as drop #11).
   - series_id 2RXxNQRm, "Fresh Sweaters: Legacy Debut LE Pack" LIMITED
-    (https://nhlbreakaway.com/drop/2RXxNQRm) — PACK-OPENING HISTORY ONLY: 692 packs, 3,460
-    card pulls linked, exactly 5/pack, verified on Raff. Also multi-set (5 sets, slot
-    percentages) with a borrowed placeholder link (this one pointed at "Heart & Soul: 80s +
-    90s Debut LE Pack" content) — 2nd consecutive drop hitting this wall, suggesting it may
-    be common rather than rare among "Debut LE Pack"-named drops. See MULTI-SET "DEBUT LE"
-    PACKS below.
-All eleven fully-done drops: 0 zero-pull anomalies, 0 unmatched pull links (after the by-hand
+    (https://nhlbreakaway.com/drop/2RXxNQRm) — 692 packs, 3,460 card pulls linked, exactly
+    5/pack. FULLY COMPLETE: pool sheet was on a non-default tab (gid=615860647) of the
+    workbook shared with drop #14; 48/48 rows, no typo.
+All thirteen drops: 0 zero-pull anomalies, 0 unmatched pull links (after the by-hand
 fix above), 100%
 of highlight-pool sheet rows matched or resolved (163/163, 169/169, 170/170, 137/137,
-132/132, 102/102, 132/132, 90/90, 90/90, 90/90, 80/80), verified pushed to Raff and
+132/132, 102/102, 132/132, 90/90, 90/90, 90/90, 80/80, 80/80, 48/48), verified pushed to Raff and
 queried back exactly matching local data. Backfilled sequentially, never concurrently with
 each other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName
 "NHL Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new
@@ -1126,78 +1124,57 @@ the duration of the import, then re-enable it.
   forget the re-enable step, and don't leave it disabled longer than the one drop's import
   actually needs.
 
-PUBLISHED SHEET URLS ARE NOT STABLE — REAL DISCOVERY, 2026-09-05, drop #10 (Next-Gen Class
-2025-26 Debut LE Pack). The exact same 2PACX-... published-sheet id that correctly served
-"Fresh Sweaters 2025-26 December Expansion Pack" content for drop #9's import legitimately
-served DIFFERENT "Next-Gen Class 2025-26 Debut LE Pack" content ~30 minutes later, for a
-different drop page's Highlights List link. This is NOT a bug on our end or a stale
-page/cache issue (confirmed by re-fetching directly and checking the sheet's own embedded
-title row) — Google Sheets "publish to web" always renders the CURRENT live document, never
-a frozen snapshot, and whoever on NHL Breakaway's side maintains these sheets evidently
-reuses/edits the same published doc across different drops over time (perhaps a shared
-template workflow). PRACTICAL IMPLICATIONS:
-  - A captured sheet URL is only reliable at the moment it's fetched — don't assume it's
-    safe to re-fetch later for the same drop, and don't treat two drops sharing an identical
-    href as necessarily a site bug worth investigating further; it may just be timing.
-  - import-pack-highlight-pool.js now VALIDATES this automatically (added 2026-09-05): it
-    reads the sheet's own title row (e.g. "Next-Gen Class 2025-26 Debut LE Pack (750)") and
-    checks it contains the target pack_uuid's known pack_name from `pack_moments` before
-    importing anything — throws instead of silently importing one drop's numbers under
-    another's pack_uuid. If this check ever fires, the fix is simply to re-visit the drop
-    page and grab its CURRENT Highlights List href, not to debug the script.
-  - Already-completed imports (drops 1-9 at the time this was found) are NOT at risk
-    retroactively — each was correctly captured and verified (row counts, Raff sync) at the
-    time it was imported; this only matters for re-fetching or importing NEW drops going
-    forward.
-
-MULTI-SET "DEBUT LE" PACKS — A STRUCTURALLY DIFFERENT CASE, DISCOVERED 2026-09-05, NOT YET
-BUILT, AWAITING A DECISION. Every drop imported so far (1-11) has ONE dedicated "Highlights
-List" spreadsheet enumerating that specific pack's full contents. "Base 2025-26 Debut LE
-Pack" (series_id M1aozDRK) broke that pattern: its own drop page publishes the pack's real
-mechanics as PLAIN TEXT, not a spreadsheet —
-  One (1) highlight from Base 2025-26 (Core #/1500) [guaranteed]
-  One (1) highlight: 40% Base 2025-26 / 40% Fresh Sweaters 2025-26 / 20% Heart & Soul: 80s + 90s
-  One (1) highlight: 77.94% Fresh Sweaters: Legacy / 10% Opening Ice: Icons / 10% Opening Ice
-    2025-26 / 2% Cause for a Celly: 2000s / 0.06% The Greatest Achievements
-— i.e. this ONE pack draws from 8 different sets, with an official SLOT-LEVEL percentage
-breakdown (which set each of the 3 highlight slots comes from), but NO per-highlight
-quantity within a slot's chosen set the way every other drop's dedicated sheet gave. Its
-own "Highlights List" link isn't stale or wrong — it simply points at ONE of the 8
-constituent sets' own dedicated sheet (Opening Ice 2025-26's, already imported as drop #11)
-as a representative reference, not a comprehensive list for this specific pack. The new
-title-check sanity guard correctly refused to import that as if it were Base-2025-26-
-specific data.
-WHAT'S DONE: this drop's pack-OPENING HISTORY (which real highlights actual openers got) is
-fully resolved and correct regardless of this — 1,457 packs, 4,371 pulls, verified on Raff —
-because that side never depended on a pool sheet at all, only on-chain data.
-WHAT'S NOT DONE / OPEN QUESTION: no `pack_highlight_pools` rows for this pack_uuid. Storing
-the OFFICIAL SLOT PERCENTAGES (verifiably accurate, from NHL Breakaway's own page, arguably
-even more authoritative than the per-highlight sheets used elsewhere) would need a genuinely
-different schema shape than `pack_highlight_pools` (which assumes "N distinct highlights,
-each individually or as one shared-pool group" — not "3 independent random slots, each
-drawing from a different weighted set of whole SETS, not individual highlights"). Options
-not yet decided between: (a) skip pool data entirely for this class of pack, keep only
-opening-history for them; (b) design a new table specifically for slot-percentage-style
-packs; (c) something else. Left unbuilt on purpose rather than guessing — ask the user
-before extending the schema for this. Check how many other drops on /drops share this
-"Debut LE Pack, draws from N sets" shape before assuming it's rare — series naming pattern
-suggests older/legacy multi-set packs may follow this format more often than the newer
-single-pack "Grand Finale"/"Encore" style ones seen in drops 1-11.
-CONFIRMED NOT A ONE-OFF, 2026-09-05: drop #13 ("Fresh Sweaters: Legacy Debut LE Pack",
-2RXxNQRm) hit the exact same wall — multi-set (5 sets, slot percentages), borrowed
-placeholder link (pointed at "Heart & Soul: 80s + 90s Debut LE Pack" content instead). 2/2
-consecutive "Debut LE Pack"-named drops so far lack a dedicated sheet, vs. all 11 prior
-successfully-completed drops (mostly "Grand Finale"/single-set-style names). NOT a reliable
-name-based predictor either way, though — e.g. "Playoff Bound 2026 Debut LE Pack" (drop #2)
-IS multi-set (12 sections) and DID have a genuine dedicated sheet. The only reliable signal
-is the title-check itself: attempt the normal import, and if it throws a title mismatch,
-that specific drop has no dedicated sheet — fall back to opening-history-only for it and
-move on, rather than trying to predict this from the pack name in advance.
-ADOPTED WORKFLOW GOING FORWARD (until the schema-design question above is resolved): keep
-building PACK-OPENING HISTORY for every drop regardless (universally buildable, needs no
-design decision) — only the highlight-pool step is blocked, and only for drops where the
-title-check fails. Don't skip a whole drop just because its pool sheet turns out to be a
-placeholder; still get its opening-history done and verified, note it as pool-pending.
+SHARED MULTI-TAB WORKBOOKS — THE REAL EXPLANATION, CORRECTED 2026-09-05 (supersedes an
+earlier wrong theory in this doc's history). What first looked like two separate problems —
+"the same URL served different drops' content at different times" (drop #10) and "some
+'Debut LE' packs have no dedicated sheet, just page-published slot percentages" (drops
+#12/#13) — turned out to be ONE thing, found by the user directly inspecting the actual
+spreadsheet (not just its CSV export): NHL Breakaway does NOT publish one workbook per pack.
+It publishes one workbook per RELEASE DATE (e.g. "NHL Breakaway - Nov 11 Drop Highlights",
+"NHL Breakaway - Oct 9 Drop Highlights"), with ONE TAB PER PACK that launched that day. A
+drop's "Highlights List" link always points at that shared workbook's PUBLISHED (default)
+URL — which has no way to select a tab unless a `gid=` is appended. Fetching `/pub?
+output=csv` with no gid silently returns whichever tab is gid=0 (first/leftmost) — a
+DIFFERENT pack's data, not an error, which is exactly why it looked like "wrong content"
+rather than "missing content."
+THE FIX: `import-pack-highlight-pool.js`'s `toCsvUrl()` now extracts a `gid` from the input
+URL (works whether it's `...#gid=123` — what you get copying a tab's URL out of the address
+bar after clicking it — or `...?gid=123`) and forwards it to the CSV export call. To get the
+CORRECT tab's URL for a drop whose default tab doesn't match: open the drop's Highlights
+List link in a browser, look at the tab bar at the bottom of the page, click the tab
+matching that drop's own name, then copy the resulting address-bar URL (it'll have
+`#gid=...` appended) — that's what to pass to the import script.
+CONFIRMED RESOLVED, drops #12 and #13 (previously reported here as "opening-history only,
+no pool data — needs a schema decision" — THAT WAS WRONG, retracted): both have full,
+correctly-structured dedicated data after all, just on a non-default tab of a workbook
+shared with an already-imported drop.
+  - Drop #12 "Base 2025-26 Debut LE Pack" (M1aozDRK): shares the "Nov 11 Drop Highlights"
+    workbook with drop #11 (Opening Ice 2025-26, its default/gid=0 tab). Its own tab
+    (gid=889030832) contains all 8 sections matching its drop page's 8-set breakdown exactly
+    — a real, comprehensive per-pack sheet, not slot-percentage-only after all. 80/80 rows
+    (76 auto + the same known Fresh-Sweaters-2025-26-rarity typo on 4 rows, see below).
+  - Drop #13 "Fresh Sweaters: Legacy Debut LE Pack" (2RXxNQRm): shares the "Oct 9 Drop
+    Highlights" workbook with drop #14 (Heart & Soul: 80s + 90s, its default tab). Its own
+    tab (gid=615860647) matched 48/48 cleanly, no typo.
+Both now fully complete (pool + opening-history), pushed and verified on Raff. The earlier
+"multi-set packs need a different schema" theory was never actually tested against real data
+before being written down — a caution for next time: a title-check failure means "wrong
+tab/URL", not "no data exists" — always try the shared-workbook tab-bar check before
+concluding a design gap exists.
+KNOWN RECURRING TYPO ACROSS THIS WORKBOOK FAMILY: the same 4 players (Justin Brazeau, Andrew
+Mangiapane, Zack Bolduc, Chris Kreider) are mislabeled Rarity=Limited/Total Minted=500 in
+their "Fresh Sweaters 2025-26" section on at least 2 tabs seen so far (Opening Ice 2025-26's
+and Base 2025-26's) — their real moments are Core/1500, confirmed against `moments` and that
+set's own dedicated sheet. `scripts/fix-fresh-sweaters-2025-26-rarity-typo.js` (NHL
+Breakaway project) is now a small reusable one-off for this specific recurring case — takes
+`<pack_uuid> <4 approx_avail numbers, in Brazeau/Mangiapane/Bolduc/Kreider order>` (values
+differ per tab, always check the tab's own numbers, don't reuse another tab's).
+PRACTICAL WORKFLOW GOING FORWARD: for any new drop, try the normal import with the drop
+page's own Highlights List href first. If the title-check throws a mismatch, open that same
+href in a browser, check its tab bar, click through to find a tab matching the target
+drop's name, and retry with that tab's `#gid=...` URL — don't conclude "no data exists" or
+fall back to opening-history-only until the tab bar itself has been checked and has no
+matching tab.
 background/long-running processes got killed externally within a ~15-minute span: multiple
 Bash background wait-loops, AND (more seriously) the resolve-pack-openings.js process itself
 mid-run for the V1orQgqQ drop (stopped at 1,352/1,451 packs). Cause not identified — possibly
