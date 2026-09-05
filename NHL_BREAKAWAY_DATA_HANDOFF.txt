@@ -1077,7 +1077,13 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
     Correctly left unmatched by the script (76/80) rather than guessing; resolved by hand
     with a new one-off script, scripts/fix-opening-ice-2025-26-fresh-sweaters-typo.js, using
     the sheet's own approx_avail values against the CORRECT moment_uuid. Final: 80/80.
-All eleven: 0 zero-pull anomalies, 0 unmatched pull links (after the by-hand fix above), 100%
+  - series_id M1aozDRK, "Base 2025-26 Debut LE Pack" CORE (https://nhlbreakaway.com/drop/
+    M1aozDRK) — PACK-OPENING HISTORY ONLY: 1,457 packs, 4,371 card pulls linked, exactly
+    3/pack, verified on Raff. Highlight-pool NOT imported — see MULTI-SET "DEBUT LE" PACKS
+    below, a structurally different case discovered on this drop, left for a decision before
+    building anything for it.
+All eleven fully-done drops: 0 zero-pull anomalies, 0 unmatched pull links (after the by-hand
+fix above), 100%
 of highlight-pool sheet rows matched or resolved (163/163, 169/169, 170/170, 137/137,
 132/132, 102/102, 132/132, 90/90, 90/90, 90/90, 80/80), verified pushed to Raff and
 queried back exactly matching local data. Backfilled sequentially, never concurrently with
@@ -1136,6 +1142,40 @@ template workflow). PRACTICAL IMPLICATIONS:
     retroactively — each was correctly captured and verified (row counts, Raff sync) at the
     time it was imported; this only matters for re-fetching or importing NEW drops going
     forward.
+
+MULTI-SET "DEBUT LE" PACKS — A STRUCTURALLY DIFFERENT CASE, DISCOVERED 2026-09-05, NOT YET
+BUILT, AWAITING A DECISION. Every drop imported so far (1-11) has ONE dedicated "Highlights
+List" spreadsheet enumerating that specific pack's full contents. "Base 2025-26 Debut LE
+Pack" (series_id M1aozDRK) broke that pattern: its own drop page publishes the pack's real
+mechanics as PLAIN TEXT, not a spreadsheet —
+  One (1) highlight from Base 2025-26 (Core #/1500) [guaranteed]
+  One (1) highlight: 40% Base 2025-26 / 40% Fresh Sweaters 2025-26 / 20% Heart & Soul: 80s + 90s
+  One (1) highlight: 77.94% Fresh Sweaters: Legacy / 10% Opening Ice: Icons / 10% Opening Ice
+    2025-26 / 2% Cause for a Celly: 2000s / 0.06% The Greatest Achievements
+— i.e. this ONE pack draws from 8 different sets, with an official SLOT-LEVEL percentage
+breakdown (which set each of the 3 highlight slots comes from), but NO per-highlight
+quantity within a slot's chosen set the way every other drop's dedicated sheet gave. Its
+own "Highlights List" link isn't stale or wrong — it simply points at ONE of the 8
+constituent sets' own dedicated sheet (Opening Ice 2025-26's, already imported as drop #11)
+as a representative reference, not a comprehensive list for this specific pack. The new
+title-check sanity guard correctly refused to import that as if it were Base-2025-26-
+specific data.
+WHAT'S DONE: this drop's pack-OPENING HISTORY (which real highlights actual openers got) is
+fully resolved and correct regardless of this — 1,457 packs, 4,371 pulls, verified on Raff —
+because that side never depended on a pool sheet at all, only on-chain data.
+WHAT'S NOT DONE / OPEN QUESTION: no `pack_highlight_pools` rows for this pack_uuid. Storing
+the OFFICIAL SLOT PERCENTAGES (verifiably accurate, from NHL Breakaway's own page, arguably
+even more authoritative than the per-highlight sheets used elsewhere) would need a genuinely
+different schema shape than `pack_highlight_pools` (which assumes "N distinct highlights,
+each individually or as one shared-pool group" — not "3 independent random slots, each
+drawing from a different weighted set of whole SETS, not individual highlights"). Options
+not yet decided between: (a) skip pool data entirely for this class of pack, keep only
+opening-history for them; (b) design a new table specifically for slot-percentage-style
+packs; (c) something else. Left unbuilt on purpose rather than guessing — ask the user
+before extending the schema for this. Check how many other drops on /drops share this
+"Debut LE Pack, draws from N sets" shape before assuming it's rare — series naming pattern
+suggests older/legacy multi-set packs may follow this format more often than the newer
+single-pack "Grand Finale"/"Encore" style ones seen in drops 1-11.
 
 ENVIRONMENT INSTABILITY, OBSERVED 2026-09-04 EVENING DURING THE AUTONOMOUS WINDOW — SEVERAL
 background/long-running processes got killed externally within a ~15-minute span: multiple
