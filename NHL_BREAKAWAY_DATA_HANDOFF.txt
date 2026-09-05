@@ -1015,8 +1015,9 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04/05 — FIVE DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
-ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED
+BACKFILL SCOPE, 2026-09-04/05 — SIX DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED (TEMPORARILY AUTONOMOUS PER-REFRESH-CYCLE
+LATE 2026-09-04 EVENING, USER AWAY A FEW HOURS — see feedback memory, not a permanent policy)
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
 as a first step — same cost class as the sweet_transaction_history Alchemy-hybrid idea
 declined earlier (one eth_getTransactionReceipt call per pack; 163K of them would be a
@@ -1045,17 +1046,26 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
   - series_id 2RXxVmRm, "The Hunt for Stanley 2026 Debut Pack" CORE
     (https://nhlbreakaway.com/drop/2RXxVmRm) — 1,423 packs, 7,115 card pulls linked, exactly
     5/pack. Sold Out (5th-most-recent).
-All five: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
-matched (163/163, 169/169, 170/170, 137/137, 132/132), verified pushed to Raff and queried
-back exactly matching local data. Backfilled sequentially, never concurrently with each
-other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName "NHL
-Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new drop's
-Alchemy calls, and mind the ~1hr window before the next scheduled run for a drop's size
-(observed resolve-step rate so far: roughly 80-115 packs/min, varies run to run — budget
-generously, e.g. a 1,423-pack drop took ~12 min one run). One real timing miss this session:
-an early wait-loop bug checked LastTaskResult without first confirming a NEW run had
-actually started, so it returned immediately instead of waiting — fixed by also comparing
-LastRunTime against a captured baseline before treating "not running" as "safe to proceed".
+  - series_id QRvZLoRw, "Conn Smythe Showcase Debut LE Pack" EPIC
+    (https://nhlbreakaway.com/drop/QRvZLoRw) — 1,474 packs, 4,422 card pulls linked, exactly
+    3/pack. Sold Out (6th-most-recent).
+All six: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
+matched (163/163, 169/169, 170/170, 137/137, 132/132, 102/102), verified pushed to Raff and
+queried back exactly matching local data. Backfilled sequentially, never concurrently with
+each other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName
+"NHL Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new
+drop's Alchemy calls, and mind the ~1hr window before the next scheduled run for a drop's
+size (observed resolve-step rate so far: roughly 80-115 packs/min, varies run to run —
+budget generously, e.g. a 1,423-pack drop took ~12 min one run). TWO real timing bugs found
+and fixed this session, both the same root cause (PowerShell datetime string comparison is
+fragile) — an early wait-loop checked LastTaskResult without confirming a NEW run had
+actually started (fixed by comparing LastRunTime.ToString('o') against a captured baseline);
+a LATER wait-loop reintroduced a variant of the same bug by comparing a hardcoded literal
+against LastRunTime's default (non-'o') string format, which didn't match and caused an
+immediate false-exit after ~30s instead of waiting ~23 minutes. ALWAYS use
+`.LastRunTime.ToString('o')` (ISO 8601) captured as a baseline immediately before the wait
+starts, never a hardcoded literal or the default PowerShell date format, when writing a
+"wait for the next scheduled run" loop for this task.
 See detect-burns.js's
 own comment on why concurrent Alchemy requests are a real, previously-proven silent-data-loss
 risk, not just a theoretical one.
