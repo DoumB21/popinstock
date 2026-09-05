@@ -1015,7 +1015,7 @@ highlight" (apply N to every row in the section) vs "N highlight(s) total" (N sh
 the whole section, the approx_avail_set case) — inherited down through the section's blank
 rows until the next section header resets it.
 
-BACKFILL SCOPE, 2026-09-04/05 — SIX DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
+BACKFILL SCOPE, 2026-09-04/05 — SEVEN DROPS FULLY DONE, NOT THE WHOLE 163K-PACK HISTORY,
 ONGOING ON-DEMAND PER-DROP WORKFLOW ESTABLISHED (TEMPORARILY AUTONOMOUS PER-REFRESH-CYCLE
 LATE 2026-09-04 EVENING, USER AWAY A FEW HOURS — see feedback memory, not a permanent policy)
 Full historical backfill (163,237 packs ever burned campaign-wide) was explicitly declined
@@ -1049,8 +1049,14 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
   - series_id QRvZLoRw, "Conn Smythe Showcase Debut LE Pack" EPIC
     (https://nhlbreakaway.com/drop/QRvZLoRw) — 1,474 packs, 4,422 card pulls linked, exactly
     3/pack. Sold Out (6th-most-recent).
-All six: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
-matched (163/163, 169/169, 170/170, 137/137, 132/132, 102/102), verified pushed to Raff and
+  - series_id V1orQgqQ, "Filthy Apples Debut LE Pack" LIMITED
+    (https://nhlbreakaway.com/drop/V1orQgqQ) — 1,451 packs, 7,255 card pulls linked, exactly
+    5/pack. Sold Out (7th-most-recent). This run's resolve-pack-openings.js process itself
+    got killed externally partway through (1,352/1,451 done at that point) — safe to just
+    re-run (idempotent, skips already-resolved packs), finished the remaining 99 cleanly on
+    the retry. See the ENVIRONMENT INSTABILITY note below.
+All seven: 0 zero-pull anomalies, 0 unmatched pull links, 100% of highlight-pool sheet rows
+matched (163/163, 169/169, 170/170, 137/137, 132/132, 102/102, 132/132), verified pushed to Raff and
 queried back exactly matching local data. Backfilled sequentially, never concurrently with
 each other or with a running refresh-all — always check `Get-ScheduledTaskInfo -TaskName
 "NHL Breakaway Refresh"`'s LastTaskResult (267009 = still running) before starting a new
@@ -1069,6 +1075,20 @@ starts, never a hardcoded literal or the default PowerShell date format, when wr
 See detect-burns.js's
 own comment on why concurrent Alchemy requests are a real, previously-proven silent-data-loss
 risk, not just a theoretical one.
+
+ENVIRONMENT INSTABILITY, OBSERVED 2026-09-04 EVENING DURING THE AUTONOMOUS WINDOW — SEVERAL
+background/long-running processes got killed externally within a ~15-minute span: multiple
+Bash background wait-loops, AND (more seriously) the resolve-pack-openings.js process itself
+mid-run for the V1orQgqQ drop (stopped at 1,352/1,451 packs). Cause not identified — possibly
+environment/session interruptions unrelated to this code. Good news: every script in this
+workflow is idempotent (safe to just re-run — it skips already-completed work), so no data
+was lost or corrupted, just needed a retry. If this recurs: (1) don't assume a "killed"
+background task means anything is wrong with the data, check the actual DB/table state
+directly rather than trusting the log tail alone (the log can be stale even though the writes
+already landed); (2) prefer shorter foreground waits (chained, checking directly) over long
+`run_in_background` waits if backgrounding keeps getting interrupted; (3) resolve-pack-
+openings.js and backfill-pack-burn-hashes.js are both safe to blindly re-run against the same
+series_id after any interruption.
 To backfill another drop the same way: `node --env-file=.env scripts/backfill-pack-burn-
 hashes.js <series_id>` (fills packs.burned_tx_hash for that contract's full history) then
 `node --env-file=.env scripts/resolve-pack-openings.js <series_id>` (resolves the pulls) —
