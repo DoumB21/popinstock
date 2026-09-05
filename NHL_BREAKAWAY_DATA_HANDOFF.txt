@@ -1082,6 +1082,13 @@ Drops backfilled so far, each their ENTIRE history (not date-limited):
     3/pack, verified on Raff. Highlight-pool NOT imported — see MULTI-SET "DEBUT LE" PACKS
     below, a structurally different case discovered on this drop, left for a decision before
     building anything for it.
+  - series_id 2RXxNQRm, "Fresh Sweaters: Legacy Debut LE Pack" LIMITED
+    (https://nhlbreakaway.com/drop/2RXxNQRm) — PACK-OPENING HISTORY ONLY: 692 packs, 3,460
+    card pulls linked, exactly 5/pack, verified on Raff. Also multi-set (5 sets, slot
+    percentages) with a borrowed placeholder link (this one pointed at "Heart & Soul: 80s +
+    90s Debut LE Pack" content) — 2nd consecutive drop hitting this wall, suggesting it may
+    be common rather than rare among "Debut LE Pack"-named drops. See MULTI-SET "DEBUT LE"
+    PACKS below.
 All eleven fully-done drops: 0 zero-pull anomalies, 0 unmatched pull links (after the by-hand
 fix above), 100%
 of highlight-pool sheet rows matched or resolved (163/163, 169/169, 170/170, 137/137,
@@ -1176,8 +1183,21 @@ before extending the schema for this. Check how many other drops on /drops share
 "Debut LE Pack, draws from N sets" shape before assuming it's rare — series naming pattern
 suggests older/legacy multi-set packs may follow this format more often than the newer
 single-pack "Grand Finale"/"Encore" style ones seen in drops 1-11.
-
-ENVIRONMENT INSTABILITY, OBSERVED 2026-09-04 EVENING DURING THE AUTONOMOUS WINDOW — SEVERAL
+CONFIRMED NOT A ONE-OFF, 2026-09-05: drop #13 ("Fresh Sweaters: Legacy Debut LE Pack",
+2RXxNQRm) hit the exact same wall — multi-set (5 sets, slot percentages), borrowed
+placeholder link (pointed at "Heart & Soul: 80s + 90s Debut LE Pack" content instead). 2/2
+consecutive "Debut LE Pack"-named drops so far lack a dedicated sheet, vs. all 11 prior
+successfully-completed drops (mostly "Grand Finale"/single-set-style names). NOT a reliable
+name-based predictor either way, though — e.g. "Playoff Bound 2026 Debut LE Pack" (drop #2)
+IS multi-set (12 sections) and DID have a genuine dedicated sheet. The only reliable signal
+is the title-check itself: attempt the normal import, and if it throws a title mismatch,
+that specific drop has no dedicated sheet — fall back to opening-history-only for it and
+move on, rather than trying to predict this from the pack name in advance.
+ADOPTED WORKFLOW GOING FORWARD (until the schema-design question above is resolved): keep
+building PACK-OPENING HISTORY for every drop regardless (universally buildable, needs no
+design decision) — only the highlight-pool step is blocked, and only for drops where the
+title-check fails. Don't skip a whole drop just because its pool sheet turns out to be a
+placeholder; still get its opening-history done and verified, note it as pool-pending.
 background/long-running processes got killed externally within a ~15-minute span: multiple
 Bash background wait-loops, AND (more seriously) the resolve-pack-openings.js process itself
 mid-run for the V1orQgqQ drop (stopped at 1,352/1,451 packs). Cause not identified — possibly
