@@ -21,6 +21,7 @@ window.buildSharedFooter = function () {
       <a href="https://www.twitch.tv/popinstock" target="_blank" rel="noopener noreferrer" aria-label="Twitch">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11.571 4.714h1.715v5.143h-1.715zm4.715 0H18v5.143h-1.714zM6 0 1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
       </a>
+      <a class="footer-donate" href="https://www.paypal.com/donate/?hosted_button_id=JW4L2HR74X7HN" target="_blank" rel="noopener noreferrer">Donate</a>
     </div>
     &copy; 2026 Hoardio &mdash; All rights reserved.
     <div>All images, logos, and trademarks displayed on this site are the property of their respective owners. No affiliation or endorsement is implied. Used for informational purposes only.</div>
